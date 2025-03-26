@@ -244,7 +244,7 @@ class _Signup_1State extends State<Signup_1> {
                         ],
                       ),
                     ),
-                    SizedBox(height: Responsive.space(context, size: Space.xlarge)),
+                    SizedBox(height: Responsive.space(context, size: Space.xlarge) * 4),
                     ElevatedButton(
                       onPressed: () {
                         if (_formKey.currentState!.validate()) {
@@ -255,14 +255,14 @@ class _Signup_1State extends State<Signup_1> {
                         backgroundColor: Colors.black87,
                         shape: CircleBorder(),
                         minimumSize: Size(
-                          Responsive.space(context, size: Space.xlarge) * 3,
-                          Responsive.space(context, size: Space.xlarge) * 3,
+                          Responsive.space(context, size: Space.xlarge) * 4,
+                          Responsive.space(context, size: Space.xlarge) * 4,
                         ),
                         elevation: 5,
                       ),
                       child: Icon(
                         Icons.arrow_back,
-                        size: Responsive.text(context, size: TextSize.heading),
+                        size: Responsive.text(context, size: TextSize.heading) * 1.5,
                         color: Colors.white,
                       ),
                     ),
