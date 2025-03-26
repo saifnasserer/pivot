@@ -22,10 +22,14 @@ class FirstLanding extends StatelessWidget {
           width: double.infinity,
           decoration: BoxDecoration(
             color: Color(0xff161616),
-            // image: DecorationImage(
-            //   // image: AssetImage('assets/images/background.png'),
-            //   // fit: BoxFit.cover,
-            // ),
+            image: DecorationImage(
+              
+        
+              image: AssetImage('assets/images/Group 113.png'),
+              // fit: BoxFit.contain,
+              opacity: 0.15,
+              scale: 1.2,
+            ),
           ),
           child: Padding(
             padding: Responsive.paddingHorizontal(context, size: Space.medium),
