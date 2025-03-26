@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:pivot/screens/section1/signup_page2.dart';
-import '../../responsive.dart';
+import 'package:pivot/screens/section1/signup/signup_page2.dart';
+import 'package:pivot/screens/section2/landing.dart';
+import '../../../responsive.dart';
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -244,7 +245,7 @@ class _LoginState extends State<Login> {
                         onPressed: () {
                           if (_formKey.currentState!.validate()) {
                             // Handle form submission
-                            Navigator.pushNamed(context, Signup_2.id);
+                            Navigator.pushNamed(context, Landing.id);
                           }
                         },
                         style: ElevatedButton.styleFrom(

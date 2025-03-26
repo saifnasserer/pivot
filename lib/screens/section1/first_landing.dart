@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:pivot/screens/section1/signup_page1.dart';
+import 'package:pivot/screens/section1/login/login.dart';
+import 'package:pivot/screens/section1/signup/signup_page1.dart';
 import '../../responsive.dart';
 
 class FirstLanding extends StatelessWidget {
-  const FirstLanding({
-    super.key,
-  });
+  const FirstLanding({super.key});
   static String id = 'landing1';
   @override
   Widget build(BuildContext context) {
@@ -23,8 +22,6 @@ class FirstLanding extends StatelessWidget {
           decoration: BoxDecoration(
             color: Color(0xff161616),
             image: DecorationImage(
-              
-        
               image: AssetImage('assets/images/Group 113.png'),
               // fit: BoxFit.contain,
               opacity: 0.15,
@@ -43,8 +40,10 @@ class FirstLanding extends StatelessWidget {
                       textAlign: TextAlign.right,
                       'واخيراً\n حياة جامعية منظمة',
                       style: TextStyle(
-                        color: Colors.white, 
-                        fontSize: Responsive.text(context, size: TextSize.heading) * 1.5,
+                        color: Colors.white,
+                        fontSize:
+                            Responsive.text(context, size: TextSize.heading) *
+                            1.5,
                       ),
                     ),
                   ),
@@ -52,47 +51,73 @@ class FirstLanding extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    SizedBox(width: Responsive.space(context, size: Space.medium)),
+                    SizedBox(
+                      width: Responsive.space(context, size: Space.small),
+                    ),
                     ElevatedButton(
-                      onPressed: (){
+                      onPressed: () {
                         Navigator.pushNamed(context, Signup_1.id);
-                      }, 
+                      },
                       child: Row(
                         children: [
-                          Icon(Icons.arrow_back, color: Colors.black, size: Responsive.text(context, size: TextSize.medium)),
+                          Icon(
+                            Icons.arrow_back,
+                            color: Colors.black,
+                            size: Responsive.text(
+                              context,
+                              size: TextSize.medium,
+                            ),
+                          ),
                           Text(
-                            ' التسجيل',
+                            ' حساب جديد',
                             style: TextStyle(
                               color: Colors.black,
-                              fontSize: Responsive.text(context, size: TextSize.medium),
+                              fontSize: Responsive.text(
+                                context,
+                                size: TextSize.medium,
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
-                    SizedBox(width: Responsive.space(context, size: Space.medium)),
+                    SizedBox(
+                      width: Responsive.space(context, size: Space.medium),
+                    ),
                     TextButton(
-                      onPressed: (){}, 
+                      onPressed: () {
+                        Navigator.pushNamed(context, Login.id);
+                      },
                       child: Row(
                         children: [
-                          Icon(Icons.arrow_back, color: Colors.white, size: Responsive.text(context, size: TextSize.medium)),
+                          Icon(
+                            Icons.arrow_back,
+                            color: Colors.white,
+                            size: Responsive.text(
+                              context,
+                              size: TextSize.medium,
+                            ),
+                          ),
                           Text(
                             ' تسجيل الدخول',
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: Responsive.text(context, size: TextSize.medium),
+                              fontSize: Responsive.text(
+                                context,
+                                size: TextSize.medium,
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
-                  ]
+                  ],
                 ),
-                SizedBox(height: Responsive.space(context, size: Space.xlarge)), 
+                SizedBox(height: Responsive.space(context, size: Space.xlarge)),
               ],
             ),
           ),
-        )
+        ),
       ),
     );
   }

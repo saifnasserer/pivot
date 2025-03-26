@@ -36,6 +36,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   flutter_launcher_icons: ^0.14.3
   lottie: ^3.3.1
+  flutter_card_swiper: ^7.0.2
 
 flutter_launcher_icons:
   android: "launcher_icon"
@@ -68,6 +69,7 @@ flutter:
   assets:
     - assets/fonts/
     - assets/images/
+    - assets/
     
 
   # An image asset can refer to one or more resolution-specific "variants", see

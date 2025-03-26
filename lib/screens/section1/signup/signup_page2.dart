@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import '../../../responsive.dart';
+import 'package:pivot/screens/section1/first_landing.dart';
+import 'package:pivot/screens/section2/landing.dart';
+import '../../../../responsive.dart';
 
 class Signup_2 extends StatefulWidget {
   const Signup_2({super.key});
@@ -97,26 +98,6 @@ class _Signup_2State extends State<Signup_2> {
         onChanged: onChanged,
       ),
     );
-  }
-
-  String? _validatePhone(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'الرجاء إدخال رقم الموبايل';
-    }
-    if (!RegExp(r'^(0)[0-9]{10}$').hasMatch(value)) {
-      return 'رقم الموبايل غير صحيح';
-    }
-    return null;
-  }
-
-  String? _validatePassword(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'الرجاء إدخال كلمة المرور';
-    }
-    if (value.length < 8) {
-      return 'الباسورد علي الاقل 8 حروف';
-    }
-    return null;
   }
 
   @override
@@ -293,6 +274,7 @@ class _Signup_2State extends State<Signup_2> {
                     onPressed: () {
                       if (_formKey.currentState!.validate()) {
                         // Handle form submission
+                        Navigator.pushNamed(context, Landing.id);
                       }
                     },
                     style: ElevatedButton.styleFrom(
