@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/section2/category_section.dart';
-import 'package:pivot/screens/section2/models/card_model.dart';
+import 'package:pivot/screens/models/card_model.dart';
+import 'package:pivot/screens/section3/profile.dart';
 
 class Landing extends StatefulWidget {
   const Landing({super.key});
@@ -44,6 +45,7 @@ class LandingState extends State<Landing> with SingleTickerProviderStateMixin {
         statusBarBrightness: Brightness.dark,
       ),
       child: Scaffold(
+        backgroundColor: Colors.white,
         body: SafeArea(
           child: Column(
             children: [
@@ -74,6 +76,7 @@ class LandingState extends State<Landing> with SingleTickerProviderStateMixin {
                       icon: Icon(Icons.person_outline_rounded),
                       onPressed: () {
                         // Handle profile icon press
+                        Navigator.pushNamed(context, Profile.id);
                       },
                     ),
                   ],

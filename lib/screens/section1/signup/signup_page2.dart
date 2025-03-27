@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:pivot/screens/section1/first_landing.dart';
 import 'package:pivot/screens/section2/landing.dart';
 import '../../../../responsive.dart';
 

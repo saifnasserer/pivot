@@ -2,26 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/models/category_model.dart';
 
-class CategorySection extends StatefulWidget {
-  const CategorySection({super.key, this.onCategoryChanged});
+class ProfileCategories extends StatefulWidget {
+  ProfileCategories({super.key, this.onCategoryChanged});
   final void Function(String category)? onCategoryChanged;
-
+  final List<String> categories = [
+    'تاسكات الاسبوع',
+    'الجدول',
+    'مواد الترم',
+    'السكاشن',
+  ];
   @override
-  State<CategorySection> createState() => _CategorySectionState();
+  State<ProfileCategories> createState() => PprofileCategoriesState();
 }
 
-class _CategorySectionState extends State<CategorySection> {
+class PprofileCategoriesState extends State<ProfileCategories> {
   int selectedIndex = 0;
-
-  final List<String> categories = [
-    'اخبار النهاردة',
-    'اخبار الاسبوع',
-    'اخبار قسم SC',
-    'اخبار قسم AI',
-    'اخبار قسم CS',
-    'اخبار قسم IS',
-  ];
-
   @override
   Widget build(BuildContext context) {
     return SizedBox(
@@ -30,16 +25,16 @@ class _CategorySectionState extends State<CategorySection> {
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
         reverse: true,
-        itemCount: categories.length,
+        itemCount: widget.categories.length,
         itemBuilder: (context, index) {
           return CategoryButton(
             selected: selectedIndex == index,
-            title: categories[index],
+            title: widget.categories[index],
             onSelected: () {
               setState(() {
                 selectedIndex = index;
               });
-              widget.onCategoryChanged?.call(categories[index]);
+              widget.onCategoryChanged?.call(widget.categories[index]);
             },
           );
         },
