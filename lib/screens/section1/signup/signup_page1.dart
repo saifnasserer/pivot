@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../responsive.dart';
+import 'package:pivot/screens/section1/signup/signup_page2.dart';
+import '../../../responsive.dart';
 
 class Signup_1 extends StatefulWidget {
   const Signup_1({super.key});
@@ -22,28 +23,41 @@ class _Signup_1State extends State<Signup_1> {
   bool _isPasswordValid = false;
 
   // Common decoration for all text fields
-  InputDecoration _getInputDecoration(BuildContext context, String hint, {Widget? suffixIcon, bool? isValid}) {
+  InputDecoration _getInputDecoration(
+    BuildContext context,
+    String hint, {
+    Widget? suffixIcon,
+    bool? isValid,
+  }) {
     return InputDecoration(
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(Responsive.space(context, size: Space.medium)),
+        borderRadius: BorderRadius.circular(
+          Responsive.space(context, size: Space.medium),
+        ),
         borderSide: BorderSide(color: Color(0xFFF7F7F7)),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(Responsive.space(context, size: Space.medium)),
+        borderRadius: BorderRadius.circular(
+          Responsive.space(context, size: Space.medium),
+        ),
         borderSide: BorderSide(
           color: isValid == true ? Colors.green : Color(0xFFF7F7F7),
           width: isValid == true ? 2 : 1,
         ),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(Responsive.space(context, size: Space.medium)),
+        borderRadius: BorderRadius.circular(
+          Responsive.space(context, size: Space.medium),
+        ),
         borderSide: BorderSide(
           color: isValid == true ? Colors.green : Colors.black,
           width: isValid == true ? 2 : 1,
         ),
       ),
       errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(Responsive.space(context, size: Space.medium)),
+        borderRadius: BorderRadius.circular(
+          Responsive.space(context, size: Space.medium),
+        ),
         borderSide: BorderSide(color: Colors.red),
       ),
       hintText: hint,
@@ -106,7 +120,7 @@ class _Signup_1State extends State<Signup_1> {
     _passwordFocus.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -128,20 +142,36 @@ class _Signup_1State extends State<Signup_1> {
                 child: Column(
                   children: [
                     Padding(
-                      padding: Responsive.paddingHorizontal(context, size: Space.xlarge),
+                      padding: Responsive.paddingHorizontal(
+                        context,
+                        size: Space.xlarge,
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          SizedBox(height: Responsive.space(context, size: Space.xlarge)),
+                          SizedBox(
+                            height: Responsive.space(
+                              context,
+                              size: Space.xlarge,
+                            ),
+                          ),
                           Text(
                             'البيانات الاساسية',
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              fontSize: Responsive.text(context, size: TextSize.heading),
+                              fontSize: Responsive.text(
+                                context,
+                                size: TextSize.heading,
+                              ),
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          SizedBox(height: Responsive.space(context, size: Space.xlarge)),
+                          SizedBox(
+                            height: Responsive.space(
+                              context,
+                              size: Space.xlarge,
+                            ),
+                          ),
                           TextFormField(
                             focusNode: _nameFocus,
                             textDirection: TextDirection.rtl,
@@ -153,16 +183,28 @@ class _Signup_1State extends State<Signup_1> {
                             validator: _validateName,
                             style: TextStyle(
                               color: Colors.black,
-                              fontSize: Responsive.text(context, size: TextSize.medium),
+                              fontSize: Responsive.text(
+                                context,
+                                size: TextSize.medium,
+                              ),
                             ),
                             onChanged: (value) {
                               setState(() {
                                 _isNameValid = _validateName(value) == null;
                               });
                             },
-                            decoration: _getInputDecoration(context, 'الاسم', isValid: _isNameValid),
+                            decoration: _getInputDecoration(
+                              context,
+                              'الاسم',
+                              isValid: _isNameValid,
+                            ),
                           ),
-                          SizedBox(height: Responsive.space(context, size: Space.medium)),
+                          SizedBox(
+                            height: Responsive.space(
+                              context,
+                              size: Space.medium,
+                            ),
+                          ),
                           TextFormField(
                             focusNode: _emailFocus,
                             textDirection: TextDirection.rtl,
@@ -175,38 +217,64 @@ class _Signup_1State extends State<Signup_1> {
                             keyboardType: TextInputType.emailAddress,
                             style: TextStyle(
                               color: Colors.black,
-                              fontSize: Responsive.text(context, size: TextSize.medium),
+                              fontSize: Responsive.text(
+                                context,
+                                size: TextSize.medium,
+                              ),
                             ),
                             onChanged: (value) {
                               setState(() {
                                 _isEmailValid = _validateEmail(value) == null;
                               });
                             },
-                            decoration: _getInputDecoration(context, 'الايميل الجامعي', isValid: _isEmailValid),
+                            decoration: _getInputDecoration(
+                              context,
+                              'الايميل الجامعي',
+                              isValid: _isEmailValid,
+                            ),
                           ),
-                          SizedBox(height: Responsive.space(context, size: Space.medium)),
+                          SizedBox(
+                            height: Responsive.space(
+                              context,
+                              size: Space.medium,
+                            ),
+                          ),
                           TextFormField(
                             focusNode: _phoneFocus,
                             textDirection: TextDirection.rtl,
                             textAlign: TextAlign.center,
                             textInputAction: TextInputAction.next,
                             onEditingComplete: () {
-                              FocusScope.of(context).requestFocus(_passwordFocus);
+                              FocusScope.of(
+                                context,
+                              ).requestFocus(_passwordFocus);
                             },
                             validator: _validatePhone,
                             keyboardType: TextInputType.phone,
                             style: TextStyle(
                               color: Colors.black,
-                              fontSize: Responsive.text(context, size: TextSize.medium),
+                              fontSize: Responsive.text(
+                                context,
+                                size: TextSize.medium,
+                              ),
                             ),
                             onChanged: (value) {
                               setState(() {
                                 _isPhoneValid = _validatePhone(value) == null;
                               });
                             },
-                            decoration: _getInputDecoration(context, 'رقم الموبيل', isValid: _isPhoneValid),
+                            decoration: _getInputDecoration(
+                              context,
+                              'رقم الموبيل',
+                              isValid: _isPhoneValid,
+                            ),
                           ),
-                          SizedBox(height: Responsive.space(context, size: Space.medium)),
+                          SizedBox(
+                            height: Responsive.space(
+                              context,
+                              size: Space.medium,
+                            ),
+                          ),
                           TextFormField(
                             focusNode: _passwordFocus,
                             textDirection: TextDirection.rtl,
@@ -216,11 +284,15 @@ class _Signup_1State extends State<Signup_1> {
                             validator: _validatePassword,
                             style: TextStyle(
                               color: Colors.black,
-                              fontSize: Responsive.text(context, size: TextSize.medium),
+                              fontSize: Responsive.text(
+                                context,
+                                size: TextSize.medium,
+                              ),
                             ),
                             onChanged: (value) {
                               setState(() {
-                                _isPasswordValid = _validatePassword(value) == null;
+                                _isPasswordValid =
+                                    _validatePassword(value) == null;
                               });
                             },
                             decoration: _getInputDecoration(
@@ -229,8 +301,13 @@ class _Signup_1State extends State<Signup_1> {
                               isValid: _isPasswordValid,
                               suffixIcon: IconButton(
                                 icon: Icon(
-                                  _isPasswordVisible ? Icons.visibility_off : Icons.visibility,
-                                  size: Responsive.text(context, size: TextSize.medium),
+                                  _isPasswordVisible
+                                      ? Icons.visibility_off
+                                      : Icons.visibility,
+                                  size: Responsive.text(
+                                    context,
+                                    size: TextSize.medium,
+                                  ),
                                   color: Colors.grey,
                                 ),
                                 onPressed: () {
@@ -244,25 +321,30 @@ class _Signup_1State extends State<Signup_1> {
                         ],
                       ),
                     ),
-                    SizedBox(height: Responsive.space(context, size: Space.xlarge)),
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.xlarge) * 4,
+                    ),
                     ElevatedButton(
                       onPressed: () {
                         if (_formKey.currentState!.validate()) {
                           // Handle form submission
+                          Navigator.pushNamed(context, Signup_2.id);
                         }
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.black87,
                         shape: CircleBorder(),
                         minimumSize: Size(
-                          Responsive.space(context, size: Space.xlarge) * 3,
-                          Responsive.space(context, size: Space.xlarge) * 3,
+                          Responsive.space(context, size: Space.xlarge) * 4,
+                          Responsive.space(context, size: Space.xlarge) * 4,
                         ),
                         elevation: 5,
                       ),
                       child: Icon(
                         Icons.arrow_back,
-                        size: Responsive.text(context, size: TextSize.heading),
+                        size:
+                            Responsive.text(context, size: TextSize.heading) *
+                            1.5,
                         color: Colors.white,
                       ),
                     ),
