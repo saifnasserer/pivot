@@ -9,6 +9,7 @@ class TaskModel extends StatefulWidget {
     required this.title,
     required this.description,
   });
+
   bool check = false;
   final DateTime date;
   final Color color;
@@ -95,7 +96,7 @@ class _TaskModelState extends State<TaskModel> {
                   right: Responsive.space(context, size: Space.large) * 2.5,
                 ),
                 child: Text(
-                  'اخر معاد للتسليم : ${formattedDate}',
+                  'اخر معاد للتسليم : $formattedDate',
                   textAlign: TextAlign.end,
                   style: TextStyle(
                     fontSize: Responsive.text(context, size: TextSize.small),

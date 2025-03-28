@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/responsive.dart';
-import 'package:pivot/screens/models/task_model.dart';
+import 'package:pivot/screens/section3/profile_widgets/Profile_options.dart';
 import 'package:pivot/screens/section3/profile_categories_section.dart';
-import 'package:pivot/screens/section3/week_tasks_section/week_tasks.dart';
+import 'package:pivot/screens/section3/profile_details.dart';
+import 'package:pivot/screens/section3/profile_widgets/schadule.dart';
+import 'package:pivot/screens/section3/profile_widgets/sections.dart';
+import 'package:pivot/screens/section3/profile_widgets/subjects.dart';
+import 'package:pivot/screens/section3/profile_widgets/week_tasks.dart';
 
 class Profile extends StatefulWidget {
   static const String id = 'profile';
@@ -20,38 +24,11 @@ class _ProfileState extends State<Profile> {
       case 'تاسكات الاسبوع':
         return WeekTasksSection();
       case 'الجدول':
-        // TODO: Replace with Schedule section when created
-        return Center(
-          child: Text(
-            'الجدول سيظهر هنا',
-            style: TextStyle(
-              fontSize: Responsive.space(context, size: Space.medium),
-              color: Colors.black54,
-            ),
-          ),
-        );
+        return Schadule();
       case 'مواد الترم':
-        // TODO: Replace with Term Subjects section when created
-        return Center(
-          child: Text(
-            'مواد الترم ستظهر هنا',
-            style: TextStyle(
-              fontSize: Responsive.space(context, size: Space.medium),
-              color: Colors.black54,
-            ),
-          ),
-        );
+        return SubjectsSection();
       case 'السكاشن':
-        // TODO: Replace with Sections content when created
-        return Center(
-          child: Text(
-            'السكاشن ستظهر هنا',
-            style: TextStyle(
-              fontSize: Responsive.space(context, size: Space.medium),
-              color: Colors.black54,
-            ),
-          ),
-        );
+        return Sections();
       default:
         return WeekTasksSection();
     }
@@ -62,8 +39,6 @@ class _ProfileState extends State<Profile> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        // title: Text('الملف الشخصي'),
-        // centerTitle: true,
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
@@ -71,14 +46,13 @@ class _ProfileState extends State<Profile> {
           icon: Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () {
             Navigator.pop(context);
-            // Handle back icon press
           },
         ),
         actions: [
           IconButton(
             icon: Icon(Icons.more_vert_sharp, color: Colors.black),
             onPressed: () {
-              // Handle search icon press
+              profile_options(context);
             },
           ),
         ],
@@ -88,61 +62,7 @@ class _ProfileState extends State<Profile> {
           padding: Responsive.paddingHorizontal(context),
           child: Column(
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        'SC قسم',
-                        style: TextStyle(
-                          fontSize: Responsive.space(
-                            context,
-                            size: Space.medium,
-                          ),
-                          color: Color(0xffD9D9D9),
-                        ),
-                      ),
-                      Text(
-                        'فاطمة بشير',
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize:
-                              Responsive.space(context, size: Space.xlarge) *
-                              1.2,
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        'فرقة تالتة',
-                        style: TextStyle(
-                          fontSize: Responsive.space(
-                            context,
-                            size: Space.medium,
-                          ),
-                          color: Color(0xffD9D9D9),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(width: Responsive.space(context, size: Space.large)),
-                  Container(
-                    width: Responsive.space(context, size: Space.large) * 5,
-                    height: Responsive.space(context, size: Space.large) * 5,
-                    decoration: BoxDecoration(
-                      color: Colors.black,
-                      shape: BoxShape.circle,
-                      // image: DecorationImage(
-                      //   image: AssetImage('assets/icon.png'),
-                      //   fit: BoxFit.cover,
-                      // ),
-                    ),
-                  ),
-                ],
-              ),
+              ProfileDetails(),
               SizedBox(height: Responsive.space(context, size: Space.large)),
               ProfileCategories(
                 onCategoryChanged: (category) {

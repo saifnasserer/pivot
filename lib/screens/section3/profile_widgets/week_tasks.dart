@@ -24,7 +24,7 @@ class WeekTasksSection extends StatelessWidget {
       itemCount: 3,
       itemBuilder: (context, index) {
         return TaskModel(
-          date: DateTime.now(),
+          date: DateTime.now().add(Duration(days: 7)),
           color: colors[index],
           title: tasks[index],
           description: descriptions[index],

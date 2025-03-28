@@ -5,6 +5,8 @@ import 'package:pivot/screens/section1/signup/signup_page1.dart';
 import 'package:pivot/screens/section1/signup/signup_page2.dart';
 import 'package:pivot/screens/section2/landing.dart';
 import 'package:pivot/screens/section3/profile.dart';
+import 'package:pivot/screens/section3/profile_widgets/schadule.dart';
+import 'package:pivot/screens/section3/profile_widgets/subjects.dart';
 
 void main() {
   runApp(const Pivot());
