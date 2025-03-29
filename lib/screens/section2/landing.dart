@@ -4,6 +4,7 @@ import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/section2/category_section.dart';
 import 'package:pivot/screens/models/card_model.dart';
 import 'package:pivot/screens/section3/profile.dart';
+import 'package:pivot/screens/section4/doctor_profile.dart';
 
 class Landing extends StatefulWidget {
   const Landing({super.key});
@@ -70,6 +71,7 @@ class LandingState extends State<Landing> with SingleTickerProviderStateMixin {
                       icon: Icon(Icons.search),
                       onPressed: () {
                         // Handle search icon press
+                        Navigator.pushNamed(context, DoctorProfile.id);
                       },
                     ),
                     IconButton(

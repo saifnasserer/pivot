@@ -4,9 +4,9 @@ import 'package:pivot/screens/section1/first_landing.dart';
 import 'package:pivot/screens/section1/signup/signup_page1.dart';
 import 'package:pivot/screens/section1/signup/signup_page2.dart';
 import 'package:pivot/screens/section2/landing.dart';
+import 'package:pivot/screens/section3/edit_profile.dart';
 import 'package:pivot/screens/section3/profile.dart';
-import 'package:pivot/screens/section3/profile_widgets/schadule.dart';
-import 'package:pivot/screens/section3/profile_widgets/subjects.dart';
+import 'package:pivot/screens/section4/doctor_profile.dart';
 
 void main() {
   runApp(const Pivot());
@@ -25,10 +25,12 @@ class Pivot extends StatelessWidget {
         Signup_2.id: (context) => const Signup_2(),
         Landing.id: (context) => const Landing(),
         Profile.id: (context) => const Profile(),
+        EditProfile.id: (context) => const EditProfile(),
+        DoctorProfile.id: (context) => const DoctorProfile(),
       },
       theme: ThemeData(fontFamily: 'NotoSansArabic'),
       debugShowCheckedModeBanner: false,
-      home: Landing(),
+      home: FirstLanding(),
     );
   }
 }

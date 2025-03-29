@@ -2,8 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:pivot/responsive.dart';
 
 class ProfileDetails extends StatelessWidget {
-  const ProfileDetails({super.key});
+  const ProfileDetails({
+    super.key,
 
+    required this.name,
+    required this.meta,
+    this.year = '',
+  });
+  final String name;
+  final String meta;
+  final String year;
   @override
   Widget build(BuildContext context) {
     return Row(
@@ -13,14 +21,14 @@ class ProfileDetails extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
-              'SC قسم',
+              meta,
               style: TextStyle(
                 fontSize: Responsive.space(context, size: Space.medium),
                 color: Color(0xffd9d9d9),
               ),
             ),
             Text(
-              'فاطمة بشير',
+              name,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: Responsive.space(context, size: Space.xlarge) * 1.2,
@@ -29,7 +37,7 @@ class ProfileDetails extends StatelessWidget {
               ),
             ),
             Text(
-              'فرقة تالتة',
+              year,
               style: TextStyle(
                 fontSize: Responsive.space(context, size: Space.medium),
                 color: Color(0xffd9d9d9),
@@ -39,17 +47,10 @@ class ProfileDetails extends StatelessWidget {
           ],
         ),
         SizedBox(width: Responsive.space(context, size: Space.large)),
-        Container(
-          width: Responsive.space(context, size: Space.large) * 5,
-          height: Responsive.space(context, size: Space.large) * 5,
-          decoration: BoxDecoration(
-            color: Colors.black,
-            shape: BoxShape.circle,
-            // image: DecorationImage(
-            //   image: AssetImage('assets/icon.png'),
-            //   fit: BoxFit.cover,
-            // ),
-          ),
+        CircleAvatar(
+          radius: Responsive.space(context, size: Space.large) * 3,
+          backgroundColor: Colors.black,
+          child: Icon(Icons.person, color: Colors.white),
         ),
       ],
     );

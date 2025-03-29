@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pivot/screens/section1/signup/signup_page2.dart';
+import 'package:pivot/screens/models/circular_button.dart';
+import 'package:pivot/screens/models/custom_text_field.dart';
 import '../../../responsive.dart';
 
 class Signup_1 extends StatefulWidget {
@@ -21,59 +23,6 @@ class _Signup_1State extends State<Signup_1> {
   bool _isEmailValid = false;
   bool _isPhoneValid = false;
   bool _isPasswordValid = false;
-
-  // Common decoration for all text fields
-  InputDecoration _getInputDecoration(
-    BuildContext context,
-    String hint, {
-    Widget? suffixIcon,
-    bool? isValid,
-  }) {
-    return InputDecoration(
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(
-          Responsive.space(context, size: Space.medium),
-        ),
-        borderSide: BorderSide(color: Color(0xFFF7F7F7)),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(
-          Responsive.space(context, size: Space.medium),
-        ),
-        borderSide: BorderSide(
-          color: isValid == true ? Colors.green : Color(0xFFF7F7F7),
-          width: isValid == true ? 2 : 1,
-        ),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(
-          Responsive.space(context, size: Space.medium),
-        ),
-        borderSide: BorderSide(
-          color: isValid == true ? Colors.green : Colors.black,
-          width: isValid == true ? 2 : 1,
-        ),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(
-          Responsive.space(context, size: Space.medium),
-        ),
-        borderSide: BorderSide(color: Colors.red),
-      ),
-      hintText: hint,
-      filled: true,
-      fillColor: Color(0xFFF7F7F7),
-      hintStyle: TextStyle(
-        color: Colors.black,
-        fontSize: Responsive.text(context, size: TextSize.medium),
-      ),
-      contentPadding: EdgeInsets.symmetric(
-        horizontal: Responsive.space(context, size: Space.medium),
-        vertical: Responsive.space(context, size: Space.small),
-      ),
-      suffixIcon: suffixIcon,
-    );
-  }
 
   String? _validateName(String? value) {
     if (value == null || value.isEmpty) {
@@ -172,32 +121,19 @@ class _Signup_1State extends State<Signup_1> {
                               size: Space.xlarge,
                             ),
                           ),
-                          TextFormField(
+                          CustomTextField(
                             focusNode: _nameFocus,
-                            textDirection: TextDirection.rtl,
-                            textAlign: TextAlign.center,
-                            textInputAction: TextInputAction.next,
+                            hint: 'الاسم',
+                            validator: _validateName,
+                            isValid: _isNameValid,
                             onEditingComplete: () {
                               FocusScope.of(context).requestFocus(_emailFocus);
                             },
-                            validator: _validateName,
-                            style: TextStyle(
-                              color: Colors.black,
-                              fontSize: Responsive.text(
-                                context,
-                                size: TextSize.medium,
-                              ),
-                            ),
                             onChanged: (value) {
                               setState(() {
                                 _isNameValid = _validateName(value) == null;
                               });
                             },
-                            decoration: _getInputDecoration(
-                              context,
-                              'الاسم',
-                              isValid: _isNameValid,
-                            ),
                           ),
                           SizedBox(
                             height: Responsive.space(
@@ -205,33 +141,20 @@ class _Signup_1State extends State<Signup_1> {
                               size: Space.medium,
                             ),
                           ),
-                          TextFormField(
+                          CustomTextField(
                             focusNode: _emailFocus,
-                            textDirection: TextDirection.rtl,
-                            textAlign: TextAlign.center,
-                            textInputAction: TextInputAction.next,
+                            hint: 'الايميل الجامعي',
+                            validator: _validateEmail,
+                            keyboardType: TextInputType.emailAddress,
+                            isValid: _isEmailValid,
                             onEditingComplete: () {
                               FocusScope.of(context).requestFocus(_phoneFocus);
                             },
-                            validator: _validateEmail,
-                            keyboardType: TextInputType.emailAddress,
-                            style: TextStyle(
-                              color: Colors.black,
-                              fontSize: Responsive.text(
-                                context,
-                                size: TextSize.medium,
-                              ),
-                            ),
                             onChanged: (value) {
                               setState(() {
                                 _isEmailValid = _validateEmail(value) == null;
                               });
                             },
-                            decoration: _getInputDecoration(
-                              context,
-                              'الايميل الجامعي',
-                              isValid: _isEmailValid,
-                            ),
                           ),
                           SizedBox(
                             height: Responsive.space(
@@ -239,35 +162,22 @@ class _Signup_1State extends State<Signup_1> {
                               size: Space.medium,
                             ),
                           ),
-                          TextFormField(
+                          CustomTextField(
                             focusNode: _phoneFocus,
-                            textDirection: TextDirection.rtl,
-                            textAlign: TextAlign.center,
-                            textInputAction: TextInputAction.next,
+                            hint: 'رقم الموبيل',
+                            validator: _validatePhone,
+                            keyboardType: TextInputType.phone,
+                            isValid: _isPhoneValid,
                             onEditingComplete: () {
                               FocusScope.of(
                                 context,
                               ).requestFocus(_passwordFocus);
                             },
-                            validator: _validatePhone,
-                            keyboardType: TextInputType.phone,
-                            style: TextStyle(
-                              color: Colors.black,
-                              fontSize: Responsive.text(
-                                context,
-                                size: TextSize.medium,
-                              ),
-                            ),
                             onChanged: (value) {
                               setState(() {
                                 _isPhoneValid = _validatePhone(value) == null;
                               });
                             },
-                            decoration: _getInputDecoration(
-                              context,
-                              'رقم الموبيل',
-                              isValid: _isPhoneValid,
-                            ),
                           ),
                           SizedBox(
                             height: Responsive.space(
@@ -275,19 +185,29 @@ class _Signup_1State extends State<Signup_1> {
                               size: Space.medium,
                             ),
                           ),
-                          TextFormField(
+                          CustomTextField(
                             focusNode: _passwordFocus,
-                            textDirection: TextDirection.rtl,
-                            textAlign: TextAlign.center,
+                            hint: 'الباسورد',
+                            validator: _validatePassword,
                             textInputAction: TextInputAction.done,
                             obscureText: !_isPasswordVisible,
-                            validator: _validatePassword,
-                            style: TextStyle(
-                              color: Colors.black,
-                              fontSize: Responsive.text(
-                                context,
-                                size: TextSize.medium,
+                            isValid: _isPasswordValid,
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _isPasswordVisible
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
+                                size: Responsive.text(
+                                  context,
+                                  size: TextSize.medium,
+                                ),
+                                color: Colors.grey,
                               ),
+                              onPressed: () {
+                                setState(() {
+                                  _isPasswordVisible = !_isPasswordVisible;
+                                });
+                              },
                             ),
                             onChanged: (value) {
                               setState(() {
@@ -295,28 +215,6 @@ class _Signup_1State extends State<Signup_1> {
                                     _validatePassword(value) == null;
                               });
                             },
-                            decoration: _getInputDecoration(
-                              context,
-                              'الباسورد',
-                              isValid: _isPasswordValid,
-                              suffixIcon: IconButton(
-                                icon: Icon(
-                                  _isPasswordVisible
-                                      ? Icons.visibility_off
-                                      : Icons.visibility,
-                                  size: Responsive.text(
-                                    context,
-                                    size: TextSize.medium,
-                                  ),
-                                  color: Colors.grey,
-                                ),
-                                onPressed: () {
-                                  setState(() {
-                                    _isPasswordVisible = !_isPasswordVisible;
-                                  });
-                                },
-                              ),
-                            ),
                           ),
                         ],
                       ),
@@ -324,29 +222,14 @@ class _Signup_1State extends State<Signup_1> {
                     SizedBox(
                       height: Responsive.space(context, size: Space.xlarge) * 4,
                     ),
-                    ElevatedButton(
+                    CircularButton(
                       onPressed: () {
                         if (_formKey.currentState!.validate()) {
                           // Handle form submission
                           Navigator.pushNamed(context, Signup_2.id);
                         }
                       },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.black87,
-                        shape: CircleBorder(),
-                        minimumSize: Size(
-                          Responsive.space(context, size: Space.xlarge) * 4,
-                          Responsive.space(context, size: Space.xlarge) * 4,
-                        ),
-                        elevation: 5,
-                      ),
-                      child: Icon(
-                        Icons.arrow_back,
-                        size:
-                            Responsive.text(context, size: TextSize.heading) *
-                            1.5,
-                        color: Colors.white,
-                      ),
+                      icon: Icons.arrow_back,
                     ),
                   ],
                 ),

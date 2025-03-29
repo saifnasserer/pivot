@@ -24,6 +24,12 @@ class _TaskModelState extends State<TaskModel> {
   @override
   Widget build(BuildContext context) {
     String formattedDate = '${widget.date.month}/${widget.date.day}';
+
+    // Compute contrasting text color based on background color
+    final Color textColor = widget.check ? Colors.grey : Colors.black87;
+    final Color primaryColor =
+        widget.check ? Colors.grey : widget.color.withOpacity(0.8);
+
     return Padding(
       padding: EdgeInsets.only(
         top: Responsive.space(context, size: Space.medium),
@@ -31,11 +37,16 @@ class _TaskModelState extends State<TaskModel> {
       child: Container(
         width: double.infinity,
         decoration: BoxDecoration(
-          color:
-              widget.check
-                  ? Colors.grey.withOpacity(0.2)
-                  : widget.color.withOpacity(0.2),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.15),
+              blurRadius: 6,
+              offset: Offset(0, 2),
+            ),
+          ],
+          border: Border.all(color: primaryColor, width: 2.0),
         ),
         child: Padding(
           padding: EdgeInsets.all(Responsive.space(context, size: Space.large)),
@@ -59,7 +70,8 @@ class _TaskModelState extends State<TaskModel> {
                         fontSize:
                             Responsive.text(context, size: TextSize.medium) *
                             1.1,
-                        color: widget.check ? Colors.grey : Colors.black,
+                        fontWeight: FontWeight.w500,
+                        color: textColor,
                       ),
                     ),
                   ),
@@ -69,10 +81,7 @@ class _TaskModelState extends State<TaskModel> {
                   Container(
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color:
-                          widget.check
-                              ? Colors.grey.withOpacity(0.8)
-                              : widget.color.withOpacity(0.8),
+                      color: primaryColor,
                     ),
                     child: IconButton(
                       onPressed: () {
@@ -84,7 +93,7 @@ class _TaskModelState extends State<TaskModel> {
                         widget.check
                             ? Icons.check_box_rounded
                             : Icons.check_box_outline_blank_rounded,
-                        color: Colors.black,
+                        color: Colors.white,
                       ),
                     ),
                   ),
@@ -94,25 +103,46 @@ class _TaskModelState extends State<TaskModel> {
               Padding(
                 padding: EdgeInsets.only(
                   right: Responsive.space(context, size: Space.large) * 2.5,
+                  top: Responsive.space(context, size: Space.small),
                 ),
-                child: Text(
-                  'اخر معاد للتسليم : $formattedDate',
-                  textAlign: TextAlign.end,
-                  style: TextStyle(
-                    fontSize: Responsive.text(context, size: TextSize.small),
-                    color: Colors.black,
+                child: Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: Responsive.space(context, size: Space.small),
+                    vertical:
+                        Responsive.space(context, size: Space.small) * 0.5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'اخر معاد للتسليم : $formattedDate',
+                    textAlign: TextAlign.end,
+                    style: TextStyle(
+                      fontSize: Responsive.text(context, size: TextSize.small),
+                      color: Colors.black,
+                    ),
                   ),
                 ),
               ),
-              SizedBox(height: Responsive.space(context, size: Space.large)),
-              Text(
-                widget.description,
-                textAlign: TextAlign.end,
-                style: TextStyle(
-                  fontSize:
-                      Responsive.text(context, size: TextSize.medium) * .9,
-                  color: widget.check ? Colors.grey : Colors.black,
-                  // fontWeight: FontWeight.bold,
+              SizedBox(height: Responsive.space(context, size: Space.medium)),
+              Container(
+                padding: EdgeInsets.all(
+                  Responsive.space(context, size: Space.medium),
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.grey.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  widget.description,
+                  textAlign: TextAlign.end,
+                  style: TextStyle(
+                    fontSize:
+                        Responsive.text(context, size: TextSize.medium) * 0.9,
+                    color: textColor,
+                    height: 1.5,
+                  ),
                 ),
               ),
             ],

@@ -2,9 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:pivot/responsive.dart';
 
 class SubjectModel extends StatelessWidget {
-  const SubjectModel({super.key, required this.doctor, required this.title});
+  const SubjectModel({
+    super.key,
+    this.doctor = '',
+    required this.title,
+    this.icon = Icons.menu_book_rounded,
+  });
   final String title;
   final String doctor;
+  final IconData icon;
   @override
   Widget build(BuildContext context) {
     return ElevatedButton(
@@ -43,16 +49,21 @@ class SubjectModel extends StatelessWidget {
                             fontWeight: FontWeight.w500,
                           ),
                         ),
-                        Text(
-                          doctor,
-                          textAlign: TextAlign.right,
-                          style: TextStyle(
-                            color: Colors.grey,
-                            fontSize:
-                                Responsive.text(context, size: TextSize.small) *
-                                1.5,
-                          ),
-                        ),
+                        doctor.isNotEmpty
+                            ? Text(
+                              doctor,
+                              textAlign: TextAlign.right,
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize:
+                                    Responsive.text(
+                                      context,
+                                      size: TextSize.small,
+                                    ) *
+                                    1.5,
+                              ),
+                            )
+                            : SizedBox.shrink(),
                       ],
                     ),
                   ),
@@ -65,7 +76,7 @@ class SubjectModel extends StatelessWidget {
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      Icons.menu_book_rounded,
+                      icon,
                       size: Responsive.space(context, size: Space.xlarge),
                       color: Colors.black,
                     ),

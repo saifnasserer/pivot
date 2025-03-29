@@ -4,9 +4,9 @@ import 'package:pivot/screens/models/task_model.dart';
 class WeekTasksSection extends StatelessWidget {
   WeekTasksSection({super.key});
   final List<Color> colors = [
-    Color(0xff99F16C),
-    Color(0xfff5bbbc),
-    Color(0xffffef86),
+    Color.fromARGB(255, 93, 148, 66),
+    Color.fromARGB(255, 165, 92, 93),
+    Color.fromARGB(255, 218, 198, 68),
   ];
   List<String> tasks = [
     'قرار الدكتورة فاطمة بشير',
@@ -20,16 +20,16 @@ class WeekTasksSection extends StatelessWidget {
   ];
   @override
   Widget build(BuildContext context) {
-    return ListView.builder(
-      itemCount: 3,
-      itemBuilder: (context, index) {
-        return TaskModel(
+    return Column(
+      children: List.generate(
+        3,
+        (index) => TaskModel(
           date: DateTime.now().add(Duration(days: 7)),
           color: colors[index],
           title: tasks[index],
           description: descriptions[index],
-        );
-      },
+        ),
+      ),
     );
   }
 }

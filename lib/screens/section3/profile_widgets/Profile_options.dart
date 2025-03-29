@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pivot/screens/section3/edit_profile.dart' show EditProfile;
 
 Future<dynamic> profile_options(BuildContext context) {
   return showMenu(
@@ -19,7 +20,7 @@ Future<dynamic> profile_options(BuildContext context) {
           ),
         ),
         onTap: () {
-          // Handle edit profile
+          Navigator.pushNamed(context, EditProfile.id);
         },
       ),
       PopupMenuItem(

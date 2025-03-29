@@ -60,20 +60,35 @@ class _ProfileState extends State<Profile> {
       body: SafeArea(
         child: Padding(
           padding: Responsive.paddingHorizontal(context),
-          child: Column(
-            children: [
-              ProfileDetails(),
-              SizedBox(height: Responsive.space(context, size: Space.large)),
-              ProfileCategories(
-                onCategoryChanged: (category) {
-                  setState(() {
-                    _currentCategory = category;
-                  });
-                },
+          child: CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: ProfileDetails(name: 'سيف ناصر', meta: 'قسم SC'),
               ),
-              SizedBox(height: Responsive.space(context, size: Space.large)),
-              Divider(indent: 4, endIndent: 1),
-              Expanded(child: _getCategoryContent()),
+              SliverToBoxAdapter(
+                child: SizedBox(
+                  height: Responsive.space(context, size: Space.large),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: ProfileCategories(
+                  onCategoryChanged: (category) {
+                    setState(() {
+                      _currentCategory = category;
+                    });
+                  },
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: SizedBox(
+                  height: Responsive.space(context, size: Space.large),
+                ),
+              ),
+              SliverToBoxAdapter(child: Divider(indent: 4, endIndent: 1)),
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: _getCategoryContent(),
+              ),
             ],
           ),
         ),
