@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/responsive.dart';
+import 'package:pivot/screens/models/lecture_card_model.dart';
 import 'package:pivot/screens/section3/profile_widgets/Profile_options.dart';
 import 'package:pivot/screens/section3/profile_categories_section.dart';
 import 'package:pivot/screens/section3/profile_details.dart';
-import 'package:pivot/screens/section3/profile_widgets/schadule.dart';
-import 'package:pivot/screens/section3/profile_widgets/sections.dart';
-import 'package:pivot/screens/section3/profile_widgets/subjects.dart';
-import 'package:pivot/screens/section3/profile_widgets/week_tasks.dart';
+import 'package:pivot/screens/section3/profile_widgets/schadule.dart'
+    show buildCalendar;
+import 'package:pivot/screens/section3/profile_widgets/sections.dart' 
+    show buildSectionsSlivers;
+import 'package:pivot/screens/section3/profile_widgets/subjects.dart' 
+    show buildSubjectsSlivers;
+import 'package:pivot/screens/section3/profile_widgets/week_tasks.dart'
+    show buildWeekTasksSlivers;
 
 class Profile extends StatefulWidget {
   static const String id = 'profile';
@@ -17,22 +22,100 @@ class Profile extends StatefulWidget {
 }
 
 class _ProfileState extends State<Profile> {
+  final Map<String, List<LectureCardModel>> dayLectures = {
+    'السبت': [
+      LectureCardModel(
+        section: false,
+        title: 'الحوسبة عالية الاداء',
+        description: 'مدرج 2 الساعه 1ونص',
+      ),
+      LectureCardModel(
+        section: true,
+        title: 'سكشن الحوسبة',
+        description: 'معمل 3 الساعه 3',
+      ),
+    ],
+    'الاحد': [
+      LectureCardModel(
+        section: false,
+        title: 'هندسة البرمجيات',
+        description: 'مدرج 1 الساعه 9 صباحا',
+      ),
+    ],
+    'الاثنين': [
+      LectureCardModel(
+        section: true,
+        title: 'سكشن هندسة البرمجيات',
+        description: 'معمل 2 الساعه 11 صباحا',
+      ),
+    ],
+    'الثلاثاء': [],
+    'الاربعاء': [
+      LectureCardModel(
+        section: false,
+        title: 'نظم التشغيل',
+        description: 'مدرج 3 الساعه 2 ظهرا',
+      ),
+    ],
+    'الخميس': [
+      LectureCardModel(
+        section: false,
+        title: 'نظم التشغيل',
+        description: 'مدرج 3 الساعه 2 ظهرا',
+      ),
+    ],
+  };
+
+  // List of days in order (right to left for Arabic)
+  final List<String> days = [
+    'السبت',
+    'الاحد',
+    'الاثنين',
+    'الثلاثاء',
+    'الاربعاء',
+    'الخميس',
+  ];
+
+  int selectedDayIndex = 0;
+
   String _currentCategory = 'تاسكات الاسبوع';
 
-  Widget _getCategoryContent() {
+  // --- Callback function for day selection ---
+  void _onDaySelected(int index) {
+    setState(() {
+      selectedDayIndex = index;
+    });
+  }
+  // --- End Callback ---
+
+  // --- Modified to return List<Widget> (slivers) ---
+  List<Widget> _getCategoryContentSlivers() {
     switch (_currentCategory) {
       case 'تاسكات الاسبوع':
-        return WeekTasksSection();
+        // Wrap non-sliver widgets in SliverToBoxAdapter or SliverFillRemaining
+        return buildWeekTasksSlivers(context);
       case 'الجدول':
-        return Schadule();
+        // buildCalendar already returns List<Widget>
+        return buildCalendar(
+          selectedDayIndex: selectedDayIndex,
+          context: context,
+          days: days,
+          dayLectures: dayLectures,
+          onDaySelected: _onDaySelected, // <-- Pass the callback here
+        );
       case 'مواد الترم':
-        return SubjectsSection();
+        return buildSubjectsSlivers(context);
       case 'السكاشن':
-        return Sections();
+        return buildSectionsSlivers(context);
       default:
-        return WeekTasksSection();
+        return [
+          const SliverFillRemaining(
+            child: Center(child: Text('Unknown Category')),
+          ),
+        ];
     }
   }
+  // --- End Modification ---
 
   @override
   Widget build(BuildContext context) {
@@ -60,9 +143,10 @@ class _ProfileState extends State<Profile> {
       body: SafeArea(
         child: Padding(
           padding: Responsive.paddingHorizontal(context),
+          // --- Use CustomScrollView for sliver-based layout ---
           child: CustomScrollView(
             slivers: [
-              SliverToBoxAdapter(
+              const SliverToBoxAdapter(
                 child: ProfileDetails(name: 'سيف ناصر', meta: 'قسم SC'),
               ),
               SliverToBoxAdapter(
@@ -75,6 +159,8 @@ class _ProfileState extends State<Profile> {
                   onCategoryChanged: (category) {
                     setState(() {
                       _currentCategory = category;
+                      // Reset day index when changing main category if needed
+                      // selectedDayIndex = 0;
                     });
                   },
                 ),
@@ -84,13 +170,14 @@ class _ProfileState extends State<Profile> {
                   height: Responsive.space(context, size: Space.large),
                 ),
               ),
-              SliverToBoxAdapter(child: Divider(indent: 4, endIndent: 1)),
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: _getCategoryContent(),
-              ),
+              const SliverToBoxAdapter(child: Divider(indent: 4, endIndent: 1)),
+
+              // --- Use spread operator to insert the slivers ---
+              ..._getCategoryContentSlivers(),
+              // --- End Spread Operator ---
             ],
           ),
+          // --- End CustomScrollView ---
         ),
       ),
     );

@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/models/subject.dart';
 import 'package:pivot/screens/section3/profile_details.dart';
-import 'package:pivot/screens/section3/profile_widgets/week_tasks.dart';
 import 'package:pivot/screens/section4/doctor_categories.dart';
-import 'package:pivot/screens/section4/doctor_subjects.dart'
-    show buildDoctorSubjectsSlivers;
+import 'package:pivot/screens/section4/doctor_subjects.dart' show buildDoctorSubjectsSlivers;
 
 class DoctorProfile extends StatefulWidget {
   static const String id = 'doctor';
@@ -75,7 +73,12 @@ class _DoctorProfileState extends State<DoctorProfile> {
           ),
         ];
       default:
-        return [SliverToBoxAdapter(child: WeekTasksSection())];
+        return [
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(child: Text('Unknown Category')),
+          )
+        ];
     }
   }
 

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pivot/responsive.dart';
+import 'package:pivot/screens/section2/categories/SC_report.dart';
+import 'package:pivot/screens/section2/categories/todys_report.dart';
+import 'package:pivot/screens/section2/categories/week_report.dart';
 import 'package:pivot/screens/section2/category_section.dart';
 import 'package:pivot/screens/models/card_model.dart';
 import 'package:pivot/screens/section3/profile.dart';
@@ -35,6 +38,25 @@ class LandingState extends State<Landing> with SingleTickerProviderStateMixin {
   void dispose() {
     pageController.dispose();
     super.dispose();
+  }
+
+  Widget buildReports() {
+    switch (currentCategory) {
+      case 'اخبار النهاردة':
+        return TodysReport();
+      case 'اخبار الاسبوع':
+        return WeekReport();
+      case 'اخبار قسم SC':
+        return SCReport();
+      case 'اخبار قسم AI':
+        return Text('AI News');
+      case 'اخبار قسم CS':
+        return Text('CS News');
+      case 'اخبار قسم IS':
+        return Text('IS News');
+      default:
+        return TodysReport();
+    }
   }
 
   @override
@@ -89,19 +111,7 @@ class LandingState extends State<Landing> with SingleTickerProviderStateMixin {
                   padding: EdgeInsets.all(
                     Responsive.space(context, size: Space.large),
                   ),
-                  child: PageView.builder(
-                    controller: pageController,
-                    scrollDirection: Axis.vertical,
-                    itemCount: cardColors.length,
-                    itemBuilder: (context, index) {
-                      return CardModel(color: cardColors[index]);
-                    },
-                    onPageChanged: (index) {
-                      setState(() {
-                        currentCardIndex = index;
-                      });
-                    },
-                  ),
+                  child: buildReports(),
                 ),
               ),
             ],

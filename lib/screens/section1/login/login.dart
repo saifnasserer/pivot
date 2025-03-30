@@ -160,6 +160,27 @@ class _LoginState extends State<Login> {
                           ],
                         ),
                       ),
+
+                      Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8.0),
+                        child: TextButton(
+                          onPressed: () {
+                            // يمكن إضافة التنقل إلى صفحة استعادة كلمة المرور هنا
+                          },
+                          child: Text(
+                            'نسيت الباسورد ؟',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: Responsive.text(
+                                context,
+                                size: TextSize.small,
+                              ),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ),
+
                       SizedBox(
                         height:
                             Responsive.space(context, size: Space.xlarge) * 4,

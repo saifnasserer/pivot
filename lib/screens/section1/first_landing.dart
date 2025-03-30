@@ -36,15 +36,37 @@ class FirstLanding extends StatelessWidget {
               children: [
                 Expanded(
                   child: Center(
-                    child: Text(
-                      textAlign: TextAlign.right,
-                      'واخيراً\n حياة جامعية منظمة',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize:
-                            Responsive.text(context, size: TextSize.heading) *
-                            1.5,
-                      ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          textAlign: TextAlign.right,
+                          '! ... واخيراً',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize:
+                                Responsive.text(
+                                  context,
+                                  size: TextSize.heading,
+                                ) *
+                                1.5,
+                          ),
+                        ),
+                        Text(
+                          textAlign: TextAlign.right,
+                          'حياة جامعية منظمة',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize:
+                                Responsive.text(
+                                  context,
+                                  size: TextSize.heading,
+                                ) *
+                                2.5,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),

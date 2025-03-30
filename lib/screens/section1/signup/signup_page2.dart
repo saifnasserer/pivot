@@ -202,9 +202,38 @@ class _Signup_2State extends State<Signup_2> {
                   ),
                   CircularButton(
                     onPressed: () {
-                      if (_formKey.currentState!.validate()) {
-                        // Handle form submission
+                      // Check if all dropdowns have values selected
+                      bool allDropdownsValid = 
+                          selectedYear != null && 
+                          selectedDepartment != null && 
+                          selectedSection != null;
+                      
+                      // Update the validity state for visual feedback
+                      setState(() {
+                        _isYearValid = selectedYear != null;
+                        _isDepartmentValid = selectedDepartment != null;
+                        _isSectionValid = selectedSection != null;
+                      });
+                      
+                      // Only navigate if both form validation and dropdown validation pass
+                      if (_formKey.currentState!.validate() && allDropdownsValid) {
                         Navigator.pushNamed(context, Landing.id);
+                      } else {
+                        // Show a snackbar with error message if validation fails
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'برجاء اختيار جميع البيانات المطلوبة',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            backgroundColor: Colors.red[400],
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
                       }
                     },
                     icon: Icons.check,
