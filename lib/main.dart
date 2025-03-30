@@ -30,7 +30,7 @@ class Pivot extends StatelessWidget {
       },
       theme: ThemeData(fontFamily: 'NotoSansArabic'),
       debugShowCheckedModeBanner: false,
-      home: FirstLanding(),
+      home: DoctorProfile(),
     );
   }
 }
