@@ -6,12 +6,13 @@ import 'package:pivot/screens/section3/profile_categories_section.dart';
 import 'package:pivot/screens/section3/profile_details.dart';
 import 'package:pivot/screens/section3/profile_widgets/schadule.dart'
     show buildCalendar;
-import 'package:pivot/screens/section3/profile_widgets/sections.dart'
-    show buildSectionsSlivers;
+import 'package:pivot/screens/section3/profile_widgets/sections.dart';
 import 'package:pivot/screens/section3/profile_widgets/subjects.dart'
     show buildSubjectsSlivers;
 import 'package:pivot/screens/section3/profile_widgets/week_tasks.dart'
     show buildWeekTasksSlivers;
+import 'package:provider/provider.dart';
+import 'package:pivot/providers/task_provider.dart';
 
 class Profile extends StatefulWidget {
   static const String id = 'profile';
@@ -92,8 +93,28 @@ class _ProfileState extends State<Profile> {
   List<Widget> _getCategoryContentSlivers() {
     switch (_currentCategory) {
       case 'تاسكات الاسبوع':
-        // Wrap non-sliver widgets in SliverToBoxAdapter or SliverFillRemaining
-        return buildWeekTasksSlivers(context);
+        // Get provider and tasks
+        final taskProvider = Provider.of<TaskProvider>(context);
+        final allTasks = taskProvider.tasks; // Get all tasks first
+        final now = DateTime.now();
+
+        // Filter tasks: Keep only those whose due date is today or in the future
+        // We compare dates only, ignoring time, by creating new DateTime objects
+        final upcomingTasks =
+            allTasks.where((task) {
+              final taskDueDate = DateTime(
+                task.dueDate.year,
+                task.dueDate.month,
+                task.dueDate.day,
+              );
+              final today = DateTime(now.year, now.month, now.day);
+              return !taskDueDate.isBefore(
+                today,
+              ); // Keep if due date is not before today
+            }).toList();
+
+        // Call with required arguments
+        return buildWeekTasksSlivers(context, upcomingTasks, taskProvider);
       case 'الجدول':
         // buildCalendar already returns List<Widget>
         return buildCalendar(
