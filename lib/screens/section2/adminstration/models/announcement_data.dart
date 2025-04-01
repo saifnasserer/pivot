@@ -16,5 +16,5 @@ class AnnouncementData {
     required this.description,
     this.tags,
     DateTime? timestamp,
-  }) : this.timestamp = timestamp ?? DateTime.now();
+  }) : timestamp = timestamp ?? DateTime.now();
 }

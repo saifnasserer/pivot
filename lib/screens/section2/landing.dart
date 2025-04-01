@@ -9,7 +9,6 @@ import 'package:pivot/screens/section2/categories/todys_report.dart';
 import 'package:pivot/screens/section2/categories/week_report.dart';
 import 'package:pivot/screens/section2/category_section.dart';
 import 'package:pivot/screens/section3/profile.dart';
-import 'package:pivot/screens/section4/doctor_profile.dart';
 
 import 'categories/IS_report.dart';
 

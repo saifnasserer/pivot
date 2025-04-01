@@ -44,8 +44,9 @@ class _ISReportState extends State<ISReport> {
     // Filter announcements by tags
     final filteredAnnouncements =
         announcementProvider.announcements.where((announcement) {
-          if (announcement.tags == null || announcement.tags!.isEmpty)
+          if (announcement.tags == null || announcement.tags!.isEmpty) {
             return false;
+          }
           return announcement.tags!.any((tag) => _filterTags.contains(tag));
         }).toList();
 

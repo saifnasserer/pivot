@@ -457,15 +457,15 @@ void showAddAnnouncementDialog({
                             onPressed: () {
                               Navigator.of(context).pop();
                             },
-                            child: const Text(
-                              'إلغاء',
-                              style: TextStyle(fontSize: 16),
-                            ),
                             style: TextButton.styleFrom(
                               padding: EdgeInsets.symmetric(
                                 horizontal: 32,
                                 vertical: 12,
                               ),
+                            ),
+                            child: const Text(
+                              'إلغاء',
+                              style: TextStyle(fontSize: 16),
                             ),
                           ),
                         ],

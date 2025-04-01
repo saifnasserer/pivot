@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/models/circular_button.dart';
-import 'package:pivot/screens/section2/adminstration/models/announcement_data.dart';
 import 'package:pivot/screens/section2/adminstration/announcement_card.dart';
 import 'package:pivot/screens/section2/adminstration/show_dialog.dart';
 import 'package:provider/provider.dart';
