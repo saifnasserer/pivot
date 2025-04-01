@@ -38,6 +38,11 @@ dependencies:
   lottie: ^3.3.1
   flutter_card_swiper: ^7.0.2
   firebase_core: ^3.12.1
+  ionicons: ^0.2.2
+  intl: ^0.20.2
+  iconly: ^1.0.1
+  provider: ^6.1.4
+  auto_size_text: ^3.0.0
 
 flutter_launcher_icons:
   android: "launcher_icon"

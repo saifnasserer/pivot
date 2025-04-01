@@ -3,19 +3,19 @@ import 'package:pivot/providers/announcement_provider.dart';
 import 'package:pivot/screens/models/card_model.dart';
 import 'package:provider/provider.dart';
 
-class SCReport extends StatefulWidget {
-  const SCReport({super.key});
+class ISReport extends StatefulWidget {
+  const ISReport({super.key});
 
   @override
-  State<SCReport> createState() => _SCReportState();
+  State<ISReport> createState() => _ISReportState();
 }
 
-class _SCReportState extends State<SCReport> {
+class _ISReportState extends State<ISReport> {
   // Controller for the PageView
   late PageController _pageController;
 
   // List of tags to filter by for SC report
-  final List<String> _filterTags = ['اخبار قسم SC'];
+  final List<String> _filterTags = ['اخبار قسم IS'];
 
   @override
   void initState() {

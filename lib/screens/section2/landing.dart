@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pivot/responsive.dart';
+import 'package:pivot/screens/section2/adminstration/admin_control.dart';
+import 'package:pivot/screens/section2/categories/AI_report.dart';
+import 'package:pivot/screens/section2/categories/CS_report.dart';
 import 'package:pivot/screens/section2/categories/SC_report.dart';
 import 'package:pivot/screens/section2/categories/todys_report.dart';
 import 'package:pivot/screens/section2/categories/week_report.dart';
 import 'package:pivot/screens/section2/category_section.dart';
-import 'package:pivot/screens/models/card_model.dart';
 import 'package:pivot/screens/section3/profile.dart';
 import 'package:pivot/screens/section4/doctor_profile.dart';
+
+import 'categories/IS_report.dart';
 
 class Landing extends StatefulWidget {
   const Landing({super.key});
@@ -49,11 +53,11 @@ class LandingState extends State<Landing> with SingleTickerProviderStateMixin {
       case 'اخبار قسم SC':
         return SCReport();
       case 'اخبار قسم AI':
-        return Text('AI News');
+        return AIReport();
       case 'اخبار قسم CS':
-        return Text('CS News');
+        return CSReport();
       case 'اخبار قسم IS':
-        return Text('IS News');
+        return ISReport();
       default:
         return TodysReport();
     }
@@ -84,16 +88,21 @@ class LandingState extends State<Landing> with SingleTickerProviderStateMixin {
                           setState(() {
                             currentCategory = category;
                           });
-                          // Here you can update your content based on the selected category
-                          print('Selected category: $category');
                         },
                       ),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.add_circle_outline_rounded),
+                      onPressed: () {
+                        // Handle profile icon press
+                        Navigator.pushNamed(context, AdminControl.id);
+                      },
                     ),
                     IconButton(
                       icon: Icon(Icons.search),
                       onPressed: () {
                         // Handle search icon press
-                        Navigator.pushNamed(context, DoctorProfile.id);
+                        // Navigator.pushNamed(context, DoctorProfile.id);
                       },
                     ),
                     IconButton(

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:pivot/providers/announcement_provider.dart';
 import 'package:pivot/screens/models/card_model.dart';
-// TODO: Import your CardModel definition here
-// import 'package:pivot/screens/models/card_model.dart'; // Example import
+import 'package:provider/provider.dart';
 
 class TodysReport extends StatefulWidget {
   const TodysReport({super.key});
@@ -13,50 +13,69 @@ class TodysReport extends StatefulWidget {
 class _TodysReportState extends State<TodysReport> {
   // Controller for the PageView
   late PageController _pageController;
-  // Index of the currently visible card
-  int _currentCardIndex = 0;
-
-  // TODO: Replace with your actual data source for the cards
-  final List<Color> _cardColors = [
-    Colors.redAccent,
-    Colors.blueAccent,
-    Colors.greenAccent,
-    Colors.orangeAccent,
-  ];
 
   @override
   void initState() {
     super.initState();
     // Initialize the PageController
-    _pageController = PageController(initialPage: _currentCardIndex);
+    _pageController = PageController(
+      // Initial page
+      initialPage: 0,
+      // ViewportFraction controls how much of adjacent pages is visible
+      // 1.0 means only the current page is visible
+      viewportFraction: 1.0,
+    );
   }
 
   @override
   void dispose() {
-    // Dispose of the controller when the widget is removed
+    // Clean up the controller when the widget is disposed
     _pageController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // You might want to wrap this PageView in a Container or SizedBox
-    // to constrain its size if it's part of a larger layout.
-    // For now, let's assume it takes available space or has constraints
-    // provided by its parent widget in landing.dart.
+    final announcementProvider = Provider.of<AnnouncementProvider>(context);
+
+    // Get the current time
+    final now = DateTime.now();
+
+    // Filter announcements by timestamp (last 24 hours)
+    final filteredAnnouncements =
+        announcementProvider.announcements.where((announcement) {
+          // Calculate the difference between now and the announcement timestamp
+          final difference = now.difference(announcement.timestamp);
+
+          // Return true if the announcement is less than 24 hours old
+          return difference.inHours < 24;
+        }).toList();
+
+    if (filteredAnnouncements.isEmpty) {
+      return const Center(
+        child: Text(
+          'مفيش اخبار النهاردة',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+      );
+    }
+
     return PageView.builder(
       controller: _pageController,
-      scrollDirection: Axis.vertical, // Vertical scrolling as in your snippet
-      itemCount: _cardColors.length, // Use the length of your data list
+      scrollDirection: Axis.vertical,
+      itemCount: filteredAnnouncements.length,
       itemBuilder: (context, index) {
-        return CardModel(color: _cardColors[index]);
-        // return CardModel(color: _cardColors[index]); // Your original line
+        final announcement = filteredAnnouncements[index];
+        return CardModel(
+          title: announcement.title,
+          desc: announcement.description,
+          color: announcement.color,
+          tags: announcement.tags,
+          date: announcement.date,
+        );
       },
       onPageChanged: (index) {
-        // Update the state when the page changes
-        setState(() {
-          _currentCardIndex = index;
-        });
+        // No need to track the current index since we're not using it
       },
     );
   }

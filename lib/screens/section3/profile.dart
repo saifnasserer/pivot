@@ -6,9 +6,9 @@ import 'package:pivot/screens/section3/profile_categories_section.dart';
 import 'package:pivot/screens/section3/profile_details.dart';
 import 'package:pivot/screens/section3/profile_widgets/schadule.dart'
     show buildCalendar;
-import 'package:pivot/screens/section3/profile_widgets/sections.dart' 
+import 'package:pivot/screens/section3/profile_widgets/sections.dart'
     show buildSectionsSlivers;
-import 'package:pivot/screens/section3/profile_widgets/subjects.dart' 
+import 'package:pivot/screens/section3/profile_widgets/subjects.dart'
     show buildSubjectsSlivers;
 import 'package:pivot/screens/section3/profile_widgets/week_tasks.dart'
     show buildWeekTasksSlivers;
@@ -146,8 +146,13 @@ class _ProfileState extends State<Profile> {
           // --- Use CustomScrollView for sliver-based layout ---
           child: CustomScrollView(
             slivers: [
+              SliverToBoxAdapter(
+                child: SizedBox(
+                  height: Responsive.space(context, size: Space.small),
+                ),
+              ),
               const SliverToBoxAdapter(
-                child: ProfileDetails(name: 'سيف ناصر', meta: 'قسم SC'),
+                child: ProfileDetails(name: 'سيف ناصر ', meta: 'قسم SC'),
               ),
               SliverToBoxAdapter(
                 child: SizedBox(
