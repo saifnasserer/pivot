@@ -7,10 +7,13 @@ class SubjectModel extends StatelessWidget {
     this.doctor = '',
     required this.title,
     this.icon = Icons.menu_book_rounded,
+    required this.id,
   });
   final String title;
   final String doctor;
   final IconData icon;
+  final String id;
+
   @override
   Widget build(BuildContext context) {
     return ElevatedButton(
@@ -24,7 +27,7 @@ class SubjectModel extends StatelessWidget {
           RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         ),
       ),
-      onPressed: () {},
+      onPressed: () => Navigator.pushNamed(context, id),
       child: Padding(
         padding: EdgeInsets.all(Responsive.space(context, size: Space.small)),
         child: Row(
