@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/providers/schadule_provider.dart';
+import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/section1/login/login.dart';
 import 'package:pivot/screens/section1/first_landing.dart';
 import 'package:pivot/screens/section1/signup/signup_page1.dart';
-import 'package:pivot/screens/section1/signup/signup_page2.dart';
+// import 'package:pivot/screens/section1/signup/signup_page2.dart'; // Removed unused import
 import 'package:pivot/screens/section2/adminstration/admin_control.dart';
 import 'package:pivot/screens/section2/landing.dart';
 import 'package:pivot/screens/section3/edit_profile.dart';
@@ -42,6 +43,7 @@ class Pivot extends StatelessWidget {
         ), // Add SectionProvider
         ChangeNotifierProvider(create: (_) => TaskProvider()),
         ChangeNotifierProvider(create: (_) => ScheduleProvider()),
+        ChangeNotifierProvider(create: (_) => UserProfileProvider()),
       ],
       child: MaterialApp(
         onGenerateRoute: (settings) {
@@ -64,7 +66,6 @@ class Pivot extends StatelessWidget {
           FirstLanding.id: (context) => const FirstLanding(),
           Signup_1.id: (context) => const Signup_1(),
           Login.id: (context) => const Login(),
-          Signup_2.id: (context) => const Signup_2(),
           Landing.id: (context) => const Landing(),
           Profile.id: (context) => const Profile(),
           EditProfile.id: (context) => const EditProfile(),
@@ -92,7 +93,7 @@ class Pivot extends StatelessWidget {
           ),
         ),
         debugShowCheckedModeBanner: false,
-        home: const Landing(),
+        home: const FirstLanding(),
       ),
     );
   }

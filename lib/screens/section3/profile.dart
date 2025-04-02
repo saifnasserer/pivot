@@ -75,10 +75,7 @@ class _ProfileState extends State<Profile> {
           dayScheduleItems: itemsForSelectedDay,
           onDaySelected: _onDaySelected,
           handleDelete: (String itemId) {
-            scheduleProvider.removeScheduleItem(
-              currentDay,
-              itemId,
-            );
+            scheduleProvider.removeScheduleItem(currentDay, itemId);
           },
         );
       case 'مواد الترم':
@@ -152,9 +149,7 @@ class _ProfileState extends State<Profile> {
                   height: Responsive.space(context, size: Space.small),
                 ),
               ),
-              const SliverToBoxAdapter(
-                child: ProfileDetails(name: 'سيف ناصر ', meta: 'قسم SC'),
-              ),
+              const SliverToBoxAdapter(child: ProfileDetails()),
               SliverToBoxAdapter(
                 child: SizedBox(
                   height: Responsive.space(context, size: Space.large),

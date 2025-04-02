@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:pivot/models/user_profile.dart';
+import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/screens/section2/landing.dart';
 import 'package:pivot/screens/models/circular_button.dart';
 import 'package:pivot/screens/models/custom_text_field.dart';
+import 'package:provider/provider.dart';
 import '../../../responsive.dart';
 
 class Login extends StatefulWidget {
@@ -16,6 +19,9 @@ class _LoginState extends State<Login> {
   final _formKey = GlobalKey<FormState>();
   final FocusNode _emailFocus = FocusNode();
   final FocusNode _passwordFocus = FocusNode();
+
+  String _email = '';
+
   bool _isPasswordVisible = false;
 
   bool _isEmailValid = false;
@@ -116,6 +122,7 @@ class _LoginState extends State<Login> {
                               },
                               onChanged: (value) {
                                 setState(() {
+                                  _email = value;
                                   _isEmailValid = _validateEmail(value) == null;
                                 });
                               },
@@ -187,9 +194,39 @@ class _LoginState extends State<Login> {
                       ),
                       CircularButton(
                         onPressed: () {
-                          if (_formKey.currentState!.validate()) {
+                          if (_formKey.currentState!.validate() &&
+                              _email == 'seif@fci.bu.edu.eg') {
+                            UserProfile user = UserProfile(
+                              department: 'SC',
+                              id: 'adminID',
+                              level: 'الثالثة',
+                              name: 'سيف ناصر',
+                              section: '1',
+                            );
+                            Provider.of<UserProfileProvider>(
+                              context,
+                              listen: false,
+                            ).setUserProfile(user);
                             // Handle form submission
-                            Navigator.pushNamed(context, Landing.id);
+                            Navigator.pushNamedAndRemoveUntil(
+                              context,
+                              Landing.id,
+                              (route) => false,
+                            );
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'اما فية غلط في البيانات او المستخدم غير مسجل',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: Responsive.text(context) * .9,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
                           }
                         },
                         icon: Icons.check,

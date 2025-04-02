@@ -48,7 +48,10 @@ class _TasksControlState extends State<TasksControl> {
                     'بشمهندسة الشيماء',
                     textAlign: TextAlign.center,
                     maxLines: 2,
-                    minFontSize: 16,
+                    minFontSize: Responsive.text(
+                      context,
+                      size: TextSize.medium,
+                    ),
                     style: TextStyle(
                       fontSize: Responsive.text(
                         context,

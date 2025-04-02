@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/models/subject.dart';
-import 'package:pivot/screens/section3/profile_details.dart';
 import 'package:pivot/screens/section4/doctor/doctor_categories.dart';
 import 'package:pivot/screens/section4/doctor/doctor_subjects.dart'
     show buildDoctorSubjectsSlivers;
+import 'package:pivot/screens/section4/doctor_details.dart';
 
 class DoctorProfile extends StatefulWidget {
   static const String id = 'doctor';
@@ -117,7 +117,7 @@ class _DoctorProfileState extends State<DoctorProfile> {
         return [
           SliverFillRemaining(
             hasScrollBody: false,
-            child: Center(child: Text('Unknown Category')),
+            child: Center(child: Text('مفيش تفاصيل')),
           ),
         ];
     }
@@ -138,7 +138,7 @@ class _DoctorProfileState extends State<DoctorProfile> {
                 ),
               ),
               SliverToBoxAdapter(
-                child: ProfileDetails(name: 'احمد طه', meta: 'دكتور'),
+                child: DoctorDetails(name: 'احمد طه', title: 'دكتور'),
               ),
               SliverToBoxAdapter(
                 child: SizedBox(

@@ -19,6 +19,12 @@ class _Signup_1State extends State<Signup_1> {
   final FocusNode _phoneFocus = FocusNode();
   final FocusNode _passwordFocus = FocusNode();
   bool _isPasswordVisible = false;
+
+  String _name = '';
+  String _email = '';
+  String _phone = '';
+  String _password = '';
+
   bool _isNameValid = false;
   bool _isEmailValid = false;
   bool _isPhoneValid = false;
@@ -131,6 +137,7 @@ class _Signup_1State extends State<Signup_1> {
                             },
                             onChanged: (value) {
                               setState(() {
+                                _name = value;
                                 _isNameValid = _validateName(value) == null;
                               });
                             },
@@ -152,6 +159,7 @@ class _Signup_1State extends State<Signup_1> {
                             },
                             onChanged: (value) {
                               setState(() {
+                                _email = value;
                                 _isEmailValid = _validateEmail(value) == null;
                               });
                             },
@@ -175,6 +183,7 @@ class _Signup_1State extends State<Signup_1> {
                             },
                             onChanged: (value) {
                               setState(() {
+                                _phone = value;
                                 _isPhoneValid = _validatePhone(value) == null;
                               });
                             },
@@ -211,9 +220,14 @@ class _Signup_1State extends State<Signup_1> {
                             ),
                             onChanged: (value) {
                               setState(() {
+                                _password = value;
                                 _isPasswordValid =
                                     _validatePassword(value) == null;
                               });
+                            },
+                            onEditingComplete: () {
+                              FocusScope.of(context).unfocus();
+                              _submitPage1();
                             },
                           ),
                         ],
@@ -222,14 +236,15 @@ class _Signup_1State extends State<Signup_1> {
                     SizedBox(
                       height: Responsive.space(context, size: Space.xlarge) * 4,
                     ),
-                    CircularButton(
-                      onPressed: () {
-                        if (_formKey.currentState!.validate()) {
-                          // Handle form submission
-                          Navigator.pushNamed(context, Signup_2.id);
-                        }
-                      },
-                      icon: Icons.arrow_back,
+                    Padding(
+                      padding: Responsive.paddingHorizontal(
+                        context,
+                        size: Space.large,
+                      ),
+                      child: CircularButton(
+                        onPressed: _submitPage1,
+                        icon: Icons.arrow_forward,
+                      ),
                     ),
                   ],
                 ),
@@ -239,5 +254,28 @@ class _Signup_1State extends State<Signup_1> {
         ),
       ),
     );
+  }
+
+  void _submitPage1() {
+    if (_formKey.currentState!.validate()) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder:
+              (context) => Signup_2(
+                name: _name,
+                email: _email,
+                phone: _phone,
+                password: _password,
+              ),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('يرجى ملء جميع الحقول المطلوبة بشكل صحيح'),
+        ),
+      );
+    }
   }
 }

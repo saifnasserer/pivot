@@ -172,11 +172,11 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
         ),
         ElevatedButton(
           style: ElevatedButton.styleFrom(backgroundColor: Colors.black),
+          onPressed: _submitForm,
           child: Text(
             widget.itemToEdit == null ? 'اضافة' : 'حفظ التعديل',
             style: TextStyle(color: Colors.white),
           ),
-          onPressed: _submitForm,
         ),
       ],
     );

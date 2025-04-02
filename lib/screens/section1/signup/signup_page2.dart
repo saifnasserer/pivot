@@ -3,9 +3,25 @@ import 'package:pivot/screens/section2/landing.dart';
 import 'package:pivot/screens/models/circular_button.dart';
 import 'package:pivot/screens/models/custom_dropdown.dart';
 import '../../../../responsive.dart';
+import 'package:provider/provider.dart';
+import '../../../providers/user_profile_provider.dart';
+import '../../../models/user_profile.dart';
+import 'package:uuid/uuid.dart';
 
 class Signup_2 extends StatefulWidget {
-  const Signup_2({super.key});
+  final String name;
+  final String email;
+  final String phone;
+  final String password;
+
+  const Signup_2({
+    super.key,
+    required this.name,
+    required this.email,
+    required this.phone,
+    required this.password,
+  });
+
   static String id = 'signup2';
   @override
   State<Signup_2> createState() => _Signup_2State();
@@ -24,14 +40,26 @@ class _Signup_2State extends State<Signup_2> {
   String? selectedDepartment;
   String? selectedSection;
 
+  // Store the full list of departments
+  final List<String> _allDepartments = ['CS', 'IS', 'IT', 'SC', 'General'];
+
+  // State variable for currently available departments
+  List<String> _availableDepartments = [];
+
   final List<String> years = [
     'الفرقة الأولى',
     'الفرقة الثانية',
     'الفرقة الثالثة',
     'الفرقة الرابعة',
   ];
-  final List<String> departments = ['CS', 'IS', 'IT', 'SC'];
   final List<String> sections = ['1', '2', '3', '4', '5', '6', '7', '8'];
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize available departments with the full list
+    _availableDepartments = List.from(_allDepartments);
+  }
 
   @override
   void dispose() {
@@ -92,6 +120,25 @@ class _Signup_2State extends State<Signup_2> {
                                   setState(() {
                                     selectedYear = newValue;
                                     _isYearValid = newValue != null;
+                                    // Update available departments based on selected year
+                                    if (newValue == 'الفرقة الأولى' ||
+                                        newValue == 'الفرقة الثانية') {
+                                      _availableDepartments = ['General'];
+                                      // If a different department was previously selected, reset it
+                                      if (selectedDepartment != null &&
+                                          selectedDepartment != 'General') {
+                                        selectedDepartment = null;
+                                        _isDepartmentValid = false;
+                                      }
+                                    } else {
+                                      // Restore all departments if year is 3rd or 4th
+                                      _availableDepartments = [
+                                        'CS',
+                                        'IS',
+                                        'IT',
+                                        'SC',
+                                      ];
+                                    }
                                   });
                                   FocusScope.of(
                                     context,
@@ -125,7 +172,8 @@ class _Signup_2State extends State<Signup_2> {
                             Expanded(
                               child: CustomDropdown(
                                 value: selectedDepartment,
-                                items: departments,
+                                items:
+                                    _availableDepartments, // Use filtered list
                                 hint: 'اختر القسم',
                                 isValid: _isDepartmentValid,
                                 onChanged: (String? newValue) {
@@ -173,6 +221,7 @@ class _Signup_2State extends State<Signup_2> {
                                     selectedSection = newValue;
                                     _isSectionValid = newValue != null;
                                   });
+                                  FocusScope.of(context).unfocus();
                                 },
                               ),
                             ),
@@ -200,43 +249,15 @@ class _Signup_2State extends State<Signup_2> {
                   SizedBox(
                     height: Responsive.space(context, size: Space.xlarge) * 4,
                   ),
-                  CircularButton(
-                    onPressed: () {
-                      // Check if all dropdowns have values selected
-                      bool allDropdownsValid = 
-                          selectedYear != null && 
-                          selectedDepartment != null && 
-                          selectedSection != null;
-                      
-                      // Update the validity state for visual feedback
-                      setState(() {
-                        _isYearValid = selectedYear != null;
-                        _isDepartmentValid = selectedDepartment != null;
-                        _isSectionValid = selectedSection != null;
-                      });
-                      
-                      // Only navigate if both form validation and dropdown validation pass
-                      if (_formKey.currentState!.validate() && allDropdownsValid) {
-                        Navigator.pushNamed(context, Landing.id);
-                      } else {
-                        // Show a snackbar with error message if validation fails
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'برجاء اختيار جميع البيانات المطلوبة',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            backgroundColor: Colors.red[400],
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
-                      }
-                    },
-                    icon: Icons.check,
+                  Padding(
+                    padding: Responsive.paddingHorizontal(
+                      context,
+                      size: Space.large,
+                    ),
+                    child: CircularButton(
+                      onPressed: _submitSignup,
+                      icon: Icons.check,
+                    ),
                   ),
                 ],
               ),
@@ -245,5 +266,45 @@ class _Signup_2State extends State<Signup_2> {
         ),
       ),
     );
+  }
+
+  void _submitSignup() {
+    setState(() {
+      _isYearValid = selectedYear != null;
+      _isDepartmentValid = selectedDepartment != null;
+      _isSectionValid = selectedSection != null;
+    });
+
+    if (_formKey.currentState!.validate() &&
+        _isYearValid &&
+        _isDepartmentValid &&
+        _isSectionValid) {
+      final userId = Uuid().v4();
+
+      final newUserProfile = UserProfile(
+        id: userId,
+        name: widget.name,
+        email: widget.email,
+        level: selectedYear!,
+        department: selectedDepartment!,
+        section: selectedSection!,
+      );
+
+      Provider.of<UserProfileProvider>(
+        context,
+        listen: false,
+      ).setUserProfile(newUserProfile);
+
+      print('Signup successful for ${widget.email}');
+      print('Phone: ${widget.phone}');
+      print('Password: ${widget.password}');
+      print('Section: $selectedSection');
+
+      Navigator.pushNamedAndRemoveUntil(context, Landing.id, (route) => false);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('يرجى اختيار الفرقة والقسم والسكشن')),
+      );
+    }
   }
 }

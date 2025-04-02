@@ -118,6 +118,7 @@ class CustomTextField extends StatelessWidget {
       ),
       onChanged: onChanged,
       decoration: _getInputDecoration(context),
+      textCapitalization: TextCapitalization.words,
     );
   }
 }

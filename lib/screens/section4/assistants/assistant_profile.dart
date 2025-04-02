@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/responsive.dart';
-import 'package:pivot/screens/section3/profile_details.dart';
+import 'package:pivot/screens/section4/doctor_details.dart';
 import 'assistant_subjects.dart';
 import 'assistant_categories.dart';
 import 'package:provider/provider.dart';
@@ -144,9 +144,9 @@ class _AssistantProfileState extends State<AssistantProfile> {
               //   ),
               // ),
               SliverToBoxAdapter(
-                child: ProfileDetails(
+                child: DoctorDetails(
                   name: 'الشيماء عبدالغفار',
-                  meta: 'بشمهندسة',
+                  title: 'بشمهندسة',
                 ),
               ),
               SliverToBoxAdapter(

@@ -28,8 +28,8 @@ void showAddAnnouncementDialog({
   int? index,
 }) {
   // Use String state variables
-  String _title = announcement?.title ?? '';
-  String _description = announcement?.description ?? '';
+  String title = announcement?.title ?? '';
+  String description = announcement?.description ?? '';
 
   // Selected color and tags
   Color selectedColor = announcement?.color ?? availableColors[0];
@@ -79,7 +79,7 @@ void showAddAnnouncementDialog({
                       CustomTextField(
                         hint: 'العنوان',
                         onChanged: (value) {
-                          _title = value;
+                          title = value;
                         },
                         validator: (value) {
                           if (value == null || value.isEmpty) {
@@ -96,7 +96,7 @@ void showAddAnnouncementDialog({
                       CustomTextField(
                         hint: 'الوصف',
                         onChanged: (value) {
-                          _description = value;
+                          description = value;
                         },
                         validator: (value) {
                           if (value == null || value.isEmpty) {
@@ -392,10 +392,10 @@ void showAddAnnouncementDialog({
                                 final formattedDate = formatter.format(now);
 
                                 final newAnnouncement = AnnouncementData(
-                                  title: _title,
+                                  title: title,
                                   date: formattedDate,
                                   color: selectedColor,
-                                  description: _description,
+                                  description: description,
                                   tags: selectedTags,
                                   timestamp: now,
                                 );

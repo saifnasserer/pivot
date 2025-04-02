@@ -1,19 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/responsive.dart';
 import 'package:auto_size_text/auto_size_text.dart';
-import 'package:provider/provider.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
 
-class ProfileDetails extends StatelessWidget {
-  const ProfileDetails({super.key});
+class DoctorDetails extends StatelessWidget {
+  const DoctorDetails({super.key, required this.name, required this.title});
+  final String name;
+  final String title;
   @override
   Widget build(BuildContext context) {
-    final profiledata = Provider.of<UserProfileProvider>(
-      context,
-      listen: false,
-    );
-    UserProfile profileDetails = profiledata.userProfile!;
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
@@ -22,14 +16,14 @@ class ProfileDetails extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                'الفرقة ${profileDetails.level}',
+                title,
                 style: TextStyle(
                   fontSize: Responsive.space(context, size: Space.medium),
                   color: Color(0xffd9d9d9),
                 ),
               ),
               AutoSizeText(
-                profileDetails.name,
+                name,
                 style: TextStyle(
                   fontSize: Responsive.space(context, size: Space.xlarge) * 1.2,
                   color: Colors.black,
@@ -40,14 +34,14 @@ class ProfileDetails extends StatelessWidget {
                 textAlign: TextAlign.end,
               ),
               SizedBox(height: Responsive.space(context, size: Space.small)),
-              AutoSizeText(
-                (' ${profileDetails.department} سكشن ${profileDetails.section} قسم '),
-                style: TextStyle(
-                  fontSize: Responsive.space(context, size: Space.medium),
-                  color: Color(0xffd9d9d9),
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              // Text(
+              //   profileDetails.department,
+              //   style: TextStyle(
+              //     fontSize: Responsive.space(context, size: Space.medium),
+              //     color: Color(0xffd9d9d9),
+              //     fontWeight: FontWeight.bold,
+              //   ),
+              // ),
             ],
           ),
         ),

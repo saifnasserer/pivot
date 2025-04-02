@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:pivot/providers/user_profile_provider.dart';
+import 'package:pivot/screens/section1/first_landing.dart';
 import 'package:pivot/screens/section3/edit_profile.dart' show EditProfile;
+import 'package:provider/provider.dart';
 
 Future<dynamic> profile_options(BuildContext context) {
   return showMenu(
@@ -35,7 +38,15 @@ Future<dynamic> profile_options(BuildContext context) {
           ),
         ),
         onTap: () {
-          // Handle logout
+          Provider.of<UserProfileProvider>(
+            context,
+            listen: false,
+          ).clearProfile();
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            FirstLanding.id,
+            (Route<dynamic> route) => false,
+          );
         },
       ),
     ],
