@@ -1,3 +1,4 @@
+import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/models/circular_button.dart';
@@ -43,6 +44,19 @@ class _TasksControlState extends State<TasksControl> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  AutoSizeText(
+                    'بشمهندسة الشيماء',
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    minFontSize: 16,
+                    style: TextStyle(
+                      fontSize: Responsive.text(
+                        context,
+                        size: TextSize.heading,
+                      ),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   // List of tasks
                   Expanded(
                     child: ListView.builder(
@@ -57,6 +71,7 @@ class _TasksControlState extends State<TasksControl> {
                             ),
                           ),
                           child: TaskModel(
+                            admin: true,
                             task: task,
                             onEdit: () {
                               showAddTaskDialog(

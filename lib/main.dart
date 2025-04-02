@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pivot/providers/schadule_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/section1/login/login.dart';
 import 'package:pivot/screens/section1/first_landing.dart';
@@ -40,6 +41,7 @@ class Pivot extends StatelessWidget {
           create: (_) => SectionProvider(),
         ), // Add SectionProvider
         ChangeNotifierProvider(create: (_) => TaskProvider()),
+        ChangeNotifierProvider(create: (_) => ScheduleProvider()),
       ],
       child: MaterialApp(
         onGenerateRoute: (settings) {

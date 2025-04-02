@@ -251,12 +251,12 @@ class _CardModelState extends State<CardModel> {
                   onTap: () {
                     Navigator.pushNamed(context, DoctorProfile.id);
                     // Navigate to doctor profile or show more info
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('تم النقر على الدكتور'),
-                        duration: Duration(seconds: 1),
-                      ),
-                    );
+                    // ScaffoldMessenger.of(context).showSnackBar(
+                    //   SnackBar(
+                    //     content: Text('تم النقر على الدكتور'),
+                    //     duration: Duration(seconds: 1),
+                    //   ),
+                    // );
                   },
                   child: Container(
                     padding: EdgeInsets.symmetric(

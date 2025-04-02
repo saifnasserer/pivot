@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pivot/responsive.dart';
 import 'package:intl/intl.dart';
 import 'package:pivot/screens/section2/adminstration/models/announcement_data.dart';
+import '../models/custom_text_field.dart';
 
 // Available colors for selection
 final List<Color> availableColors = [
@@ -28,13 +29,9 @@ void showAddAnnouncementDialog({
   AnnouncementData? announcement,
   int? index,
 }) {
-  // Form controllers
-  final titleController = TextEditingController(
-    text: announcement?.title ?? '',
-  );
-  final descriptionController = TextEditingController(
-    text: announcement?.description ?? '',
-  );
+  // Use String state variables
+  String _title = announcement?.title ?? '';
+  String _description = announcement?.description ?? '';
 
   // Selected color and tags
   Color selectedColor = announcement?.color ?? availableColors[0];
@@ -80,22 +77,12 @@ void showAddAnnouncementDialog({
                         height: Responsive.space(context, size: Space.medium),
                       ),
 
-                      // Title field
-                      TextFormField(
-                        controller: titleController,
-                        textAlign: TextAlign.right,
-                        decoration: InputDecoration(
-                          labelText: 'العنوان',
-                          alignLabelWithHint: true,
-                          floatingLabelAlignment: FloatingLabelAlignment.start,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                        ),
+                      // Title field - Use CustomTextField
+                      CustomTextField(
+                        hint: 'العنوان', // Use hint
+                        onChanged: (value) {
+                          _title = value;
+                        },
                         validator: (value) {
                           if (value == null || value.isEmpty) {
                             return 'الرجاء إدخال العنوان';
@@ -107,34 +94,20 @@ void showAddAnnouncementDialog({
                         height: Responsive.space(context, size: Space.small),
                       ),
 
-                      // Type field
-                      SizedBox(
-                        height: Responsive.space(context, size: Space.small),
-                      ),
-
-                      // Description field
-                      TextFormField(
-                        controller: descriptionController,
-                        textAlign: TextAlign.right,
-                        decoration: InputDecoration(
-                          labelText: 'الوصف',
-                          alignLabelWithHint: true,
-                          floatingLabelAlignment: FloatingLabelAlignment.start,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                        ),
-                        maxLines: 3,
+                      // Description field - Use CustomTextField
+                      CustomTextField(
+                        hint: 'الوصف', // Use hint
+                        onChanged: (value) {
+                          _description = value;
+                        },
                         validator: (value) {
                           if (value == null || value.isEmpty) {
                             return 'الرجاء إدخال الوصف';
                           }
                           return null;
                         },
+                        keyboardType: TextInputType.multiline,
+                        textInputAction: TextInputAction.newline,
                       ),
                       SizedBox(
                         height: Responsive.space(context, size: Space.medium),
@@ -420,10 +393,10 @@ void showAddAnnouncementDialog({
                                 final formattedDate = formatter.format(now);
 
                                 final newAnnouncement = AnnouncementData(
-                                  title: titleController.text,
+                                  title: _title, // Use state variable
                                   date: formattedDate,
                                   color: selectedColor,
-                                  description: descriptionController.text,
+                                  description: _description, // Use state variable
                                   tags: selectedTags,
                                   timestamp: now,
                                 );

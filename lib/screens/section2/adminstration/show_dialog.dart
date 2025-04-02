@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pivot/responsive.dart';
 import 'package:intl/intl.dart';
 import 'package:pivot/screens/section2/adminstration/models/announcement_data.dart';
+import '../../models/custom_text_field.dart';
 
 // Available colors for selection
 final List<Color> availableColors = [
@@ -26,13 +27,9 @@ void showAddAnnouncementDialog({
   AnnouncementData? announcement,
   int? index,
 }) {
-  // Form controllers
-  final titleController = TextEditingController(
-    text: announcement?.title ?? '',
-  );
-  final descriptionController = TextEditingController(
-    text: announcement?.description ?? '',
-  );
+  // Use String state variables
+  String _title = announcement?.title ?? '';
+  String _description = announcement?.description ?? '';
 
   // Selected color and tags
   Color selectedColor = announcement?.color ?? availableColors[0];
@@ -68,7 +65,7 @@ void showAddAnnouncementDialog({
                         isEditing ? 'تعديل الخبر' : 'خبر جديد',
                         style: TextStyle(
                           fontSize:
-                              Responsive.text(context, size: TextSize.medium) *
+                              Responsive.text(context, size: TextSize.heading) *
                               1.2,
                           fontWeight: FontWeight.bold,
                         ),
@@ -79,21 +76,11 @@ void showAddAnnouncementDialog({
                       ),
 
                       // Title field
-                      TextFormField(
-                        controller: titleController,
-                        textAlign: TextAlign.right,
-                        decoration: InputDecoration(
-                          labelText: 'العنوان',
-                          alignLabelWithHint: true,
-                          floatingLabelAlignment: FloatingLabelAlignment.start,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                        ),
+                      CustomTextField(
+                        hint: 'العنوان',
+                        onChanged: (value) {
+                          _title = value;
+                        },
                         validator: (value) {
                           if (value == null || value.isEmpty) {
                             return 'الرجاء إدخال العنوان';
@@ -106,47 +93,38 @@ void showAddAnnouncementDialog({
                       ),
 
                       // Description field
-                      TextFormField(
-                        controller: descriptionController,
-                        textAlign: TextAlign.right,
-                        decoration: InputDecoration(
-                          labelText: 'الوصف',
-                          alignLabelWithHint: true,
-                          floatingLabelAlignment: FloatingLabelAlignment.start,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                        ),
-                        maxLines: 3,
+                      CustomTextField(
+                        hint: 'الوصف',
+                        onChanged: (value) {
+                          _description = value;
+                        },
                         validator: (value) {
                           if (value == null || value.isEmpty) {
                             return 'الرجاء إدخال الوصف';
                           }
                           return null;
                         },
+                        keyboardType: TextInputType.multiline,
+                        textInputAction: TextInputAction.newline,
                       ),
                       SizedBox(
                         height: Responsive.space(context, size: Space.medium),
                       ),
 
                       // Color selection
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: Text(
-                          'اختر اللون:',
-                          style: TextStyle(
-                            fontSize:
-                                Responsive.text(context, size: TextSize.small) *
-                                1.1,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.right,
-                        ),
-                      ),
+                      // Align(
+                      //   alignment: Alignment.centerRight,
+                      //   child: Text(
+                      //     'اختر اللون:',
+                      //     style: TextStyle(
+                      //       fontSize:
+                      //           Responsive.text(context, size: TextSize.small) *
+                      //           1.1,
+                      //       fontWeight: FontWeight.bold,
+                      //     ),
+                      //     textAlign: TextAlign.right,
+                      //   ),
+                      // ),
                       SizedBox(
                         height:
                             Responsive.space(context, size: Space.small) * 0.5,
@@ -313,16 +291,16 @@ void showAddAnnouncementDialog({
                       // Tags selection
                       Align(
                         alignment: Alignment.centerRight,
-                        child: Text(
-                          'اختر الأقسام:',
-                          style: TextStyle(
-                            fontSize:
-                                Responsive.text(context, size: TextSize.small) *
-                                1.1,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.right,
-                        ),
+                        // child: Text(
+                        //   'اختر الأقسام:',
+                        //   style: TextStyle(
+                        //     fontSize:
+                        //         Responsive.text(context, size: TextSize.small) *
+                        //         1.1,
+                        //     fontWeight: FontWeight.bold,
+                        //   ),
+                        //   textAlign: TextAlign.right,
+                        // ),
                       ),
                       SizedBox(
                         height:
@@ -368,6 +346,7 @@ void showAddAnnouncementDialog({
                                     ),
                                     checkmarkColor: Colors.black,
                                     labelStyle: TextStyle(
+                                      color: Colors.black,
                                       fontWeight:
                                           isSelected
                                               ? FontWeight.bold
@@ -413,10 +392,10 @@ void showAddAnnouncementDialog({
                                 final formattedDate = formatter.format(now);
 
                                 final newAnnouncement = AnnouncementData(
-                                  title: titleController.text,
+                                  title: _title,
                                   date: formattedDate,
                                   color: selectedColor,
-                                  description: descriptionController.text,
+                                  description: _description,
                                   tags: selectedTags,
                                   timestamp: now,
                                 );

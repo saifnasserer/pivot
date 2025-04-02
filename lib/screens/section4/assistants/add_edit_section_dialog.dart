@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart'; // For time formatting
-import 'dart:ui'; // For TextDirection
+// For TextDirection
 import 'package:flutter/services.dart'; // For input formatters
 
 import '../../models/section_info.dart';

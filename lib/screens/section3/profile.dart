@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/responsive.dart';
-import 'package:pivot/screens/models/lecture_card_model.dart';
 import 'package:pivot/screens/section3/profile_widgets/Profile_options.dart';
 import 'package:pivot/screens/section3/profile_categories_section.dart';
 import 'package:pivot/screens/section3/profile_details.dart';
@@ -13,6 +12,9 @@ import 'package:pivot/screens/section3/profile_widgets/week_tasks.dart'
     show buildWeekTasksSlivers;
 import 'package:provider/provider.dart';
 import 'package:pivot/providers/task_provider.dart';
+import 'package:pivot/providers/schadule_provider.dart';
+import 'package:pivot/screens/models/schedule_item.dart';
+import 'add_edit_schedule_dialog.dart';
 
 class Profile extends StatefulWidget {
   static const String id = 'profile';
@@ -23,83 +25,25 @@ class Profile extends StatefulWidget {
 }
 
 class _ProfileState extends State<Profile> {
-  final Map<String, List<LectureCardModel>> dayLectures = {
-    'السبت': [
-      LectureCardModel(
-        section: false,
-        title: 'الحوسبة عالية الاداء',
-        description: 'مدرج 2 الساعه 1ونص',
-      ),
-      LectureCardModel(
-        section: true,
-        title: 'سكشن الحوسبة',
-        description: 'معمل 3 الساعه 3',
-      ),
-    ],
-    'الاحد': [
-      LectureCardModel(
-        section: false,
-        title: 'هندسة البرمجيات',
-        description: 'مدرج 1 الساعه 9 صباحا',
-      ),
-    ],
-    'الاثنين': [
-      LectureCardModel(
-        section: true,
-        title: 'سكشن هندسة البرمجيات',
-        description: 'معمل 2 الساعه 11 صباحا',
-      ),
-    ],
-    'الثلاثاء': [],
-    'الاربعاء': [
-      LectureCardModel(
-        section: false,
-        title: 'نظم التشغيل',
-        description: 'مدرج 3 الساعه 2 ظهرا',
-      ),
-    ],
-    'الخميس': [
-      LectureCardModel(
-        section: false,
-        title: 'نظم التشغيل',
-        description: 'مدرج 3 الساعه 2 ظهرا',
-      ),
-    ],
-  };
-
-  // List of days in order (right to left for Arabic)
-  final List<String> days = [
-    'السبت',
-    'الاحد',
-    'الاثنين',
-    'الثلاثاء',
-    'الاربعاء',
-    'الخميس',
-  ];
-
   int selectedDayIndex = 0;
 
   String _currentCategory = 'تاسكات الاسبوع';
 
-  // --- Callback function for day selection ---
   void _onDaySelected(int index) {
     setState(() {
       selectedDayIndex = index;
     });
   }
-  // --- End Callback ---
 
-  // --- Modified to return List<Widget> (slivers) ---
   List<Widget> _getCategoryContentSlivers() {
+    final scheduleProvider = Provider.of<ScheduleProvider>(context);
+    final taskProvider = Provider.of<TaskProvider>(context);
+
     switch (_currentCategory) {
       case 'تاسكات الاسبوع':
-        // Get provider and tasks
-        final taskProvider = Provider.of<TaskProvider>(context);
-        final allTasks = taskProvider.tasks; // Get all tasks first
+        final allTasks = taskProvider.tasks;
         final now = DateTime.now();
 
-        // Filter tasks: Keep only those whose due date is today or in the future
-        // We compare dates only, ignoring time, by creating new DateTime objects
         final upcomingTasks =
             allTasks.where((task) {
               final taskDueDate = DateTime(
@@ -108,21 +52,34 @@ class _ProfileState extends State<Profile> {
                 task.dueDate.day,
               );
               final today = DateTime(now.year, now.month, now.day);
-              return !taskDueDate.isBefore(
-                today,
-              ); // Keep if due date is not before today
+              return !taskDueDate.isBefore(today);
             }).toList();
 
-        // Call with required arguments
         return buildWeekTasksSlivers(context, upcomingTasks, taskProvider);
       case 'الجدول':
-        // buildCalendar already returns List<Widget>
+        final days = scheduleProvider.days;
+        final validIndex = selectedDayIndex.clamp(
+          0,
+          days.isEmpty ? 0 : days.length - 1,
+        );
+        final currentDay = days.isEmpty ? '' : days[validIndex];
+        final itemsForSelectedDay =
+            days.isEmpty
+                ? <ScheduleItem>[]
+                : scheduleProvider.getScheduleForDay(currentDay);
+
         return buildCalendar(
-          selectedDayIndex: selectedDayIndex,
+          selectedDayIndex: validIndex,
           context: context,
           days: days,
-          dayLectures: dayLectures,
-          onDaySelected: _onDaySelected, // <-- Pass the callback here
+          dayScheduleItems: itemsForSelectedDay,
+          onDaySelected: _onDaySelected,
+          handleDelete: (String itemId) {
+            scheduleProvider.removeScheduleItem(
+              currentDay,
+              itemId,
+            );
+          },
         );
       case 'مواد الترم':
         return buildSubjectsSlivers(context);
@@ -136,10 +93,18 @@ class _ProfileState extends State<Profile> {
         ];
     }
   }
-  // --- End Modification ---
 
   @override
   Widget build(BuildContext context) {
+    final scheduleProvider = Provider.of<ScheduleProvider>(context);
+    final days = scheduleProvider.days;
+    final currentSelectedDay =
+        days.isNotEmpty &&
+                selectedDayIndex >= 0 &&
+                selectedDayIndex < days.length
+            ? days[selectedDayIndex]
+            : null;
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -161,10 +126,25 @@ class _ProfileState extends State<Profile> {
           ),
         ],
       ),
+      floatingActionButton:
+          _currentCategory == 'الجدول' && currentSelectedDay != null
+              ? FloatingActionButton(
+                backgroundColor: Colors.black,
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (BuildContext context) {
+                      return AddEditScheduleDialog(day: currentSelectedDay);
+                    },
+                  );
+                },
+                tooltip: 'اضافة محاضرة/سكشن',
+                child: const Icon(Icons.add, color: Colors.white),
+              )
+              : null,
       body: SafeArea(
         child: Padding(
           padding: Responsive.paddingHorizontal(context),
-          // --- Use CustomScrollView for sliver-based layout ---
           child: CustomScrollView(
             slivers: [
               SliverToBoxAdapter(
@@ -185,8 +165,6 @@ class _ProfileState extends State<Profile> {
                   onCategoryChanged: (category) {
                     setState(() {
                       _currentCategory = category;
-                      // Reset day index when changing main category if needed
-                      // selectedDayIndex = 0;
                     });
                   },
                 ),
@@ -198,12 +176,9 @@ class _ProfileState extends State<Profile> {
               ),
               const SliverToBoxAdapter(child: Divider(indent: 4, endIndent: 1)),
 
-              // --- Use spread operator to insert the slivers ---
               ..._getCategoryContentSlivers(),
-              // --- End Spread Operator ---
             ],
           ),
-          // --- End CustomScrollView ---
         ),
       ),
     );
