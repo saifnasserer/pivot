@@ -1,32 +1,56 @@
 import 'package:flutter/material.dart';
+import 'package:pivot/providers/bookmarks.dart';
 import 'package:pivot/responsive.dart';
+import 'package:pivot/screens/section2/adminstration/models/announcement_data.dart';
 import 'package:pivot/screens/section4/doctor/doctor_profile.dart';
+import 'package:provider/provider.dart';
 
 class CardModel extends StatefulWidget {
+  final String title;
+  final String date;
+  final Color color;
+  final String description;
+  final List<String> tags;
+  final String? imageUrl;
+  final String? doctorName;
+  final bool isDoctorCard;
+
   CardModel({
     super.key,
-    required this.color,
     required this.title,
-    required this.desc,
-    this.tags,
-    this.date,
+    required this.date,
+    required this.color,
+    required this.description,
+    required this.tags,
+    this.imageUrl,
+    this.doctorName,
+    this.isDoctorCard = false,
   });
 
-  final Color color;
-  final String title;
-  final String desc;
-  final List<String>? tags;
-  final String? date;
-  bool checked = false;
   @override
   State<CardModel> createState() => _CardModelState();
 }
 
 class _CardModelState extends State<CardModel> {
-  int bookmarkCount = 0;
   int shareCount = 0;
+
+  AnnouncementData _createAnnouncementData() {
+    return AnnouncementData(
+      title: widget.title,
+      date: widget.date,
+      color: widget.color,
+      description: widget.description,
+      tags: widget.tags,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final bookmarksProvider = Provider.of<Bookmarks>(context);
+    final bool isCurrentlyBookmarked = bookmarksProvider.isBookmarked(
+      _createAnnouncementData(),
+    );
+
     return Container(
       margin: EdgeInsets.all(3),
       decoration: BoxDecoration(
@@ -38,7 +62,6 @@ class _CardModelState extends State<CardModel> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            // Title and description in a scrollable container
             Expanded(
               child: SingleChildScrollView(
                 child: Column(
@@ -60,8 +83,8 @@ class _CardModelState extends State<CardModel> {
                       height: Responsive.space(context, size: Space.medium),
                     ),
                     Text(
+                      widget.description,
                       textAlign: TextAlign.right,
-                      widget.desc,
                       style: TextStyle(
                         fontSize: Responsive.text(
                           context,
@@ -69,9 +92,8 @@ class _CardModelState extends State<CardModel> {
                         ),
                       ),
                     ),
-
-                    // Display tags if available , and date
                     Column(
+                      mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         if (widget.date != null)
@@ -103,7 +125,7 @@ class _CardModelState extends State<CardModel> {
                                     ),
                                     SizedBox(width: 4),
                                     Text(
-                                      widget.date!,
+                                      widget.date,
                                       style: TextStyle(
                                         color: Colors.white,
                                         fontSize:
@@ -120,7 +142,7 @@ class _CardModelState extends State<CardModel> {
                               ),
                             ),
                           ),
-                        if (widget.tags != null && widget.tags!.isNotEmpty)
+                        if (widget.tags.isNotEmpty)
                           Padding(
                             padding: EdgeInsets.only(
                               top: Responsive.space(
@@ -133,7 +155,7 @@ class _CardModelState extends State<CardModel> {
                               runSpacing: 8,
                               alignment: WrapAlignment.end,
                               children:
-                                  widget.tags!.map((tag) {
+                                  widget.tags.map((tag) {
                                     return Container(
                                       padding: EdgeInsets.symmetric(
                                         horizontal: 12,
@@ -171,11 +193,8 @@ class _CardModelState extends State<CardModel> {
                 ),
               ),
             ),
-
-            // Fixed bottom section
             Column(
               children: [
-                // Action buttons container
                 Center(
                   child: Container(
                     decoration: BoxDecoration(
@@ -209,32 +228,25 @@ class _CardModelState extends State<CardModel> {
                             children: [
                               IconButton(
                                 onPressed: () {
-                                  setState(() {
-                                    widget.checked = !widget.checked;
-                                    widget.checked
-                                        ? bookmarkCount++
-                                        : bookmarkCount--;
-                                  });
+                                  final bookmarks = Provider.of<Bookmarks>(
+                                    context,
+                                    listen: false,
+                                  );
+                                  final itemData = _createAnnouncementData();
+
+                                  if (isCurrentlyBookmarked) {
+                                    bookmarks.removeBookmark(itemData);
+                                  } else {
+                                    bookmarks.addBookmark(itemData);
+                                  }
                                 },
                                 icon: Icon(
-                                  widget.checked
+                                  isCurrentlyBookmarked
                                       ? Icons.bookmark
-                                      : Icons.bookmark_border_outlined,
+                                      : Icons.bookmark_border,
+                                  color: Colors.grey[600],
                                 ),
                               ),
-                              // Only show counter when bookmarked
-                              if (widget.checked)
-                                Text(
-                                  bookmarkCount.toString(),
-                                  style: TextStyle(
-                                    fontSize: Responsive.text(
-                                      context,
-                                      size: TextSize.small,
-                                    ),
-                                    color: Colors.black,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
                             ],
                           ),
                         ],
@@ -243,20 +255,11 @@ class _CardModelState extends State<CardModel> {
                   ),
                 ),
                 SizedBox(height: Responsive.space(context, size: Space.medium)),
-
-                // Doctor section
                 Divider(color: Colors.black),
                 SizedBox(height: Responsive.space(context, size: Space.small)),
                 InkWell(
                   onTap: () {
                     Navigator.pushNamed(context, DoctorProfile.id);
-                    // Navigate to doctor profile or show more info
-                    // ScaffoldMessenger.of(context).showSnackBar(
-                    //   SnackBar(
-                    //     content: Text('تم النقر على الدكتور'),
-                    //     duration: Duration(seconds: 1),
-                    //   ),
-                    // );
                   },
                   child: Container(
                     padding: EdgeInsets.symmetric(

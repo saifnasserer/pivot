@@ -6,7 +6,6 @@ import 'package:pivot/screens/models/circular_button.dart';
 import 'package:pivot/screens/models/custom_text_field.dart';
 import 'package:pivot/screens/models/custom_dropdown.dart';
 import 'package:pivot/screens/section2/landing.dart';
-import 'package:pivot/screens/section3/profile.dart';
 import 'package:provider/provider.dart';
 
 class EditProfile extends StatefulWidget {

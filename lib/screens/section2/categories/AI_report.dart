@@ -67,9 +67,10 @@ class _AIReportState extends State<AIReport> {
         final announcement = filteredAnnouncements[index];
         return CardModel(
           title: announcement.title,
-          desc: announcement.description,
-          color: announcement.color,
           date: announcement.date,
+          color: announcement.color,
+          description: announcement.description,
+          tags: announcement.tags ?? [], // Provide empty list if tags are null
         );
       },
       onPageChanged: (index) {

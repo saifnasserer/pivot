@@ -271,11 +271,9 @@ class _Signup_1State extends State<Signup_1> {
         ),
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('يرجى ملء جميع الحقول المطلوبة بشكل صحيح'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('املي البيانات بشكل كامل')));
     }
   }
 }

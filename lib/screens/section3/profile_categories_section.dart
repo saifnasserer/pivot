@@ -10,6 +10,7 @@ class ProfileCategories extends StatefulWidget {
     'الجدول',
     'مواد الترم',
     'السكاشن',
+    'المحفوظات',
   ];
   @override
   State<ProfileCategories> createState() => PprofileCategoriesState();

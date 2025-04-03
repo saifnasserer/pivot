@@ -18,6 +18,7 @@ import 'package:provider/provider.dart';
 import 'package:pivot/providers/announcement_provider.dart';
 import 'package:pivot/providers/task_provider.dart';
 import 'package:pivot/providers/section_provider.dart'; // Import SectionProvider
+import 'package:pivot/providers/bookmarks.dart'; // Import Bookmarks provider
 
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
@@ -44,6 +45,7 @@ class Pivot extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => TaskProvider()),
         ChangeNotifierProvider(create: (_) => ScheduleProvider()),
         ChangeNotifierProvider(create: (_) => UserProfileProvider()),
+        ChangeNotifierProvider(create: (_) => Bookmarks()), // Add Bookmarks provider
       ],
       child: MaterialApp(
         onGenerateRoute: (settings) {
@@ -78,6 +80,10 @@ class Pivot extends StatelessWidget {
           colorScheme: ColorScheme.fromSwatch().copyWith(
             primary: Colors.black,
             secondary: Colors.white,
+          ),
+          snackBarTheme: SnackBarThemeData(
+            backgroundColor: Colors.black87,
+            contentTextStyle: TextStyle(color: Colors.white),
           ),
           fontFamily: 'NotoSansArabic',
           scaffoldBackgroundColor: Colors.white,

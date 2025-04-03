@@ -159,7 +159,7 @@ class _Signup_2State extends State<Signup_2> {
                                   context,
                                   size: TextSize.medium,
                                 ),
-                                fontWeight: FontWeight.bold,
+                                // fontWeight: FontWeight.bold,
                               ),
                             ),
                           ],

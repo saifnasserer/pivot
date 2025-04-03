@@ -15,6 +15,7 @@ import 'package:pivot/providers/task_provider.dart';
 import 'package:pivot/providers/schadule_provider.dart';
 import 'package:pivot/screens/models/schedule_item.dart';
 import 'add_edit_schedule_dialog.dart';
+import 'package:pivot/screens/section3/bookmarks_screen.dart' show buildBookmarksSlivers;
 
 class Profile extends StatefulWidget {
   static const String id = 'profile';
@@ -25,13 +26,20 @@ class Profile extends StatefulWidget {
 }
 
 class _ProfileState extends State<Profile> {
-  int selectedDayIndex = 0;
-
+  int _selectedCategoryIndex = 0;
   String _currentCategory = 'تاسكات الاسبوع';
+
+  final List<String> _categories = const [
+    'تاسكات الاسبوع',
+    'الجدول',
+    'مواد الترم',
+    'السكاشن',
+    'المحفوظات',
+  ];
 
   void _onDaySelected(int index) {
     setState(() {
-      selectedDayIndex = index;
+      _selectedCategoryIndex = index;
     });
   }
 
@@ -58,7 +66,7 @@ class _ProfileState extends State<Profile> {
         return buildWeekTasksSlivers(context, upcomingTasks, taskProvider);
       case 'الجدول':
         final days = scheduleProvider.days;
-        final validIndex = selectedDayIndex.clamp(
+        final validIndex = _selectedCategoryIndex.clamp(
           0,
           days.isEmpty ? 0 : days.length - 1,
         );
@@ -82,6 +90,8 @@ class _ProfileState extends State<Profile> {
         return buildSubjectsSlivers(context);
       case 'السكاشن':
         return buildSectionsSlivers(context);
+      case 'المحفوظات':
+        return buildBookmarksSlivers(context);
       default:
         return [
           const SliverFillRemaining(
@@ -97,9 +107,9 @@ class _ProfileState extends State<Profile> {
     final days = scheduleProvider.days;
     final currentSelectedDay =
         days.isNotEmpty &&
-                selectedDayIndex >= 0 &&
-                selectedDayIndex < days.length
-            ? days[selectedDayIndex]
+                _selectedCategoryIndex >= 0 &&
+                _selectedCategoryIndex < days.length
+            ? days[_selectedCategoryIndex]
             : null;
 
     return Scaffold(
@@ -160,6 +170,7 @@ class _ProfileState extends State<Profile> {
                   onCategoryChanged: (category) {
                     setState(() {
                       _currentCategory = category;
+                      _selectedCategoryIndex = _categories.indexOf(category);
                     });
                   },
                 ),

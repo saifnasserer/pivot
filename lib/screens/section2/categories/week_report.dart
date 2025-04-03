@@ -68,10 +68,10 @@ class _WeekReportState extends State<WeekReport> {
         final announcement = filteredAnnouncements[index];
         return CardModel(
           title: announcement.title,
-          desc: announcement.description,
-          color: announcement.color,
-          tags: announcement.tags,
           date: announcement.date,
+          color: announcement.color,
+          description: announcement.description,
+          tags: announcement.tags ?? [],
         );
       },
       onPageChanged: (index) {

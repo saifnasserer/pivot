@@ -67,9 +67,10 @@ class _SCReportState extends State<SCReport> {
         final announcement = filteredAnnouncements[index];
         return CardModel(
           title: announcement.title,
-          desc: announcement.description,
-          color: announcement.color,
           date: announcement.date,
+          color: announcement.color,
+          description: announcement.description,
+          tags: announcement.tags ?? [],
         );
       },
       onPageChanged: (index) {

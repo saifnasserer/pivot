@@ -221,7 +221,7 @@ class _AddEditTaskDialogContentState extends State<_AddEditTaskDialogContent> {
                     // labelText: 'تفاصيل التاسك', // Label provided above
                   ),
                   textAlign: TextAlign.right,
-                  maxLines: 3,
+                  // maxLines: null, // Allow the field to expand vertically
                   // No validator needed for optional description
                 ),
                 const SizedBox(height: 16),
