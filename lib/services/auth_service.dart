@@ -9,40 +9,22 @@ class AuthService {
   // Stream to listen to authentication state changes
   Stream<User?> get authStateChanges => _firebaseAuth.authStateChanges();
 
-  // // Sign up with email and password
-  // Future<User?> signUpWithEmailAndPassword(String email, String password) async {
-  //   try {
-  //     UserCredential result = await _firebaseAuth.createUserWithEmailAndPassword(
-  //         email: email, password: password);
-  //     return result.user;
-  //   } catch (e) {
-  //     print(e.toString());
-  //     return null;
-  //   }
-  // }
-
   // Sign in with email and password
   Future<UserProfile?> signInWithEmailAndPassword(
     String email,
     String password,
   ) async {
-    try {
-      UserCredential result = await _firebaseAuth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-      User? user = result.user;
+    UserCredential result = await _firebaseAuth.signInWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+    User? user = result.user;
 
-      if (user != null) {
-        // Fetch the user profile after successful login
-        return await getUserProfile(user.uid);
-      } else {
-        return null;
-      }
-    } catch (e) {
-      print(e.toString());
-      return null;
+    if (user != null) {
+      // Fetch the user profile after successful login
+      return await getUserProfile(user.uid);
     }
+    return null;
   }
 
   // Sign out
@@ -56,39 +38,35 @@ class AuthService {
   }
 
   // Sign up with email and password and store user profile
-  Future<User?> signUpWithEmailAndPassword(
+  Future<UserProfile?> signUpWithEmailAndPassword(
     String email,
     String password,
     Map<String, dynamic> userData,
   ) async {
-    try {
-      UserCredential result = await _firebaseAuth
-          .createUserWithEmailAndPassword(email: email, password: password);
-      User? user = result.user;
+    UserCredential result = await _firebaseAuth.createUserWithEmailAndPassword(
+        email: email, password: password);
+    User? user = result.user;
 
-      if (user != null) {
-        // Create a UserProfile object from the provided data and UID
-        UserProfile newUserProfile = UserProfile(
-          id: user.uid,
-          name: userData['name'],
-          email: email,
-          department: userData['department'],
-          level: userData['level'],
-          section: userData['section'],
-          profileImageUrl: userData['profileImageUrl'], // Optional
-        );
+    if (user != null) {
+      // Create a UserProfile object from the provided data and UID
+      UserProfile newUserProfile = UserProfile(
+        id: user.uid,
+        name: userData['name'],
+        email: email,
+        department: userData['department'],
+        level: userData['level'],
+        section: userData['section'],
+        profileImageUrl: userData['profileImageUrl'], // Optional
+      );
 
-        // Store the user profile in Firestore
-        await _firestore
-            .collection('users')
-            .doc(user.uid)
-            .set(newUserProfile.toJson());
-      }
-      return user;
-    } catch (e) {
-      print(e.toString());
-      return null;
+      // Store the user profile in Firestore
+      await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .set(newUserProfile.toJson());
+      return newUserProfile;
     }
+    return null;
   }
 
   // You might also want a method to fetch user profile data

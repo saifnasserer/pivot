@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pivot/models/user_profile.dart';
-// import 'package:pivot/models/user_profile.dart';
-// import 'package:pivot/providers/user_profile_provider.dart';
+import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/screens/section2/landing.dart';
 import 'package:pivot/screens/models/circular_button.dart';
 import 'package:pivot/screens/models/custom_text_field.dart';
-// import 'package:provider/provider.dart';
+import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart'; // Add this import
 import '../../../responsive.dart';
 import '../../../services/auth_service.dart';
@@ -39,21 +38,41 @@ class _LoginState extends State<Login> {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
       try {
-        UserProfile? userProfile = await _authService
-            .signInWithEmailAndPassword(_email, _password);
-        if (userProfile != null) {
-          // Login successful, navigate to landing page
+        UserProfile? userProfile =
+            await _authService.signInWithEmailAndPassword(_email, _password);
+        if (mounted && userProfile != null) {
+          Provider.of<UserProfileProvider>(context, listen: false)
+              .setUserProfile(userProfile);
           Navigator.pushNamedAndRemoveUntil(
             context,
             Landing.id,
             (route) => false,
           );
-        } else {
-          // Login failed, show error message
+        }
+      } on FirebaseAuthException catch (e) {
+        String errorMessage;
+        switch (e.code) {
+          case 'user-not-found':
+          case 'invalid-credential':
+            errorMessage = 'اما فية غلط في البيانات او المستخدم غير مسجل';
+            break;
+          case 'wrong-password':
+            errorMessage = 'كلمة المرور غير صحيحة.';
+            break;
+          case 'invalid-email':
+            errorMessage = 'البريد الإلكتروني غير صالح.';
+            break;
+          case 'user-disabled':
+            errorMessage = 'تم تعطيل هذا المستخدم.';
+            break;
+          default:
+            errorMessage = 'حدث خطأ غير متوقع. حاول مرة أخرى.';
+        }
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'اما فية غلط في البيانات او المستخدم غير مسجل',
+                errorMessage,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: Responsive.text(context) * .9,
@@ -65,13 +84,14 @@ class _LoginState extends State<Login> {
           );
         }
       } catch (e) {
-        // Handle any exceptions during login
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('An error occurred: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('An error occurred: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }

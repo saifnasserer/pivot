@@ -260,7 +260,7 @@ class _Signup_2State extends State<Signup_2> {
                       size: Space.large,
                     ),
                     child: CircularButton(
-                      onPressed: _submitSignup,
+                      onPressed: _submitForm,
                       icon: Icons.check,
                     ),
                   ),
@@ -273,76 +273,47 @@ class _Signup_2State extends State<Signup_2> {
     );
   }
 
-  void _submitSignup() {
+  void _submitForm() async {
     setState(() {
       _isYearValid = selectedYear != null;
       _isDepartmentValid = selectedDepartment != null;
       _isSectionValid = selectedSection != null;
     });
 
-    if (_formKey.currentState!.validate() &&
-        _isYearValid &&
-        _isDepartmentValid &&
-        _isSectionValid) {
-      final userId = Uuid().v4();
-
-      final newUserProfile = UserProfile(
-        id: userId,
-        name: widget.name,
-        email: widget.email,
-        level: selectedYear!,
-        department: selectedDepartment!,
-        section: selectedSection!,
-      );
-
-      Provider.of<UserProfileProvider>(
-        context,
-        listen: false,
-      ).setUserProfile(newUserProfile);
-
-      print('Signup successful for ${widget.email}');
-      print('Phone: ${widget.phone}');
-      print('Password: ${widget.password}');
-      print('Section: $selectedSection');
-
-      // Navigator.pushNamedAndRemoveUntil(context, Landing.id, (route) => false);
-      _submitForm();
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('يرجى اختيار الفرقة والقسم والسكشن')),
-      );
+    if (!_isYearValid || !_isDepartmentValid || !_isSectionValid) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('يرجى اختيار الفرقة والقسم والسكشن')),
+        );
+      }
+      return;
     }
-  }
 
-  void _submitForm() async {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
 
-      // Prepare user data for UserProfile
       Map<String, dynamic> userData = {
         'name': widget.name,
-        'department': selectedDepartment, // Use the state variable
-        'level': selectedYear, // Use the state variable
-        'section': selectedSection, // Use the state variable
-        'profileImageUrl': null, // You can add logic for profile image later
+        'department': selectedDepartment,
+        'level': selectedYear,
+        'section': selectedSection,
+        'profileImageUrl': null,
       };
 
       try {
-        // Call the signUpWithEmailAndPassword method from AuthService
-        User? user = await _authService.signUpWithEmailAndPassword(
+        UserProfile? userProfile = await _authService.signUpWithEmailAndPassword(
           widget.email,
           widget.password,
           userData,
         );
 
-        if (user != null) {
-          // User registered and profile saved successfully
-          // Navigate to the landing page or home screen
+        if (mounted && userProfile != null) {
+          Provider.of<UserProfileProvider>(context, listen: false)
+              .setUserProfile(userProfile);
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Registration Succedded. good job.'),
+            const SnackBar(
+              content: Text('تم التسجيل بنجاح.'),
               backgroundColor: Colors.green,
-              duration: Duration(seconds: 2),
             ),
           );
           Navigator.pushNamedAndRemoveUntil(
@@ -350,25 +321,39 @@ class _Signup_2State extends State<Signup_2> {
             Landing.id,
             (route) => false,
           );
-        } else {
-          // Handle registration failure (e.g., show an error message)
+        }
+      } on FirebaseAuthException catch (e) {
+        String errorMessage;
+        switch (e.code) {
+          case 'weak-password':
+            errorMessage = 'كلمة المرور ضعيفة جدًا.';
+            break;
+          case 'email-already-in-use':
+            errorMessage = 'هذا البريد الإلكتروني مستخدم بالفعل.';
+            break;
+          case 'invalid-email':
+            errorMessage = 'البريد الإلكتروني غير صالح.';
+            break;
+          default:
+            errorMessage = 'حدث خطأ غير متوقع. حاول مرة أخرى.';
+        }
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Registration failed. Please try again.'),
+              content: Text(errorMessage),
               backgroundColor: Colors.red,
-              duration: Duration(seconds: 2),
             ),
           );
         }
       } catch (e) {
-        // Handle any exceptions during registration
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('An error occurred: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 2),
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('An error occurred: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }

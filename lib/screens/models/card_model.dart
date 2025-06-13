@@ -96,52 +96,51 @@ class _CardModelState extends State<CardModel> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        if (widget.date != null)
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: Padding(
-                              padding: EdgeInsets.only(
-                                top: Responsive.space(
-                                  context,
-                                  size: Space.medium,
-                                ),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: Padding(
+                            padding: EdgeInsets.only(
+                              top: Responsive.space(
+                                context,
+                                size: Space.medium,
                               ),
-                              child: Container(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 5,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.7),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.calendar_today,
-                                      size: 16,
+                            ),
+                            child: Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.7),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.calendar_today,
+                                    size: 16,
+                                    color: Colors.white,
+                                  ),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    widget.date,
+                                    style: TextStyle(
                                       color: Colors.white,
+                                      fontSize:
+                                          Responsive.text(
+                                            context,
+                                            size: TextSize.small,
+                                          ) *
+                                          0.9,
+                                      fontWeight: FontWeight.w500,
                                     ),
-                                    SizedBox(width: 4),
-                                    Text(
-                                      widget.date,
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize:
-                                            Responsive.text(
-                                              context,
-                                              size: TextSize.small,
-                                            ) *
-                                            0.9,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
+                        ),
                         if (widget.tags.isNotEmpty)
                           Padding(
                             padding: EdgeInsets.only(
