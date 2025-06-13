@@ -254,59 +254,59 @@ class _CardModelState extends State<CardModel> {
                   ),
                 ),
                 SizedBox(height: Responsive.space(context, size: Space.medium)),
-                Divider(color: Colors.black),
-                SizedBox(height: Responsive.space(context, size: Space.small)),
-                InkWell(
-                  onTap: () {
-                    Navigator.pushNamed(context, DoctorProfile.id);
-                  },
-                  child: Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: Responsive.space(context, size: Space.medium),
-                      vertical: Responsive.space(context, size: Space.small),
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.arrow_back_ios_new,
-                          size: 16,
-                          color: Colors.white,
-                        ),
-                        SizedBox(
-                          width: Responsive.space(context, size: Space.small),
-                        ),
-                        Text(
-                          'دكتور احمد طه ',
-                          style: TextStyle(
-                            fontSize:
-                                Responsive.text(context, size: TextSize.small) *
-                                1.1,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
-                        ),
-                        SizedBox(
-                          width: Responsive.space(context, size: Space.small),
-                        ),
-                        CircleAvatar(
-                          radius: Responsive.space(context, size: Space.medium),
-                          backgroundColor: widget.color,
-                          child: Image.asset(
-                            'assets/icon.png',
-                            width:
-                                Responsive.space(context, size: Space.medium) *
-                                1.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+                // Divider(color: Colors.black),
+                // SizedBox(height: Responsive.space(context, size: Space.small)),
+                // InkWell(
+                //   onTap: () {
+                //     Navigator.pushNamed(context, DoctorProfile.id);
+                //   },
+                //   child: Container(
+                //     padding: EdgeInsets.symmetric(
+                //       horizontal: Responsive.space(context, size: Space.medium),
+                //       vertical: Responsive.space(context, size: Space.small),
+                //     ),
+                //     decoration: BoxDecoration(
+                //       color: Colors.black,
+                //       borderRadius: BorderRadius.circular(20),
+                //     ),
+                //     child: Row(
+                //       mainAxisSize: MainAxisSize.min,
+                //       children: [
+                //         Icon(
+                //           Icons.arrow_back_ios_new,
+                //           size: 16,
+                //           color: Colors.white,
+                //         ),
+                //         SizedBox(
+                //           width: Responsive.space(context, size: Space.small),
+                //         ),
+                //         Text(
+                //           'دكتور احمد طه ',
+                //           style: TextStyle(
+                //             fontSize:
+                //                 Responsive.text(context, size: TextSize.small) *
+                //                 1.1,
+                //             fontWeight: FontWeight.w600,
+                //             color: Colors.white,
+                //           ),
+                //         ),
+                //         SizedBox(
+                //           width: Responsive.space(context, size: Space.small),
+                //         ),
+                //         CircleAvatar(
+                //           radius: Responsive.space(context, size: Space.medium),
+                //           backgroundColor: widget.color,
+                //           child: Image.asset(
+                //             'assets/icon.png',
+                //             width:
+                //                 Responsive.space(context, size: Space.medium) *
+                //                 1.5,
+                //           ),
+                //         ),
+                //       ],
+                //     ),
+                //   ),
+                // ),
               ],
             ),
           ],

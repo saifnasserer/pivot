@@ -113,8 +113,7 @@ class AnnouncementCard extends StatelessWidget {
                   ),
 
                   // Tags (if available)
-                  if (announcement.tags != null &&
-                      announcement.tags!.isNotEmpty)
+                  if (announcement.tags.isNotEmpty)
                     Padding(
                       padding: EdgeInsets.only(
                         top: Responsive.space(context, size: Space.small) * 0.6,
@@ -123,33 +122,29 @@ class AnnouncementCard extends StatelessWidget {
                         spacing: 6,
                         runSpacing: 6,
                         alignment: WrapAlignment.end,
-                        children:
-                            announcement.tags!.map((tag) {
-                              return Container(
-                                margin: EdgeInsets.only(left: 4),
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Color(0xffD9D9D9).withOpacity(0.8),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Text(
-                                  tag,
-                                  style: TextStyle(
-                                    fontSize:
-                                        Responsive.text(
-                                          context,
-                                          size: TextSize.small,
-                                        ) *
-                                        0.8,
-                                    color: Colors.black,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              );
-                            }).toList(),
+                        children: announcement.tags.map((tag) {
+                          return Container(
+                            margin: EdgeInsets.only(left: 4),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Color(0xffD9D9D9).withOpacity(0.8),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              tag,
+                              style: TextStyle(
+                                fontSize:
+                                    Responsive.text(context, size: TextSize.small) *
+                                    0.8,
+                                color: Colors.black,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          );
+                        }).toList(),
                       ),
                     ),
                 ],

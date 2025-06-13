@@ -25,7 +25,6 @@ void showAddAnnouncementDialog({
   required Function(AnnouncementData) onSave,
   bool isEditing = false,
   AnnouncementData? announcement,
-  int? index,
 }) {
   // Use String state variables
   String title = announcement?.title ?? '';
@@ -392,6 +391,7 @@ void showAddAnnouncementDialog({
                                 final formattedDate = formatter.format(now);
 
                                 final newAnnouncement = AnnouncementData(
+                                  id: announcement?.id, // Preserve ID on edit
                                   title: title,
                                   date: formattedDate,
                                   color: selectedColor,

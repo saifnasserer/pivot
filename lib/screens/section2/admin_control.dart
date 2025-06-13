@@ -16,91 +16,125 @@ class AdminControl extends StatefulWidget {
 
 class _AdminControlState extends State<AdminControl> {
   @override
-  Widget build(BuildContext context) {
-    // Access the announcement provider
-    final announcementProvider = Provider.of<AnnouncementProvider>(context);
+  void initState() {
+    super.initState();
+    // Fetch announcements when the widget is first created
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<AnnouncementProvider>(context, listen: false)
+          .fetchAnnouncements();
+    });
+  }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'المطبخ',
-          style: TextStyle(
-            fontSize: Responsive.text(context, size: TextSize.heading),
-            fontWeight: FontWeight.bold,
+  @override
+  Widget build(BuildContext context) {
+    // Use a Consumer to react to changes in the provider
+    return Consumer<AnnouncementProvider>(
+      builder: (context, announcementProvider, child) {
+        return Scaffold(
+          backgroundColor: Colors.white,
+          appBar: AppBar(
+            backgroundColor: Colors.white,
+            title: Text(
+              'المطبخ',
+              style: TextStyle(
+                fontSize: Responsive.text(context, size: TextSize.heading),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            surfaceTintColor: Colors.white,
+            centerTitle: true,
           ),
-        ),
-        surfaceTintColor: Colors.white,
-        centerTitle: true,
-      ),
-      body: SafeArea(
-        child: Stack(
-          children: [
-            Padding(
-              padding: Responsive.padding(context, size: Space.medium),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // List of announcements
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: announcementProvider.announcements.length,
-                      itemBuilder: (context, index) {
-                        final announcement =
-                            announcementProvider.announcements[index];
-                        return Padding(
-                          padding: EdgeInsets.only(
-                            bottom: Responsive.space(
-                              context,
-                              size: Space.small,
-                            ),
-                          ),
-                          child: AnnouncementCard(
-                            announcement: announcement,
-                            onEdit: () {
-                              showAddAnnouncementDialog(
-                                context: context,
-                                isEditing: true,
-                                announcement: announcement,
-                                index: index,
-                                onSave: (newAnnouncement) {
-                                  announcementProvider.updateAnnouncement(
-                                    index,
-                                    newAnnouncement,
-                                  );
-                                },
-                              );
-                            },
-                            onDelete: () {
-                              announcementProvider.deleteAnnouncement(index);
-                            },
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: Responsive.space(context),
-              child: CircularButton(
-                onPressed: () {
-                  showAddAnnouncementDialog(
-                    context: context,
-                    onSave: (newAnnouncement) {
-                      announcementProvider.addAnnouncement(newAnnouncement);
+          body: SafeArea(
+            child: Stack(
+              children: [
+                announcementProvider.isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : Padding(
+                        padding:
+                            Responsive.padding(context, size: Space.medium),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // List of announcements
+                            announcementProvider.announcements.isEmpty
+                                ? Expanded(
+                                    child: Center(
+                                      child: Text(
+                                        'ياترى الخبر طعمة ايه النهارده',
+                                        style: TextStyle(
+                                            fontSize: Responsive.text(context,
+                                                size: TextSize.heading)),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  )
+                                : Expanded(
+                                    child: ListView.builder(
+                                      itemCount: announcementProvider
+                                          .announcements.length,
+                                      itemBuilder: (context, index) {
+                                        final announcement =
+                                            announcementProvider
+                                                .announcements[index];
+                                        return Padding(
+                                          padding: EdgeInsets.only(
+                                            bottom: Responsive.space(
+                                              context,
+                                              size: Space.small,
+                                            ),
+                                          ),
+                                          child: AnnouncementCard(
+                                            announcement: announcement,
+                                            onEdit: () {
+                                              showAddAnnouncementDialog(
+                                                context: context,
+                                                isEditing: true,
+                                                announcement: announcement,
+                                                onSave: (newAnnouncement) {
+                                                  announcementProvider
+                                                      .updateAnnouncement(
+                                                          newAnnouncement);
+                                                },
+                                              );
+                                            },
+                                            onDelete: () {
+                                              if (announcement.id != null) {
+                                                announcementProvider
+                                                    .deleteAnnouncement(
+                                                        announcement.id!);
+                                              }
+                                            },
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                          ],
+                        ),
+                      ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: Responsive.space(context),
+                  child: CircularButton(
+                    onPressed: () {
+                      showAddAnnouncementDialog(
+                        context: context,
+                        onSave: (newAnnouncement) {
+                          announcementProvider
+                              .addAnnouncement(newAnnouncement);
+                        },
+                      );
                     },
-                  );
-                },
-                icon: Icons.add_rounded,
-                iconSizeMultiplier: 3,
-              ),
+                    icon: Icons.add_rounded,
+                    iconSizeMultiplier: 3,
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

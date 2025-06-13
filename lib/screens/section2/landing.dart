@@ -1,67 +1,43 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:pivot/providers/announcement_provider.dart';
+import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
-import 'package:pivot/screens/section2/adminstration/admin_control.dart';
-import 'package:pivot/screens/section2/categories/AI_report.dart';
-import 'package:pivot/screens/section2/categories/CS_report.dart';
-import 'package:pivot/screens/section2/categories/SC_report.dart';
-import 'package:pivot/screens/section2/categories/todys_report.dart';
-import 'package:pivot/screens/section2/categories/week_report.dart';
+import 'package:pivot/screens/section2/admin_control.dart';
 import 'package:pivot/screens/section2/category_section.dart';
 import 'package:pivot/screens/section3/profile.dart';
-
-import 'categories/IS_report.dart';
+import 'package:pivot/screens/models/card_model.dart';
+import 'package:provider/provider.dart';
 
 class Landing extends StatefulWidget {
   const Landing({super.key});
-  static String id = 'landing';
+  static const String id = 'landing';
 
   @override
   State<Landing> createState() => LandingState();
 }
 
-class LandingState extends State<Landing> with SingleTickerProviderStateMixin {
-  String currentCategory = 'اخبار النهاردة';
-  int currentCardIndex = 0;
-  PageController pageController = PageController();
-
-  // List of card colors
-  final List<Color> cardColors = [
-    Color(0xffFFEF86),
-    Color(0xffF5BBBC),
-    Color(0xff99F16C),
-  ];
+class LandingState extends State<Landing> {
+  String? _userDepartment;
 
   @override
   void initState() {
     super.initState();
-  }
+    // The AuthWrapper now guarantees the user profile is ready before this screen is built.
+    // We can now safely trigger the initial fetch for 'Today''s News'.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final userProfileProvider =
+          Provider.of<UserProfileProvider>(context, listen: false);
+      _userDepartment = userProfileProvider.userProfile?.department;
 
-  @override
-  void dispose() {
-    pageController.dispose();
-    super.dispose();
+      final announcementProvider =
+          Provider.of<AnnouncementProvider>(context, listen: false);
+      announcementProvider.fetchAnnouncements(
+        timeFilter: 'today',
+        department: _userDepartment,
+      );
+    });
   }
-
-  Widget buildReports() {
-    switch (currentCategory) {
-      case 'اخبار النهاردة':
-        return TodysReport();
-      case 'اخبار الاسبوع':
-        return WeekReport();
-      case 'اخبار قسم SC':
-        return SCReport();
-      case 'اخبار قسم AI':
-        return AIReport();
-      case 'اخبار قسم CS':
-        return CSReport();
-      case 'اخبار قسم IS':
-        return ISReport();
-      default:
-        return TodysReport();
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -84,9 +60,31 @@ class LandingState extends State<Landing> with SingleTickerProviderStateMixin {
                     Expanded(
                       child: CategorySection(
                         onCategoryChanged: (category) {
-                          setState(() {
-                            currentCategory = category;
-                          });
+                          final announcementProvider =
+                              Provider.of<AnnouncementProvider>(context, listen: false);
+
+                          String? departmentCode;
+                          String? timeFilter;
+
+                          if (category.startsWith('اخبار قسم ')) {
+                            departmentCode = category.split(' ').last;
+                          } else if (category == 'اخبار النهاردة') {
+                            timeFilter = 'today';
+                            departmentCode = _userDepartment; // Use stored department
+                          } else if (category == 'اخبار الاسبوع') {
+                            timeFilter = 'week';
+                            departmentCode = _userDepartment; // Use stored department
+                          } else {
+                            // This handles the "All News" case
+                            departmentCode = null;
+                            timeFilter = null;
+                          }
+
+                          debugPrint('[LANDING onCategoryChanged] Fetching with department: $departmentCode, timeFilter: $timeFilter');
+                          announcementProvider.fetchAnnouncements(
+                            department: departmentCode,
+                            timeFilter: timeFilter,
+                          );
                         },
                       ),
                     ),
@@ -119,7 +117,41 @@ class LandingState extends State<Landing> with SingleTickerProviderStateMixin {
                   padding: EdgeInsets.all(
                     Responsive.space(context, size: Space.large),
                   ),
-                  child: buildReports(),
+                  child: Consumer<AnnouncementProvider>(
+                    builder: (context, provider, child) {
+                      if (provider.isLoading) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      if (provider.announcements.isEmpty) {
+                        return const Center(
+                          child: Text(
+                            'لا توجد أخبار لعرضها حاليًا',
+                            style: TextStyle(fontSize: 18),
+                            textAlign: TextAlign.center,
+                          ),
+                        );
+                      }
+                      return PageView.builder(
+                        itemCount: provider.announcements.length,
+                        scrollDirection: Axis.vertical,
+                        itemBuilder: (context, index) {
+                          final announcement = provider.announcements[index];
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8.0,
+                            ),
+                            child: CardModel(
+                              title: announcement.title,
+                              date: announcement.date,
+                              color: announcement.color,
+                              description: announcement.description,
+                              tags: announcement.tags,
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
                 ),
               ),
             ],

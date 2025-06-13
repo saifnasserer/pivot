@@ -55,26 +55,25 @@ class AnnouncementListWidget extends StatelessWidget {
             final announcement = announcements[index];
             return AnnouncementCard(
               announcement: announcement,
-              onEdit:
-                  showActions
-                      ? () {
-                        showAddAnnouncementDialog(
-                          context: context,
-                          onSave: (newAnnouncement) {
-                            provider.updateAnnouncement(index, newAnnouncement);
-                          },
-                          isEditing: true,
-                          announcement: announcement,
-                          index: index,
-                        );
+              onEdit: showActions
+                  ? () {
+                      showAddAnnouncementDialog(
+                        context: context,
+                        isEditing: true,
+                        announcement: announcement,
+                        onSave: (newAnnouncement) {
+                          provider.updateAnnouncement(newAnnouncement);
+                        },
+                      );
+                    }
+                  : () {},
+              onDelete: showActions
+                  ? () {
+                      if (announcement.id != null) {
+                        provider.deleteAnnouncement(announcement.id!);
                       }
-                      : () {},
-              onDelete:
-                  showActions
-                      ? () {
-                        provider.deleteAnnouncement(index);
-                      }
-                      : () {},
+                    }
+                  : () {},
             );
           },
         );
