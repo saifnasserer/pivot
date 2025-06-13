@@ -15,7 +15,7 @@ import 'package:pivot/providers/task_provider.dart';
 import 'package:pivot/providers/schadule_provider.dart';
 import 'package:pivot/screens/models/schedule_item.dart';
 import 'add_edit_schedule_dialog.dart';
-import 'package:pivot/screens/section3/bookmarks_screen.dart' show buildBookmarksSlivers;
+import 'package:pivot/screens/section3/bookmarks_screen.dart';
 
 class Profile extends StatefulWidget {
   static const String id = 'profile';
@@ -91,7 +91,7 @@ class _ProfileState extends State<Profile> {
       case 'السكاشن':
         return buildSectionsSlivers(context);
       case 'المحفوظات':
-        return buildBookmarksSlivers(context);
+        return [SliverFillRemaining(child: BookmarksScreen())];
       default:
         return [
           const SliverFillRemaining(

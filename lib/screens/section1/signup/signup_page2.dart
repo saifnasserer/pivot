@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:pivot/screens/section2/landing.dart';
 import 'package:pivot/screens/models/circular_button.dart';
@@ -7,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../../../providers/user_profile_provider.dart';
 import '../../../models/user_profile.dart';
 import 'package:uuid/uuid.dart';
+import '../../../services/auth_service.dart'; // Import AuthService
 
 class Signup_2 extends StatefulWidget {
   final String name;
@@ -53,6 +55,9 @@ class _Signup_2State extends State<Signup_2> {
     'الفرقة الرابعة',
   ];
   final List<String> sections = ['1', '2', '3', '4', '5', '6', '7', '8'];
+
+  // Declare and initialize AuthService
+  final AuthService _authService = AuthService();
 
   @override
   void initState() {
@@ -300,11 +305,71 @@ class _Signup_2State extends State<Signup_2> {
       print('Password: ${widget.password}');
       print('Section: $selectedSection');
 
-      Navigator.pushNamedAndRemoveUntil(context, Landing.id, (route) => false);
+      // Navigator.pushNamedAndRemoveUntil(context, Landing.id, (route) => false);
+      _submitForm();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('يرجى اختيار الفرقة والقسم والسكشن')),
       );
+    }
+  }
+
+  void _submitForm() async {
+    if (_formKey.currentState!.validate()) {
+      _formKey.currentState!.save();
+
+      // Prepare user data for UserProfile
+      Map<String, dynamic> userData = {
+        'name': widget.name,
+        'department': selectedDepartment, // Use the state variable
+        'level': selectedYear, // Use the state variable
+        'section': selectedSection, // Use the state variable
+        'profileImageUrl': null, // You can add logic for profile image later
+      };
+
+      try {
+        // Call the signUpWithEmailAndPassword method from AuthService
+        User? user = await _authService.signUpWithEmailAndPassword(
+          widget.email,
+          widget.password,
+          userData,
+        );
+
+        if (user != null) {
+          // User registered and profile saved successfully
+          // Navigate to the landing page or home screen
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Registration Succedded. good job.'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            Landing.id,
+            (route) => false,
+          );
+        } else {
+          // Handle registration failure (e.g., show an error message)
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Registration failed. Please try again.'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      } catch (e) {
+        // Handle any exceptions during registration
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('An error occurred: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
     }
   }
 }

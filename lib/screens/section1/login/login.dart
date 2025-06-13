@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pivot/models/user_profile.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
+// import 'package:pivot/models/user_profile.dart';
+// import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/screens/section2/landing.dart';
 import 'package:pivot/screens/models/circular_button.dart';
 import 'package:pivot/screens/models/custom_text_field.dart';
-import 'package:provider/provider.dart';
+// import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Add this import
 import '../../../responsive.dart';
+import '../../../services/auth_service.dart';
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -20,13 +23,58 @@ class _LoginState extends State<Login> {
   final FocusNode _emailFocus = FocusNode();
   final FocusNode _passwordFocus = FocusNode();
 
+  // Add an instance of AuthService
+  final AuthService _authService = AuthService();
+
   String _email = '';
+  String _password = '';
 
   bool _isPasswordVisible = false;
 
   bool _isEmailValid = false;
 
   bool _isPasswordValid = false;
+
+  Future<void> _login() async {
+    if (_formKey.currentState!.validate()) {
+      _formKey.currentState!.save();
+      try {
+        UserProfile? userProfile = await _authService
+            .signInWithEmailAndPassword(_email, _password);
+        if (userProfile != null) {
+          // Login successful, navigate to landing page
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            Landing.id,
+            (route) => false,
+          );
+        } else {
+          // Login failed, show error message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'اما فية غلط في البيانات او المستخدم غير مسجل',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: Responsive.text(context) * .9,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
+        // Handle any exceptions during login
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('An error occurred: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 
   String? _validateEmail(String? value) {
     if (value == null || value.isEmpty) {
@@ -122,8 +170,8 @@ class _LoginState extends State<Login> {
                               },
                               onChanged: (value) {
                                 setState(() {
-                                  _email = value;
                                   _isEmailValid = _validateEmail(value) == null;
+                                  if (_isEmailValid) _email = value;
                                 });
                               },
                             ),
@@ -161,6 +209,7 @@ class _LoginState extends State<Login> {
                                 setState(() {
                                   _isPasswordValid =
                                       _validatePassword(value) == null;
+                                  if (_isPasswordValid) _password = value;
                                 });
                               },
                             ),
@@ -194,40 +243,41 @@ class _LoginState extends State<Login> {
                       ),
                       CircularButton(
                         onPressed: () {
-                          if (_formKey.currentState!.validate() &&
-                              _email == 'seif@fci.bu.edu.eg') {
-                            UserProfile user = UserProfile(
-                              department: 'SC',
-                              id: 'adminID',
-                              level: 'الثالثة',
-                              name: 'سيف ناصر',
-                              section: '1',
-                            );
-                            Provider.of<UserProfileProvider>(
-                              context,
-                              listen: false,
-                            ).setUserProfile(user);
-                            // Handle form submission
-                            Navigator.pushNamedAndRemoveUntil(
-                              context,
-                              Landing.id,
-                              (route) => false,
-                            );
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'اما فية غلط في البيانات او المستخدم غير مسجل',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: Responsive.text(context) * .9,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                          }
+                          // if (_formKey.currentState!.validate() &&
+                          //     _email == 'seif@fci.bu.edu.eg') {
+                          //   UserProfile user = UserProfile(
+                          //     department: 'SC',
+                          //     id: 'adminID',
+                          //     level: 'الثالثة',
+                          //     name: 'سيف ناصر',
+                          //     section: '1',
+                          //   );
+                          //   Provider.of<UserProfileProvider>(
+                          //     context,
+                          //     listen: false,
+                          //   ).setUserProfile(user);
+                          //   // Handle form submission
+                          //   Navigator.pushNamedAndRemoveUntil(
+                          //     context,
+                          //     Landing.id,
+                          //     (route) => false,
+                          //   );
+                          // } else {
+                          //   ScaffoldMessenger.of(context).showSnackBar(
+                          //     SnackBar(
+                          //       content: Text(
+                          //         'اما فية غلط في البيانات او المستخدم غير مسجل',
+                          //         textAlign: TextAlign.center,
+                          //         style: TextStyle(
+                          //           fontSize: Responsive.text(context) * .9,
+                          //           fontWeight: FontWeight.bold,
+                          //         ),
+                          //       ),
+                          //       backgroundColor: Colors.red,
+                          //     ),
+                          //   );
+                          // }
+                          _login();
                         },
                         icon: Icons.check,
                       ),
