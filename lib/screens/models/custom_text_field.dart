@@ -14,6 +14,8 @@ class CustomTextField extends StatelessWidget {
     this.obscureText = false,
     this.suffixIcon,
     this.isValid = false,
+    this.minLines,
+    this.maxLines = 1,
   });
 
   final String hint;
@@ -26,6 +28,8 @@ class CustomTextField extends StatelessWidget {
   final bool obscureText;
   final Widget? suffixIcon;
   final bool isValid;
+  final int? minLines;
+  final int? maxLines;
 
   InputDecoration _getInputDecoration(BuildContext context) {
     return InputDecoration(
@@ -89,6 +93,8 @@ class CustomTextField extends StatelessWidget {
         color: Colors.black,
         fontSize: Responsive.text(context, size: TextSize.medium),
       ),
+      minLines: minLines,
+      maxLines: maxLines,
       onChanged: onChanged,
       decoration: _getInputDecoration(context),
       textCapitalization: TextCapitalization.words,

@@ -7,7 +7,6 @@ import '../../../../responsive.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/user_profile_provider.dart';
 import '../../../models/user_profile.dart';
-import 'package:uuid/uuid.dart';
 import '../../../services/auth_service.dart'; // Import AuthService
 
 class Signup_2 extends StatefulWidget {
@@ -301,15 +300,18 @@ class _Signup_2State extends State<Signup_2> {
       };
 
       try {
-        UserProfile? userProfile = await _authService.signUpWithEmailAndPassword(
-          widget.email,
-          widget.password,
-          userData,
-        );
+        UserProfile? userProfile = await _authService
+            .signUpWithEmailAndPassword(
+              widget.email,
+              widget.password,
+              userData,
+            );
 
         if (mounted && userProfile != null) {
-          Provider.of<UserProfileProvider>(context, listen: false)
-              .setUserProfile(userProfile);
+          Provider.of<UserProfileProvider>(
+            context,
+            listen: false,
+          ).setUserProfile(userProfile);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('تم التسجيل بنجاح.'),
@@ -339,10 +341,7 @@ class _Signup_2State extends State<Signup_2> {
         }
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(errorMessage),
-              backgroundColor: Colors.red,
-            ),
+            SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
           );
         }
       } catch (e) {

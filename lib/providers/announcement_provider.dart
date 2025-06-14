@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:pivot/screens/section2/adminstration/models/announcement_data.dart';
+import 'package:uuid/uuid.dart';
 
 class AnnouncementProvider with ChangeNotifier {
 
@@ -95,6 +98,37 @@ class AnnouncementProvider with ChangeNotifier {
           department: _currentDepartmentFilter, timeFilter: _currentTimeFilter);
     } catch (e) {
       debugPrint('Error updating announcement: $e');
+    }
+  }
+
+  // Upload an image to Firebase Storage and return the URL
+  Future<String?> uploadImage(XFile image) async {
+    try {
+      final String fileName = '${const Uuid().v4()}.jpg';
+      final Reference storageRef =
+          FirebaseStorage.instance.ref().child('announcements/$fileName');
+
+      final bytes = await image.readAsBytes();
+      final UploadTask uploadTask = storageRef.putData(bytes);
+
+      // Listen for state changes, errors, and completion of the upload.
+      uploadTask.snapshotEvents.listen((TaskSnapshot taskSnapshot) {
+        debugPrint('Task state: ${taskSnapshot.state}'); // paused, running, success
+        debugPrint('Progress: ${(taskSnapshot.bytesTransferred / taskSnapshot.totalBytes) * 100} %');
+      }, onError: (e) {
+        // This will catch events like permission errors
+        debugPrint('Upload error from listener: $e');
+      });
+
+      // Await completion
+      final TaskSnapshot snapshot = await uploadTask;
+      final String downloadUrl = await snapshot.ref.getDownloadURL();
+      debugPrint('Upload successful: $downloadUrl');
+      return downloadUrl;
+    } catch (e) {
+      // This will catch other exceptions
+      debugPrint('Error in uploadImage function: $e');
+      return null;
     }
   }
 

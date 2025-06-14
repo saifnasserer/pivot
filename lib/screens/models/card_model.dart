@@ -1,11 +1,15 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:pivot/providers/bookmarks.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/section2/adminstration/models/announcement_data.dart';
-import 'package:pivot/screens/section4/doctor/doctor_profile.dart';
 import 'package:provider/provider.dart';
+import 'package:auto_size_text/auto_size_text.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class CardModel extends StatefulWidget {
+  final String? id;
   final String title;
   final String date;
   final Color color;
@@ -14,9 +18,12 @@ class CardModel extends StatefulWidget {
   final String? imageUrl;
   final String? doctorName;
   final bool isDoctorCard;
+  final List<String> imageUrls;
+  final List<Map<String, String>> links;
 
-  CardModel({
+  const CardModel({
     super.key,
+    required this.id,
     required this.title,
     required this.date,
     required this.color,
@@ -25,6 +32,8 @@ class CardModel extends StatefulWidget {
     this.imageUrl,
     this.doctorName,
     this.isDoctorCard = false,
+    this.imageUrls = const [],
+    this.links = const [],
   });
 
   @override
@@ -32,15 +41,157 @@ class CardModel extends StatefulWidget {
 }
 
 class _CardModelState extends State<CardModel> {
-  int shareCount = 0;
+  bool _isTitleExpanded = false;
 
   AnnouncementData _createAnnouncementData() {
     return AnnouncementData(
+      id: widget.id,
       title: widget.title,
       date: widget.date,
       color: widget.color,
       description: widget.description,
       tags: widget.tags,
+      imageUrls: widget.imageUrls,
+      links: widget.links,
+    );
+  }
+
+  // Builds the horizontally scrolling image gallery
+  Widget _buildImageGallery(BuildContext context) {
+    return Container(
+      height: 120,
+      margin: EdgeInsets.only(
+        top: Responsive.space(context, size: Space.medium),
+      ),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        reverse: true, // To support RTL
+        itemCount: widget.imageUrls.length,
+        itemBuilder: (context, index) {
+          final imageUrl = widget.imageUrls[index];
+          debugPrint('Attempting to load image from URL: $imageUrl');
+          return Padding(
+            padding: const EdgeInsets.only(left: 8.0),
+            child: GestureDetector(
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder:
+                        (context) => FullScreenImageViewer(imageUrl: imageUrl),
+                  ),
+                );
+              },
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12.0),
+                child: Hero(
+                  tag: imageUrl,
+                  child: CachedNetworkImage(
+                    imageUrl: imageUrl,
+                    width: 120,
+                    height: 120,
+                    fit: BoxFit.cover,
+                    placeholder:
+                        (context, url) => Container(
+                          width: 120,
+                          height: 120,
+                          color: Colors.grey[200],
+                          child: const Center(
+                            child: CircularProgressIndicator(),
+                          ),
+                        ),
+                    errorWidget:
+                        (context, url, error) => Container(
+                          width: 120,
+                          height: 120,
+                          color: Colors.grey[200],
+                          child: const Icon(
+                            Icons.broken_image,
+                            color: Colors.grey,
+                          ),
+                        ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // Builds the list of tappable links
+  Widget _buildLinksList(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        top: Responsive.space(context, size: Space.medium),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children:
+            widget.links.map((link) {
+              return Padding(
+                padding: const EdgeInsets.only(top: 4.0),
+                child: InkWell(
+                  onTap: () async {
+                    final urlString = link['url'];
+                    if (urlString == null || urlString.isEmpty) return;
+
+                    // Ensure the URL has a scheme (http or https)
+                    String formattedUrl = urlString;
+                    if (!formattedUrl.startsWith('http://') &&
+                        !formattedUrl.startsWith('https://')) {
+                      formattedUrl = 'https://$formattedUrl';
+                    }
+
+                    debugPrint('Attempting to launch URL: $formattedUrl');
+                    final url = Uri.parse(formattedUrl);
+
+                    if (await canLaunchUrl(url)) {
+                      await launchUrl(
+                        url,
+                        mode: LaunchMode.externalApplication,
+                      );
+                    } else {
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('تعذر فتح الرابط: $urlString')),
+                      );
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: widget.color.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Text(
+                          link['title'] ?? 'رابط',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w500,
+                            color: Colors.black.withOpacity(0.8),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Icon(
+                          Icons.link,
+                          color: Colors.black.withOpacity(0.6),
+                          size: 18,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+      ),
     );
   }
 
@@ -52,7 +203,7 @@ class _CardModelState extends State<CardModel> {
     );
 
     return Container(
-      margin: EdgeInsets.all(3),
+      margin: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         color: widget.color.withOpacity(0.15),
@@ -60,27 +211,141 @@ class _CardModelState extends State<CardModel> {
       child: Padding(
         padding: EdgeInsets.all(Responsive.space(context, size: Space.large)),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Scrollable content area
             Expanded(
               child: SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text(
-                      widget.title,
-                      textAlign: TextAlign.right,
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 2,
-                      style: TextStyle(
-                        fontSize:
-                            Responsive.text(context, size: TextSize.heading) *
-                            1.5,
-                        fontWeight: FontWeight.bold,
+                    _isTitleExpanded
+                        ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              widget.title,
+                              textAlign: TextAlign.right,
+                              style: TextStyle(
+                                fontSize:
+                                    Responsive.text(
+                                      context,
+                                      size: TextSize.medium,
+                                    ) *
+                                    1.5,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            InkWell(
+                              onTap:
+                                  () =>
+                                      setState(() => _isTitleExpanded = false),
+                              child: Text(
+                                'عرض أقل',
+                                style: TextStyle(
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.small,
+                                  ),
+                                  fontWeight: FontWeight.normal,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                        : AutoSizeText(
+                          widget.title,
+                          textAlign: TextAlign.right,
+                          maxLines: 2,
+                          minFontSize: Responsive.text(
+                            context,
+                            size: TextSize.medium,
+                          ),
+                          style: TextStyle(
+                            fontSize:
+                                Responsive.text(
+                                  context,
+                                  size: TextSize.heading,
+                                ) *
+                                1.5,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          overflowReplacement: Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                widget.title,
+                                textAlign: TextAlign.right,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.medium,
+                                  ),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              InkWell(
+                                onTap:
+                                    () =>
+                                        setState(() => _isTitleExpanded = true),
+                                child: Text(
+                                  '...عرض المزيد',
+                                  style: TextStyle(
+                                    fontSize: Responsive.text(
+                                      context,
+                                      size: TextSize.small,
+                                    ),
+                                    fontWeight: FontWeight.normal,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.medium),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.7),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.calendar_today,
+                            size: 16,
+                            color: Colors.white,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            widget.date,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize:
+                                  Responsive.text(
+                                    context,
+                                    size: TextSize.small,
+                                  ) *
+                                  0.9,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     SizedBox(
-                      height: Responsive.space(context, size: Space.medium),
+                      height: Responsive.space(context, size: Space.small),
                     ),
                     Text(
                       widget.description,
@@ -92,225 +357,239 @@ class _CardModelState extends State<CardModel> {
                         ),
                       ),
                     ),
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: Padding(
-                            padding: EdgeInsets.only(
-                              top: Responsive.space(
-                                context,
-                                size: Space.medium,
-                              ),
-                            ),
-                            child: Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 5,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.7),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.calendar_today,
-                                    size: 16,
-                                    color: Colors.white,
-                                  ),
-                                  SizedBox(width: 4),
-                                  Text(
-                                    widget.date,
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize:
-                                          Responsive.text(
-                                            context,
-                                            size: TextSize.small,
-                                          ) *
-                                          0.9,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        if (widget.tags.isNotEmpty)
-                          Padding(
-                            padding: EdgeInsets.only(
-                              top: Responsive.space(
-                                context,
-                                size: Space.medium,
-                              ),
-                            ),
-                            child: Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              alignment: WrapAlignment.end,
-                              children:
-                                  widget.tags.map((tag) {
-                                    return Container(
-                                      padding: EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 6,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Color(
-                                          0xffe1e0da,
-                                        ).withOpacity(0.5),
-                                        borderRadius: BorderRadius.circular(16),
-                                        border: Border.all(
-                                          color: widget.color.withOpacity(0.5),
-                                          width: 1,
-                                        ),
-                                      ),
-                                      child: Text(
-                                        tag,
-                                        style: TextStyle(
-                                          fontSize:
-                                              Responsive.text(
-                                                context,
-                                                size: TextSize.small,
-                                              ) *
-                                              0.9,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    );
-                                  }).toList(),
-                            ),
-                          ),
-                      ],
-                    ),
+                    // Image Gallery
+                    if (widget.imageUrls.isNotEmpty)
+                      _buildImageGallery(context),
+                    // Links List
+                    if (widget.links.isNotEmpty) _buildLinksList(context),
                   ],
                 ),
               ),
             ),
-            Column(
-              children: [
-                Center(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      color: Colors.white,
-                      border: Border.all(color: Colors.black),
-                    ),
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: Responsive.space(
-                          context,
-                          size: Space.medium,
+            // Static footer area
+            SizedBox(height: Responsive.space(context, size: Space.medium)),
+            if (widget.tags.isNotEmpty)
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.end,
+                children:
+                    widget.tags.map((tag) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
                         ),
-                        vertical: Responsive.space(context, size: Space.small),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            onPressed: () {
-                              setState(() {
-                                shareCount++;
-                              });
-                            },
-                            icon: Icon(Icons.share),
+                        decoration: BoxDecoration(
+                          color: const Color(0xffe1e0da).withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: widget.color.withOpacity(0.5),
+                            width: 1,
                           ),
-                          SizedBox(
-                            width: Responsive.space(context, size: Space.small),
+                        ),
+                        child: Text(
+                          tag,
+                          style: TextStyle(
+                            fontSize:
+                                Responsive.text(context, size: TextSize.small) *
+                                0.9,
+                            fontWeight: FontWeight.w500,
                           ),
-                          Row(
-                            children: [
-                              IconButton(
-                                onPressed: () {
-                                  final bookmarks = Provider.of<Bookmarks>(
-                                    context,
-                                    listen: false,
-                                  );
-                                  final itemData = _createAnnouncementData();
+                        ),
+                      );
+                    }).toList(),
+              ),
+            SizedBox(height: Responsive.space(context, size: Space.medium)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    color: Colors.white,
+                    border: Border.all(color: Colors.black),
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: Responsive.space(context, size: Space.medium),
+                      vertical: Responsive.space(context, size: Space.small),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          onPressed: () {
+                            String shareText = widget.title;
+                            if (widget.links.isNotEmpty) {
+                              shareText += '\n\n${widget.links.first}';
+                            }
+                            Share.share(shareText);
+                          },
+                          icon: const Icon(Icons.share),
+                          splashRadius: 24,
+                        ),
+                        SizedBox(
+                          width: Responsive.space(context, size: Space.small),
+                        ),
+                        IconButton(
+                          onPressed: () {
+                            final bookmarks = Provider.of<Bookmarks>(
+                              context,
+                              listen: false,
+                            );
+                            final itemData = _createAnnouncementData();
 
-                                  if (isCurrentlyBookmarked) {
-                                    bookmarks.removeBookmark(itemData);
-                                  } else {
-                                    bookmarks.addBookmark(itemData);
-                                  }
-                                },
-                                icon: Icon(
-                                  isCurrentlyBookmarked
-                                      ? Icons.bookmark
-                                      : Icons.bookmark_border,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                            ],
+                            if (isCurrentlyBookmarked) {
+                              bookmarks.removeBookmark(itemData);
+                            } else {
+                              bookmarks.addBookmark(itemData);
+                            }
+                          },
+                          icon: Icon(
+                            isCurrentlyBookmarked
+                                ? Icons.bookmark
+                                : Icons.bookmark_border,
+                            color: Colors.black,
                           ),
-                        ],
-                      ),
+                          splashRadius: 24,
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                SizedBox(height: Responsive.space(context, size: Space.medium)),
-                // Divider(color: Colors.black),
-                // SizedBox(height: Responsive.space(context, size: Space.small)),
-                // InkWell(
-                //   onTap: () {
-                //     Navigator.pushNamed(context, DoctorProfile.id);
-                //   },
-                //   child: Container(
-                //     padding: EdgeInsets.symmetric(
-                //       horizontal: Responsive.space(context, size: Space.medium),
-                //       vertical: Responsive.space(context, size: Space.small),
-                //     ),
-                //     decoration: BoxDecoration(
-                //       color: Colors.black,
-                //       borderRadius: BorderRadius.circular(20),
-                //     ),
-                //     child: Row(
-                //       mainAxisSize: MainAxisSize.min,
-                //       children: [
-                //         Icon(
-                //           Icons.arrow_back_ios_new,
-                //           size: 16,
-                //           color: Colors.white,
-                //         ),
-                //         SizedBox(
-                //           width: Responsive.space(context, size: Space.small),
-                //         ),
-                //         Text(
-                //           'دكتور احمد طه ',
-                //           style: TextStyle(
-                //             fontSize:
-                //                 Responsive.text(context, size: TextSize.small) *
-                //                 1.1,
-                //             fontWeight: FontWeight.w600,
-                //             color: Colors.white,
-                //           ),
-                //         ),
-                //         SizedBox(
-                //           width: Responsive.space(context, size: Space.small),
-                //         ),
-                //         CircleAvatar(
-                //           radius: Responsive.space(context, size: Space.medium),
-                //           backgroundColor: widget.color,
-                //           child: Image.asset(
-                //             'assets/icon.png',
-                //             width:
-                //                 Responsive.space(context, size: Space.medium) *
-                //                 1.5,
-                //           ),
-                //         ),
-                //       ],
-                //     ),
-                //   ),
-                // ),
               ],
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class FullScreenImageViewer extends StatefulWidget {
+  final String imageUrl;
+
+  const FullScreenImageViewer({super.key, required this.imageUrl});
+
+  @override
+  _FullScreenImageViewerState createState() => _FullScreenImageViewerState();
+}
+
+class _FullScreenImageViewerState extends State<FullScreenImageViewer>
+    with SingleTickerProviderStateMixin {
+  late TransformationController _transformationController;
+  late AnimationController _animationController;
+  Animation<Offset>? _animation;
+  Offset _dragOffset = Offset.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _transformationController = TransformationController();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    );
+    _animationController.addListener(() {
+      if (_animation != null) {
+        setState(() {
+          _dragOffset = _animation!.value;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _transformationController.dispose();
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  void _onVerticalDragUpdate(DragUpdateDetails details) {
+    // Only allow dragging when not scaled
+    if (_transformationController.value.getMaxScaleOnAxis() <= 1.0) {
+      setState(() {
+        _dragOffset += details.delta;
+      });
+    }
+  }
+
+  void _onVerticalDragEnd(DragEndDetails details) {
+    if (_transformationController.value.getMaxScaleOnAxis() > 1.0) {
+      return; // Don't dismiss if zoomed
+    }
+
+    final screenHeight = MediaQuery.of(context).size.height;
+    // Dismiss if dragged down far enough or with enough velocity
+    if ((details.primaryVelocity ?? 0) > 500 ||
+        _dragOffset.dy > screenHeight / 4) {
+      Navigator.of(context).pop();
+    } else {
+      // Animate back to center
+      _animation = Tween<Offset>(begin: _dragOffset, end: Offset.zero).animate(
+        CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+      );
+      _animationController.forward(from: 0);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Calculate background opacity based on drag distance
+    final double opacity = (1.0 -
+            (_dragOffset.dy.abs() / (MediaQuery.of(context).size.height / 2)))
+        .clamp(0.4, 1.0);
+
+    return Scaffold(
+      backgroundColor: Colors.black.withOpacity(opacity),
+      body: Stack(
+        children: [
+          GestureDetector(
+            onVerticalDragUpdate: _onVerticalDragUpdate,
+            onVerticalDragEnd: _onVerticalDragEnd,
+            child: Transform.translate(
+              offset: _dragOffset,
+              child: Center(
+                child: InteractiveViewer(
+                  transformationController: _transformationController,
+                  panEnabled: true,
+                  minScale: 0.5,
+                  maxScale: 4.0,
+                  child: Hero(
+                    tag: widget.imageUrl,
+                    child: CachedNetworkImage(
+                      imageUrl: widget.imageUrl,
+                      placeholder:
+                          (context, url) =>
+                              const Center(child: CircularProgressIndicator()),
+                      errorWidget:
+                          (context, url, error) => const Icon(Icons.error),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // Back button
+          Positioned(
+            top: 40.0,
+            left: 16.0,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back_ios_new,
+                color: Colors.white,
+                size: 24.0,
+              ),
+              onPressed: () => Navigator.of(context).pop(),
+              style: IconButton.styleFrom(
+                backgroundColor: Colors.black.withOpacity(0.3),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

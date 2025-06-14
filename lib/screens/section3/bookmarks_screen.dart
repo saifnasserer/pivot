@@ -44,6 +44,7 @@ class BookmarksScreen extends StatelessWidget {
           child: SizedBox(
             height: Responsive.space(context, size: Space.xlarge) * 15,
             child: CardModel(
+              id: bookmark.id,
               title: bookmark.title,
               date: bookmark.date,
               color: bookmark.color,

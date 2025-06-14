@@ -6,6 +6,11 @@ class AuthService {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  // Constructor to set persistence
+  AuthService() {
+    _firebaseAuth.setPersistence(Persistence.LOCAL);
+  }
+
   // Stream to listen to authentication state changes
   Stream<User?> get authStateChanges => _firebaseAuth.authStateChanges();
 

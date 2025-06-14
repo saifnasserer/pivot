@@ -115,7 +115,7 @@ class LandingState extends State<Landing> {
               Expanded(
                 child: Padding(
                   padding: EdgeInsets.all(
-                    Responsive.space(context, size: Space.large),
+                    Responsive.space(context, size: Space.small),
                   ),
                   child: Consumer<AnnouncementProvider>(
                     builder: (context, provider, child) {
@@ -141,11 +141,14 @@ class LandingState extends State<Landing> {
                               horizontal: 8.0,
                             ),
                             child: CardModel(
+                              id: announcement.id,
                               title: announcement.title,
                               date: announcement.date,
                               color: announcement.color,
                               description: announcement.description,
                               tags: announcement.tags,
+                              imageUrls: announcement.imageUrls,
+                              links: announcement.links,
                             ),
                           );
                         },

@@ -29,8 +29,7 @@ class AnnouncementListWidget extends StatelessWidget {
         if (filterTags != null && filterTags!.isNotEmpty) {
           announcements =
               announcements.where((announcement) {
-                if (announcement.tags == null) return false;
-                return announcement.tags!.any(
+                return announcement.tags.any(
                   (tag) => filterTags!.contains(tag),
                 );
               }).toList();
@@ -55,25 +54,27 @@ class AnnouncementListWidget extends StatelessWidget {
             final announcement = announcements[index];
             return AnnouncementCard(
               announcement: announcement,
-              onEdit: showActions
-                  ? () {
-                      showAddAnnouncementDialog(
-                        context: context,
-                        isEditing: true,
-                        announcement: announcement,
-                        onSave: (newAnnouncement) {
-                          provider.updateAnnouncement(newAnnouncement);
-                        },
-                      );
-                    }
-                  : () {},
-              onDelete: showActions
-                  ? () {
-                      if (announcement.id != null) {
-                        provider.deleteAnnouncement(announcement.id!);
+              onEdit:
+                  showActions
+                      ? () {
+                        showAddAnnouncementDialog(
+                          context: context,
+                          isEditing: true,
+                          announcement: announcement,
+                          onSave: (newAnnouncement) {
+                            provider.updateAnnouncement(newAnnouncement);
+                          },
+                        );
                       }
-                    }
-                  : () {},
+                      : () {},
+              onDelete:
+                  showActions
+                      ? () {
+                        if (announcement.id != null) {
+                          provider.deleteAnnouncement(announcement.id!);
+                        }
+                      }
+                      : () {},
             );
           },
         );
