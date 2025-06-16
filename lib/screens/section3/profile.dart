@@ -159,7 +159,7 @@ class _ProfileState extends State<Profile> {
           subjectProvider.filteredSubjects,
         );
       case 'المحفوظات':
-        return [SliverFillRemaining(child: BookmarksScreen())];
+        return [const SliverFillRemaining(child: BookmarksScreen())];
       default:
         return [
           const SliverFillRemaining(
@@ -195,7 +195,7 @@ class _ProfileState extends State<Profile> {
         return const DoctorProfile();
       }
       if (lowerCaseRole == 'miniprofessor') {
-        return AssistantProfile(userProfile: userProfile);
+        return const AssistantProfile();
       }
     }
 

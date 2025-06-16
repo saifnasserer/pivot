@@ -88,20 +88,7 @@ class Pivot extends StatelessWidget {
           UserManagementPage.id: (context) => const UserManagementPage(),
           GlobalSubjectManagementScreen.id: (context) =>
               const GlobalSubjectManagementScreen(),
-          AssistantProfile.id: (context) {
-            final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
-            final userProfile = args?['userProfile'] as UserProfile?;
-            if (userProfile != null) {
-              return AssistantProfile(userProfile: userProfile);
-            } else {
-              // Handle the case where the profile is null, maybe return an error screen
-              return const Scaffold(
-                body: Center(
-                  child: Text('Error: User profile not provided.'),
-                ),
-              );
-            }
-          },
+          AssistantProfile.id: (context) => const AssistantProfile(),
           TasksControl.id: (context) => const TasksControl(),
         },
         theme: ThemeData(

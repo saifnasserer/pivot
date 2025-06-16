@@ -1,28 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/models/section_model.dart';
 import 'package:pivot/models/user_profile.dart';
+import 'package:pivot/providers/section_provider.dart';
 import 'package:pivot/providers/subject_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
-import 'package:pivot/models/subject_model.dart';
-import 'package:pivot/screens/section4/doctor_details.dart';
-import 'assistant_subjects.dart';
-import 'assistant_categories.dart';
-import 'package:provider/provider.dart';
-import 'package:pivot/providers/section_provider.dart';
-import 'add_edit_section_dialog.dart';
 import 'package:pivot/screens/section3/profile_widgets/Profile_options.dart';
+import 'package:pivot/screens/section4/doctor_details.dart';
+import 'package:provider/provider.dart';
+import 'add_edit_section_dialog.dart';
+import 'assistant_categories.dart';
+import 'assistant_subjects.dart';
 
 class AssistantProfile extends StatefulWidget {
   static const String id = 'section';
-  final UserProfile userProfile;
   final bool isAdmin;
 
-  const AssistantProfile({
-    super.key,
-    required this.userProfile,
-    this.isAdmin = false,
-  });
+  const AssistantProfile({super.key, this.isAdmin = false});
 
   @override
   State<AssistantProfile> createState() => _AssistantProfileState();
@@ -34,28 +28,24 @@ class _AssistantProfileState extends State<AssistantProfile> {
   UserProfile? _previousUserProfile;
 
   @override
-  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final newProfile = Provider.of<UserProfileProvider>(context).userProfile;
+    final userProfile = context.watch<UserProfileProvider>().userProfile;
 
-    // With value equality implemented on UserProfile, we can now directly
-    // compare the previous and new profile objects to detect any change.
-    if (newProfile != _previousUserProfile) {
-      if (newProfile != null) {
-        _fetchData(newProfile);
-      }
-      // Update the previous profile state for the next check.
-      _previousUserProfile = newProfile;
+    // Fetch data only if the user profile has changed.
+    if (userProfile != null && userProfile != _previousUserProfile) {
+      _fetchData(userProfile);
+      _previousUserProfile = userProfile;
     }
   }
 
   void _fetchData(UserProfile userProfile) {
-    final subjectIds = userProfile.teachingSubjects;
-    // Fetch sections for the subjects the user teaches
-    context.read<SectionProvider>().fetchSectionsForUserSubjects(subjectIds);
-    // Fetch the subject details
+    // Fetch subjects the user teaches
     context.read<SubjectProvider>().fetchAndFilterSubjects(userProfile);
+    // Fetch sections for those subjects
+    context
+        .read<SectionProvider>()
+        .fetchSectionsForUserSubjects(userProfile.teachingSubjects);
   }
 
   void _onMainCategoryChanged(String category) {
@@ -73,19 +63,6 @@ class _AssistantProfileState extends State<AssistantProfile> {
   List<Widget> _getCategoryContentSlivers(BuildContext context) {
     final subjectProvider = context.watch<SubjectProvider>();
     final sectionProvider = context.watch<SectionProvider>();
-    // Use the new `loggedInUserProfile` to get the currently authenticated user.
-    final loggedInUser =
-        context.watch<UserProfileProvider>().loggedInUserProfile;
-    // The profile being viewed is passed to the widget's constructor.
-    final profileBeingViewed = widget.userProfile;
-
-    if (loggedInUser == null) {
-      return [
-        const SliverFillRemaining(
-          child: Center(child: Text('User not logged in')),
-        ),
-      ];
-    }
 
     if (subjectProvider.isLoading || sectionProvider.isLoading) {
       return [
@@ -95,41 +72,47 @@ class _AssistantProfileState extends State<AssistantProfile> {
       ];
     }
 
-    final List<Subject> subjects = subjectProvider.filteredSubjects;
+    final subjects = subjectProvider.filteredSubjects;
+    if (subjects.isEmpty) {
+      return [
+        const SliverFillRemaining(
+          child: Center(child: Text('لا يوجد مواد متاحة حالياً')),
+        ),
+      ];
+    }
+
+    if (_selectedSubjectIndex >= subjects.length) {
+      _selectedSubjectIndex = 0;
+    }
+
+    final selectedSubject = subjects.isNotEmpty ? subjects[_selectedSubjectIndex] : null;
 
     switch (_currentCategory) {
       case 'المواد':
-        if (subjects.isEmpty) {
-          return [
-            const SliverFillRemaining(
-              child: Center(child: Text('لا يوجد مواد متاحة حالياً')),
-            ),
-          ];
-        }
-        // Ensure index is valid
-        if (_selectedSubjectIndex >= subjects.length) {
-          _selectedSubjectIndex = 0;
-        }
-        final Subject selectedSubject = subjects[_selectedSubjectIndex];
-        final List<Section> sectionsForSelectedSubject =
-            sectionProvider.sections
-                .where((section) => section.subjectId == selectedSubject.id)
-                .toList();
+        final sectionsForSelectedSubject = selectedSubject != null
+            ? sectionProvider.sections
+                .where((s) => s.subjectId == selectedSubject.id)
+                .toList()
+            : [];
 
         return buildAssistantSubjects(
           context: context,
           subjects: subjects,
           selectedSubjectIndex: _selectedSubjectIndex,
-          sections: sectionsForSelectedSubject,
+          sections: sectionsForSelectedSubject.cast<Section>(),
           onCategorySelected: _onSubjectCategorySelected,
         );
       case 'عن المعيد':
-        // Correctly determine if the edit button should be shown.
+        final userProfile = context.watch<UserProfileProvider>().userProfile;
+        final loggedInUser =
+            context.watch<UserProfileProvider>().loggedInUserProfile;
+        final profileBeingViewed = userProfile;
+
         final bool isMiniProfessorProfile =
-            profileBeingViewed.role.toLowerCase() == 'miniprofessor';
-        final bool isOwner = loggedInUser.id == profileBeingViewed.id;
+            profileBeingViewed?.role.toLowerCase() == 'miniprofessor';
+        final bool isOwner = loggedInUser?.id == profileBeingViewed?.id;
         final bool isSuperAdmin =
-            loggedInUser.role.toLowerCase() == 'super admin';
+            loggedInUser?.role.toLowerCase() == 'super admin';
         final bool canEdit =
             isMiniProfessorProfile && (isOwner || isSuperAdmin);
 
@@ -143,27 +126,26 @@ class _AssistantProfileState extends State<AssistantProfile> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'About',
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
                       if (canEdit)
                         IconButton(
-                          icon: const Icon(Icons.edit_outlined),
-                          onPressed:
-                              () => _showEditAboutMeDialog(
-                                context,
-                                profileBeingViewed,
-                              ),
+                          icon: const Icon(Icons.edit),
+                          onPressed: () => _showEditAboutMeDialog(
+                            context,
+                            profileBeingViewed!,
+                          ),
                         ),
+                      const Text(
+                        'عني',
+                      ),
                     ],
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    profileBeingViewed.aboutMe.isNotEmpty
-                        ? profileBeingViewed.aboutMe
-                        : 'No information has been added yet.',
-                    style: Theme.of(context).textTheme.bodyLarge,
+                    (profileBeingViewed?.aboutMe ?? '').isEmpty
+                        ? 'لا يوجد معلومات حالياً'
+                        : profileBeingViewed!.aboutMe,
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(fontSize: 16, height: 1.5),
                   ),
                 ],
               ),
@@ -214,7 +196,6 @@ class _AssistantProfileState extends State<AssistantProfile> {
               child: const Text('Save'),
               onPressed: () async {
                 try {
-                  // Correctly call `updateAboutMe` with both userId and the new text.
                   await userProfileProvider.updateAboutMe(
                     userProfile.id,
                     controller.text,
@@ -252,7 +233,9 @@ class _AssistantProfileState extends State<AssistantProfile> {
             : null;
 
     if (userProfile == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
     }
 
     return Scaffold(
@@ -280,8 +263,8 @@ class _AssistantProfileState extends State<AssistantProfile> {
               context: context,
               builder: (BuildContext context) {
                 return AddEditSectionDialog(
-                  subjects: subjects, // Pass the list of Subject objects
-                  initialSubjectId: selectedSubject.id, // Pass the ID
+                  subjects: subjects,
+                  initialSubjectId: selectedSubject.id,
                 );
               },
             );

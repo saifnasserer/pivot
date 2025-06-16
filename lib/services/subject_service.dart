@@ -9,9 +9,7 @@ class SubjectService {
     _subjectsCollection = _firestore
         .collection('subjects')
         .withConverter<Subject>(
-          fromFirestore:
-              (snapshot, _) =>
-                  Subject.fromJson(snapshot.data()!, snapshot.id),
+          fromFirestore: (snapshot, _) => Subject.fromJson(snapshot.data()!, snapshot.id),
           toFirestore: (subject, _) => subject.toJson(),
         );
   }
@@ -19,22 +17,21 @@ class SubjectService {
   /// Fetches all subjects from the Firestore 'subjects' collection.
   Future<List<Subject>> getSubjects() async {
     try {
-      // With the converter, .get() returns a QuerySnapshot<Subject>
-      final querySnapshot = await _subjectsCollection.get();
-      // .data() on each doc snapshot returns a Subject object
-      return querySnapshot.docs.map((doc) => doc.data()).toList();
+      final snapshot = await _subjectsCollection.get();
+      return snapshot.docs.map((doc) => doc.data()).toList();
     } catch (e) {
       print('Error fetching subjects: $e');
-      rethrow; // Rethrow to allow the provider to handle the error state
+      rethrow;
     }
   }
 
   /// Adds a new subject to the Firestore 'subjects' collection.
   Future<Subject> addSubject(Subject subject) async {
     try {
-      final docRef = await _subjectsCollection.add(subject);
-      final newDocSnapshot = await docRef.get();
-      return newDocSnapshot.data()!;
+      final docRef = _subjectsCollection.doc();
+      final newSubject = subject.copyWith(id: docRef.id);
+      await docRef.set(newSubject);
+      return newSubject;
     } catch (e) {
       print('Error adding subject: $e');
       rethrow;
