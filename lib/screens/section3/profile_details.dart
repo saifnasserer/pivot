@@ -1,19 +1,15 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/responsive.dart';
 import 'package:auto_size_text/auto_size_text.dart';
-import 'package:provider/provider.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
 
 class ProfileDetails extends StatelessWidget {
-  const ProfileDetails({super.key});
+  const ProfileDetails({super.key, required this.userProfile});
+  final UserProfile userProfile;
+
   @override
   Widget build(BuildContext context) {
-    final profiledata = Provider.of<UserProfileProvider>(
-      context,
-      listen: false,
-    );
-    UserProfile profileDetails = profiledata.userProfile!;
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
@@ -22,14 +18,14 @@ class ProfileDetails extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                'الفرقة ${profileDetails.level}',
+                'الفرقة ${userProfile.level}',
                 style: TextStyle(
                   fontSize: Responsive.space(context, size: Space.medium),
                   color: Color(0xffd9d9d9),
                 ),
               ),
               AutoSizeText(
-                profileDetails.name,
+                userProfile.name,
                 style: TextStyle(
                   fontSize: Responsive.space(context, size: Space.xlarge) * 1.2,
                   color: Colors.black,
@@ -41,7 +37,7 @@ class ProfileDetails extends StatelessWidget {
               ),
               SizedBox(height: Responsive.space(context, size: Space.small)),
               AutoSizeText(
-                (' ${profileDetails.department} سكشن ${profileDetails.section} قسم '),
+                (' ${userProfile.department} سكشن ${userProfile.section} قسم '),
                 style: TextStyle(
                   fontSize: Responsive.space(context, size: Space.medium),
                   color: Color(0xffd9d9d9),
@@ -58,15 +54,38 @@ class ProfileDetails extends StatelessWidget {
             border: Border.all(color: Colors.black, width: 3.0),
           ),
           child: CircleAvatar(
-            radius: Responsive.space(context, size: Space.large) * 3,
+            radius: Responsive.space(context, size: Space.large) * 2,
             backgroundColor: Colors.black,
             child: ClipOval(
-              child: Image.asset(
-                'assets/images/profile.JPG',
-                width: Responsive.space(context, size: Space.large) * 6,
-                height: Responsive.space(context, size: Space.large) * 6,
-                fit: BoxFit.cover,
-              ),
+              child:
+                  userProfile.profileImageUrl != null &&
+                          userProfile.profileImageUrl!.isNotEmpty
+                      ? CachedNetworkImage(
+                        imageUrl: userProfile.profileImageUrl!,
+                        width: Responsive.space(context, size: Space.large) * 3,
+                        height:
+                            Responsive.space(context, size: Space.large) * 3,
+                        fit: BoxFit.cover,
+                        placeholder:
+                            (context, url) => const Center(
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                              ),
+                            ),
+                        errorWidget:
+                            (context, url, error) => Icon(
+                              Icons.person,
+                              size:
+                                  Responsive.space(context, size: Space.large) *
+                                  3,
+                              color: Colors.white,
+                            ),
+                      )
+                      : Icon(
+                        Icons.person,
+                        size: Responsive.space(context, size: Space.large) * 3,
+                        color: Colors.white,
+                      ),
             ),
           ),
         ),

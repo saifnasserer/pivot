@@ -1,42 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:pivot/models/subject_model.dart';
+import 'package:pivot/providers/section_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/models/category_model.dart';
-import 'package:pivot/models/lecture_model.dart';
-import 'package:pivot/screens/models/subject.dart';
+import 'package:pivot/screens/models/section_card.dart';
 
 List<Widget> buildDoctorSubjectsSlivers({
   required BuildContext context,
-  required List<String> subjectCategories,
+  required List<Subject> subjects,
   required int selectedSubjectIndex,
-  required Map<String, List<SubjectModel>> subjectsData,
   required Function(int) onCategorySelected,
-  required void Function(Lecture) onLectureDeleted,
+  required SectionProvider sectionProvider,
 }) {
-  // --- Guard Clause ---
-  // If there are no subject categories, return an empty state sliver
-  if (subjectCategories.isEmpty) {
-    return [
-      const SliverFillRemaining(
-        hasScrollBody: false,
-        child: Center(child: Text('No subject categories found.')),
-      ),
-    ];
+  if (subjects.isEmpty) {
+    return [const SliverFillRemaining(child: Center(child: Text('No subjects available.')))];
   }
-  // --- End Guard Clause ---
 
-  // Ensure the index is valid before accessing the list
-  // Although the error was about length 0, this adds robustness
-  final int validIndex = selectedSubjectIndex.clamp(
-    0,
-    subjectCategories.length - 1,
-  );
-  final String selectedCategory = subjectCategories[validIndex];
-  final List<SubjectModel> lectures = subjectsData[selectedCategory] ?? [];
+  final selectedSubject = subjects[selectedSubjectIndex];
+  final sections = sectionProvider.sections
+      .where((s) => s.subjectId == selectedSubject.id)
+      .toList();
+
+  final int validIndex = selectedSubjectIndex.clamp(0, subjects.length - 1);
 
   return [
-    SliverToBoxAdapter(
-      child: SizedBox(height: Responsive.space(context, size: Space.medium)),
-    ),
     SliverToBoxAdapter(
       child: SizedBox(
         height: Responsive.space(context, size: Space.xlarge) * 1.4,
@@ -44,53 +31,34 @@ List<Widget> buildDoctorSubjectsSlivers({
           scrollDirection: Axis.horizontal,
           physics: const BouncingScrollPhysics(),
           reverse: true,
-          itemCount: subjectCategories.length,
+          itemCount: subjects.length,
           itemBuilder: (context, index) {
             return CategoryButton(
               selected: validIndex == index,
-              title: subjectCategories[index],
-              onSelected: () {
-                onCategorySelected(index);
-              },
+              title: subjects[index].name,
+              onSelected: () => onCategorySelected(index),
             );
           },
         ),
       ),
     ),
-    SliverToBoxAdapter(
-      child: SizedBox(height: Responsive.space(context, size: Space.medium)),
-    ),
-    SliverToBoxAdapter(child: Divider(indent: 4, endIndent: 1)),
-
-    lectures.isEmpty
-        ? SliverFillRemaining(
-          hasScrollBody: false,
-          child: Center(
-            child: Text(
-              'لا توجد محاضرات لهذه المادة',
-              style: TextStyle(
-                fontSize: Responsive.text(context, size: TextSize.medium),
-                color: Colors.grey,
-              ),
-            ),
-          ),
-        )
-        : SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                return Row(
-                  children: [
-                    Expanded(child: lectures[index]),
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                      onPressed: () => onLectureDeleted(lectures[index].lecture),
-                      tooltip: 'حذف المحاضرة',
-                    ),
-                  ],
-                );
-              },
-              childCount: lectures.length,
-            ),
-          ),
+    const SliverToBoxAdapter(child: SizedBox(height: 16)),
+    if (sectionProvider.isLoading)
+      const SliverFillRemaining(child: Center(child: CircularProgressIndicator()))
+    else if (sections.isEmpty)
+      const SliverFillRemaining(child: Center(child: Text('No sections for this subject.')))
+    else
+      SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (context, index) {
+            final section = sections[index];
+            return SectionCard(
+              section: section,
+              subjectName: selectedSubject.name,
+            );
+          },
+          childCount: sections.length,
+        ),
+      ),
   ];
 }

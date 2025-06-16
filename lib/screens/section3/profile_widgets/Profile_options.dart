@@ -96,7 +96,8 @@ Future<void> profile_options(BuildContext context) async {
     );
   }
 
-  if (userProfile?.role == 'prof' || userProfile?.role == 'miniProfessor') {
+  if (userProfile?.role == 'Professor' ||
+      userProfile?.role == 'miniProfessor') {
     menuItems.insert(
       1, // Insert after 'edit_profile'
       const PopupMenuItem<String>(

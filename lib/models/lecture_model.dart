@@ -15,6 +15,22 @@ class Lecture {
     this.links = const [],
   });
 
+  Lecture copyWith({
+    String? id,
+    String? title,
+    String? doctorId,
+    String? categoryName,
+    List<Map<String, String>>? links,
+  }) {
+    return Lecture(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      doctorId: doctorId ?? this.doctorId,
+      categoryName: categoryName ?? this.categoryName,
+      links: links ?? this.links,
+    );
+  }
+
   factory Lecture.fromFirestore(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
     return Lecture(

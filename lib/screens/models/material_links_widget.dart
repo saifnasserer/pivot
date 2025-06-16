@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/models/lecture_model.dart';
+import 'package:pivot/providers/doctor_subject_provider.dart';
+import 'package:provider/provider.dart';
 
 class SubjectModel extends StatelessWidget {
   final Lecture lecture;
@@ -62,6 +64,7 @@ class SubjectModel extends StatelessWidget {
   }
 
   void _showLinksDialog(BuildContext context, List<Map<String, String>> initialLinks) {
+    final provider = Provider.of<DoctorSubjectProvider>(context, listen: false);
     List<Map<String, String>> links = List.from(initialLinks);
 
     showDialog(
@@ -86,9 +89,11 @@ class SubjectModel extends StatelessWidget {
                     trailing: IconButton(
                       icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
                       onPressed: () {
+                        final linkToDelete = links[index];
                         setState(() {
                           links.removeAt(index);
                         });
+                        provider.deleteLinkFromLecture(lecture.id, linkToDelete);
                       },
                       tooltip: 'حذف الرابط',
                     ),
@@ -111,6 +116,7 @@ class SubjectModel extends StatelessWidget {
                     setState(() {
                       links.add(newLink);
                     });
+                    provider.addLinkToLecture(lecture.id, newLink);
                   }
                 },
               ),

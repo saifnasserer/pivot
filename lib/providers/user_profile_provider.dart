@@ -5,7 +5,8 @@ import '../models/user_profile.dart';
 
 class UserProfileProvider with ChangeNotifier {
   UserProfile? _userProfile; // The profile being viewed on a profile screen
-  UserProfile? _loggedInUserProfile; // The profile of the currently authenticated user
+  UserProfile?
+  _loggedInUserProfile; // The profile of the currently authenticated user
   List<UserProfile> _allUsers = [];
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -56,12 +57,19 @@ class UserProfileProvider with ChangeNotifier {
     final user = _auth.currentUser;
     if (_loggedInUserProfile != null && user != null) {
       try {
-        await _firestore
-            .collection('users')
-            .doc(user.uid)
-            .update({'teachingSubjects': subjectIds});
+        await _firestore.collection('users').doc(user.uid).update({
+          'teachingSubjects': subjectIds,
+        });
 
-        _loggedInUserProfile = _loggedInUserProfile!.copyWith(teachingSubjects: subjectIds);
+        _loggedInUserProfile = _loggedInUserProfile!.copyWith(
+          teachingSubjects: subjectIds,
+        );
+
+        // Also update the viewed profile if it's the same as the logged-in user
+        if (_userProfile?.id == user.uid) {
+          _userProfile = _userProfile!.copyWith(teachingSubjects: subjectIds);
+        }
+
         notifyListeners();
       } catch (e) {
         print('Failed to update teaching subjects: $e');
@@ -74,12 +82,13 @@ class UserProfileProvider with ChangeNotifier {
     final user = _auth.currentUser;
     if (_loggedInUserProfile != null && user != null) {
       try {
-        await _firestore
-            .collection('users')
-            .doc(user.uid)
-            .update({'enrolledSubjects': subjectIds});
+        await _firestore.collection('users').doc(user.uid).update({
+          'enrolledSubjects': subjectIds,
+        });
 
-        _loggedInUserProfile = _loggedInUserProfile!.copyWith(enrolledSubjects: subjectIds);
+        _loggedInUserProfile = _loggedInUserProfile!.copyWith(
+          enrolledSubjects: subjectIds,
+        );
         notifyListeners();
       } catch (e) {
         print('Failed to update enrolled subjects: $e');
@@ -91,9 +100,8 @@ class UserProfileProvider with ChangeNotifier {
   Future<void> fetchAllUsers() async {
     try {
       final snapshot = await _firestore.collection('users').get();
-      _allUsers = snapshot.docs
-          .map((doc) => UserProfile.fromJson(doc.data()))
-          .toList();
+      _allUsers =
+          snapshot.docs.map((doc) => UserProfile.fromJson(doc.data())).toList();
       notifyListeners();
     } catch (e) {
       print('Failed to fetch all users: $e');
@@ -102,16 +110,19 @@ class UserProfileProvider with ChangeNotifier {
   }
 
   Future<void> updateUserEnrolledSubjects(
-      String userId, List<String> subjectIds) async {
+    String userId,
+    List<String> subjectIds,
+  ) async {
     try {
-      await _firestore
-          .collection('users')
-          .doc(userId)
-          .update({'enrolledSubjects': subjectIds});
+      await _firestore.collection('users').doc(userId).update({
+        'enrolledSubjects': subjectIds,
+      });
 
       final userIndex = _allUsers.indexWhere((user) => user.id == userId);
       if (userIndex != -1) {
-        _allUsers[userIndex] = _allUsers[userIndex].copyWith(enrolledSubjects: subjectIds);
+        _allUsers[userIndex] = _allUsers[userIndex].copyWith(
+          enrolledSubjects: subjectIds,
+        );
         notifyListeners();
       }
     } catch (e) {
@@ -122,10 +133,9 @@ class UserProfileProvider with ChangeNotifier {
 
   Future<void> updateAboutMe(String userId, String aboutMe) async {
     try {
-      await _firestore
-          .collection('users')
-          .doc(userId)
-          .update({'aboutMe': aboutMe});
+      await _firestore.collection('users').doc(userId).update({
+        'aboutMe': aboutMe,
+      });
 
       if (_userProfile?.id == userId) {
         _userProfile = _userProfile!.copyWith(aboutMe: aboutMe);
@@ -140,18 +150,29 @@ class UserProfileProvider with ChangeNotifier {
     }
   }
 
-  Future<void> loadLoggedInUserProfile() async {
+  Future<bool> loadLoggedInUserProfile() async {
     final user = _auth.currentUser;
-    if (user != null) {
-      try {
-        final doc = await _firestore.collection('users').doc(user.uid).get();
-        if (doc.exists) {
-          _loggedInUserProfile = UserProfile.fromJson(doc.data()!);
-          notifyListeners();
-        }
-      } catch (e) {
-        print('Failed to load logged-in user profile: $e');
+    if (user == null) {
+      clearProfile();
+      return false;
+    }
+    try {
+      final doc = await _firestore.collection('users').doc(user.uid).get();
+      if (doc.exists) {
+        _loggedInUserProfile = UserProfile.fromJson(doc.data()!);
+        _userProfile =
+            _loggedInUserProfile; // Also set the default viewed profile
+        notifyListeners();
+        return true;
+      } else {
+        // User authenticated but no profile in Firestore
+        clearProfile();
+        return false;
       }
+    } catch (e) {
+      print('Failed to load logged-in user profile: $e');
+      clearProfile();
+      return false;
     }
   }
 }

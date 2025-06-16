@@ -22,9 +22,17 @@ class DoctorSubjectService {
     }
   }
 
-  Future<DocumentReference> addLecture(Lecture lecture) async {
+  Future<Lecture> addLecture(Lecture lecture) async {
     try {
-      return await _lecturesCollection.add(lecture.toJson());
+      final docRef = await _lecturesCollection.add(lecture.toJson());
+      // Create a new Lecture object that includes the generated ID
+      return Lecture(
+        id: docRef.id,
+        title: lecture.title,
+        doctorId: lecture.doctorId,
+        categoryName: lecture.categoryName,
+        links: lecture.links,
+      );
     } catch (e) {
       print('Error adding lecture: $e');
       rethrow;

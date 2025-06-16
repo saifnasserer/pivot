@@ -26,6 +26,20 @@ class _AssistantProfileState extends State<AssistantProfile> {
   String _currentCategory = 'المواد';
   int _selectedSubjectIndex = 0;
   UserProfile? _previousUserProfile;
+  bool _isEditingAboutMe = false;
+  late TextEditingController _aboutMeController;
+
+  @override
+  void initState() {
+    super.initState();
+    _aboutMeController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _aboutMeController.dispose();
+    super.dispose();
+  }
 
   @override
   void didChangeDependencies() {
@@ -34,7 +48,14 @@ class _AssistantProfileState extends State<AssistantProfile> {
 
     // Fetch data only if the user profile has changed.
     if (userProfile != null && userProfile != _previousUserProfile) {
-      _fetchData(userProfile);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _fetchData(userProfile);
+        }
+      });
+      if (!_isEditingAboutMe) {
+        _aboutMeController.text = userProfile.aboutMe ?? '';
+      }
       _previousUserProfile = userProfile;
     }
   }
@@ -43,9 +64,9 @@ class _AssistantProfileState extends State<AssistantProfile> {
     // Fetch subjects the user teaches
     context.read<SubjectProvider>().fetchAndFilterSubjects(userProfile);
     // Fetch sections for those subjects
-    context
-        .read<SectionProvider>()
-        .fetchSectionsForUserSubjects(userProfile.teachingSubjects);
+    context.read<SectionProvider>().fetchSectionsForUserSubjects(
+      userProfile.teachingSubjects,
+    );
   }
 
   void _onMainCategoryChanged(String category) {
@@ -85,15 +106,17 @@ class _AssistantProfileState extends State<AssistantProfile> {
       _selectedSubjectIndex = 0;
     }
 
-    final selectedSubject = subjects.isNotEmpty ? subjects[_selectedSubjectIndex] : null;
+    final selectedSubject =
+        subjects.isNotEmpty ? subjects[_selectedSubjectIndex] : null;
 
     switch (_currentCategory) {
       case 'المواد':
-        final sectionsForSelectedSubject = selectedSubject != null
-            ? sectionProvider.sections
-                .where((s) => s.subjectId == selectedSubject.id)
-                .toList()
-            : [];
+        final sectionsForSelectedSubject =
+            selectedSubject != null
+                ? sectionProvider.sections
+                    .where((s) => s.subjectId == selectedSubject.id)
+                    .toList()
+                : [];
 
         return buildAssistantSubjects(
           context: context,
@@ -121,32 +144,26 @@ class _AssistantProfileState extends State<AssistantProfile> {
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  const Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      if (canEdit)
-                        IconButton(
-                          icon: const Icon(Icons.edit),
-                          onPressed: () => _showEditAboutMeDialog(
-                            context,
-                            profileBeingViewed!,
-                          ),
-                        ),
-                      const Text(
+                      Text(
                         'عني',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.right,
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    (profileBeingViewed?.aboutMe ?? '').isEmpty
-                        ? 'لا يوجد معلومات حالياً'
-                        : profileBeingViewed!.aboutMe,
-                    textAlign: TextAlign.right,
-                    style: const TextStyle(fontSize: 16, height: 1.5),
-                  ),
+                  const SizedBox(height: 10),
+                  if (_isEditingAboutMe)
+                    _buildAboutMeEditor(context, userProfile!)
+                  else
+                    _buildAboutMeDisplay(context, userProfile, canEdit),
                 ],
               ),
             ),
@@ -162,64 +179,99 @@ class _AssistantProfileState extends State<AssistantProfile> {
     }
   }
 
-  Future<void> _showEditAboutMeDialog(
+  Widget _buildAboutMeDisplay(
     BuildContext context,
-    UserProfile userProfile,
-  ) async {
-    final controller = TextEditingController(text: userProfile.aboutMe);
+    UserProfile? userProfile,
+    bool canEdit,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Text(
+          userProfile?.aboutMe ?? 'لا يوجد معلومات حالياً',
+          style: const TextStyle(fontSize: 16, height: 1.5),
+          textAlign: TextAlign.right,
+        ),
+        if (canEdit)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: IconButton(
+              icon: const Icon(Icons.edit_outlined),
+              onPressed: () {
+                setState(() {
+                  _isEditingAboutMe = true;
+                });
+              },
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildAboutMeEditor(BuildContext context, UserProfile userProfile) {
     final userProfileProvider = Provider.of<UserProfileProvider>(
       context,
       listen: false,
     );
-
-    return showDialog<void>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Edit About Me'),
-          content: TextField(
-            controller: controller,
-            maxLines: null,
-            autofocus: true,
-            decoration: const InputDecoration(
-              hintText: 'Enter information here...',
-            ),
+    return Column(
+      children: [
+        TextField(
+          controller: _aboutMeController,
+          maxLines: null,
+          autofocus: true,
+          textAlign: TextAlign.right,
+          decoration: const InputDecoration(
+            hintText: '...اخبرنا عن نفسك',
+            border: OutlineInputBorder(),
           ),
-          actions: <Widget>[
+        ),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
             TextButton(
               child: const Text('Cancel'),
               onPressed: () {
-                Navigator.of(context).pop();
+                setState(() {
+                  _aboutMeController.text = userProfile.aboutMe ?? '';
+                  _isEditingAboutMe = false;
+                });
               },
             ),
-            TextButton(
+            ElevatedButton(
               child: const Text('Save'),
               onPressed: () async {
                 try {
                   await userProfileProvider.updateAboutMe(
                     userProfile.id,
-                    controller.text,
+                    _aboutMeController.text,
                   );
-                  Navigator.of(context).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Successfully updated.'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Successfully updated.'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                    setState(() {
+                      _isEditingAboutMe = false;
+                    });
+                  }
                 } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Failed to update: $e'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Failed to update: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
                 }
               },
             ),
           ],
-        );
-      },
+        ),
+      ],
     );
   }
 
@@ -233,9 +285,7 @@ class _AssistantProfileState extends State<AssistantProfile> {
             : null;
 
     if (userProfile == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
@@ -288,7 +338,7 @@ class _AssistantProfileState extends State<AssistantProfile> {
               ),
               SliverToBoxAdapter(
                 child: SizedBox(
-                  height: Responsive.space(context, size: Space.large),
+                  height: Responsive.space(context, size: Space.medium),
                 ),
               ),
               SliverToBoxAdapter(
@@ -296,11 +346,11 @@ class _AssistantProfileState extends State<AssistantProfile> {
                   onCategoryChanged: _onMainCategoryChanged,
                 ),
               ),
-              SliverToBoxAdapter(
-                child: SizedBox(
-                  height: Responsive.space(context, size: Space.large),
-                ),
-              ),
+              // SliverToBoxAdapter(
+              //   child: SizedBox(
+              //     height: Responsive.space(context, size: Space.large),
+              //   ),
+              // ),
               const SliverToBoxAdapter(child: Divider(indent: 4, endIndent: 1)),
               ..._getCategoryContentSlivers(context),
             ],

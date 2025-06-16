@@ -26,8 +26,9 @@ class SubjectProvider with ChangeNotifier {
         allUsers
             .where(
               (user) =>
-                  user.role.toLowerCase() == 'prof' ||
-                  user.role.toLowerCase() == 'miniprofessor',
+                  user.role.toLowerCase() == 'professor' ||
+                  user.role.toLowerCase() == 'miniprofessor' ||
+                  user.role.toLowerCase() == 'doctor',
             )
             .toList();
 
@@ -114,8 +115,9 @@ class SubjectProvider with ChangeNotifier {
       List<String> userSubjectIds = [];
       if (userProfile.role == 'Student') {
         userSubjectIds = userProfile.enrolledSubjects;
-      } else if (userProfile.role.toLowerCase() == 'prof' ||
-          userProfile.role.toLowerCase() == 'miniprofessor') {
+      } else if (userProfile.role.toLowerCase() == 'professor' ||
+          userProfile.role.toLowerCase() == 'miniprofessor' ||
+          userProfile.role.toLowerCase() == 'doctor') {
         userSubjectIds = userProfile.teachingSubjects;
       }
 

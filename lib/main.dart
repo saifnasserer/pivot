@@ -24,22 +24,33 @@ import 'package:provider/provider.dart';
 import 'package:pivot/providers/announcement_provider.dart';
 import 'package:pivot/providers/task_provider.dart';
 import 'package:pivot/providers/doctor_subject_provider.dart';
+
 import 'package:pivot/providers/section_provider.dart'; // Import SectionProvider
 import 'package:pivot/providers/bookmarks.dart'; // Import Bookmarks provider
 
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
   await initializeDateFormatting('ar'); // Initialize Arabic date formatting
-  runApp(const Pivot());
+
+  // Create the provider and load data BEFORE running the app
+  final userProfileProvider = UserProfileProvider();
+  if (FirebaseAuth.instance.currentUser != null) {
+    await userProfileProvider.loadLoggedInUserProfile();
+  }
+
+  runApp(Pivot(userProfileProvider: userProfileProvider));
 }
 
 class Pivot extends StatelessWidget {
-  const Pivot({super.key});
+  const Pivot({super.key, required this.userProfileProvider});
+  final UserProfileProvider userProfileProvider;
 
   @override
   Widget build(BuildContext context) {
@@ -51,9 +62,11 @@ class Pivot extends StatelessWidget {
         ), // Add SectionProvider
         ChangeNotifierProvider(create: (_) => TaskProvider()),
         ChangeNotifierProvider(create: (_) => ScheduleProvider()),
-        ChangeNotifierProvider(create: (_) => UserProfileProvider()),
+        ChangeNotifierProvider.value(value: userProfileProvider),
         ChangeNotifierProvider(create: (_) => SubjectProvider()),
-        ChangeNotifierProvider(create: (_) => Bookmarks()), // Add Bookmarks provider
+        ChangeNotifierProvider(
+          create: (_) => Bookmarks(),
+        ), // Add Bookmarks provider
         ChangeNotifierProvider(create: (_) => DoctorSubjectProvider()),
       ],
       child: MaterialApp(
@@ -76,7 +89,8 @@ class Pivot extends StatelessWidget {
         initialRoute: AuthWrapper.id, // Set the initial route
         routes: {
           AuthWrapper.id: (context) => const AuthWrapper(),
-          NoInternetScreen.id: (context) => NoInternetScreen(onRetry: () {}), // Dummy retry
+          NoInternetScreen.id:
+              (context) => NoInternetScreen(onRetry: () {}), // Dummy retry
           FirstLanding.id: (context) => const FirstLanding(),
           Signup_1.id: (context) => const Signup_1(),
           Login.id: (context) => const Login(),
@@ -86,8 +100,8 @@ class Pivot extends StatelessWidget {
           DoctorProfile.id: (context) => const DoctorProfile(),
           AdminControl.id: (context) => const AdminControl(),
           UserManagementPage.id: (context) => const UserManagementPage(),
-          GlobalSubjectManagementScreen.id: (context) =>
-              const GlobalSubjectManagementScreen(),
+          GlobalSubjectManagementScreen.id:
+              (context) => const GlobalSubjectManagementScreen(),
           AssistantProfile.id: (context) => const AssistantProfile(),
           TasksControl.id: (context) => const TasksControl(),
         },
@@ -114,7 +128,7 @@ class Pivot extends StatelessWidget {
           ),
         ),
         debugShowCheckedModeBanner: false,
-        home: const FirstLanding(),
+        home: const AuthWrapper(), // Ensure AuthWrapper is the home
       ),
     );
   }

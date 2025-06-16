@@ -43,19 +43,17 @@ class DoctorSubjectProvider with ChangeNotifier {
   }
 
   Future<void> addLecture(Lecture lecture) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
     try {
-      await _service.addLecture(lecture);
-      if (_currentDoctorId != null) {
-        await fetchLecturesForDoctor(_currentDoctorId!, _currentCategories);
+      final newLecture = await _service.addLecture(lecture);
+      // Add the new lecture to the local cache
+      if (_lecturesByCategory.containsKey(newLecture.categoryName)) {
+        _lecturesByCategory[newLecture.categoryName]!.add(newLecture);
+      } else {
+        _lecturesByCategory[newLecture.categoryName] = [newLecture];
       }
+      notifyListeners();
     } catch (e) {
       _error = 'Failed to add lecture: ${e.toString()}';
-    } finally {
-      _isLoading = false;
       notifyListeners();
     }
   }
@@ -79,37 +77,39 @@ class DoctorSubjectProvider with ChangeNotifier {
   }
 
   Future<void> addLinkToLecture(String lectureId, Map<String, String> link) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
     try {
       await _service.addLinkToLecture(lectureId, link);
-      if (_currentDoctorId != null) {
-        await fetchLecturesForDoctor(_currentDoctorId!, _currentCategories);
+
+      // Update local cache
+      for (var category in _lecturesByCategory.keys) {
+        final index = _lecturesByCategory[category]!.indexWhere((lec) => lec.id == lectureId);
+        if (index != -1) {
+          _lecturesByCategory[category]![index].links.add(link);
+          notifyListeners();
+          return; // Exit after finding and updating
+        }
       }
     } catch (e) {
       _error = 'Failed to add link: ${e.toString()}';
-    } finally {
-      _isLoading = false;
       notifyListeners();
     }
   }
 
   Future<void> deleteLinkFromLecture(String lectureId, Map<String, String> link) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
     try {
       await _service.deleteLinkFromLecture(lectureId, link);
-      if (_currentDoctorId != null) {
-        await fetchLecturesForDoctor(_currentDoctorId!, _currentCategories);
+
+      // Update local cache
+      for (var category in _lecturesByCategory.keys) {
+        final index = _lecturesByCategory[category]!.indexWhere((lec) => lec.id == lectureId);
+        if (index != -1) {
+          _lecturesByCategory[category]![index].links.removeWhere((item) => item['url'] == link['url']);
+          notifyListeners();
+          return; // Exit after finding and updating
+        }
       }
     } catch (e) {
       _error = 'Failed to delete link: ${e.toString()}';
-    } finally {
-      _isLoading = false;
       notifyListeners();
     }
   }

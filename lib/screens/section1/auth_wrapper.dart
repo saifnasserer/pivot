@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -22,71 +24,73 @@ class AuthWrapper extends StatefulWidget {
 class _AuthWrapperState extends State<AuthWrapper> {
   AuthStatus _status = AuthStatus.checking;
   final AuthService _authService = AuthService();
+  StreamSubscription<User?>? _authSubscription;
 
   @override
   void initState() {
     super.initState();
-    _performChecks();
+    _authSubscription = _authService.authStateChanges.listen(_handleAuthState);
   }
 
-  Future<void> _performChecks() async {
-    // Set to checking state and show loading spinner
-    if (mounted) {
-      setState(() {
-        _status = AuthStatus.checking;
-      });
-    }
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
+  }
 
+  Future<void> _handleAuthState(User? user) async {
+    debugPrint('[AuthWrapper] Auth state changed. User: ${user?.uid}');
     // 1. Check internet connection
     final connectivityResult = await Connectivity().checkConnectivity();
+    if (!mounted) return;
     if (connectivityResult.contains(ConnectivityResult.none)) {
-      if (mounted) {
-        setState(() {
-          _status = AuthStatus.noInternet;
-        });
-      }
+      debugPrint('[AuthWrapper] No internet. Setting state to noInternet.');
+      setState(() => _status = AuthStatus.noInternet);
       return;
     }
 
-    // 2. Check auth status
-    final user = FirebaseAuth.instance.currentUser;
+    // 2. Check auth status from stream
     if (user == null) {
-      if (mounted) {
-        setState(() {
-          _status = AuthStatus.unauthenticated;
-        });
-      }
+      debugPrint(
+        '[AuthWrapper] User is null. Setting state to unauthenticated.',
+      );
+      Provider.of<UserProfileProvider>(context, listen: false).clearProfile();
+      setState(() => _status = AuthStatus.unauthenticated);
       return;
     }
 
-    // 3. Fetch user profile
+    // 3. Check if profile is already loaded (from main.dart)
+    final provider = Provider.of<UserProfileProvider>(context, listen: false);
+    if (provider.loggedInUserProfile != null &&
+        provider.loggedInUserProfile!.id == user.uid) {
+      debugPrint(
+        '[AuthWrapper] Profile already loaded. Setting state to authenticated.',
+      );
+      setState(() => _status = AuthStatus.authenticated);
+      return;
+    }
+
+    // 4. If not loaded, fetch it (for fresh logins)
     try {
-      final UserProfile? profile = await _authService.getUserProfile(user.uid);
-      if (profile != null && mounted) {
-        Provider.of<UserProfileProvider>(
-          context,
-          listen: false,
-        ).setUserProfile(profile);
-        setState(() {
-          _status = AuthStatus.authenticated;
-        });
+      debugPrint('[AuthWrapper] Profile not loaded. Loading profile...');
+      final bool profileLoaded = await provider.loadLoggedInUserProfile();
+
+      if (!mounted) return;
+
+      if (profileLoaded) {
+        debugPrint(
+          '[AuthWrapper] Profile loaded successfully. Setting state to authenticated.',
+        );
+        setState(() => _status = AuthStatus.authenticated);
       } else {
-        // Inconsistent state: auth user but no profile data
-        await _authService.signOut();
-        if (mounted) {
-          setState(() {
-            _status = AuthStatus.unauthenticated;
-          });
-        }
+        debugPrint('[AuthWrapper] Profile loading failed. Signing out.');
+        await _authService.signOut(); // This will re-trigger the stream
       }
     } catch (e) {
-      // Error fetching profile, treat as unauthenticated
-      await _authService.signOut();
-      if (mounted) {
-        setState(() {
-          _status = AuthStatus.unauthenticated;
-        });
-      }
+      debugPrint(
+        '[AuthWrapper] Error during profile loading: $e. Signing out.',
+      );
+      await _authService.signOut(); // This will re-trigger the stream
     }
   }
 
@@ -98,16 +102,20 @@ class _AuthWrapperState extends State<AuthWrapper> {
           body: Center(child: CircularProgressIndicator(color: Colors.black)),
         );
       case AuthStatus.noInternet:
-        return NoInternetScreen(onRetry: _performChecks);
+        return NoInternetScreen(
+          onRetry: () => _handleAuthState(FirebaseAuth.instance.currentUser),
+        );
       case AuthStatus.authenticated:
         // Use a Consumer to ensure the Landing screen is only built after
         // the UserProfileProvider has been updated and has a valid profile.
         return Consumer<UserProfileProvider>(
           builder: (context, userProfileProvider, child) {
-            if (userProfileProvider.userProfile == null) {
+            if (userProfileProvider.loggedInUserProfile == null) {
               // This state should be brief, show a loading indicator.
               return const Scaffold(
-                body: Center(child: CircularProgressIndicator(color: Colors.black)),
+                body: Center(
+                  child: CircularProgressIndicator(color: Colors.black),
+                ),
               );
             }
             return const Landing();

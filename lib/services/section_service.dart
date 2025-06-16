@@ -23,9 +23,18 @@ class SectionService {
     }
   }
 
-  Future<void> addSection(Section section) async {
+  Future<Section> addSection(Section section) async {
     try {
-      await _sectionsCollection.add(section.toJson());
+      final docRef = await _sectionsCollection.add(section.toJson());
+      // Return a new Section object with the ID from the created document
+      return Section(
+        id: docRef.id,
+        name: section.name,
+        subjectId: section.subjectId,
+        days: section.days,
+        time: section.time,
+        location: section.location,
+      );
     } catch (e) {
       print('Error adding section: $e');
       rethrow;

@@ -55,25 +55,28 @@ class _ProfileState extends State<Profile> {
     switch (_currentCategory) {
       case 'تاسكات الاسبوع':
         final userProfile =
-            Provider.of<UserProfileProvider>(context, listen: false)
-                .userProfile;
+            Provider.of<UserProfileProvider>(
+              context,
+              listen: false,
+            ).userProfile;
         final enrolledSubjectIds = userProfile?.enrolledSubjects ?? [];
 
         final allTasks = taskProvider.tasks;
         final now = DateTime.now();
 
         // Filter for upcoming tasks in enrolled subjects
-        final upcomingTasks = allTasks.where((task) {
-          final taskDueDate = DateTime(
-            task.dueDate.year,
-            task.dueDate.month,
-            task.dueDate.day,
-          );
-          final today = DateTime(now.year, now.month, now.day);
-          final isUpcoming = !taskDueDate.isBefore(today);
-          final isEnrolled = enrolledSubjectIds.contains(task.subjectId);
-          return isUpcoming && isEnrolled;
-        }).toList();
+        final upcomingTasks =
+            allTasks.where((task) {
+              final taskDueDate = DateTime(
+                task.dueDate.year,
+                task.dueDate.month,
+                task.dueDate.day,
+              );
+              final today = DateTime(now.year, now.month, now.day);
+              final isUpcoming = !taskDueDate.isBefore(today);
+              final isEnrolled = enrolledSubjectIds.contains(task.subjectId);
+              return isUpcoming && isEnrolled;
+            }).toList();
 
         return buildWeekTasksSlivers(context, upcomingTasks, taskProvider);
       case 'الجدول':
@@ -89,7 +92,8 @@ class _ProfileState extends State<Profile> {
           return [
             SliverFillRemaining(
               child: Center(
-                  child: Text('An error occurred: ${scheduleProvider.error}')),
+                child: Text('An error occurred: ${scheduleProvider.error}'),
+              ),
             ),
           ];
         }
@@ -100,8 +104,9 @@ class _ProfileState extends State<Profile> {
           days.isEmpty ? 0 : days.length - 1,
         );
         final currentDay = days.isEmpty ? '' : days[validIndex];
-        final itemsForSelectedDay =
-            scheduleProvider.getScheduleForDay(currentDay);
+        final itemsForSelectedDay = scheduleProvider.getScheduleForDay(
+          currentDay,
+        );
 
         return buildCalendar(
           selectedDayIndex: validIndex,
@@ -126,7 +131,9 @@ class _ProfileState extends State<Profile> {
         if (subjectProvider.error != null) {
           return [
             SliverFillRemaining(
-              child: Center(child: Text('An error occurred: ${subjectProvider.error}')),
+              child: Center(
+                child: Text('An error occurred: ${subjectProvider.error}'),
+              ),
             ),
           ];
         }
@@ -148,7 +155,8 @@ class _ProfileState extends State<Profile> {
           return [
             SliverFillRemaining(
               child: Center(
-                  child: Text('An error occurred: ${sectionProvider.error}')),
+                child: Text('An error occurred: ${sectionProvider.error}'),
+              ),
             ),
           ];
         }
@@ -215,18 +223,18 @@ class _ProfileState extends State<Profile> {
       floatingActionButton:
           _currentCategory == 'الجدول' && currentSelectedDay != null
               ? FloatingActionButton(
-                  backgroundColor: Colors.black,
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (BuildContext context) {
-                        return AddEditScheduleDialog(day: currentSelectedDay);
-                      },
-                    );
-                  },
-                  tooltip: 'اضافة محاضرة/سكشن',
-                  child: const Icon(Icons.add, color: Colors.white),
-                )
+                backgroundColor: Colors.black,
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (BuildContext context) {
+                      return AddEditScheduleDialog(day: currentSelectedDay);
+                    },
+                  );
+                },
+                tooltip: 'اضافة محاضرة/سكشن',
+                child: const Icon(Icons.add, color: Colors.white),
+              )
               : null,
       body: SafeArea(
         child: Padding(
@@ -238,7 +246,17 @@ class _ProfileState extends State<Profile> {
                   height: Responsive.space(context, size: Space.small),
                 ),
               ),
-              const SliverToBoxAdapter(child: ProfileDetails()),
+              SliverToBoxAdapter(
+                child: Consumer<UserProfileProvider>(
+                  builder: (context, userProfileProvider, child) {
+                    final userProfile = userProfileProvider.loggedInUserProfile;
+                    if (userProfile == null) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    return ProfileDetails(userProfile: userProfile);
+                  },
+                ),
+              ),
               SliverToBoxAdapter(
                 child: SizedBox(
                   height: Responsive.space(context, size: Space.large),
@@ -250,18 +268,28 @@ class _ProfileState extends State<Profile> {
                     setState(() {
                       _currentCategory = category;
                       final userProfile =
-                          Provider.of<UserProfileProvider>(context, listen: false)
-                              .userProfile;
-                      final subjectProvider =
-                          Provider.of<SubjectProvider>(context, listen: false);
+                          Provider.of<UserProfileProvider>(
+                            context,
+                            listen: false,
+                          ).userProfile;
+                      final subjectProvider = Provider.of<SubjectProvider>(
+                        context,
+                        listen: false,
+                      );
 
                       if (category == 'الجدول') {
                         _selectedDayIndex = 0;
                       } else if (category == 'مواد الترم') {
                         // Fetch subjects when the category is selected
-                        final userProfileProvider = Provider.of<UserProfileProvider>(context, listen: false);
+                        final userProfileProvider =
+                            Provider.of<UserProfileProvider>(
+                              context,
+                              listen: false,
+                            );
                         userProfileProvider.fetchAllUsers().then((_) {
-                          subjectProvider.buildInstructorsMap(userProfileProvider.allUsers);
+                          subjectProvider.buildInstructorsMap(
+                            userProfileProvider.allUsers,
+                          );
                           subjectProvider.fetchAndFilterSubjects(userProfile);
                         });
                       } else if (category == 'السكاشن') {
@@ -269,14 +297,17 @@ class _ProfileState extends State<Profile> {
                         subjectProvider
                             .fetchAndFilterSubjects(userProfile)
                             .then((_) {
-                          // Then, fetch sections for those subjects
-                          final subjectIds = subjectProvider.filteredSubjects
-                              .whereType<Subject>()
-                              .map((s) => s.id)
-                              .toList();
-                          Provider.of<SectionProvider>(context, listen: false)
-                              .fetchSectionsForUserSubjects(subjectIds);
-                        });
+                              // Then, fetch sections for those subjects
+                              final subjectIds =
+                                  subjectProvider.filteredSubjects
+                                      .whereType<Subject>()
+                                      .map((s) => s.id)
+                                      .toList();
+                              Provider.of<SectionProvider>(
+                                context,
+                                listen: false,
+                              ).fetchSectionsForUserSubjects(subjectIds);
+                            });
                       }
                     });
                   },

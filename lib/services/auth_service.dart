@@ -6,11 +6,6 @@ class AuthService {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Constructor to set persistence
-  AuthService() {
-    _firebaseAuth.setPersistence(Persistence.LOCAL);
-  }
-
   // Stream to listen to authentication state changes
   Stream<User?> get authStateChanges => _firebaseAuth.authStateChanges();
 
@@ -49,7 +44,9 @@ class AuthService {
     Map<String, dynamic> userData,
   ) async {
     UserCredential result = await _firebaseAuth.createUserWithEmailAndPassword(
-        email: email, password: password);
+      email: email,
+      password: password,
+    );
     User? user = result.user;
 
     if (user != null) {
@@ -95,7 +92,9 @@ class AuthService {
     try {
       QuerySnapshot snapshot = await _firestore.collection('users').get();
       return snapshot.docs
-          .map((doc) => UserProfile.fromJson(doc.data() as Map<String, dynamic>))
+          .map(
+            (doc) => UserProfile.fromJson(doc.data() as Map<String, dynamic>),
+          )
           .toList();
     } catch (e) {
       print(e.toString());
@@ -117,7 +116,9 @@ class AuthService {
   // Method to update a user's about me text
   Future<void> updateUserAboutMe(String uid, String aboutMe) async {
     try {
-      await _firestore.collection('users').doc(uid).update({'aboutMe': aboutMe});
+      await _firestore.collection('users').doc(uid).update({
+        'aboutMe': aboutMe,
+      });
     } catch (e) {
       print('Error updating user about me: $e');
       rethrow;

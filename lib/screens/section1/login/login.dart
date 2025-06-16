@@ -13,6 +13,7 @@ import '../../../services/auth_service.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import '../../../services/local_auth_service.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -44,12 +45,21 @@ class _LoginState extends State<Login> {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
       try {
-        UserProfile? userProfile = await _authService
-            .signInWithEmailAndPassword(_email.toLowerCase().trim(), _password);
+        UserProfile? userProfile = await _authService.signInWithEmailAndPassword(
+            _email.toLowerCase().trim(), _password);
         if (mounted && userProfile != null) {
-          final provider = Provider.of<UserProfileProvider>(context, listen: false);
+          final provider =
+              Provider.of<UserProfileProvider>(context, listen: false);
           provider.setLoggedInUserProfile(userProfile);
           provider.setUserProfile(userProfile);
+
+          // After successful login, check if we should prompt for biometrics.
+          await _promptEnableBiometric(
+            userProfile.id,
+            _email.toLowerCase().trim(),
+            _password,
+          );
+
           Navigator.pushNamedAndRemoveUntil(
             context,
             Landing.id,
@@ -96,6 +106,58 @@ class _LoginState extends State<Login> {
             SnackBar(
               content: Text('An error occurred: ${e.toString()}'),
               backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _promptEnableBiometric(
+    String uid,
+    String email,
+    String password,
+  ) async {
+    if (kIsWeb) {
+      return;
+    }
+
+    final bool canAuth = await LocalAuthService.canAuthenticate();
+    final prefs = await SharedPreferences.getInstance();
+    final bool alreadyEnabled = prefs.getBool('biometric_enabled_$uid') ?? false;
+
+    if (mounted && canAuth && !alreadyEnabled) {
+      final bool enable = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('تمكين تسجيل الدخول بالبصمة'),
+              content: const Text(
+                'هل ترغب في استخدام بصمة الإصبع أو معرف الوجه لتسجيل الدخول بشكل أسرع في المرة القادمة؟',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('لاحقاً'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('تمكين'),
+                ),
+              ],
+            ),
+          ) ??
+          false;
+
+      if (enable) {
+        await prefs.setBool('biometric_enabled_$uid', true);
+        await _storage.write(key: 'email', value: email);
+        await _storage.write(key: 'password', value: password);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('تم تمكين تسجيل الدخول بالبصمة بنجاح.'),
+              backgroundColor: Colors.green,
             ),
           );
         }

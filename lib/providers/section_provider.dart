@@ -37,17 +37,12 @@ class SectionProvider with ChangeNotifier {
   }
 
   Future<void> addSection(Section section) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
     try {
-      await _sectionService.addSection(section);
-      await fetchSectionsForUserSubjects(_currentSubjectIds);
+      final newSection = await _sectionService.addSection(section);
+      _sections.add(newSection);
+      notifyListeners();
     } catch (e) {
       _error = 'Failed to add section: ${e.toString()}';
-    } finally {
-      _isLoading = false;
       notifyListeners();
     }
   }
