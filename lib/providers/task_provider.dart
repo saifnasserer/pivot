@@ -1,79 +1,115 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pivot/screens/models/task.dart';
-import 'dart:math'; // For generating random IDs
 
 class TaskProvider with ChangeNotifier {
-  final List<Task> _tasks = [
-    // Add some initial dummy data for testing
-    Task(
-      id: 'task1',
-      title: 'تسليم او جزء من المشروع',
-      description:
-          'معاد تسليم الجزء الاول من المشروع السبت الحاي في معاج السكشن',
-      dueDate: DateTime.now().add(Duration(days: 2)),
-      sectionId: 'سكشن 1',
-      importance: TaskImportance.high,
-    ),
-    Task(
-      id: 'task2',
-      title: 'Prepare Presentation Draft',
-      dueDate: DateTime.now().add(Duration(days: 5)),
-      sectionId: 'سكشن 1',
-      isCompleted: true,
-    ),
-    Task(
-      id: 'task3',
-      title: 'Submit Assignment 1',
-      dueDate: DateTime.now().add(Duration(days: -1)), // Past due
-      sectionId: 'سكشن 2',
-      importance: TaskImportance.mid,
-    ),
-  ];
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  late final CollectionReference _tasksCollection;
 
+  List<Task> _tasks = [];
+  StreamSubscription? _tasksSubscription;
+
+  bool _isLoading = false;
+  String? _error;
+
+  TaskProvider() {
+    _tasksCollection = _firestore.collection('tasks');
+    fetchTasks();
+  }
+
+  // Getters
   List<Task> get tasks => _tasks;
+  bool get isLoading => _isLoading;
+  String? get error => _error;
 
+  // Fetches tasks from Firestore and listens for real-time updates
+  void fetchTasks() {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    _tasksSubscription?.cancel();
+    _tasksSubscription = _tasksCollection.snapshots().listen((snapshot) {
+      _tasks = snapshot.docs.map((doc) {
+        return Task.fromMap(doc.data() as Map<String, dynamic>);
+      }).toList();
+      _isLoading = false;
+      notifyListeners();
+    }, onError: (error) {
+      _error = 'Failed to fetch tasks: $error';
+      _isLoading = false;
+      notifyListeners();
+    });
+  }
+
+  // Returns tasks filtered by a specific section ID
   List<Task> tasksForSection(String sectionId) {
     return _tasks.where((task) => task.sectionId == sectionId).toList();
   }
 
-  // Simple random ID generator (replace with a robust solution like UUID later)
-  String _generateRandomId() {
-    return Random().nextInt(100000).toString();
-  }
-
-  void addTask(Task task) {
-    // Assign a unique ID if not provided (or overwrite if needed)
-    final newTask = Task(
-      id: _generateRandomId(), // Generate ID here
-      title: task.title,
-      description: task.description,
-      dueDate: task.dueDate,
-      importance: task.importance,
-      sectionId: task.sectionId,
-      isCompleted: task.isCompleted,
-    );
-    _tasks.add(newTask);
-    notifyListeners();
-  }
-
-  void updateTask(String id, Task updatedTask) {
-    final index = _tasks.indexWhere((task) => task.id == id);
-    if (index != -1) {
-      _tasks[index] = updatedTask; // Ensure the ID remains the same
-      notifyListeners();
+  // Adds a new task to Firestore
+  Future<void> addTask(Task task) async {
+    try {
+      await _tasksCollection.doc(task.id).set(task.toMap());
+    } catch (e) {
+      // Re-throw the exception to be handled by the UI
+      throw Exception('Failed to add task: $e');
     }
   }
 
-  void toggleTaskCompletion(String id) {
-    final index = _tasks.indexWhere((task) => task.id == id);
-    if (index != -1) {
-      _tasks[index].isCompleted = !_tasks[index].isCompleted;
-      notifyListeners();
+  // Updates an existing task in Firestore
+  Future<void> updateTask(String id, Task updatedTask) async {
+    try {
+      await _tasksCollection.doc(id).update(updatedTask.toMap());
+    } catch (e) {
+      throw Exception('Failed to update task: $e');
     }
   }
 
-  void deleteTask(String id) {
-    _tasks.removeWhere((task) => task.id == id);
-    notifyListeners();
+  // Toggles the completion status of a task for the current user
+  Future<void> toggleTaskCompletion(String taskId) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw Exception('User not logged in');
+    }
+
+    final userId = user.uid;
+    final taskRef = _tasksCollection.doc(taskId);
+
+    try {
+      final task = _tasks.firstWhere((t) => t.id == taskId);
+      if (task.completedBy.contains(userId)) {
+        // If already completed, remove user from the list
+        await taskRef.update({
+          'completedBy': FieldValue.arrayRemove([userId])
+        });
+      } else {
+        // If not completed, add user to the list
+        await taskRef.update({
+          'completedBy': FieldValue.arrayUnion([userId])
+        });
+      }
+    } catch (e) {
+      throw Exception('Failed to toggle task status: $e');
+    }
+  }
+
+  // Deletes a task from Firestore
+  Future<void> deleteTask(String id) async {
+    try {
+      await _tasksCollection.doc(id).delete();
+    } catch (e) {
+      throw Exception('Failed to delete task: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    _tasksSubscription?.cancel();
+    super.dispose();
   }
 }
+

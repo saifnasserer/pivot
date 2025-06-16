@@ -1,11 +1,17 @@
+import 'package:flutter/foundation.dart';
+
 class UserProfile {
-  final String id; // Assuming an ID is generated or comes from auth
+  final String id;
   String name;
   String? email;
   String department;
   String level;
   String section;
-  String? profileImageUrl; // Optional profile picture
+  String? profileImageUrl;
+  String role;
+  String aboutMe;
+  List<String> teachingSubjects;
+  List<String> enrolledSubjects;
 
   UserProfile({
     required this.id,
@@ -14,7 +20,11 @@ class UserProfile {
     required this.department,
     required this.level,
     required this.section,
-    this.profileImageUrl,
+    this.profileImageUrl = '',
+    this.role = 'Student',
+    this.aboutMe = '',
+    this.teachingSubjects = const [],
+    this.enrolledSubjects = const [],
   });
 
   // Optional: copyWith method for easier updates
@@ -26,6 +36,10 @@ class UserProfile {
     String? department,
     String? section,
     String? profileImageUrl,
+    String? role,
+    String? aboutMe,
+    List<String>? teachingSubjects,
+    List<String>? enrolledSubjects,
   }) {
     return UserProfile(
       id: id ?? this.id,
@@ -35,6 +49,10 @@ class UserProfile {
       level: level ?? this.level,
       section: section ?? this.section,
       profileImageUrl: profileImageUrl ?? this.profileImageUrl,
+      role: role ?? this.role,
+      aboutMe: aboutMe ?? this.aboutMe,
+      teachingSubjects: teachingSubjects ?? [...this.teachingSubjects],
+      enrolledSubjects: enrolledSubjects ?? [...this.enrolledSubjects],
     );
   }
 
@@ -48,6 +66,10 @@ class UserProfile {
       level: json['level'] as String,
       section: json['section'] as String,
       profileImageUrl: json['profileImageUrl'] as String?,
+      role: json['role'] ?? 'Student',
+      aboutMe: json['aboutMe'] ?? '',
+      teachingSubjects: List<String>.from(json['teachingSubjects'] ?? []),
+      enrolledSubjects: List<String>.from(json['enrolledSubjects'] ?? []),
     );
   }
 
@@ -61,6 +83,45 @@ class UserProfile {
       'level': level,
       'section': section,
       'profileImageUrl': profileImageUrl,
+      'role': role,
+      'aboutMe': aboutMe,
+      'teachingSubjects': teachingSubjects,
+      'enrolledSubjects': enrolledSubjects,
     };
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is UserProfile &&
+        other.id == id &&
+        other.name == name &&
+        other.email == email &&
+        other.department == department &&
+        other.level == level &&
+        other.section == section &&
+        other.profileImageUrl == profileImageUrl &&
+        other.role == role &&
+        listEquals(other.teachingSubjects, teachingSubjects) &&
+        listEquals(other.enrolledSubjects, enrolledSubjects) &&
+        other.aboutMe == aboutMe;
+  }
+
+  @override
+  int get hashCode {
+    return Object.hash(
+      id,
+      name,
+      email,
+      department,
+      level,
+      section,
+      profileImageUrl,
+      role,
+      Object.hashAll(teachingSubjects),
+      Object.hashAll(enrolledSubjects),
+      aboutMe,
+    );
   }
 }

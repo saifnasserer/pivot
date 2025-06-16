@@ -1,59 +1,96 @@
 import 'package:flutter/material.dart';
-import 'package:pivot/screens/models/subject.dart';
-import 'package:pivot/screens/section4/assistants/assistant_profile.dart';
+import 'package:pivot/models/section_model.dart';
+import 'package:pivot/responsive.dart';
+import 'package:pivot/models/subject_model.dart';
 
-// --- Data defined outside the function (Consider if this data is specific to Sections or shared)
-// --- If this is the same data as Subjects, consider moving it to a shared location or model.
-final List<SubjectModel> _sectionsData = [
-  SubjectModel(
-    doctor: 'احمد حجاج',
-    title: 'Modeling Section',
-    id: AssistantProfile.id,
-  ),
-  SubjectModel(
-    doctor: 'ايمان منير',
-    title: 'HPC Section',
-    id: AssistantProfile.id,
-  ),
-  SubjectModel(
-    doctor: 'محمد العربي',
-    title: 'Big data Section',
-    id: AssistantProfile.id,
-  ),
-  SubjectModel(
-    doctor: 'مصطفي زغلول',
-    title: 'NN Section',
-    id: AssistantProfile.id,
-  ),
-  SubjectModel(
-    doctor: 'تامر عباسي',
-    title: 'Numeric Section',
-    id: AssistantProfile.id,
-  ),
-  SubjectModel(
-    doctor: 'سارة سويدان',
-    title: 'ML Section',
-    id: AssistantProfile.id,
-  ),
-];
-// --- End Data ---
-
-// --- Refactored Function returning Slivers ---
-List<Widget> buildSectionsSlivers(BuildContext context) {
-  // Handle empty state
-  if (_sectionsData.isEmpty) {
+List<Widget> buildSectionsSlivers(
+  BuildContext context,
+  List<Section> sections,
+  List<Subject> subjects,
+) {
+  if (sections.isEmpty) {
     return [
       const SliverFillRemaining(
         hasScrollBody: false,
-        child: Center(child: Text('No sections found.')),
+        child: Center(child: Text('لا توجد سكاشن مسجلة حالياً')),
       ),
     ];
   }
-  return [
-    SliverList(
-      delegate: SliverChildBuilderDelegate((context, index) {
-        return _sectionsData[index];
-      }, childCount: _sectionsData.length),
-    ),
-  ];
+
+  // Create a map of subjectId to subjectName for easy lookup
+  final subjectMap = {for (var subject in subjects) subject.id: subject.name};
+
+  // Group sections by subjectId
+  final groupedSections = <String, List<Section>>{};
+  for (var section in sections) {
+    if (!groupedSections.containsKey(section.subjectId)) {
+      groupedSections[section.subjectId] = [];
+    }
+    groupedSections[section.subjectId]!.add(section);
+  }
+
+  final List<Widget> slivers = [];
+
+  groupedSections.forEach((subjectId, sectionList) {
+    final subjectName = subjectMap[subjectId] ?? 'مادة غير معروفة';
+
+    // Add a header for the subject
+    slivers.add(
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            vertical: Responsive.space(context, size: Space.medium),
+            horizontal: Responsive.space(context, size: Space.small),
+          ),
+          child: Text(
+            subjectName,
+            textAlign: TextAlign.right,
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+          ),
+        ),
+      ),
+    );
+
+    // Add the list of sections for this subject
+    slivers.add(
+      SliverList(
+        delegate: SliverChildBuilderDelegate((context, index) {
+          final section = sectionList[index];
+          return Card(
+            elevation: 2,
+            margin: EdgeInsets.symmetric(
+              vertical: Responsive.space(context, size: Space.small) / 2,
+              horizontal: Responsive.space(context, size: Space.small),
+            ),
+            child: ListTile(
+              title: Text(
+                section.name,
+                textAlign: TextAlign.right,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  const SizedBox(height: 4),
+                  Text(
+                    'المكان: ${section.location}',
+                    textAlign: TextAlign.right,
+                  ),
+                  Text(
+                    'المواعيد: ${section.days} - ${section.time}',
+                    textAlign: TextAlign.right,
+                  ),
+                ],
+              ),
+              leading: const Icon(Icons.class_outlined),
+            ),
+          );
+        }, childCount: sectionList.length),
+      ),
+    );
+  });
+
+  return slivers;
 }

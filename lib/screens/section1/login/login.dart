@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:pivot/screens/section1/login/forgot_password_screen.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/screens/section2/landing.dart';
@@ -9,6 +10,9 @@ import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart'; // Add this import
 import '../../../responsive.dart';
 import '../../../services/auth_service.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import '../../../services/local_auth_service.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -18,6 +22,8 @@ class Login extends StatefulWidget {
 }
 
 class _LoginState extends State<Login> {
+  bool _isBiometricAvailable = false;
+  final _storage = const FlutterSecureStorage();
   final _formKey = GlobalKey<FormState>();
   final FocusNode _emailFocus = FocusNode();
   final FocusNode _passwordFocus = FocusNode();
@@ -38,11 +44,12 @@ class _LoginState extends State<Login> {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
       try {
-        UserProfile? userProfile =
-            await _authService.signInWithEmailAndPassword(_email, _password);
+        UserProfile? userProfile = await _authService
+            .signInWithEmailAndPassword(_email.toLowerCase().trim(), _password);
         if (mounted && userProfile != null) {
-          Provider.of<UserProfileProvider>(context, listen: false)
-              .setUserProfile(userProfile);
+          final provider = Provider.of<UserProfileProvider>(context, listen: false);
+          provider.setLoggedInUserProfile(userProfile);
+          provider.setUserProfile(userProfile);
           Navigator.pushNamedAndRemoveUntil(
             context,
             Landing.id,
@@ -96,11 +103,83 @@ class _LoginState extends State<Login> {
     }
   }
 
+  Future<void> _biometricLogin() async {
+    final isAuthenticated = await LocalAuthService.authenticate(
+      'الرجاء المصادقة لتسجيل الدخول',
+    );
+    if (isAuthenticated && mounted) {
+      final credentials = await _storage.readAll();
+      final email = credentials['email'];
+      final password = credentials['password'];
+
+      if (email != null && password != null) {
+        try {
+          UserProfile? userProfile = await _authService
+              .signInWithEmailAndPassword(email.toLowerCase().trim(), password);
+          if (mounted && userProfile != null) {
+            Provider.of<UserProfileProvider>(
+              context,
+              listen: false,
+            ).setUserProfile(userProfile);
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              Landing.id,
+              (route) => false,
+            );
+          }
+        } on FirebaseAuthException catch (e) {
+          String errorMessage;
+          switch (e.code) {
+            case 'user-not-found':
+            case 'invalid-credential':
+              errorMessage = 'اما فية غلط في البيانات او المستخدم غير مسجل';
+              break;
+            case 'wrong-password':
+              errorMessage = 'كلمة المرور غير صحيحة.';
+              break;
+            case 'invalid-email':
+              errorMessage = 'البريد الإلكتروني غير صالح.';
+              break;
+            case 'user-disabled':
+              errorMessage = 'تم تعطيل هذا المستخدم.';
+              break;
+            default:
+              errorMessage = 'حدث خطأ غير متوقع. حاول مرة أخرى.';
+          }
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  errorMessage,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: Responsive.text(context) * .9,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('An error occurred: ${e.toString()}'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      }
+    }
+  }
+
   String? _validateEmail(String? value) {
     if (value == null || value.isEmpty) {
       return 'الرجاء إدخال البريد الإلكتروني';
     }
-    if (!value.endsWith('fci.bu.edu.eg')) {
+    if (!value.toLowerCase().endsWith('fci.bu.edu.eg')) {
       return 'لازم يكون ايميل كلية حاسبات';
     }
     return null;
@@ -114,6 +193,40 @@ class _LoginState extends State<Login> {
       return 'الباسورد علي الاقل 8 حروف';
     }
     return null;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _checkBiometricStatus();
+  }
+
+  Future<void> _checkBiometricStatus() async {
+    if (kIsWeb) {
+      debugPrint('[Biometric Check] Running on web, skipping.');
+      return;
+    }
+
+    debugPrint('[Biometric Check] Checking for biometrics on device...');
+    final canAuth = await LocalAuthService.canAuthenticate();
+    debugPrint('[Biometric Check] Can device authenticate? -> $canAuth');
+
+    final credentials = await _storage.readAll();
+    final hasCredentials = credentials.containsKey('email');
+    debugPrint('[Biometric Check] Are credentials saved? -> $hasCredentials');
+
+    if (mounted && canAuth && hasCredentials) {
+      debugPrint(
+        '[Biometric Check] SUCCESS: Conditions met, showing biometric icon.',
+      );
+      setState(() {
+        _isBiometricAvailable = true;
+      });
+    } else {
+      debugPrint(
+        '[Biometric Check] FAILED: Conditions not met, biometric icon will be hidden.',
+      );
+    }
   }
 
   @override
@@ -243,15 +356,25 @@ class _LoginState extends State<Login> {
                           onPressed: () {
                             // يمكن إضافة التنقل إلى صفحة استعادة كلمة المرور هنا
                           },
-                          child: Text(
-                            'نسيت الباسورد ؟',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: Responsive.text(
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.push(
                                 context,
-                                size: TextSize.small,
+                                MaterialPageRoute(
+                                  builder: (context) => ForgotPasswordScreen(),
+                                ),
+                              );
+                            },
+                            child: Text(
+                              'نسيت الباسورد ؟',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.small,
+                                ),
+                                fontWeight: FontWeight.w500,
                               ),
-                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ),
@@ -261,45 +384,26 @@ class _LoginState extends State<Login> {
                         height:
                             Responsive.space(context, size: Space.xlarge) * 4,
                       ),
-                      CircularButton(
-                        onPressed: () {
-                          // if (_formKey.currentState!.validate() &&
-                          //     _email == 'seif@fci.bu.edu.eg') {
-                          //   UserProfile user = UserProfile(
-                          //     department: 'SC',
-                          //     id: 'adminID',
-                          //     level: 'الثالثة',
-                          //     name: 'سيف ناصر',
-                          //     section: '1',
-                          //   );
-                          //   Provider.of<UserProfileProvider>(
-                          //     context,
-                          //     listen: false,
-                          //   ).setUserProfile(user);
-                          //   // Handle form submission
-                          //   Navigator.pushNamedAndRemoveUntil(
-                          //     context,
-                          //     Landing.id,
-                          //     (route) => false,
-                          //   );
-                          // } else {
-                          //   ScaffoldMessenger.of(context).showSnackBar(
-                          //     SnackBar(
-                          //       content: Text(
-                          //         'اما فية غلط في البيانات او المستخدم غير مسجل',
-                          //         textAlign: TextAlign.center,
-                          //         style: TextStyle(
-                          //           fontSize: Responsive.text(context) * .9,
-                          //           fontWeight: FontWeight.bold,
-                          //         ),
-                          //       ),
-                          //       backgroundColor: Colors.red,
-                          //     ),
-                          //   );
-                          // }
-                          _login();
-                        },
-                        icon: Icons.check,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (_isBiometricAvailable)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 16.0),
+                              child: CircularButton(
+                                onPressed: _biometricLogin,
+                                icon: Icons.fingerprint,
+                                backgroundColor: Colors.grey.shade200,
+                                iconColor: Colors.black,
+                              ),
+                            ),
+                          Expanded(
+                            child: CircularButton(
+                              onPressed: _login,
+                              icon: Icons.check,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),

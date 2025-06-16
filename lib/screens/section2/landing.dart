@@ -26,18 +26,23 @@ class LandingState extends State<Landing> {
     // The AuthWrapper now guarantees the user profile is ready before this screen is built.
     // We can now safely trigger the initial fetch for 'Today''s News'.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final userProfileProvider =
-          Provider.of<UserProfileProvider>(context, listen: false);
+      final userProfileProvider = Provider.of<UserProfileProvider>(
+        context,
+        listen: false,
+      );
       _userDepartment = userProfileProvider.userProfile?.department;
 
-      final announcementProvider =
-          Provider.of<AnnouncementProvider>(context, listen: false);
+      final announcementProvider = Provider.of<AnnouncementProvider>(
+        context,
+        listen: false,
+      );
       announcementProvider.fetchAnnouncements(
         timeFilter: 'today',
         department: _userDepartment,
       );
     });
   }
+
   @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -61,7 +66,10 @@ class LandingState extends State<Landing> {
                       child: CategorySection(
                         onCategoryChanged: (category) {
                           final announcementProvider =
-                              Provider.of<AnnouncementProvider>(context, listen: false);
+                              Provider.of<AnnouncementProvider>(
+                                context,
+                                listen: false,
+                              );
 
                           String? departmentCode;
                           String? timeFilter;
@@ -70,17 +78,21 @@ class LandingState extends State<Landing> {
                             departmentCode = category.split(' ').last;
                           } else if (category == 'اخبار النهاردة') {
                             timeFilter = 'today';
-                            departmentCode = _userDepartment; // Use stored department
+                            departmentCode =
+                                _userDepartment; // Use stored department
                           } else if (category == 'اخبار الاسبوع') {
                             timeFilter = 'week';
-                            departmentCode = _userDepartment; // Use stored department
+                            departmentCode =
+                                _userDepartment; // Use stored department
                           } else {
                             // This handles the "All News" case
                             departmentCode = null;
                             timeFilter = null;
                           }
 
-                          debugPrint('[LANDING onCategoryChanged] Fetching with department: $departmentCode, timeFilter: $timeFilter');
+                          debugPrint(
+                            '[LANDING onCategoryChanged] Fetching with department: $departmentCode, timeFilter: $timeFilter',
+                          );
                           announcementProvider.fetchAnnouncements(
                             department: departmentCode,
                             timeFilter: timeFilter,
@@ -88,20 +100,28 @@ class LandingState extends State<Landing> {
                         },
                       ),
                     ),
-                    IconButton(
-                      icon: Icon(Icons.add_circle_outline_rounded),
-                      onPressed: () {
-                        // Handle profile icon press
-                        Navigator.pushNamed(context, AdminControl.id);
+                    Consumer<UserProfileProvider>(
+                      builder: (context, userProfileProvider, child) {
+                        final userRole = userProfileProvider.userProfile?.role;
+                        if (userRole != null && userRole != 'Student') {
+                          return IconButton(
+                            icon: const Icon(Icons.add_circle_outline_rounded),
+                            onPressed: () {
+                              Navigator.pushNamed(context, AdminControl.id);
+                            },
+                          );
+                        } else {
+                          return const SizedBox.shrink(); // Return an empty widget if not allowed
+                        }
                       },
                     ),
-                    IconButton(
-                      icon: Icon(Icons.search),
-                      onPressed: () {
-                        // Handle search icon press
-                        // Navigator.pushNamed(context, DoctorProfile.id);
-                      },
-                    ),
+                    // IconButton(
+                    //   icon: Icon(Icons.search),
+                    //   onPressed: () {
+                    //     // Handle search icon press
+                    //     // Navigator.pushNamed(context, DoctorProfile.id);
+                    //   },
+                    // ),
                     IconButton(
                       icon: Icon(Icons.person_outline_rounded),
                       onPressed: () {

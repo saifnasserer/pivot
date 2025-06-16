@@ -1,17 +1,19 @@
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
+import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:intl/intl.dart'; // For date formatting
+import 'package:provider/provider.dart';
 import 'task.dart'; // Import the Task data model
 
 class TaskModel extends StatelessWidget {
   final Task task;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
-  final ValueChanged<bool> onStatusChanged;
-  bool admin;
+  final VoidCallback onStatusChanged;
+  final bool admin;
 
-  TaskModel({
+  const TaskModel({
     super.key,
     required this.task,
     required this.onEdit,
@@ -34,6 +36,12 @@ class TaskModel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final userProfileProvider = Provider.of<UserProfileProvider>(context, listen: false);
+    final userId = userProfileProvider.userProfile?.id;
+
+    // Determine completion status for the current user
+    final bool isCompleted = userId != null ? task.isCompletedFor(userId) : false;
+
     // Format date and day of the week in Arabic
     final String formattedDayOfWeek = DateFormat(
       'EEEE',
@@ -47,10 +55,10 @@ class TaskModel extends StatelessWidget {
     final Color importanceColor = _getImportanceColor(task.importance);
 
     // Compute contrasting text color based on completion status
-    final Color textColor = task.isCompleted ? Colors.grey : Colors.black87;
-    final Color primaryColor = task.isCompleted ? Colors.grey : importanceColor;
+    final Color textColor = isCompleted ? Colors.grey : Colors.black87;
+    final Color primaryColor = isCompleted ? Colors.grey : importanceColor;
     final IconData checkboxIcon =
-        task.isCompleted
+        isCompleted
             ? Icons.check_box_rounded
             : Icons.check_box_outline_blank_rounded;
 
@@ -93,7 +101,7 @@ class TaskModel extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         decoration:
-                            task.isCompleted
+                            isCompleted
                                 ? TextDecoration.lineThrough
                                 : TextDecoration.none,
                         fontSize:
@@ -112,12 +120,10 @@ class TaskModel extends StatelessWidget {
                       color: primaryColor,
                     ),
                     child: IconButton(
-                      onPressed: () {
-                        onStatusChanged(!task.isCompleted);
-                      },
+                      onPressed: onStatusChanged,
                       icon: Icon(checkboxIcon, color: Colors.white),
                       tooltip:
-                          task.isCompleted
+                          isCompleted
                               ? 'Mark as incomplete'
                               : 'Mark as complete',
                     ),

@@ -1,13 +1,16 @@
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 import '../screens/models/schedule_item.dart';
+import '../services/schedule_service.dart';
 
 class ScheduleProvider with ChangeNotifier {
-  final Map<String, List<ScheduleItem>> _schedule = {};
+  final ScheduleService _scheduleService = ScheduleService();
+  Map<String, List<ScheduleItem>> _schedule = {};
+  bool _isLoading = false;
+  String? _error;
 
   final Uuid _uuid = Uuid();
 
-  // Initialize days if needed, or fetch from a source
   final List<String> _days = [
     'السبت',
     'الاحد',
@@ -18,18 +21,36 @@ class ScheduleProvider with ChangeNotifier {
   ];
 
   List<String> get days => _days;
+  Map<String, List<ScheduleItem>> get schedule => _schedule;
+  bool get isLoading => _isLoading;
+  String? get error => _error;
 
   List<ScheduleItem> getScheduleForDay(String day) {
-    return _schedule.putIfAbsent(day, () => []);
+    return _schedule[day] ?? [];
   }
 
-  void addScheduleItem({
+  Future<void> fetchSchedule() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      _schedule = await _scheduleService.getSchedule();
+    } catch (e) {
+      _error = 'Failed to fetch schedule: ${e.toString()}';
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> addScheduleItem({
     required String title,
     required String time,
     required String location,
     required String day,
     required ScheduleItemType type,
-  }) {
+  }) async {
     final newItem = ScheduleItem(
       id: _uuid.v4(),
       title: title,
@@ -38,13 +59,25 @@ class ScheduleProvider with ChangeNotifier {
       day: day,
       type: type,
     );
-    _schedule.putIfAbsent(day, () => []).add(newItem);
-    notifyListeners();
+
+    try {
+      await _scheduleService.addScheduleItem(newItem);
+      _schedule.putIfAbsent(day, () => []).add(newItem);
+      notifyListeners();
+    } catch (e) {
+      _error = 'Failed to add item: ${e.toString()}';
+      notifyListeners();
+    }
   }
 
-  // Optional: Add methods for update/delete later
-  void removeScheduleItem(String day, String itemId) {
-    _schedule[day]?.removeWhere((item) => item.id == itemId);
-    notifyListeners();
+  Future<void> removeScheduleItem(String day, String itemId) async {
+    try {
+      await _scheduleService.removeScheduleItem(itemId);
+      _schedule[day]?.removeWhere((item) => item.id == itemId);
+      notifyListeners();
+    } catch (e) {
+      _error = 'Failed to remove item: ${e.toString()}';
+      notifyListeners();
+    }
   }
 }

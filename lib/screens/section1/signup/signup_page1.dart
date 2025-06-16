@@ -41,7 +41,7 @@ class _Signup_1State extends State<Signup_1> {
     if (value == null || value.isEmpty) {
       return 'الرجاء إدخال البريد الإلكتروني';
     }
-    if (!value.endsWith('fci.bu.edu.eg')) {
+    if (!value.toLowerCase().endsWith('fci.bu.edu.eg')) {
       return 'لازم يكون ايميل كلية حاسبات';
     }
     return null;
@@ -264,7 +264,7 @@ class _Signup_1State extends State<Signup_1> {
           builder:
               (context) => Signup_2(
                 name: _name,
-                email: _email,
+                email: _email.toLowerCase().trim(),
                 phone: _phone,
                 password: _password,
               ),

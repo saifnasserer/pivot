@@ -1,70 +1,44 @@
 import 'package:flutter/material.dart';
-import 'package:pivot/providers/section_provider.dart';
+import 'package:pivot/models/section_model.dart';
+import 'package:pivot/providers/subject_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/section4/assistants/add_edit_section_dialog.dart';
 import 'package:pivot/screens/section4/assistants/all_tasks.dart';
 import 'package:provider/provider.dart';
 
 class SectionCard extends StatelessWidget {
-  final String sectionId;
-  final String title;
-  final String days;
-  final String location;
-  final String time;
+  final Section section;
   final String subjectName;
 
   const SectionCard({
     super.key,
-    required this.sectionId,
-    required this.title,
-    required this.days,
-    required this.location,
-    required this.time,
+    required this.section,
     required this.subjectName,
   });
 
   @override
   Widget build(BuildContext context) {
+    final subjects = context.read<SubjectProvider>().filteredSubjects;
+
     return GestureDetector(
       onTap: () {
         Navigator.pushNamed(
           context,
           TasksControl.id,
-          arguments: sectionId, // Pass sectionId as argument
+          arguments: section.id, // Pass sectionId as an argument
         );
       },
       onLongPress: () {
-        final sectionProvider = context.read<SectionProvider>();
-        // 1. Find the specific SectionInfo object for this card
-        final sectionToEdit = sectionProvider.getSectionById(
-          subjectName,
-          sectionId,
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AddEditSectionDialog(
+              subjects: subjects,
+              sectionToEdit: section,
+              initialSubjectId: section.subjectId,
+            );
+          },
         );
-
-        if (sectionToEdit != null) {
-          showDialog(
-            context: context,
-            builder: (BuildContext context) {
-              return AddEditSectionDialog(
-                subjectNames:
-                    sectionProvider.subjectNames, // List of all subjects
-                initialSubjectName:
-                    subjectName, // The original subject of this section
-                sectionToEdit: sectionToEdit, // The section data to edit
-              );
-            },
-          );
-        } else {
-          // Optional: Handle case where section couldn't be found (shouldn't normally happen)
-          print(
-            "Error: Could not find section $sectionId in subject $subjectName to edit.",
-          );
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('حدث خطأ: لم يتم العثور على السكشن للتعديل'),
-            ),
-          );
-        }
       },
       child: Container(
         margin: EdgeInsets.only(bottom: Responsive.space(context)),
@@ -95,15 +69,15 @@ class SectionCard extends StatelessWidget {
                 ),
                 SizedBox(width: Responsive.space(context) * 0.5),
                 Text(
-                  location, // Use parameter
+                  section.location,
                   style: TextStyle(
                     color: Colors.black87,
                     fontSize: Responsive.text(context) * 0.95,
                   ),
                 ),
-                Spacer(),
+                const Spacer(),
                 Text(
-                  title, // Use parameter
+                  section.name, // Use section.name for the title
                   style: TextStyle(
                     color: Colors.black87,
                     fontSize: Responsive.text(context) * 1.1,
@@ -125,26 +99,23 @@ class SectionCard extends StatelessWidget {
                 ),
                 SizedBox(width: Responsive.space(context) * 0.5),
                 Text(
-                  time, // Use parameter
+                  section.time,
                   style: TextStyle(
                     color: Colors.black87,
                     fontSize: Responsive.text(context) * 0.95,
                   ),
                 ),
-
                 SizedBox(width: Responsive.space(context)),
                 Expanded(
                   child: Text(
                     textAlign: TextAlign.right,
-                    days, // Use parameter
+                    section.days,
                     style: TextStyle(
                       color: Colors.black87,
                       fontSize: Responsive.text(context) * 0.95,
                     ),
                   ),
                 ),
-
-                // ),
               ],
             ),
           ],

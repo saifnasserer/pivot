@@ -1,11 +1,11 @@
 enum ScheduleItemType { lecture, section }
 
 class ScheduleItem {
-  final String id; // Use UUID or similar for unique IDs
+  final String id;
   final String title;
   final String time;
   final String location;
-  final String day; // e.g., 'السبت'
+  final String day;
   final ScheduleItemType type;
 
   ScheduleItem({
@@ -17,7 +17,30 @@ class ScheduleItem {
     required this.type,
   });
 
-  // copyWith method to create a new instance with updated values
+  factory ScheduleItem.fromJson(Map<String, dynamic> json) {
+    return ScheduleItem(
+      id: json['id'] as String,
+      title: json['title'] as String,
+      time: json['time'] as String,
+      location: json['location'] as String,
+      day: json['day'] as String,
+      type: (json['type'] as String) == 'lecture'
+          ? ScheduleItemType.lecture
+          : ScheduleItemType.section,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'time': time,
+      'location': location,
+      'day': day,
+      'type': type.toString().split('.').last, // e.g., 'lecture' or 'section'
+    };
+  }
+
   ScheduleItem copyWith({
     String? id,
     String? title,

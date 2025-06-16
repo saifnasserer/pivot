@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/models/category_model.dart';
+import 'package:pivot/models/lecture_model.dart';
 import 'package:pivot/screens/models/subject.dart';
 
 List<Widget> buildDoctorSubjectsSlivers({
@@ -9,6 +10,7 @@ List<Widget> buildDoctorSubjectsSlivers({
   required int selectedSubjectIndex,
   required Map<String, List<SubjectModel>> subjectsData,
   required Function(int) onCategorySelected,
+  required void Function(Lecture) onLectureDeleted,
 }) {
   // --- Guard Clause ---
   // If there are no subject categories, return an empty state sliver
@@ -74,9 +76,21 @@ List<Widget> buildDoctorSubjectsSlivers({
           ),
         )
         : SliverList(
-          delegate: SliverChildBuilderDelegate((context, index) {
-            return lectures[index];
-          }, childCount: lectures.length),
-        ),
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                return Row(
+                  children: [
+                    Expanded(child: lectures[index]),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                      onPressed: () => onLectureDeleted(lectures[index].lecture),
+                      tooltip: 'حذف المحاضرة',
+                    ),
+                  ],
+                );
+              },
+              childCount: lectures.length,
+            ),
+          ),
   ];
 }

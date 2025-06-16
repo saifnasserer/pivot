@@ -3,6 +3,17 @@ allprojects {
         google()
         mavenCentral()
     }
+
+    tasks.withType<JavaCompile>().configureEach {
+        sourceCompatibility = "17"
+        targetCompatibility = "17"
+    }
+
+    tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+        kotlinOptions {
+            jvmTarget = "17"
+        }
+    }
 }
 
 val newBuildDir: Directory = rootProject.layout.buildDirectory.dir("../../build").get()
@@ -14,18 +25,6 @@ subprojects {
 }
 subprojects {
     project.evaluationDependsOn(":app")
-}
-
-subprojects {
-    project.tasks.withType(JavaCompile::class.java).configureEach {
-        sourceCompatibility = "11"
-        targetCompatibility = "11"
-    }
-    project.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile::class.java).configureEach {
-        kotlinOptions {
-            jvmTarget = "11"
-        }
-    }
 }
 
 tasks.register<Delete>("clean") {

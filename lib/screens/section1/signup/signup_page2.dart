@@ -8,6 +8,10 @@ import 'package:provider/provider.dart';
 import '../../../providers/user_profile_provider.dart';
 import '../../../models/user_profile.dart';
 import '../../../services/auth_service.dart'; // Import AuthService
+import '../../../services/local_auth_service.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class Signup_2 extends StatefulWidget {
   final String name;
@@ -42,7 +46,7 @@ class _Signup_2State extends State<Signup_2> {
   String? selectedSection;
 
   // Store the full list of departments
-  final List<String> _allDepartments = ['CS', 'IS', 'IT', 'SC', 'General'];
+  final List<String> _allDepartments = ['CS', 'IS', 'AI', 'SC', 'General'];
 
   // State variable for currently available departments
   List<String> _availableDepartments = [];
@@ -63,6 +67,77 @@ class _Signup_2State extends State<Signup_2> {
     super.initState();
     // Initialize available departments with the full list
     _availableDepartments = List.from(_allDepartments);
+  }
+
+  Future<void> _promptEnableBiometrics(
+    String uid,
+    String email,
+    String password,
+  ) async {
+    if (kIsWeb) {
+      debugPrint('[Biometric Prompt] Running on web, skipping.');
+      return;
+    }
+
+    debugPrint('[Biometric Prompt] Checking for biometrics on device...');
+    final bool canAuth = await LocalAuthService.canAuthenticate();
+    debugPrint('[Biometric Prompt] Can device authenticate? -> $canAuth');
+
+    if (mounted && canAuth) {
+      debugPrint(
+        '[Biometric Prompt] SUCCESS: Device supports biometrics, showing prompt.',
+      );
+      final bool enable =
+          await showDialog<bool>(
+            context: context,
+            builder:
+                (context) => AlertDialog(
+                  title: const Text('تمكين تسجيل الدخول بالبصمة'),
+                  content: const Text(
+                    'هل ترغب في استخدام بصمة الإصبع أو معرف الوجه لتسجيل الدخول بشكل أسرع في المرة القادمة؟',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: const Text('لاحقاً'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      child: const Text('تمكين'),
+                    ),
+                  ],
+                ),
+          ) ??
+          false;
+
+      if (enable) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('biometric_enabled_$uid', true);
+
+        // Securely store credentials
+        const storage = FlutterSecureStorage();
+        await storage.write(key: 'email', value: email);
+        await storage.write(key: 'password', value: password);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('تم تمكين تسجيل الدخول بالبصمة.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم التسجيل بنجاح.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      Navigator.pushReplacementNamed(context, Landing.id);
+    }
   }
 
   @override
@@ -307,11 +382,17 @@ class _Signup_2State extends State<Signup_2> {
               userData,
             );
 
-        if (mounted && userProfile != null) {
+        if (mounted) {
           Provider.of<UserProfileProvider>(
             context,
             listen: false,
-          ).setUserProfile(userProfile);
+          ).setUserProfile(userProfile!);
+          // Ask to enable biometrics before navigating
+          await _promptEnableBiometrics(
+            userProfile.id,
+            widget.email,
+            widget.password,
+          );
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('تم التسجيل بنجاح.'),

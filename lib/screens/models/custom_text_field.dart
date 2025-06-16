@@ -5,8 +5,8 @@ class CustomTextField extends StatelessWidget {
   const CustomTextField({
     super.key,
     required this.hint,
-    required this.onChanged,
-    required this.validator,
+    this.onChanged,
+    this.validator,
     this.focusNode,
     this.textInputAction = TextInputAction.next,
     this.keyboardType = TextInputType.text,
@@ -16,11 +16,13 @@ class CustomTextField extends StatelessWidget {
     this.isValid = false,
     this.minLines,
     this.maxLines = 1,
+    this.controller,
   });
 
   final String hint;
-  final Function(String) onChanged;
-  final String? Function(String?) validator;
+  final Function(String)? onChanged;
+  final String? Function(String?)? validator;
+  final TextEditingController? controller;
   final FocusNode? focusNode;
   final TextInputAction textInputAction;
   final TextInputType keyboardType;
@@ -81,6 +83,7 @@ class CustomTextField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TextFormField(
+      controller: controller,
       focusNode: focusNode,
       textDirection: TextDirection.rtl,
       textAlign: TextAlign.center,

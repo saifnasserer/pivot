@@ -5,7 +5,7 @@ import 'package:pivot/screens/models/category_model.dart';
 class AssistantCategories extends StatefulWidget {
   AssistantCategories({super.key, this.onCategoryChanged});
   final void Function(String category)? onCategoryChanged;
-  final List<String> categories = ['المواد', 'عن الدكتور'];
+  final List<String> categories = ['المواد', 'عن المعيد'];
   @override
   State<AssistantCategories> createState() => AssistantCategoriesState();
 }

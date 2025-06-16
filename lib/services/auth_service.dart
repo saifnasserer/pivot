@@ -89,4 +89,38 @@ class AuthService {
       return null;
     }
   }
+
+  // Method to get all users
+  Future<List<UserProfile>> getAllUsers() async {
+    try {
+      QuerySnapshot snapshot = await _firestore.collection('users').get();
+      return snapshot.docs
+          .map((doc) => UserProfile.fromJson(doc.data() as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      print(e.toString());
+      return [];
+    }
+  }
+
+  // Method to update a user's role
+  Future<void> updateUserRole(String uid, String role) async {
+    try {
+      await _firestore.collection('users').doc(uid).update({'role': role});
+    } catch (e) {
+      print('Error updating user role: $e');
+      // Optionally re-throw or handle the error as needed
+      rethrow;
+    }
+  }
+
+  // Method to update a user's about me text
+  Future<void> updateUserAboutMe(String uid, String aboutMe) async {
+    try {
+      await _firestore.collection('users').doc(uid).update({'aboutMe': aboutMe});
+    } catch (e) {
+      print('Error updating user about me: $e');
+      rethrow;
+    }
+  }
 }

@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/responsive.dart';
 import 'package:auto_size_text/auto_size_text.dart';
 
 class DoctorDetails extends StatelessWidget {
-  const DoctorDetails({super.key, required this.name, required this.title});
-  final String name;
-  final String title;
+  const DoctorDetails({
+    super.key,
+    required this.userProfile,
+  });
+  final UserProfile userProfile;
+
   @override
   Widget build(BuildContext context) {
     return Row(
@@ -16,14 +20,14 @@ class DoctorDetails extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                title,
+                userProfile.role,
                 style: TextStyle(
                   fontSize: Responsive.space(context, size: Space.medium),
-                  color: Color(0xffd9d9d9),
+                  color: const Color(0xffd9d9d9),
                 ),
               ),
               AutoSizeText(
-                name,
+                userProfile.name,
                 style: TextStyle(
                   fontSize: Responsive.space(context, size: Space.xlarge) * 1.2,
                   color: Colors.black,
@@ -35,7 +39,7 @@ class DoctorDetails extends StatelessWidget {
               ),
               SizedBox(height: Responsive.space(context, size: Space.small)),
               // Text(
-              //   profileDetails.department,
+              //   userProfile.department,
               //   style: TextStyle(
               //     fontSize: Responsive.space(context, size: Space.medium),
               //     color: Color(0xffd9d9d9),

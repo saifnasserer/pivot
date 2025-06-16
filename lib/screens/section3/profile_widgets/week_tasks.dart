@@ -28,23 +28,69 @@ List<Widget> buildWeekTasksSlivers(
         return TaskModel(
           task: task,
           onEdit: () {
-            // Use the actual dialog to edit via provider
             showAddTaskDialog(
               context: context,
               task: task,
-              sectionId: task.sectionId, // Use task's existing sectionId
-              onSave: (updatedTask) {
-                taskProvider.updateTask(task.id, updatedTask);
+              onSave: (updatedTask) async {
+                try {
+                  await taskProvider.updateTask(task.id, updatedTask);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Task updated successfully!'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Failed to update task: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
               },
             );
           },
-          onDelete: () {
-            // TODO: Add confirmation dialog?
-            taskProvider.deleteTask(task.id); // Delete via provider
+          onDelete: () async {
+            try {
+              // Optional: Add a confirmation dialog here
+              await taskProvider.deleteTask(task.id);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Task deleted successfully!'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              }
+            } catch (e) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Failed to delete task: $e'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            }
           },
-          onStatusChanged: (isCompleted) {
-            // Toggle completion via provider
-            taskProvider.toggleTaskCompletion(task.id);
+          onStatusChanged: () async {
+            try {
+              await taskProvider.toggleTaskCompletion(task.id);
+            } catch (e) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Failed to update task status: $e'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            }
           },
         );
       }, childCount: taskCount),

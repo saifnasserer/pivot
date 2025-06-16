@@ -6,6 +6,7 @@ import 'package:pivot/screens/models/task_model.dart';
 import 'add_edit_task_dialog.dart'; // Import the dialog
 import 'package:provider/provider.dart';
 import 'package:pivot/providers/task_provider.dart';
+import 'package:pivot/providers/section_provider.dart';
 
 class TasksControl extends StatefulWidget {
   static const String id = 'tasks'; // Define route name
@@ -21,18 +22,30 @@ class _TasksControlState extends State<TasksControl> {
     // Get sectionId from arguments
     final sectionId = ModalRoute.of(context)?.settings.arguments as String?;
 
-    // Access the task provider
+    // Access providers
     final taskProvider = Provider.of<TaskProvider>(context);
+    final sectionProvider = Provider.of<SectionProvider>(context);
 
-    // Get tasks for the current section (or show all if sectionId is null - handle as needed)
+    // Determine the AppBar title
+    String appBarTitle;
+    if (sectionId != null) {
+      try {
+        final section = sectionProvider.sections.firstWhere((s) => s.id == sectionId);
+        appBarTitle = section.name;
+      } catch (e) {
+        appBarTitle = 'Section Not Found'; // Fallback title
+      }
+    } else {
+      appBarTitle = 'All Tasks';
+    }
+
+    // Get tasks for the current section
     final tasks =
-        sectionId != null
-            ? taskProvider.tasksForSection(sectionId)
-            : taskProvider.tasks;
+        sectionId != null ? taskProvider.tasksForSection(sectionId) : taskProvider.tasks;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(sectionId ?? 'All Tasks'),
+        title: Text(appBarTitle),
         surfaceTintColor: Colors.white,
         centerTitle: true,
       ),
@@ -80,20 +93,65 @@ class _TasksControlState extends State<TasksControl> {
                               showAddTaskDialog(
                                 context: context,
                                 task: task, // Pass the task to edit
-                                sectionId:
-                                    sectionId ??
-                                    task.sectionId, // Pass sectionId
-                                onSave: (updatedTask) {
-                                  taskProvider.updateTask(task.id, updatedTask);
+                                onSave: (updatedTask) async {
+                                  try {
+                                    await taskProvider.updateTask(task.id, updatedTask);
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Task updated successfully!'),
+                                          backgroundColor: Colors.green,
+                                        ),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Failed to update task: $e'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
+                                  }
                                 },
                               );
                             },
-                            onDelete: () {
-                              // TODO: Add confirmation dialog?
-                              taskProvider.deleteTask(task.id);
+                            onDelete: () async {
+                              try {
+                                await taskProvider.deleteTask(task.id);
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Task deleted successfully!'),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Failed to delete task: $e'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              }
                             },
-                            onStatusChanged: (isCompleted) {
-                              taskProvider.toggleTaskCompletion(task.id);
+                            onStatusChanged: () async {
+                              try {
+                                await taskProvider.toggleTaskCompletion(task.id);
+                              } catch (e) {
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Failed to update task status: $e'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              }
                             },
                           ),
                         );
@@ -109,22 +167,31 @@ class _TasksControlState extends State<TasksControl> {
               bottom: Responsive.space(context),
               child: CircularButton(
                 onPressed: () {
-                  if (sectionId != null) {
-                    showAddTaskDialog(
-                      context: context,
-                      sectionId: sectionId,
-                      onSave: (newTask) {
-                        taskProvider.addTask(newTask);
-                      },
-                    );
-                  } else {
-                    // Handle case where sectionId is null (e.g., show error or allow selecting section)
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Cannot add task without a section ID.'),
-                      ),
-                    );
-                  }
+                  showAddTaskDialog(
+                    context: context,
+                    onSave: (newTask) async {
+                      try {
+                        await taskProvider.addTask(newTask);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Task added successfully!'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Failed to add task: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    },
+                  );
                 },
                 icon: Icons.add_rounded,
                 iconSizeMultiplier: 3,

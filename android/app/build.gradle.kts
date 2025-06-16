@@ -6,23 +6,15 @@ plugins {
     id("com.google.gms.google-services")
 }
 
+kotlin {
+    jvmToolchain(17)
+}
+
 android {
     namespace = "com.example.pivot"
 
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "29.0.13113456"
-
-    //ndkVersion = flutter.ndkVersion
-        
-
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-    }
-
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
-    }
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
@@ -47,7 +39,6 @@ android {
 flutter {
     source = "../.."
 }
-
 
 dependencies {
   // Import the Firebase BoM
