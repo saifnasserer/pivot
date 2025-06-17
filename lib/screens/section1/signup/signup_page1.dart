@@ -129,7 +129,7 @@ class _Signup_1State extends State<Signup_1> {
                           ),
                           CustomTextField(
                             focusNode: _nameFocus,
-                            hint: 'الاسم',
+                            hint: 'الاسم (يفضل ثنائي و بالعربي)',
                             validator: _validateName,
                             isValid: _isNameValid,
                             onEditingComplete: () {

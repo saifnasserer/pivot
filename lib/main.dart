@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:pivot/providers/schadule_provider.dart';
 import 'package:pivot/providers/subject_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
+import 'package:pivot/providers/settings_provider.dart';
+import 'package:pivot/providers/super_admin_provider.dart';
+import 'package:pivot/providers/guide_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/section1/login/login.dart';
 import 'package:pivot/screens/section1/auth_wrapper.dart';
@@ -11,13 +14,14 @@ import 'package:pivot/screens/section1/signup/signup_page1.dart';
 // import 'package:pivot/screens/section1/signup/signup_page2.dart'; // Removed unused import
 import 'package:pivot/screens/section2/admin_control.dart';
 import 'package:pivot/screens/section2/adminstration/user_management_page.dart';
+import 'package:pivot/screens/section2/adminstration/section_management_screen.dart';
 import 'package:pivot/screens/section2/adminstration/global_subject_management_screen.dart';
+import 'package:pivot/screens/section2/super_admin_panel/super_admin_panel_screen.dart';
 import 'package:pivot/screens/section2/landing.dart';
 import 'package:pivot/screens/section3/edit_profile.dart';
 import 'package:pivot/screens/section3/profile.dart';
 import 'package:pivot/screens/section4/assistants/all_tasks.dart';
 import 'package:pivot/screens/section4/assistants/assistant_profile.dart';
-import 'models/user_profile.dart';
 import 'package:pivot/screens/section4/doctor/doctor_profile.dart';
 
 import 'package:provider/provider.dart';
@@ -32,11 +36,15 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
+  if (kIsWeb) {
+    // Only set persistence for web
+    await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
+  }
   await initializeDateFormatting('ar'); // Initialize Arabic date formatting
 
   // Create the provider and load data BEFORE running the app
@@ -68,6 +76,9 @@ class Pivot extends StatelessWidget {
           create: (_) => Bookmarks(),
         ), // Add Bookmarks provider
         ChangeNotifierProvider(create: (_) => DoctorSubjectProvider()),
+        ChangeNotifierProvider(create: (_) => SettingsProvider()),
+        ChangeNotifierProvider(create: (_) => SuperAdminProvider()),
+        ChangeNotifierProvider(create: (_) => GuideProvider()),
       ],
       child: MaterialApp(
         onGenerateRoute: (settings) {
@@ -100,6 +111,8 @@ class Pivot extends StatelessWidget {
           DoctorProfile.id: (context) => const DoctorProfile(),
           AdminControl.id: (context) => const AdminControl(),
           UserManagementPage.id: (context) => const UserManagementPage(),
+          '/section-management': (context) => const SectionManagementScreen(),
+          '/super-admin-panel': (context) => const SuperAdminPanelScreen(),
           GlobalSubjectManagementScreen.id:
               (context) => const GlobalSubjectManagementScreen(),
           AssistantProfile.id: (context) => const AssistantProfile(),

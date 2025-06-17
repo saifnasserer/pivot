@@ -5,6 +5,7 @@ import 'package:pivot/screens/section2/adminstration/announcement_card.dart';
 import 'package:pivot/screens/section2/adminstration/show_dialog.dart';
 import 'package:provider/provider.dart';
 import 'package:pivot/providers/announcement_provider.dart';
+import 'package:pivot/providers/user_profile_provider.dart';
 
 class AdminControl extends StatefulWidget {
   const AdminControl({super.key});
@@ -27,6 +28,7 @@ class _AdminControlState extends State<AdminControl> {
 
   @override
   Widget build(BuildContext context) {
+    final userProfile = Provider.of<UserProfileProvider>(context, listen: false).userProfile;
     // Use a Consumer to react to changes in the provider
     return Consumer<AnnouncementProvider>(
       builder: (context, announcementProvider, child) {
@@ -41,6 +43,15 @@ class _AdminControlState extends State<AdminControl> {
                 fontWeight: FontWeight.bold,
               ),
             ),
+            actions: [
+              if (userProfile?.role == 'Super Admin')
+                IconButton(
+                  icon: const Icon(Icons.settings, color: Colors.black),
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/super-admin-panel');
+                  },
+                ),
+            ],
             surfaceTintColor: Colors.white,
             centerTitle: true,
           ),

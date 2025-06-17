@@ -11,9 +11,12 @@ class UserProfileProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
+  bool _isLoading = false;
+
   UserProfile? get userProfile => _userProfile;
   UserProfile? get loggedInUserProfile => _loggedInUserProfile;
   List<UserProfile> get allUsers => _allUsers;
+  bool get isLoading => _isLoading;
 
   // Sets the profile to be viewed on a screen
   void setUserProfile(UserProfile profile) {
@@ -98,14 +101,18 @@ class UserProfileProvider with ChangeNotifier {
   }
 
   Future<void> fetchAllUsers() async {
+    _isLoading = true;
+    notifyListeners();
     try {
       final snapshot = await _firestore.collection('users').get();
       _allUsers =
           snapshot.docs.map((doc) => UserProfile.fromJson(doc.data())).toList();
-      notifyListeners();
     } catch (e) {
       print('Failed to fetch all users: $e');
       // Optionally handle the error
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
@@ -151,18 +158,19 @@ class UserProfileProvider with ChangeNotifier {
   }
 
   Future<bool> loadLoggedInUserProfile() async {
-    final user = _auth.currentUser;
-    if (user == null) {
-      clearProfile();
-      return false;
-    }
+    _isLoading = true;
+    notifyListeners();
     try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        clearProfile();
+        return false;
+      }
       final doc = await _firestore.collection('users').doc(user.uid).get();
       if (doc.exists) {
         _loggedInUserProfile = UserProfile.fromJson(doc.data()!);
         _userProfile =
             _loggedInUserProfile; // Also set the default viewed profile
-        notifyListeners();
         return true;
       } else {
         // User authenticated but no profile in Firestore
@@ -173,6 +181,9 @@ class UserProfileProvider with ChangeNotifier {
       print('Failed to load logged-in user profile: $e');
       clearProfile();
       return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 }

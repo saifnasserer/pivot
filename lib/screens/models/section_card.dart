@@ -11,12 +11,35 @@ import 'package:provider/provider.dart';
 class SectionCard extends StatelessWidget {
   final Section section;
   final String subjectName;
+  final bool isCurrentUserSection;
 
   const SectionCard({
     super.key,
     required this.section,
     required this.subjectName,
+    this.isCurrentUserSection = false,
   });
+
+  Widget _buildDetailRow(
+    BuildContext context, {
+    required IconData icon,
+    required String text,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        Text(
+          text,
+          style: TextStyle(
+            color: Colors.grey.shade700,
+            fontSize: Responsive.text(context, size: TextSize.small) * 1.2,
+          ),
+        ),
+        const SizedBox(width: 6.0),
+        Icon(icon, color: Colors.grey.shade600, size: 16.0),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,119 +52,131 @@ class SectionCard extends StatelessWidget {
         userProfile.role != 'Student' &&
         userProfile.role != 'Professor';
 
-    return Stack(
-      children: [
-        GestureDetector(
-          onTap: () {
-            Navigator.pushNamed(
-              context,
-              TasksControl.id,
-              arguments: section.id, // Pass sectionId as an argument
-            );
-          },
-          onLongPress: () {
-            showDialog(
-              context: context,
-              builder: (BuildContext context) {
-                return AddEditSectionDialog(
-                  subjects: subjects,
-                  sectionToEdit: section,
-                  initialSubjectId: section.subjectId,
-                );
-              },
-            );
-          },
-          child: Container(
-            margin: EdgeInsets.only(bottom: Responsive.space(context)),
-            padding: EdgeInsets.all(Responsive.space(context)),
-            width: double.infinity,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(
-                Responsive.space(context) * 0.8,
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4.0),
+      elevation: 2.0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () {
+          Navigator.pushNamed(
+            context,
+            TasksControl.id,
+            arguments: section.id, // Pass sectionId as an argument
+          );
+        },
+        onLongPress: () {
+          showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return AddEditSectionDialog(
+                subjects: subjects,
+                sectionToEdit: section,
+                initialSubjectId: section.subjectId,
+              );
+            },
+          );
+        },
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Chevron icon
+              Container(
+                color: Colors.grey.shade100,
+                padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                child: Icon(
+                  Icons.arrow_back_ios,
+                  color: Colors.grey.shade500,
+                  size: 16,
+                ),
               ),
-              color: Colors.grey[200],
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                // Section Title (Prominent)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Icon(
-                      Icons.location_on_outlined,
-                      size: Responsive.text(context),
-                      color: Colors.black54,
-                    ),
-                    SizedBox(width: Responsive.space(context) * 0.5),
-                    Text(
-                      section.location,
-                      style: TextStyle(
-                        color: Colors.black87,
-                        fontSize: Responsive.text(context) * 0.95,
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      section.name, // Use section.name for the title
-                      style: TextStyle(
-                        color: Colors.black87,
-                        fontSize: Responsive.text(context) * 1.1,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    if (canDelete)
-                      IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed:
-                            () => _showDeleteConfirmation(context, section.id),
-                      ),
-                  ],
-                ),
-                SizedBox(height: Responsive.space(context) * 0.75),
 
-                // Days Row
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Icon(
-                      Icons.access_time_outlined,
-                      size: Responsive.text(context),
-                      color: Colors.black54,
-                    ),
-                    SizedBox(width: Responsive.space(context) * 0.5),
-                    Text(
-                      section.time,
-                      style: TextStyle(
-                        color: Colors.black87,
-                        fontSize: Responsive.text(context) * 0.95,
+              // Main content
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 12.0,
+                    horizontal: 12.0,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              section.name,
+                              textAlign: TextAlign.right,
+                              style: TextStyle(
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.medium,
+                                ),
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ),
+                          if (canDelete)
+                            IconButton(
+                              icon: const Icon(
+                                Icons.delete,
+                                color: Colors.red,
+                                size: 22,
+                              ),
+                              onPressed: () => _showDeleteConfirmation(
+                                context,
+                                section.id,
+                              ),
+                              padding: const EdgeInsets.only(left: 8, right: 0),
+                              constraints: const BoxConstraints(),
+                              splashRadius: 22,
+                            ),
+                        ],
                       ),
-                    ),
-                    SizedBox(width: Responsive.space(context)),
-                    Expanded(
-                      child: Text(
+                      const SizedBox(height: 4.0),
+                      Text(
+                        subjectName,
                         textAlign: TextAlign.right,
-                        section.days,
                         style: TextStyle(
-                          color: Colors.black87,
-                          fontSize: Responsive.text(context) * 0.95,
+                          color: Colors.grey.shade800,
+                          fontSize:
+                              Responsive.text(context, size: TextSize.small) *
+                                  1.3,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 12.0),
+                      _buildDetailRow(
+                        context,
+                        icon: Icons.access_time_filled,
+                        text: '${section.days} - ${section.time}',
+                      ),
+                      const SizedBox(height: 4.0),
+                      _buildDetailRow(
+                        context,
+                        icon: Icons.location_on,
+                        text: section.location,
+                      ),
+                    ],
+                  ),
                 ),
-              ],
-            ),
+              ),
+
+              // Accent bar
+              Container(
+                width: 8.0,
+                color: isCurrentUserSection
+                    ? Theme.of(context).primaryColor
+                    : Colors.teal,
+              ),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
 

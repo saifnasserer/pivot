@@ -122,11 +122,18 @@ class LandingState extends State<Landing> {
                     //     // Navigator.pushNamed(context, DoctorProfile.id);
                     //   },
                     // ),
-                    IconButton(
-                      icon: Icon(Icons.person_outline_rounded),
-                      onPressed: () {
-                        // Handle profile icon press
-                        Navigator.pushNamed(context, Profile.id);
+                    Consumer<UserProfileProvider>(
+                      builder: (context, userProfileProvider, child) {
+                        return IconButton(
+                          icon: const Icon(Icons.person_outline_rounded),
+                          onPressed: () {
+                            if (userProfileProvider.userProfile?.role == 'Super Admin') {
+                              Navigator.pushNamed(context, '/super-admin-panel');
+                            } else {
+                              Navigator.pushNamed(context, Profile.id);
+                            }
+                          },
+                        );
                       },
                     ),
                   ],

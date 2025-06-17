@@ -5,35 +5,28 @@ import 'package:pivot/services/doctor_subject_service.dart';
 class DoctorSubjectProvider with ChangeNotifier {
   final DoctorSubjectService _service = DoctorSubjectService();
 
-  Map<String, List<Lecture>> _lecturesByCategory = {};
-  List<String> _currentCategories = [];
+  List<Lecture> _lectures = [];
   bool _isLoading = false;
   String? _error;
-  String? _currentDoctorId;
+  String? _currentSubjectId;
 
-  Map<String, List<Lecture>> get lecturesByCategory => _lecturesByCategory;
+  List<Lecture> get lectures => _lectures;
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  Future<void> fetchLecturesForDoctor(String doctorId, List<String> categories) async {
-    _currentDoctorId = doctorId;
-    _currentCategories = categories;
-    if (doctorId.isEmpty || categories.isEmpty) {
-      _lecturesByCategory = {};
+  Future<void> fetchLecturesForSubject(String doctorId, String subjectId) async {
+    if (doctorId.isEmpty || subjectId.isEmpty) {
+      _lectures = [];
       notifyListeners();
       return;
     }
-
+    _currentSubjectId = subjectId;
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      Map<String, List<Lecture>> newLectures = {};
-      for (String category in categories) {
-        newLectures[category] = await _service.getLecturesForDoctorCategory(doctorId, category);
-      }
-      _lecturesByCategory = newLectures;
+      _lectures = await _service.getLecturesForDoctorSubject(doctorId, subjectId);
     } catch (e) {
       _error = 'Failed to fetch lectures: ${e.toString()}';
     } finally {
@@ -45,13 +38,10 @@ class DoctorSubjectProvider with ChangeNotifier {
   Future<void> addLecture(Lecture lecture) async {
     try {
       final newLecture = await _service.addLecture(lecture);
-      // Add the new lecture to the local cache
-      if (_lecturesByCategory.containsKey(newLecture.categoryName)) {
-        _lecturesByCategory[newLecture.categoryName]!.add(newLecture);
-      } else {
-        _lecturesByCategory[newLecture.categoryName] = [newLecture];
+      if (newLecture.subjectId == _currentSubjectId) {
+        _lectures.add(newLecture);
+        notifyListeners();
       }
-      notifyListeners();
     } catch (e) {
       _error = 'Failed to add lecture: ${e.toString()}';
       notifyListeners();
@@ -59,19 +49,12 @@ class DoctorSubjectProvider with ChangeNotifier {
   }
 
   Future<void> deleteLecture(String lectureId) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
     try {
       await _service.deleteLecture(lectureId);
-      if (_currentDoctorId != null) {
-        await fetchLecturesForDoctor(_currentDoctorId!, _currentCategories);
-      }
+      _lectures.removeWhere((lecture) => lecture.id == lectureId);
+      notifyListeners();
     } catch (e) {
       _error = 'Failed to delete lecture: ${e.toString()}';
-    } finally {
-      _isLoading = false;
       notifyListeners();
     }
   }
@@ -79,15 +62,10 @@ class DoctorSubjectProvider with ChangeNotifier {
   Future<void> addLinkToLecture(String lectureId, Map<String, String> link) async {
     try {
       await _service.addLinkToLecture(lectureId, link);
-
-      // Update local cache
-      for (var category in _lecturesByCategory.keys) {
-        final index = _lecturesByCategory[category]!.indexWhere((lec) => lec.id == lectureId);
-        if (index != -1) {
-          _lecturesByCategory[category]![index].links.add(link);
-          notifyListeners();
-          return; // Exit after finding and updating
-        }
+      final index = _lectures.indexWhere((lec) => lec.id == lectureId);
+      if (index != -1) {
+        _lectures[index].links.add(link);
+        notifyListeners();
       }
     } catch (e) {
       _error = 'Failed to add link: ${e.toString()}';
@@ -98,15 +76,10 @@ class DoctorSubjectProvider with ChangeNotifier {
   Future<void> deleteLinkFromLecture(String lectureId, Map<String, String> link) async {
     try {
       await _service.deleteLinkFromLecture(lectureId, link);
-
-      // Update local cache
-      for (var category in _lecturesByCategory.keys) {
-        final index = _lecturesByCategory[category]!.indexWhere((lec) => lec.id == lectureId);
-        if (index != -1) {
-          _lecturesByCategory[category]![index].links.removeWhere((item) => item['url'] == link['url']);
-          notifyListeners();
-          return; // Exit after finding and updating
-        }
+      final index = _lectures.indexWhere((lec) => lec.id == lectureId);
+      if (index != -1) {
+        _lectures[index].links.removeWhere((item) => item['url'] == link['url']);
+        notifyListeners();
       }
     } catch (e) {
       _error = 'Failed to delete link: ${e.toString()}';

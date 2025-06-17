@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/models/lecture_model.dart';
+import 'package:provider/provider.dart';
+import 'package:pivot/providers/user_profile_provider.dart';
 
 class MaterialLinks extends StatelessWidget {
   final Lecture lecture;
@@ -74,6 +76,10 @@ class MaterialLinks extends StatelessWidget {
     List<Map<String, String>> initialLinks,
   ) {
     List<Map<String, String>> links = List.from(initialLinks);
+    final userRole =
+        Provider.of<UserProfileProvider>(context, listen: false).userProfile?.role ??
+            '';
+    final canEdit = userRole != 'student' && userRole != 'miniProfessor';
 
     showDialog(
       context: context,
@@ -95,18 +101,20 @@ class MaterialLinks extends StatelessWidget {
                     return ListTile(
                       leading: const Icon(Icons.link),
                       title: Text(link['title']!),
-                      trailing: IconButton(
-                        icon: const Icon(
-                          Icons.delete_outline,
-                          color: Colors.redAccent,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            links.removeAt(index);
-                          });
-                        },
-                        tooltip: 'حذف الرابط',
-                      ),
+                      trailing: canEdit
+                          ? IconButton(
+                              icon: const Icon(
+                                Icons.delete_outline,
+                                color: Colors.redAccent,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  links.removeAt(index);
+                                });
+                              },
+                              tooltip: 'حذف الرابط',
+                            )
+                          : null,
                       onTap: () {
                         print('Tapped on ${link['url']}');
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -118,17 +126,18 @@ class MaterialLinks extends StatelessWidget {
                 ),
               ),
               actions: [
-                TextButton(
-                  child: const Text('إضافة رابط'),
-                  onPressed: () async {
-                    final newLink = await _showAddSingleLinkDialog(context);
-                    if (newLink != null) {
-                      setState(() {
-                        links.add(newLink);
-                      });
-                    }
-                  },
-                ),
+                if (canEdit)
+                  TextButton(
+                    child: const Text('إضافة رابط'),
+                    onPressed: () async {
+                      final newLink = await _showAddSingleLinkDialog(context);
+                      if (newLink != null) {
+                        setState(() {
+                          links.add(newLink);
+                        });
+                      }
+                    },
+                  ),
                 TextButton(
                   child: const Text('إغلاق'),
                   onPressed: () {

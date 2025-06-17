@@ -13,13 +13,18 @@ List<Widget> buildDoctorSubjectsSlivers({
   required SectionProvider sectionProvider,
 }) {
   if (subjects.isEmpty) {
-    return [const SliverFillRemaining(child: Center(child: Text('No subjects available.')))];
+    return [
+      const SliverFillRemaining(
+        child: Center(child: Text('No subjects available.')),
+      ),
+    ];
   }
 
   final selectedSubject = subjects[selectedSubjectIndex];
-  final sections = sectionProvider.sections
-      .where((s) => s.subjectId == selectedSubject.id)
-      .toList();
+  final sections =
+      sectionProvider.sections
+          .where((s) => s.subjectId == selectedSubject.id)
+          .toList();
 
   final int validIndex = selectedSubjectIndex.clamp(0, subjects.length - 1);
 
@@ -44,21 +49,22 @@ List<Widget> buildDoctorSubjectsSlivers({
     ),
     const SliverToBoxAdapter(child: SizedBox(height: 16)),
     if (sectionProvider.isLoading)
-      const SliverFillRemaining(child: Center(child: CircularProgressIndicator()))
+      const SliverFillRemaining(
+        child: Center(child: CircularProgressIndicator()),
+      )
     else if (sections.isEmpty)
-      const SliverFillRemaining(child: Center(child: Text('No sections for this subject.')))
+      const SliverFillRemaining(
+        child: Center(child: Text('No sections for this subject.')),
+      )
     else
       SliverList(
-        delegate: SliverChildBuilderDelegate(
-          (context, index) {
-            final section = sections[index];
-            return SectionCard(
-              section: section,
-              subjectName: selectedSubject.name,
-            );
-          },
-          childCount: sections.length,
-        ),
+        delegate: SliverChildBuilderDelegate((context, index) {
+          final section = sections[index];
+          return SectionCard(
+            section: section,
+            subjectName: selectedSubject.name,
+          );
+        }, childCount: sections.length),
       ),
   ];
 }

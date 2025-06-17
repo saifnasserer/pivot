@@ -4,13 +4,15 @@ import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/models/category_model.dart';
 import 'package:pivot/screens/models/section_card.dart';
 import 'package:pivot/models/subject_model.dart';
+import 'package:pivot/models/user_profile.dart';
 
 List<Widget> buildAssistantSubjects({
   required BuildContext context,
-  required List<Subject> subjects, // Updated to use the Subject model
+  required List<Subject> subjects,
   required int selectedSubjectIndex,
-  required List<Section> sections, // Updated to use the Section model
+  required List<Section> sections,
   required Function(int) onCategorySelected,
+  required UserProfile loggedInUser,
 }) {
   if (subjects.isEmpty) {
     return [
@@ -55,15 +57,14 @@ List<Widget> buildAssistantSubjects({
     SliverList(
       delegate: SliverChildBuilderDelegate((context, index) {
         final section = sections[index];
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: Responsive.space(context, size: Space.medium),
-          ),
-          child: SectionCard(
-            section: section, // Pass the whole Section object
-            subjectName:
-                selectedSubject.name, // Pass the selected subject's name
-          ),
+        final sectionNumberFromName = section.name.split(' ').last;
+        final bool isCurrentUserSection = loggedInUser.section.isNotEmpty &&
+            loggedInUser.section.toLowerCase() ==
+                sectionNumberFromName.toLowerCase();
+        return SectionCard(
+          section: section,
+          subjectName: selectedSubject.name,
+          isCurrentUserSection: isCurrentUserSection,
         );
       }, childCount: sections.length),
     ),

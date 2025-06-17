@@ -5,12 +5,12 @@ class DoctorSubjectService {
   final CollectionReference _lecturesCollection =
       FirebaseFirestore.instance.collection('lectures');
 
-  Future<List<Lecture>> getLecturesForDoctorCategory(
-      String doctorId, String categoryName) async {
+  Future<List<Lecture>> getLecturesForDoctorSubject(
+      String doctorId, String subjectId) async {
     try {
       final QuerySnapshot snapshot = await _lecturesCollection
           .where('doctorId', isEqualTo: doctorId)
-          .where('categoryName', isEqualTo: categoryName)
+          .where('subjectId', isEqualTo: subjectId)
           .get();
 
       return snapshot.docs
@@ -26,13 +26,7 @@ class DoctorSubjectService {
     try {
       final docRef = await _lecturesCollection.add(lecture.toJson());
       // Create a new Lecture object that includes the generated ID
-      return Lecture(
-        id: docRef.id,
-        title: lecture.title,
-        doctorId: lecture.doctorId,
-        categoryName: lecture.categoryName,
-        links: lecture.links,
-      );
+      return lecture.copyWith(id: docRef.id);
     } catch (e) {
       print('Error adding lecture: $e');
       rethrow;

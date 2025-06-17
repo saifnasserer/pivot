@@ -7,8 +7,13 @@ import 'package:provider/provider.dart';
 class SubjectModel extends StatelessWidget {
   final Lecture lecture;
   final IconData? icon;
+  final bool canEdit;
 
-  const SubjectModel({super.key, required this.lecture, this.icon});
+  const SubjectModel(
+      {super.key,
+      required this.lecture,
+      this.icon,
+      this.canEdit = false});
 
   Future<Map<String, String>?> _showAddSingleLinkDialog(BuildContext context) async {
     final TextEditingController titleController = TextEditingController();
@@ -86,17 +91,21 @@ class SubjectModel extends StatelessWidget {
                   return ListTile(
                     leading: const Icon(Icons.link),
                     title: Text(link['title']!),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                      onPressed: () {
-                        final linkToDelete = links[index];
-                        setState(() {
-                          links.removeAt(index);
-                        });
-                        provider.deleteLinkFromLecture(lecture.id, linkToDelete);
-                      },
-                      tooltip: 'حذف الرابط',
-                    ),
+                    trailing: canEdit
+                        ? IconButton(
+                            icon: const Icon(Icons.delete_outline,
+                                color: Colors.redAccent),
+                            onPressed: () {
+                              final linkToDelete = links[index];
+                              setState(() {
+                                links.removeAt(index);
+                              });
+                              provider.deleteLinkFromLecture(
+                                  lecture.id, linkToDelete);
+                            },
+                            tooltip: 'حذف الرابط',
+                          )
+                        : null,
                     onTap: () {
                       print('Tapped on ${link['url']}');
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -108,18 +117,19 @@ class SubjectModel extends StatelessWidget {
               ),
             ),
             actions: [
-              TextButton(
-                child: const Text('إضافة رابط'),
-                onPressed: () async {
-                  final newLink = await _showAddSingleLinkDialog(context);
-                  if (newLink != null) {
-                    setState(() {
-                      links.add(newLink);
-                    });
-                    provider.addLinkToLecture(lecture.id, newLink);
-                  }
-                },
-              ),
+              if (canEdit)
+                TextButton(
+                  child: const Text('إضافة رابط'),
+                  onPressed: () async {
+                    final newLink = await _showAddSingleLinkDialog(context);
+                    if (newLink != null) {
+                      setState(() {
+                        links.add(newLink);
+                      });
+                      provider.addLinkToLecture(lecture.id, newLink);
+                    }
+                  },
+                ),
               TextButton(
                 child: const Text('إغلاق'),
                 onPressed: () {
@@ -135,6 +145,7 @@ class SubjectModel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final provider = Provider.of<DoctorSubjectProvider>(context, listen: false);
     return ElevatedButton(
       style: ButtonStyle(
         backgroundColor: WidgetStateProperty.all(Colors.transparent),
@@ -151,6 +162,37 @@ class SubjectModel extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
+            if (canEdit)
+              IconButton(
+                icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (BuildContext context) {
+                      return AlertDialog(
+                        title: const Text('حذف المادة'),
+                        content:
+                            const Text('هل أنت متأكد من رغبتك في حذف هذه المادة؟'),
+                        actions: <Widget>[
+                          TextButton(
+                            child: const Text('إلغاء'),
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                            },
+                          ),
+                          TextButton(
+                            child: const Text('حذف'),
+                            onPressed: () {
+                              provider.deleteLecture(lecture.id);
+                              Navigator.of(context).pop();
+                            },
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                },
+              ),
             Expanded(
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,

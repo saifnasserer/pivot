@@ -45,84 +45,240 @@ class SubjectListItem extends StatelessWidget {
   final Subject subject;
   final List<UserProfile>? instructors;
 
-  @override
-  Widget build(BuildContext context) {
-    return ElevatedButton(
-      style: ButtonStyle(
-        backgroundColor: WidgetStateProperty.all(Colors.transparent),
-        elevation: WidgetStateProperty.all(0),
-        shape: WidgetStateProperty.all(
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        ),
-      ),
-      onPressed:
-          () => Navigator.pushNamed(
-            context,
-            DoctorProfile.id,
-            arguments: subject.id,
-          ),
-      child: Padding(
-        padding: EdgeInsets.all(Responsive.space(context, size: Space.small)),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    subject.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.right,
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontSize: Responsive.text(context),
-                      fontWeight: FontWeight.w500,
-                    ),
+  void _showProfessorSelectionDialog(
+    BuildContext context,
+    List<UserProfile> professors,
+  ) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: SimpleDialog(
+            title: const Text(
+              'اختر أستاذ المادة',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16.0),
+            ),
+            children: [
+              ...professors.map((prof) {
+                return SimpleDialogOption(
+                  onPressed: () {
+                    Navigator.of(context).pop(); // Close the dialog
+                    Navigator.pushNamed(
+                      context,
+                      DoctorProfile.id,
+                      arguments: prof,
+                    );
+                  },
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 16.0,
+                    horizontal: 24.0,
                   ),
-                  if (instructors != null && instructors!.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4.0),
-                      child: Text(
-                        'المدرسون: ${instructors!.map((i) => i.name).join(', ')}',
-                        textAlign: TextAlign.right,
-                        style: TextStyle(
-                          color: Colors.black54,
-                          fontSize:
-                              Responsive.text(context, size: TextSize.small) *
-                              1.4,
-                          fontWeight: FontWeight.w500,
+                  child: Row(
+                    children: [
+                      Icon(Icons.person_outline, color: Theme.of(context).primaryColor),
+                      const SizedBox(width: 16.0),
+                      Expanded(
+                        child: Text(
+                          prof.name,
+                          style: const TextStyle(fontSize: 16),
                         ),
                       ),
+                    ],
+                  ),
+                );
+              }).toList(),
+              const Divider(height: 1, indent: 16, endIndent: 16),
+              SimpleDialogOption(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                padding: const EdgeInsets.symmetric(vertical: 16.0),
+                child: const Text(
+                  'إلغاء',
+                  style: TextStyle(
+                    color: Colors.redAccent,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+      child: Card(
+        elevation: 2.0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12.0),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () {
+            if (instructors == null || instructors!.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('لا يوجد دكاترة مسجلين لهذه المادة بعد'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+              return;
+            }
+
+            final professors =
+                instructors!.where((prof) => prof.role == 'Professor').toList();
+
+            if (professors.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('لا يوجد دكاترة مسجلين لهذه المادة بعد'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+            } else if (professors.length == 1) {
+              Navigator.pushNamed(
+                context,
+                DoctorProfile.id,
+                arguments: professors.first,
+              );
+            } else {
+              _showProfessorSelectionDialog(context, professors);
+            }
+          },
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Chevron icon (on the left)
+                Container(
+                  color: Colors.grey.shade100,
+                  padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                  child: Icon(
+                    Icons.arrow_back_ios,
+                    color: Colors.grey.shade500,
+                    size: 16,
+                  ),
+                ),
+
+                // Main content (in the middle)
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 16.0,
+                      horizontal: 12.0,
                     ),
-                  Text(
-                    '${subject.department} - ${subject.year}',
-                    textAlign: TextAlign.right,
-                    style: TextStyle(
-                      color: Colors.grey,
-                      fontSize:
-                          Responsive.text(context, size: TextSize.small) * 1.5,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          subject.name,
+                          textAlign: TextAlign.right,
+                          style: TextStyle(
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.medium,
+                            ),
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 4.0),
+                        Text(
+                          '${subject.department} - ${subject.year}',
+                          textAlign: TextAlign.right,
+                          style: TextStyle(
+                            color: Colors.grey.shade700,
+                            fontSize:
+                                Responsive.text(context, size: TextSize.small) *
+                                1.3,
+                          ),
+                        ),
+                        if (instructors != null && instructors!.isNotEmpty) ...[
+                          const SizedBox(height: 12.0),
+                          Builder(
+                            builder: (context) {
+                              final professors =
+                                  instructors!
+                                      .where((i) => i.role == 'Professor')
+                                      .toList();
+                              if (professors.isEmpty) {
+                                return const SizedBox.shrink();
+                              }
+                              return Wrap(
+                                alignment: WrapAlignment.end,
+                                spacing: 8.0,
+                                runSpacing: 4.0,
+                                children:
+                                    professors
+                                        .map(
+                                          (p) => Chip(
+                                            // avatar: CircleAvatar(
+                                            //   backgroundColor:
+                                            //       Colors.grey.shade700,
+                                            //   child: Text(
+                                            //     p.name.substring(0, 1),
+                                            //     style: const TextStyle(
+                                            //         color: Colors.white,
+                                            //         fontSize: 10),
+                                            //   ),
+                                            // ),
+                                            label: Text(
+                                              p.name,
+                                              style: TextStyle(
+                                                fontSize:
+                                                    Responsive.text(
+                                                      context,
+                                                      size: TextSize.small,
+                                                    ) *
+                                                    1.1,
+                                              ),
+                                            ),
+                                            backgroundColor:
+                                                Colors.grey.shade200,
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 4.0,
+                                              vertical: 0,
+                                            ),
+                                            labelPadding: const EdgeInsets.only(
+                                              left: 4,
+                                              right: 2,
+                                            ),
+                                            materialTapTargetSize:
+                                                MaterialTapTargetSize
+                                                    .shrinkWrap,
+                                          ),
+                                        )
+                                        .toList(),
+                              );
+                            },
+                          ),
+                        ],
+                      ],
                     ),
                   ),
-                ],
-              ),
+                ),
+
+                // Accent bar (on the right)
+                Container(width: 8.0, color: Theme.of(context).primaryColor),
+              ],
             ),
-            SizedBox(width: Responsive.space(context)),
-            Container(
-              width: Responsive.space(context, size: Space.large) * 3,
-              height: Responsive.space(context, size: Space.large) * 3,
-              decoration: BoxDecoration(
-                color: Colors.grey.withOpacity(0.2),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.menu_book_rounded,
-                size: Responsive.space(context, size: Space.xlarge),
-                color: Colors.black,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

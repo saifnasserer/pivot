@@ -9,6 +9,7 @@ import '../../../providers/user_profile_provider.dart';
 import '../../../models/user_profile.dart';
 import '../../../services/auth_service.dart'; // Import AuthService
 import '../../../services/local_auth_service.dart';
+import '../../../providers/settings_provider.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -57,7 +58,7 @@ class _Signup_2State extends State<Signup_2> {
     'الفرقة الثالثة',
     'الفرقة الرابعة',
   ];
-  final List<String> sections = ['1', '2', '3', '4', '5', '6', '7', '8'];
+  List<String> _availableSections = [];
 
   // Declare and initialize AuthService
   final AuthService _authService = AuthService();
@@ -187,140 +188,99 @@ class _Signup_2State extends State<Signup_2> {
                         SizedBox(
                           height: Responsive.space(context, size: Space.xlarge),
                         ),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: CustomDropdown(
-                                value: selectedYear,
-                                items: years,
-                                hint: 'اختر الفرقة',
-                                isValid: _isYearValid,
-                                onChanged: (String? newValue) {
-                                  setState(() {
-                                    selectedYear = newValue;
-                                    _isYearValid = newValue != null;
-                                    // Update available departments based on selected year
-                                    if (newValue == 'الفرقة الأولى' ||
-                                        newValue == 'الفرقة الثانية') {
-                                      _availableDepartments = ['General'];
-                                      // If a different department was previously selected, reset it
-                                      if (selectedDepartment != null &&
-                                          selectedDepartment != 'General') {
-                                        selectedDepartment = null;
-                                        _isDepartmentValid = false;
-                                      }
-                                    } else {
-                                      // Restore all departments if year is 3rd or 4th
-                                      _availableDepartments = [
-                                        'CS',
-                                        'IS',
-                                        'IT',
-                                        'SC',
-                                      ];
-                                    }
-                                  });
-                                  FocusScope.of(
-                                    context,
-                                  ).requestFocus(_departmentFocus);
-                                },
-                              ),
-                            ),
-                            SizedBox(
-                              width: Responsive.space(
+                        CustomDropdown(
+                          value: selectedYear,
+                          items: years,
+                          hint: 'اختر الفرقة',
+                          isValid: _isYearValid,
+                          onChanged: (String? newValue) {
+                            setState(() {
+                              selectedYear = newValue;
+                              _isYearValid = true;
+                              selectedDepartment = null;
+                              _isDepartmentValid = false;
+                              selectedSection = null;
+                              _isSectionValid = false;
+                              _availableSections = []; // Clear sections
+
+                              if (newValue == 'الفرقة الأولى' ||
+                                  newValue == 'الفرقة الثانية') {
+                                _availableDepartments =
+                                    _allDepartments
+                                        .where((d) => d == 'General')
+                                        .toList();
+                              } else {
+                                _availableDepartments =
+                                    _allDepartments
+                                        .where((d) => d != 'General')
+                                        .toList();
+                              }
+                            });
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              FocusScope.of(
                                 context,
-                                size: Space.medium,
-                              ),
-                            ),
-                            Text(
-                              'الفرقة',
-                              style: TextStyle(
-                                fontSize: Responsive.text(
-                                  context,
-                                  size: TextSize.medium,
-                                ),
-                                // fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
+                              ).requestFocus(_departmentFocus);
+                            });
+                          },
                         ),
                         SizedBox(
                           height: Responsive.space(context, size: Space.medium),
                         ),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: CustomDropdown(
-                                value: selectedDepartment,
-                                items:
-                                    _availableDepartments, // Use filtered list
-                                hint: 'اختر القسم',
-                                isValid: _isDepartmentValid,
-                                onChanged: (String? newValue) {
-                                  setState(() {
-                                    selectedDepartment = newValue;
-                                    _isDepartmentValid = newValue != null;
-                                  });
-                                  FocusScope.of(
-                                    context,
-                                  ).requestFocus(_sectionFocus);
-                                },
-                              ),
-                            ),
-                            SizedBox(
-                              width: Responsive.space(
+                        CustomDropdown(
+                          value: selectedDepartment,
+                          items: _availableDepartments,
+                          hint: 'اختر القسم',
+                          isValid: _isDepartmentValid,
+                          onChanged: (String? newValue) {
+                            setState(() {
+                              selectedDepartment = newValue;
+                              _isDepartmentValid = true;
+                              selectedSection = null; // Reset section
+                              _isSectionValid = false;
+
+                              if (newValue == 'General') {
+                                _availableSections = ['Not Applicable'];
+                                selectedSection = 'Not Applicable';
+                                _isSectionValid = true;
+                              } else if (newValue != null) {
+                                final settingsProvider =
+                                    Provider.of<SettingsProvider>(
+                                      context,
+                                      listen: false,
+                                    );
+                                final count =
+                                    settingsProvider.sectionCounts[newValue] ??
+                                    8; // Default to 8
+                                _availableSections = List.generate(
+                                  count,
+                                  (i) => (i + 1).toString(),
+                                );
+                              } else {
+                                _availableSections = [];
+                              }
+                            });
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              FocusScope.of(
                                 context,
-                                size: Space.medium,
-                              ),
-                            ),
-                            Text(
-                              'القسم',
-                              style: TextStyle(
-                                color: Colors.black,
-                                fontSize: Responsive.text(
-                                  context,
-                                  size: TextSize.medium,
-                                ),
-                              ),
-                            ),
-                          ],
+                              ).requestFocus(_sectionFocus);
+                            });
+                          },
                         ),
                         SizedBox(
                           height: Responsive.space(context, size: Space.medium),
                         ),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: CustomDropdown(
-                                value: selectedSection,
-                                items: sections,
-                                hint: 'اختر السكشن',
-                                isValid: _isSectionValid,
-                                onChanged: (String? newValue) {
-                                  setState(() {
-                                    selectedSection = newValue;
-                                    _isSectionValid = newValue != null;
-                                  });
-                                  FocusScope.of(context).unfocus();
-                                },
-                              ),
-                            ),
-                            SizedBox(
-                              width: Responsive.space(
-                                context,
-                                size: Space.medium,
-                              ),
-                            ),
-                            Text(
-                              'السكشن',
-                              style: TextStyle(
-                                color: Colors.black,
-                                fontSize: Responsive.text(
-                                  context,
-                                  size: TextSize.medium,
-                                ),
-                              ),
-                            ),
-                          ],
+                        CustomDropdown(
+                          value: selectedSection,
+                          items: _availableSections,
+                          hint: 'اختر السكشن',
+                          isValid: _isSectionValid,
+                          onChanged: (String? newValue) {
+                            setState(() {
+                              selectedSection = newValue;
+                              _isSectionValid = true;
+                            });
+                            FocusScope.of(context).unfocus();
+                          },
                         ),
                       ],
                     ),

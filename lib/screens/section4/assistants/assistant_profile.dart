@@ -25,7 +25,8 @@ class AssistantProfile extends StatefulWidget {
 class _AssistantProfileState extends State<AssistantProfile> {
   String _currentCategory = 'المواد';
   int _selectedSubjectIndex = 0;
-  UserProfile? _previousUserProfile;
+  UserProfile? _displayedProfile;
+  String? _previousProfileId;
   bool _isEditingAboutMe = false;
   late TextEditingController _aboutMeController;
 
@@ -44,29 +45,39 @@ class _AssistantProfileState extends State<AssistantProfile> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final userProfile = context.watch<UserProfileProvider>().userProfile;
+    final arguments = ModalRoute.of(context)?.settings.arguments;
+    final userProfileFromProvider =
+        Provider.of<UserProfileProvider>(context, listen: false).userProfile;
 
-    // Fetch data only if the user profile has changed.
-    if (userProfile != null && userProfile != _previousUserProfile) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          _fetchData(userProfile);
+    UserProfile? newProfile;
+    if (arguments != null && arguments is UserProfile) {
+      newProfile = arguments;
+    } else {
+      newProfile = userProfileFromProvider;
+    }
+
+    if (newProfile != null && newProfile.id != _previousProfileId) {
+      setState(() {
+        _displayedProfile = newProfile;
+        _previousProfileId = newProfile!.id;
+        if (!_isEditingAboutMe) {
+          _aboutMeController.text = _displayedProfile?.aboutMe ?? '';
         }
       });
-      if (!_isEditingAboutMe) {
-        _aboutMeController.text = userProfile.aboutMe ?? '';
-      }
-      _previousUserProfile = userProfile;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _fetchData();
+        }
+      });
     }
   }
 
-  void _fetchData(UserProfile userProfile) {
-    // Fetch subjects the user teaches
-    context.read<SubjectProvider>().fetchAndFilterSubjects(userProfile);
-    // Fetch sections for those subjects
+  void _fetchData() {
+    if (_displayedProfile == null) return;
+    context.read<SubjectProvider>().fetchAndFilterSubjects(_displayedProfile!);
     context.read<SectionProvider>().fetchSectionsForUserSubjects(
-      userProfile.teachingSubjects,
-    );
+          _displayedProfile!.teachingSubjects,
+        );
   }
 
   void _onMainCategoryChanged(String category) {
@@ -84,11 +95,21 @@ class _AssistantProfileState extends State<AssistantProfile> {
   List<Widget> _getCategoryContentSlivers(BuildContext context) {
     final subjectProvider = context.watch<SubjectProvider>();
     final sectionProvider = context.watch<SectionProvider>();
+    final loggedInUser = context.watch<UserProfileProvider>().userProfile;
+    final isOwnProfile = loggedInUser?.id == _displayedProfile?.id;
 
     if (subjectProvider.isLoading || sectionProvider.isLoading) {
       return [
         const SliverFillRemaining(
           child: Center(child: CircularProgressIndicator()),
+        ),
+      ];
+    }
+
+    if (loggedInUser == null) {
+      return [
+        const SliverFillRemaining(
+          child: Center(child: Text('Authentication error: User not found.')),
         ),
       ];
     }
@@ -111,12 +132,11 @@ class _AssistantProfileState extends State<AssistantProfile> {
 
     switch (_currentCategory) {
       case 'المواد':
-        final sectionsForSelectedSubject =
-            selectedSubject != null
-                ? sectionProvider.sections
-                    .where((s) => s.subjectId == selectedSubject.id)
-                    .toList()
-                : [];
+        final sectionsForSelectedSubject = selectedSubject != null
+            ? sectionProvider.sections
+                .where((s) => s.subjectId == selectedSubject.id)
+                .toList()
+            : [];
 
         return buildAssistantSubjects(
           context: context,
@@ -124,57 +144,19 @@ class _AssistantProfileState extends State<AssistantProfile> {
           selectedSubjectIndex: _selectedSubjectIndex,
           sections: sectionsForSelectedSubject.cast<Section>(),
           onCategorySelected: _onSubjectCategorySelected,
+          loggedInUser: loggedInUser,
         );
       case 'عن المعيد':
-        final userProfile = context.watch<UserProfileProvider>().userProfile;
-        final loggedInUser =
-            context.watch<UserProfileProvider>().loggedInUserProfile;
-        final profileBeingViewed = userProfile;
-
-        final bool isMiniProfessorProfile =
-            profileBeingViewed?.role.toLowerCase() == 'miniprofessor';
-        final bool isOwner = loggedInUser?.id == profileBeingViewed?.id;
-        final bool isSuperAdmin =
-            loggedInUser?.role.toLowerCase() == 'super admin';
-        final bool canEdit =
-            isMiniProfessorProfile && (isOwner || isSuperAdmin);
-
         return [
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  const Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Text(
-                        'عني',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        textAlign: TextAlign.right,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  if (_isEditingAboutMe)
-                    _buildAboutMeEditor(context, userProfile!)
-                  else
-                    _buildAboutMeDisplay(context, userProfile, canEdit),
-                ],
-              ),
-            ),
-          ),
+          _isEditingAboutMe
+              ? _buildAboutMeEditor(context, _displayedProfile!)
+              : _buildAboutMeDisplay(context, _displayedProfile, isOwnProfile),
         ];
       default:
         return [
           const SliverFillRemaining(
-            hasScrollBody: false,
             child: Center(child: Text('Unknown Category')),
-          ),
+          )
         ];
     }
   }
@@ -184,107 +166,112 @@ class _AssistantProfileState extends State<AssistantProfile> {
     UserProfile? userProfile,
     bool canEdit,
   ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        Text(
-          userProfile?.aboutMe ?? 'لا يوجد معلومات حالياً',
-          style: const TextStyle(fontSize: 16, height: 1.5),
-          textAlign: TextAlign.right,
-        ),
-        if (canEdit)
-          Align(
-            alignment: Alignment.centerLeft,
-            child: IconButton(
-              icon: const Icon(Icons.edit_outlined),
-              onPressed: () {
-                setState(() {
-                  _isEditingAboutMe = true;
-                });
-              },
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: EdgeInsets.all(Responsive.space(context, size: Space.medium)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            if (canEdit)
+              Align(
+                alignment: Alignment.topLeft,
+                child: IconButton(
+                  icon: const Icon(Icons.edit),
+                  onPressed: () {
+                    setState(() {
+                      _isEditingAboutMe = true;
+                    });
+                  },
+                ),
+              ),
+            Text(
+              userProfile?.aboutMe ?? 'لا يوجد معلومات إضافية متاحة.',
+              textAlign: TextAlign.right,
+              style: Theme.of(context).textTheme.bodyLarge,
             ),
-          ),
-      ],
+          ],
+        ),
+      ),
     );
   }
 
   Widget _buildAboutMeEditor(BuildContext context, UserProfile userProfile) {
-    final userProfileProvider = Provider.of<UserProfileProvider>(
-      context,
-      listen: false,
-    );
-    return Column(
-      children: [
-        TextField(
-          controller: _aboutMeController,
-          maxLines: null,
-          autofocus: true,
-          textAlign: TextAlign.right,
-          decoration: const InputDecoration(
-            hintText: '...اخبرنا عن نفسك',
-            border: OutlineInputBorder(),
+    final userProfileProvider = Provider.of<UserProfileProvider>(context, listen: false);
+    return SliverToBoxAdapter(
+      child: Column(
+        children: [
+          TextField(
+            controller: _aboutMeController,
+            maxLines: 5,
+            textDirection: TextDirection.rtl,
+            decoration: const InputDecoration(
+              hintText: '...اكتب عن نفسك',
+              border: OutlineInputBorder(),
+            ),
           ),
-        ),
-        const SizedBox(height: 10),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: [
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () {
-                setState(() {
-                  _aboutMeController.text = userProfile.aboutMe ?? '';
-                  _isEditingAboutMe = false;
-                });
-              },
-            ),
-            ElevatedButton(
-              child: const Text('Save'),
-              onPressed: () async {
-                try {
-                  await userProfileProvider.updateAboutMe(
-                    userProfile.id,
-                    _aboutMeController.text,
-                  );
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Successfully updated.'),
-                        backgroundColor: Colors.green,
-                      ),
+          SizedBox(height: Responsive.space(context, size: Space.medium)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                child: const Text('Cancel'),
+                onPressed: () {
+                  setState(() {
+                    _isEditingAboutMe = false;
+                    _aboutMeController.text = userProfile.aboutMe ?? '';
+                  });
+                },
+              ),
+              ElevatedButton(
+                child: const Text('Save'),
+                onPressed: () async {
+                  try {
+                    await userProfileProvider.updateAboutMe(
+                      userProfile.id,
+                      _aboutMeController.text,
                     );
-                    setState(() {
-                      _isEditingAboutMe = false;
-                    });
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Successfully updated.'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                      setState(() {
+                        _isEditingAboutMe = false;
+                      });
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Failed to update: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
                   }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Failed to update: $e'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                }
-              },
-            ),
-          ],
-        ),
-      ],
+                },
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final userProfile = context.watch<UserProfileProvider>().userProfile;
+    final loggedInUser = context.watch<UserProfileProvider>().userProfile;
     final subjects = context.watch<SubjectProvider>().filteredSubjects;
+    final isOwnProfile = loggedInUser?.id == _displayedProfile?.id;
+
     final selectedSubject =
         subjects.isNotEmpty && _selectedSubjectIndex < subjects.length
             ? subjects[_selectedSubjectIndex]
             : null;
 
-    if (userProfile == null) {
+    if (_displayedProfile == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
@@ -298,14 +285,14 @@ class _AssistantProfileState extends State<AssistantProfile> {
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
-          if (userProfile.role.toLowerCase() == 'miniprofessor')
+          if (isOwnProfile && _displayedProfile!.role.toLowerCase() == 'miniprofessor')
             IconButton(
               icon: const Icon(Icons.more_vert_sharp, color: Colors.black),
               onPressed: () => profile_options(context),
             ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: isOwnProfile ? FloatingActionButton(
         backgroundColor: Colors.black,
         onPressed: () {
           if (selectedSubject != null) {
@@ -326,7 +313,7 @@ class _AssistantProfileState extends State<AssistantProfile> {
         },
         tooltip: 'إضافة سكشن جديد',
         child: const Icon(Icons.add, color: Colors.white),
-      ),
+      ) : null,
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Padding(
@@ -334,7 +321,7 @@ class _AssistantProfileState extends State<AssistantProfile> {
           child: CustomScrollView(
             slivers: [
               SliverToBoxAdapter(
-                child: DoctorDetails(userProfile: userProfile),
+                child: DoctorDetails(userProfile: _displayedProfile!),
               ),
               SliverToBoxAdapter(
                 child: SizedBox(
@@ -346,11 +333,6 @@ class _AssistantProfileState extends State<AssistantProfile> {
                   onCategoryChanged: _onMainCategoryChanged,
                 ),
               ),
-              // SliverToBoxAdapter(
-              //   child: SizedBox(
-              //     height: Responsive.space(context, size: Space.large),
-              //   ),
-              // ),
               const SliverToBoxAdapter(child: Divider(indent: 4, endIndent: 1)),
               ..._getCategoryContentSlivers(context),
             ],

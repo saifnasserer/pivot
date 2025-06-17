@@ -74,7 +74,6 @@ class CustomDropdown extends StatelessWidget {
           Responsive.space(context, size: Space.medium),
         ),
         hint: Container(
-          width: double.infinity,
           alignment: Alignment.center,
           child: Text(
             hint,

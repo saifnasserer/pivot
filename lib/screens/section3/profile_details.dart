@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/responsive.dart';
 import 'package:auto_size_text/auto_size_text.dart';
+import 'package:pivot/screens/section2/adminstration/section_management_screen.dart';
 
 class ProfileDetails extends StatelessWidget {
   const ProfileDetails({super.key, required this.userProfile});
@@ -20,26 +21,43 @@ class ProfileDetails extends StatelessWidget {
               Text(
                 'الفرقة ${userProfile.level}',
                 style: TextStyle(
-                  fontSize: Responsive.space(context, size: Space.medium),
+                  fontSize: Responsive.space(context, size: Space.small) * 1.5,
                   color: Color(0xffd9d9d9),
                 ),
               ),
-              AutoSizeText(
-                userProfile.name,
-                style: TextStyle(
-                  fontSize: Responsive.space(context, size: Space.xlarge) * 1.2,
-                  color: Colors.black,
-                  fontWeight: FontWeight.bold,
-                ),
-                maxLines: 1,
-                minFontSize: 10,
-                textAlign: TextAlign.end,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  if (userProfile.role == 'Super Admin')
+                    IconButton(
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      icon: const Icon(Icons.settings_outlined, color: Colors.grey),
+                      onPressed: () {
+                        Navigator.pushNamed(context, SectionManagementScreen.id);
+                      },
+                    ),
+                  Expanded(
+                    child: AutoSizeText(
+                      userProfile.name,
+                      style: TextStyle(
+                        fontSize: Responsive.space(context, size: Space.large) * 1.2,
+                        color: Colors.black,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      minFontSize: 10,
+                      textAlign: TextAlign.end,
+                    ),
+                  ),
+                ],
               ),
               SizedBox(height: Responsive.space(context, size: Space.small)),
               AutoSizeText(
                 (' ${userProfile.department} سكشن ${userProfile.section} قسم '),
                 style: TextStyle(
-                  fontSize: Responsive.space(context, size: Space.medium),
+                  fontSize: Responsive.space(context, size: Space.small) * 1.5,
                   color: Color(0xffd9d9d9),
                   fontWeight: FontWeight.bold,
                 ),

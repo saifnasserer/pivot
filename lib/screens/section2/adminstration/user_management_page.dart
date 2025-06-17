@@ -13,140 +13,202 @@ class UserManagementPage extends StatefulWidget {
 
 class _UserManagementPageState extends State<UserManagementPage> {
   final AuthService _authService = AuthService();
-  late Future<List<UserProfile>> _usersFuture;
+  final TextEditingController _searchController = TextEditingController();
+  List<UserProfile> _allUsers = [];
+  List<UserProfile> _filteredUsers = [];
+  Map<String, String> _selectedRoles = {};
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _usersFuture = _authService.getAllUsers();
+    _fetchUsers();
+    _searchController.addListener(_filterUsers);
   }
 
-  void _refreshUsers() {
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _fetchUsers() async {
+    setState(() => _isLoading = true);
+    try {
+      final users = await _authService.getAllUsers();
+      setState(() {
+        _allUsers = users;
+        _filteredUsers = users;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('فشل في جلب المستخدمين: $e')),
+      );
+    }
+  }
+
+  void _filterUsers() {
+    final query = _searchController.text.toLowerCase();
     setState(() {
-      _usersFuture = _authService.getAllUsers();
+      _filteredUsers = _allUsers.where((user) {
+        final userName = user.name.toLowerCase();
+        final userEmail = user.email?.toLowerCase() ?? '';
+        return userName.contains(query) || userEmail.contains(query);
+      }).toList();
     });
   }
 
-  Future<void> _showEditRoleDialog(UserProfile user) async {
-    String selectedRole = user.role;
-    final roles = ['Super Admin', 'Admin', 'Professor', 'miniProfessor', 'Student'];
+  Future<void> _updateRole(UserProfile user) async {
+    final newRole = _selectedRoles[user.id];
+    if (newRole == null) return;
 
-    return showDialog<void>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(
-            'تغيير دور ${user.name}',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: Responsive.text(context, size: TextSize.heading),
-            ),
-          ),
-          content: DropdownButton<String>(
-            value: selectedRole,
-            isExpanded: true,
-            items: roles.map<DropdownMenuItem<String>>((String value) {
-              return DropdownMenuItem<String>(
-                value: value,
-                child: Text(value),
-              );
-            }).toList(),
-            onChanged: (String? newValue) {
-              if (newValue != null) {
-                // This requires the dialog to be a StatefulWidget to update the UI,
-                // so we'll just handle it on save for simplicity.
-                selectedRole = newValue;
-              }
-            },
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('الغاء'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.black),
-              child: const Text('حفظ', style: TextStyle(color: Colors.white)),
-              onPressed: () async {
-                try {
-                  await _authService.updateUserRole(user.id, selectedRole);
-                  Navigator.of(context).pop();
-                  _refreshUsers();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('تم تحديث دور ${user.name}')),
-                  );
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('فشل تحديث الدور: $e')),
-                  );
-                }
-              },
-            ),
-          ],
-        );
-      },
-    );
+    try {
+      await _authService.updateUserRole(user.id, newRole);
+      setState(() {
+        user.role = newRole;
+        _selectedRoles.remove(user.id);
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('تم تحديث دور ${user.name} بنجاح')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('فشل تحديث الدور: $e')),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text(
-          'ادارة المستخدمين',
-          style: TextStyle(color: Colors.black),
+    final roles = ['Super Admin', 'Admin', 'Professor', 'miniProfessor', 'Student'];
+
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('إدارة أدوار المستخدمين'),
+          centerTitle: true,
         ),
-        centerTitle: true,
-        backgroundColor: Colors.white,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
-      ),
-      body: FutureBuilder<List<UserProfile>>(
-        future: _usersFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text('حدث خطأ: ${snapshot.error}'));
-          }
-          if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('لا يوجد مستخدمين'));
-          }
-
-          final users = snapshot.data!;
-
-          return ListView.builder(
-            itemCount: users.length,
-            itemBuilder: (context, index) {
-              final user = users[index];
-              return Column(
-                children: [
-                  ListTile(
-                    title: Text(
-                      user.name,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: Responsive.text(context, size: TextSize.medium),
-                      ),
+        body: RefreshIndicator(
+          onRefresh: _fetchUsers,
+          child: Column(
+            children: [
+              Padding(
+                padding: Responsive.padding(context, size: Space.medium),
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    labelText: 'ابحث بالاسم أو البريد الإلكتروني',
+                    prefixIcon: const Icon(Icons.search),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(15),
                     ),
-                    subtitle: Text(
-                      user.role,
-                      style: TextStyle(
-                        fontSize: Responsive.text(context, size: TextSize.small),
-                      ),
-                    ),
-                    onTap: () => _showEditRoleDialog(user),
                   ),
-                  const Divider(height: 1, indent: 16, endIndent: 16),
-                ],
-              );
-            },
-          );
-        },
+                ),
+              ),
+              Expanded(
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _filteredUsers.isEmpty
+                        ? Center(
+                            child: Text(
+                              'لا يوجد مستخدمين مطابقين للبحث',
+                              style: TextStyle(
+                                fontSize: Responsive.text(context, size: TextSize.medium),
+                                color: Colors.grey,
+                              ),
+                            ),
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.all(8.0),
+                            itemCount: _filteredUsers.length,
+                            itemBuilder: (context, index) {
+                              final user = _filteredUsers[index];
+                              final selectedRole = _selectedRoles[user.id];
+                              final hasChanged = selectedRole != null && selectedRole != user.role;
+
+                              return Card(
+                                elevation: 4,
+                                margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(15),
+                                ),
+                                child: Padding(
+                                  padding: Responsive.padding(context, size: Space.medium),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        user.name,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: Responsive.text(context, size: TextSize.medium),
+                                        ),
+                                      ),
+                                      Text(
+                                        user.email ?? 'لا يوجد بريد إلكتروني',
+                                        style: TextStyle(
+                                          color: Colors.grey[600],
+                                          fontSize: Responsive.text(context, size: TextSize.small),
+                                        ),
+                                      ),
+                                      SizedBox(height: Responsive.space(context, size: Space.medium)),
+                                      DropdownButtonFormField<String>(
+                                        value: selectedRole ?? user.role,
+                                        decoration: InputDecoration(
+                                          labelText: 'الدور الحالي',
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(10),
+                                          ),
+                                        ),
+                                        items: roles.map((String value) {
+                                          return DropdownMenuItem<String>(
+                                            value: value,
+                                            child: Text(value),
+                                          );
+                                        }).toList(),
+                                        onChanged: (String? newValue) {
+                                          if (newValue != null) {
+                                            setState(() {
+                                              _selectedRoles[user.id] = newValue;
+                                            });
+                                          }
+                                        },
+                                      ),
+                                      if (hasChanged)
+                                        Padding(
+                                          padding: const EdgeInsets.only(top: 12.0),
+                                          child: Align(
+                                            alignment: Alignment.centerLeft,
+                                            child: ElevatedButton.icon(
+                                              onPressed: () => _updateRole(user),
+                                              icon: const Icon(Icons.save),
+                                              label: const Text('حفظ التغييرات'),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: Theme.of(context).primaryColor,
+                                                foregroundColor: Colors.white,
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius: BorderRadius.circular(10),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

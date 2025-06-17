@@ -17,7 +17,7 @@ import 'package:pivot/providers/subject_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/screens/section4/assistants/assistant_profile.dart';
 import 'package:pivot/screens/section4/doctor/doctor_profile.dart';
-import 'package:pivot/models/subject_model.dart';
+import 'package:pivot/models/user_profile.dart';
 import 'add_edit_schedule_dialog.dart';
 import 'package:pivot/providers/section_provider.dart';
 import 'package:pivot/screens/section3/bookmarks_screen.dart';
@@ -33,12 +33,50 @@ class Profile extends StatefulWidget {
 class _ProfileState extends State<Profile> {
   int _selectedDayIndex = 0;
   String _currentCategory = 'تاسكات الاسبوع';
+  UserProfile? _previousUserProfile; // To track profile changes
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<ScheduleProvider>(context, listen: false).fetchSchedule();
+    // Data fetching is now handled in didChangeDependencies to ensure
+    // providers are available and to react to user profile changes.
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final userProfile = Provider.of<UserProfileProvider>(context).userProfile;
+
+    if (userProfile != null && userProfile != _previousUserProfile) {
+      _previousUserProfile = userProfile;
+      _fetchProfileData(userProfile);
+    }
+  }
+
+  void _fetchProfileData(UserProfile userProfile) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (mounted) {
+        Provider.of<ScheduleProvider>(context, listen: false).fetchSchedule();
+        Provider.of<TaskProvider>(context, listen: false).fetchTasks();
+
+        final userProfileProvider =
+            Provider.of<UserProfileProvider>(context, listen: false);
+        final subjectProvider =
+            Provider.of<SubjectProvider>(context, listen: false);
+        final sectionProvider =
+            Provider.of<SectionProvider>(context, listen: false);
+
+        await userProfileProvider.fetchAllUsers();
+        if (!mounted) return;
+
+        subjectProvider.buildInstructorsMap(userProfileProvider.allUsers);
+        await subjectProvider.fetchAndFilterSubjects(userProfile);
+        if (!mounted) return;
+
+        final subjectIds =
+            subjectProvider.filteredSubjects.map((s) => s.id).toList();
+        sectionProvider.fetchSectionsForUserSubjects(subjectIds);
+      }
     });
   }
 
@@ -55,28 +93,63 @@ class _ProfileState extends State<Profile> {
     switch (_currentCategory) {
       case 'تاسكات الاسبوع':
         final userProfile =
-            Provider.of<UserProfileProvider>(
-              context,
-              listen: false,
-            ).userProfile;
+            Provider.of<UserProfileProvider>(context, listen: false)
+                .userProfile;
+        final sectionProvider = Provider.of<SectionProvider>(context);
+
+        if (taskProvider.isLoading || sectionProvider.isLoading) {
+          return [
+            const SliverFillRemaining(
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          ];
+        }
+
+        if (taskProvider.error != null || sectionProvider.error != null) {
+          return [
+            SliverFillRemaining(
+              child: Center(
+                child: Text(
+                    'An error occurred: ${taskProvider.error ?? sectionProvider.error}'),
+              ),
+            ),
+          ];
+        }
+
         final enrolledSubjectIds = userProfile?.enrolledSubjects ?? [];
+        final relevantSections = sectionProvider.sections
+            .where((section) => enrolledSubjectIds.contains(section.subjectId))
+            .toList();
+        final relevantSectionIds =
+            relevantSections.map((section) => section.id).toSet();
 
         final allTasks = taskProvider.tasks;
         final now = DateTime.now();
 
-        // Filter for upcoming tasks in enrolled subjects
-        final upcomingTasks =
-            allTasks.where((task) {
-              final taskDueDate = DateTime(
-                task.dueDate.year,
-                task.dueDate.month,
-                task.dueDate.day,
-              );
-              final today = DateTime(now.year, now.month, now.day);
-              final isUpcoming = !taskDueDate.isBefore(today);
-              final isEnrolled = enrolledSubjectIds.contains(task.subjectId);
-              return isUpcoming && isEnrolled;
-            }).toList();
+        final upcomingTasks = allTasks.where((task) {
+          final taskDueDate = DateTime(
+            task.dueDate.year,
+            task.dueDate.month,
+            task.dueDate.day,
+          );
+          final today = DateTime(now.year, now.month, now.day);
+          final isUpcoming = !taskDueDate.isBefore(today);
+          final isInRelevantSection =
+              relevantSectionIds.contains(task.sectionId);
+          return isUpcoming && isInRelevantSection;
+        }).toList();
+
+        // If there are no tasks, log diagnostic info for debugging.
+        if (upcomingTasks.isEmpty) {
+          debugPrint('--- Task Debug Info ---');
+          debugPrint('User Profile Loaded: ${userProfile != null}');
+          debugPrint('Enrolled Subject IDs: ${enrolledSubjectIds.toString()}');
+          debugPrint('Relevant Sections Found: ${relevantSections.length}');
+          debugPrint('Total Tasks in Provider: ${allTasks.length}');
+          debugPrint('Section IDs for Filtering: ${relevantSectionIds.isEmpty ? "None" : relevantSectionIds.toString()}');
+          debugPrint('Final Upcoming Task Count: ${upcomingTasks.length}');
+          debugPrint('--- End Task Debug Info ---');
+        }
 
         return buildWeekTasksSlivers(context, upcomingTasks, taskProvider);
       case 'الجدول':
@@ -141,7 +214,6 @@ class _ProfileState extends State<Profile> {
         return buildSubjectsSlivers(context, subjectProvider.filteredSubjects);
       case 'السكاشن':
         final sectionProvider = Provider.of<SectionProvider>(context);
-        final subjectProvider = Provider.of<SubjectProvider>(context);
 
         if (sectionProvider.isLoading) {
           return [
@@ -161,11 +233,7 @@ class _ProfileState extends State<Profile> {
           ];
         }
 
-        return buildSectionsSlivers(
-          context,
-          sectionProvider.sections,
-          subjectProvider.filteredSubjects,
-        );
+        return buildSectionsSlivers(context);
       case 'المحفوظات':
         return [const SliverFillRemaining(child: BookmarksScreen())];
       default:
@@ -267,47 +335,8 @@ class _ProfileState extends State<Profile> {
                   onCategoryChanged: (category) {
                     setState(() {
                       _currentCategory = category;
-                      final userProfile =
-                          Provider.of<UserProfileProvider>(
-                            context,
-                            listen: false,
-                          ).userProfile;
-                      final subjectProvider = Provider.of<SubjectProvider>(
-                        context,
-                        listen: false,
-                      );
-
                       if (category == 'الجدول') {
                         _selectedDayIndex = 0;
-                      } else if (category == 'مواد الترم') {
-                        // Fetch subjects when the category is selected
-                        final userProfileProvider =
-                            Provider.of<UserProfileProvider>(
-                              context,
-                              listen: false,
-                            );
-                        userProfileProvider.fetchAllUsers().then((_) {
-                          subjectProvider.buildInstructorsMap(
-                            userProfileProvider.allUsers,
-                          );
-                          subjectProvider.fetchAndFilterSubjects(userProfile);
-                        });
-                      } else if (category == 'السكاشن') {
-                        // First, ensure subjects are fetched and filtered
-                        subjectProvider
-                            .fetchAndFilterSubjects(userProfile)
-                            .then((_) {
-                              // Then, fetch sections for those subjects
-                              final subjectIds =
-                                  subjectProvider.filteredSubjects
-                                      .whereType<Subject>()
-                                      .map((s) => s.id)
-                                      .toList();
-                              Provider.of<SectionProvider>(
-                                context,
-                                listen: false,
-                              ).fetchSectionsForUserSubjects(subjectIds);
-                            });
                       }
                     });
                   },
