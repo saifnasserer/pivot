@@ -5,7 +5,10 @@ import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/providers/settings_provider.dart';
 import 'package:pivot/providers/super_admin_provider.dart';
 import 'package:pivot/providers/guide_provider.dart';
+import 'package:pivot/screens/section3/edit_profile.dart';
+import 'package:pivot/services/remote_config_service.dart';
 import 'package:pivot/responsive.dart';
+import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/screens/section1/login/login.dart';
 import 'package:pivot/screens/section1/auth_wrapper.dart';
 import 'package:pivot/screens/section1/first_landing.dart';
@@ -18,7 +21,6 @@ import 'package:pivot/screens/section2/adminstration/section_management_screen.d
 import 'package:pivot/screens/section2/adminstration/global_subject_management_screen.dart';
 import 'package:pivot/screens/section2/super_admin_panel/super_admin_panel_screen.dart';
 import 'package:pivot/screens/section2/landing.dart';
-import 'package:pivot/screens/section3/edit_profile.dart';
 import 'package:pivot/screens/section3/profile.dart';
 import 'package:pivot/screens/section4/assistants/all_tasks.dart';
 import 'package:pivot/screens/section4/assistants/assistant_profile.dart';
@@ -41,6 +43,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await RemoteConfigService.instance.initialize(); // Initialize Remote Config
   if (kIsWeb) {
     // Only set persistence for web
     await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
@@ -79,10 +82,30 @@ class Pivot extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
         ChangeNotifierProvider(create: (_) => SuperAdminProvider()),
         ChangeNotifierProvider(create: (_) => GuideProvider()),
+        Provider<RemoteConfigService>(
+          create: (_) => RemoteConfigService.instance,
+        ),
       ],
       child: MaterialApp(
         onGenerateRoute: (settings) {
           // Handle the dynamic "tasks" route
+          if (settings.name == EditProfile.id) {
+            if (settings.arguments is UserProfile) {
+              final userProfile = settings.arguments as UserProfile;
+              return MaterialPageRoute(
+                builder: (context) {
+                  return EditProfile(userProfile: userProfile);
+                },
+              );
+            }
+            // Fallback for when arguments are not of the correct type
+            return MaterialPageRoute(
+              builder: (_) => Scaffold(
+                appBar: AppBar(title: const Text('Error')),
+                body: const Center(child: Text('Error: Invalid profile data.')),
+              ),
+            );
+          }
           if (settings.name == TasksControl.id) {
             // TasksControl screen retrieves the arguments itself using ModalRoute
             return MaterialPageRoute(
@@ -107,7 +130,6 @@ class Pivot extends StatelessWidget {
           Login.id: (context) => const Login(),
           Landing.id: (context) => const Landing(),
           Profile.id: (context) => const Profile(),
-          EditProfile.id: (context) => const EditProfile(),
           DoctorProfile.id: (context) => const DoctorProfile(),
           AdminControl.id: (context) => const AdminControl(),
           UserManagementPage.id: (context) => const UserManagementPage(),

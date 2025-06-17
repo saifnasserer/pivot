@@ -10,6 +10,15 @@ class DoctorDetails extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    String displayTitle = userProfile.name;
+    if (userProfile.role.toLowerCase() == 'professor') {
+      String title = userProfile.gender == 'ذكر' ? 'الدكتور ' : 'الدكتورة ';
+      displayTitle = title;
+    } else if (userProfile.role.toLowerCase() == 'miniprofessor') {
+      String title = userProfile.gender == 'ذكر' ? 'البشمهندس ' : 'البشمهندسة ';
+      displayTitle = title;
+    }
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
@@ -18,7 +27,7 @@ class DoctorDetails extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                userProfile.role,
+                displayTitle,
                 style: TextStyle(
                   fontSize: Responsive.space(context, size: Space.medium),
                   color: const Color(0xffd9d9d9),

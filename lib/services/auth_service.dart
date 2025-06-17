@@ -124,4 +124,19 @@ class AuthService {
       rethrow;
     }
   }
+
+  // Method to delete a user's Firestore document.
+  // NOTE: This does NOT delete the user from Firebase Authentication.
+  // For full user deletion, a backend function with Admin SDK is required.
+  Future<void> deleteUser(String uid) async {
+    try {
+      if (uid == _firebaseAuth.currentUser?.uid) {
+        throw Exception('Admins cannot delete their own account.');
+      }
+      await _firestore.collection('users').doc(uid).delete();
+    } catch (e) {
+      print('Error deleting user document: $e');
+      rethrow;
+    }
+  }
 }

@@ -26,14 +26,17 @@ class _TasksControlState extends State<TasksControl> {
         Provider.of<UserProfileProvider>(context, listen: false).userProfile;
 
     final userRole = userProfile?.role ?? '';
-    final canEdit = userRole == 'Super Admin' ||
+    final canEdit =
+        userRole == 'Super Admin' ||
         userRole == 'Admin' ||
         userRole == 'miniProfessor';
 
     String appBarTitle;
     if (sectionId != null) {
       try {
-        final section = sectionProvider.sections.firstWhere((s) => s.id == sectionId);
+        final section = sectionProvider.sections.firstWhere(
+          (s) => s.id == sectionId,
+        );
         appBarTitle = section.name;
       } catch (e) {
         appBarTitle = 'Section Not Found';
@@ -42,9 +45,10 @@ class _TasksControlState extends State<TasksControl> {
       appBarTitle = 'All Tasks';
     }
 
-    final tasks = sectionId != null
-        ? taskProvider.tasksForSection(sectionId)
-        : taskProvider.tasks;
+    final tasks =
+        sectionId != null
+            ? taskProvider.tasksForSection(sectionId)
+            : taskProvider.tasks;
 
     return Scaffold(
       appBar: AppBar(
@@ -73,7 +77,11 @@ class _TasksControlState extends State<TasksControl> {
                     task: task,
                     onEdit: () {
                       if (canEdit) {
-                        _showAddEditTaskDialog(context, taskProvider, task: task);
+                        _showAddEditTaskDialog(
+                          context,
+                          taskProvider,
+                          task: task,
+                        );
                       }
                     },
                     onDelete: () {
@@ -92,12 +100,14 @@ class _TasksControlState extends State<TasksControl> {
           ],
         ),
       ),
-      floatingActionButton: canEdit
-          ? FloatingActionButton(
-              onPressed: () => _showAddEditTaskDialog(context, taskProvider),
-              child: const Icon(Icons.add),
-            )
-          : null,
+      floatingActionButton:
+          canEdit
+              ? FloatingActionButton(
+                onPressed: () => _showAddEditTaskDialog(context, taskProvider),
+                backgroundColor: Colors.black,
+                child: const Icon(Icons.add, color: Colors.white),
+              )
+              : null,
     );
   }
 

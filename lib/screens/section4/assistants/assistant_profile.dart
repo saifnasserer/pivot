@@ -76,8 +76,8 @@ class _AssistantProfileState extends State<AssistantProfile> {
     if (_displayedProfile == null) return;
     context.read<SubjectProvider>().fetchAndFilterSubjects(_displayedProfile!);
     context.read<SectionProvider>().fetchSectionsForUserSubjects(
-          _displayedProfile!.teachingSubjects,
-        );
+      _displayedProfile!.teachingSubjects,
+    );
   }
 
   void _onMainCategoryChanged(String category) {
@@ -115,7 +115,7 @@ class _AssistantProfileState extends State<AssistantProfile> {
     }
 
     final subjects = subjectProvider.filteredSubjects;
-    if (subjects.isEmpty) {
+    if (subjects.isEmpty && _currentCategory == 'المواد') {
       return [
         const SliverFillRemaining(
           child: Center(child: Text('لا يوجد مواد متاحة حالياً')),
@@ -132,11 +132,12 @@ class _AssistantProfileState extends State<AssistantProfile> {
 
     switch (_currentCategory) {
       case 'المواد':
-        final sectionsForSelectedSubject = selectedSubject != null
-            ? sectionProvider.sections
-                .where((s) => s.subjectId == selectedSubject.id)
-                .toList()
-            : [];
+        final sectionsForSelectedSubject =
+            selectedSubject != null
+                ? sectionProvider.sections
+                    .where((s) => s.subjectId == selectedSubject.id)
+                    .toList()
+                : [];
 
         return buildAssistantSubjects(
           context: context,
@@ -156,7 +157,7 @@ class _AssistantProfileState extends State<AssistantProfile> {
         return [
           const SliverFillRemaining(
             child: Center(child: Text('Unknown Category')),
-          )
+          ),
         ];
     }
   }
@@ -172,9 +173,14 @@ class _AssistantProfileState extends State<AssistantProfile> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
+            Text(
+              userProfile?.aboutMe ?? 'لا يوجد معلومات متاحة.',
+              textAlign: TextAlign.right,
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
             if (canEdit)
               Align(
-                alignment: Alignment.topLeft,
+                alignment: Alignment.bottomRight,
                 child: IconButton(
                   icon: const Icon(Icons.edit),
                   onPressed: () {
@@ -184,11 +190,6 @@ class _AssistantProfileState extends State<AssistantProfile> {
                   },
                 ),
               ),
-            Text(
-              userProfile?.aboutMe ?? 'لا يوجد معلومات إضافية متاحة.',
-              textAlign: TextAlign.right,
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
           ],
         ),
       ),
@@ -196,7 +197,10 @@ class _AssistantProfileState extends State<AssistantProfile> {
   }
 
   Widget _buildAboutMeEditor(BuildContext context, UserProfile userProfile) {
-    final userProfileProvider = Provider.of<UserProfileProvider>(context, listen: false);
+    final userProfileProvider = Provider.of<UserProfileProvider>(
+      context,
+      listen: false,
+    );
     return SliverToBoxAdapter(
       child: Column(
         children: [
@@ -214,7 +218,7 @@ class _AssistantProfileState extends State<AssistantProfile> {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               TextButton(
-                child: const Text('Cancel'),
+                child: const Text('إلغاء'),
                 onPressed: () {
                   setState(() {
                     _isEditingAboutMe = false;
@@ -223,7 +227,8 @@ class _AssistantProfileState extends State<AssistantProfile> {
                 },
               ),
               ElevatedButton(
-                child: const Text('Save'),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.black),
+                child: const Text('حفظ', style: TextStyle(color: Colors.white)),
                 onPressed: () async {
                   try {
                     await userProfileProvider.updateAboutMe(
@@ -233,11 +238,14 @@ class _AssistantProfileState extends State<AssistantProfile> {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Successfully updated.'),
+                          content: Text('تم الحفظ بنجاح'),
                           backgroundColor: Colors.green,
                         ),
                       );
                       setState(() {
+                        _displayedProfile = userProfile.copyWith(
+                          aboutMe: _aboutMeController.text,
+                        );
                         _isEditingAboutMe = false;
                       });
                     }
@@ -245,7 +253,7 @@ class _AssistantProfileState extends State<AssistantProfile> {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Failed to update: $e'),
+                          content: Text('فشل: $e'),
                           backgroundColor: Colors.red,
                         ),
                       );
@@ -270,7 +278,6 @@ class _AssistantProfileState extends State<AssistantProfile> {
         subjects.isNotEmpty && _selectedSubjectIndex < subjects.length
             ? subjects[_selectedSubjectIndex]
             : null;
-
     if (_displayedProfile == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
@@ -285,35 +292,41 @@ class _AssistantProfileState extends State<AssistantProfile> {
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
-          if (isOwnProfile && _displayedProfile!.role.toLowerCase() == 'miniprofessor')
+          if (isOwnProfile &&
+              _displayedProfile!.role.toLowerCase() == 'miniprofessor')
             IconButton(
               icon: const Icon(Icons.more_vert_sharp, color: Colors.black),
               onPressed: () => profile_options(context),
             ),
         ],
       ),
-      floatingActionButton: isOwnProfile ? FloatingActionButton(
-        backgroundColor: Colors.black,
-        onPressed: () {
-          if (selectedSubject != null) {
-            showDialog(
-              context: context,
-              builder: (BuildContext context) {
-                return AddEditSectionDialog(
-                  subjects: subjects,
-                  initialSubjectId: selectedSubject.id,
-                );
-              },
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('الرجاء تحديد المادة أولاً')),
-            );
-          }
-        },
-        tooltip: 'إضافة سكشن جديد',
-        child: const Icon(Icons.add, color: Colors.white),
-      ) : null,
+      floatingActionButton:
+          isOwnProfile && _currentCategory == 'المواد'
+              ? FloatingActionButton(
+                backgroundColor: Colors.black,
+                onPressed: () {
+                  if (selectedSubject != null) {
+                    showDialog(
+                      context: context,
+                      builder: (BuildContext context) {
+                        return AddEditSectionDialog(
+                          subjects: subjects,
+                          initialSubjectId: selectedSubject.id,
+                        );
+                      },
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('الرجاء تحديد المادة أولاً'),
+                      ),
+                    );
+                  }
+                },
+                tooltip: 'إضافة سكشن جديد',
+                child: const Icon(Icons.add, color: Colors.white),
+              )
+              : null,
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Padding(

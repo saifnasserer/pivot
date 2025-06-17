@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pivot/screens/section1/signup/signup_page2.dart';
+import 'package:pivot/data/form_options.dart';
 import 'package:pivot/screens/models/circular_button.dart';
+import 'package:pivot/screens/models/custom_dropdown.dart';
 import 'package:pivot/screens/models/custom_text_field.dart';
 import '../../../responsive.dart';
 
@@ -24,6 +26,7 @@ class _Signup_1State extends State<Signup_1> {
   String _email = '';
   String _phone = '';
   String _password = '';
+  String _gender = 'ذكر';
 
   bool _isNameValid = false;
   bool _isEmailValid = false;
@@ -227,8 +230,24 @@ class _Signup_1State extends State<Signup_1> {
                             },
                             onEditingComplete: () {
                               FocusScope.of(context).unfocus();
-                              _submitPage1();
                             },
+                          ),
+                          SizedBox(
+                            height: Responsive.space(
+                              context,
+                              size: Space.medium,
+                            ),
+                          ),
+                          CustomDropdown(
+                            hint: 'النوع',
+                            value: _gender,
+                            items: FormOptions.genders,
+                            onChanged: (String? newValue) {
+                              setState(() {
+                                _gender = newValue!;
+                              });
+                            },
+                            isValid: true,
                           ),
                         ],
                       ),
@@ -267,6 +286,7 @@ class _Signup_1State extends State<Signup_1> {
                 email: _email.toLowerCase().trim(),
                 phone: _phone,
                 password: _password,
+                gender: _gender,
               ),
         ),
       );

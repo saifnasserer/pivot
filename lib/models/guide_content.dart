@@ -1,27 +1,28 @@
+import 'package:pivot/models/guidebook_model.dart';
+
 class GuideContent {
   final String id;
-  final String guidebookUrl;
-  final List<String> planImageUrls;
+  final List<Guidebook> guidebooks;
 
   GuideContent({
     this.id = 'default_guide',
-    required this.guidebookUrl,
-    required this.planImageUrls,
+    required this.guidebooks,
   });
 
   factory GuideContent.fromMap(Map<String, dynamic> map) {
     return GuideContent(
       id: map['id'] ?? 'default_guide',
-      guidebookUrl: map['guidebookUrl'] as String,
-      planImageUrls: List<String>.from(map['planImageUrls'] as List<dynamic>),
+      guidebooks: (map['guidebooks'] as List<dynamic>? ?? [])
+          .map((item) => Guidebook.fromMap(item as Map<String, dynamic>))
+          .toList(),
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
       'id': id,
-      'guidebookUrl': guidebookUrl,
-      'planImageUrls': planImageUrls,
+      'guidebooks': guidebooks.map((gb) => gb.toMap()).toList(),
     };
   }
 }
+

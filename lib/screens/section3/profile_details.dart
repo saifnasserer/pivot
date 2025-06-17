@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/responsive.dart';
 import 'package:auto_size_text/auto_size_text.dart';
-import 'package:pivot/screens/section2/adminstration/section_management_screen.dart';
 
 class ProfileDetails extends StatelessWidget {
   const ProfileDetails({super.key, required this.userProfile});
@@ -29,20 +28,12 @@ class ProfileDetails extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.end,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  if (userProfile.role == 'Super Admin')
-                    IconButton(
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      icon: const Icon(Icons.settings_outlined, color: Colors.grey),
-                      onPressed: () {
-                        Navigator.pushNamed(context, SectionManagementScreen.id);
-                      },
-                    ),
                   Expanded(
                     child: AutoSizeText(
                       userProfile.name,
                       style: TextStyle(
-                        fontSize: Responsive.space(context, size: Space.large) * 1.2,
+                        fontSize:
+                            Responsive.space(context, size: Space.large) * 1.2,
                         color: Colors.black,
                         fontWeight: FontWeight.bold,
                       ),
@@ -72,7 +63,7 @@ class ProfileDetails extends StatelessWidget {
             border: Border.all(color: Colors.black, width: 3.0),
           ),
           child: CircleAvatar(
-            radius: Responsive.space(context, size: Space.large) * 2,
+            radius: Responsive.space(context, size: Space.large) * 3,
             backgroundColor: Colors.black,
             child: ClipOval(
               child:
@@ -80,9 +71,9 @@ class ProfileDetails extends StatelessWidget {
                           userProfile.profileImageUrl!.isNotEmpty
                       ? CachedNetworkImage(
                         imageUrl: userProfile.profileImageUrl!,
-                        width: Responsive.space(context, size: Space.large) * 3,
+                        width: Responsive.space(context, size: Space.large) * 6,
                         height:
-                            Responsive.space(context, size: Space.large) * 3,
+                            Responsive.space(context, size: Space.large) * 6,
                         fit: BoxFit.cover,
                         placeholder:
                             (context, url) => const Center(

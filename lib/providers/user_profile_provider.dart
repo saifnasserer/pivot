@@ -1,6 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:io' show File;
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/user_profile.dart';
 
 class UserProfileProvider with ChangeNotifier {
@@ -153,6 +156,59 @@ class UserProfileProvider with ChangeNotifier {
       notifyListeners();
     } catch (e) {
       print('Failed to update about me: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> updateUserProfileData(String userId, Map<String, dynamic> data,
+      {XFile? imageFile}) async {
+    try {
+      String? imageUrl;
+      if (imageFile != null) {
+        // Upload image to Firebase Storage
+        final storageRef = FirebaseStorage.instance
+            .ref()
+            .child('profile_images')
+            .child('$userId.jpg');
+
+        if (kIsWeb) {
+          await storageRef.putData(await imageFile.readAsBytes());
+        } else {
+          await storageRef.putFile(File(imageFile.path));
+        }
+
+        imageUrl = await storageRef.getDownloadURL();
+        data['profileImageUrl'] = imageUrl;
+      }
+
+      final userRef = _firestore.collection('users').doc(userId);
+      await userRef.update(data);
+
+      // Update local cache
+      if (_userProfile?.id == userId) {
+        _userProfile = _userProfile?.copyWith(
+          name: data['name'],
+          level: data['level'],
+          department: data['department'],
+          section: data['section'],
+          gender: data['gender'],
+          profileImageUrl: imageUrl ?? _userProfile?.profileImageUrl,
+        );
+      }
+      if (_loggedInUserProfile?.id == userId) {
+        _loggedInUserProfile = _loggedInUserProfile?.copyWith(
+          name: data['name'],
+          level: data['level'],
+          department: data['department'],
+          section: data['section'],
+          gender: data['gender'],
+          profileImageUrl: imageUrl ?? _loggedInUserProfile?.profileImageUrl,
+        );
+      }
+
+      notifyListeners();
+    } catch (e) {
+      print('Error updating user profile: $e');
       rethrow;
     }
   }

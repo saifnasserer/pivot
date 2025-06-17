@@ -83,7 +83,9 @@ class _LoginState extends State<Login> {
     if (value == null || value.isEmpty) {
       return 'الرجاء إدخال البريد الإلكتروني';
     }
-    final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+    final emailRegex = RegExp(
+      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+    );
     if (!emailRegex.hasMatch(value)) {
       return 'الرجاء إدخال بريد إلكتروني صحيح';
     }
@@ -107,17 +109,18 @@ class _LoginState extends State<Login> {
 
     try {
       UserProfile? userProfile = await _authService.signInWithEmailAndPassword(
-          _email.toLowerCase().trim(), _password);
+        _email.toLowerCase().trim(),
+        _password,
+      );
       if (mounted && userProfile != null) {
-        final provider =
-            Provider.of<UserProfileProvider>(context, listen: false);
+        final provider = Provider.of<UserProfileProvider>(
+          context,
+          listen: false,
+        );
         provider.setLoggedInUserProfile(userProfile);
         provider.setUserProfile(userProfile);
 
-        await _promptEnableBiometric(
-          _email.toLowerCase().trim(),
-          _password,
-        );
+        await _promptEnableBiometric(_email.toLowerCase().trim(), _password);
 
         Navigator.pushNamedAndRemoveUntil(
           context,
@@ -171,10 +174,7 @@ class _LoginState extends State<Login> {
     }
   }
 
-  Future<void> _promptEnableBiometric(
-    String email,
-    String password,
-  ) async {
+  Future<void> _promptEnableBiometric(String email, String password) async {
     if (kIsWeb) return;
 
     final prefs = await SharedPreferences.getInstance();
@@ -182,23 +182,26 @@ class _LoginState extends State<Login> {
     final isBiometricEnabled = prefs.getBool('isBiometricEnabled') ?? false;
 
     if (isBiometricSupported && !isBiometricEnabled) {
-      final bool wantsToEnable = await showDialog<bool>(
+      final bool wantsToEnable =
+          await showDialog<bool>(
             context: context,
-            builder: (context) => AlertDialog(
-              title: const Text('Enable Biometric Login'),
-              content: const Text(
-                  'Would you like to enable biometric login for faster access?'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text('No'),
+            builder:
+                (context) => AlertDialog(
+                  title: const Text('Enable Biometric Login'),
+                  content: const Text(
+                    'Would you like to enable biometric login for faster access?',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: const Text('No'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      child: const Text('Yes'),
+                    ),
+                  ],
                 ),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(true),
-                  child: const Text('Yes'),
-                ),
-              ],
-            ),
           ) ??
           false;
 
@@ -243,7 +246,8 @@ class _LoginState extends State<Login> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
-                  'Biometric credentials not found. Please log in manually.'),
+                'Biometric credentials not found. Please log in manually.',
+              ),
               backgroundColor: Colors.orange,
             ),
           );
@@ -280,7 +284,10 @@ class _LoginState extends State<Login> {
           child: Center(
             child: SingleChildScrollView(
               child: Padding(
-                padding: Responsive.paddingHorizontal(context, size: Space.xlarge),
+                padding: Responsive.paddingHorizontal(
+                  context,
+                  size: Space.xlarge,
+                ),
                 child: Form(
                   key: _formKey,
                   child: AutofillGroup(
@@ -298,29 +305,18 @@ class _LoginState extends State<Login> {
                           ),
                         ),
                         SizedBox(
-                          height: Responsive.space(context, size: Space.xlarge) *
-                              2,
+                          height:
+                              Responsive.space(context, size: Space.xlarge) * 2,
                         ),
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 8.0),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                'البريد الإلكتروني',
-                                style: TextStyle(
-                                  fontSize: Responsive.text(
-                                    context,
-                                    size: TextSize.small,
-                                  ),
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const SizedBox(height: 8.0),
                               CustomTextField(
                                 controller: _emailController,
                                 focusNode: _emailFocus,
-                                hint: 'ادخل بريدك الإلكتروني',
+                                hint: 'الايميل الجامعي',
                                 keyboardType: TextInputType.emailAddress,
                                 validator: _validateEmail,
                                 isValid: _isEmailValid,
@@ -334,21 +330,10 @@ class _LoginState extends State<Login> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                'كلمة المرور',
-                                style: TextStyle(
-                                  fontSize: Responsive.text(
-                                    context,
-                                    size: TextSize.small,
-                                  ),
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const SizedBox(height: 8.0),
                               CustomTextField(
                                 controller: _passwordController,
                                 focusNode: _passwordFocus,
-                                hint: 'ادخل كلمة المرور',
+                                hint: 'الباسورد',
                                 validator: _validatePassword,
                                 obscureText: !_isPasswordVisible,
                                 isValid: _isPasswordValid,
@@ -381,8 +366,7 @@ class _LoginState extends State<Login> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) =>
-                                      ForgotPasswordScreen(),
+                                  builder: (context) => ForgotPasswordScreen(),
                                 ),
                               );
                             },
@@ -401,13 +385,9 @@ class _LoginState extends State<Login> {
                         ),
                         SizedBox(
                           height:
-                              Responsive.space(context, size: Space.xlarge) *
-                                  2,
+                              Responsive.space(context, size: Space.xlarge) * 2,
                         ),
-                        CircularButton(
-                          onPressed: _login,
-                          icon: Icons.check,
-                        ),
+                        CircularButton(onPressed: _login, icon: Icons.check),
                         if (_isBiometricAvailable)
                           Padding(
                             padding: const EdgeInsets.only(top: 24.0),

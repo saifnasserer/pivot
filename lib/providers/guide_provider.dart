@@ -1,10 +1,13 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:pivot/models/guide_content.dart';
+import 'package:pivot/models/guidebook_model.dart';
 
 class GuideProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -19,7 +22,8 @@ class GuideProvider with ChangeNotifier {
   String? _error;
   String? get error => _error;
 
-  CollectionReference get _guideCollection => _firestore.collection('guide_content');
+  CollectionReference get _guideCollection =>
+      _firestore.collection('guide_content');
 
   Future<void> fetchGuideContent() async {
     _isLoading = true;
@@ -29,9 +33,10 @@ class GuideProvider with ChangeNotifier {
     try {
       final docSnapshot = await _guideCollection.doc('default_guide').get();
       if (docSnapshot.exists) {
-        _guideContent = GuideContent.fromMap(docSnapshot.data() as Map<String, dynamic>);
+        _guideContent =
+            GuideContent.fromMap(docSnapshot.data() as Map<String, dynamic>);
       } else {
-        _guideContent = GuideContent(guidebookUrl: '', planImageUrls: []);
+        _guideContent = GuideContent(guidebooks: []);
         await _guideCollection.doc('default_guide').set(_guideContent!.toMap());
       }
     } catch (e) {
@@ -49,23 +54,47 @@ class GuideProvider with ChangeNotifier {
     return await snapshot.ref.getDownloadURL();
   }
 
-  Future<void> updateGuidebook() async {
+  Future<String> _uploadFileBytes(Uint8List bytes, String path) async {
+    final ref = _storage.ref().child(path);
+    final uploadTask = ref.putData(bytes);
+    final snapshot = await uploadTask.whenComplete(() => {});
+    return await snapshot.ref.getDownloadURL();
+  }
+
+  Future<void> addGuidebook() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf'],
     );
 
     if (result != null) {
-      File file = File(result.files.single.path!);
       _isLoading = true;
       notifyListeners();
 
       try {
-        final downloadUrl = await _uploadFile(file, 'guides/guidebook.pdf');
-        await _guideCollection.doc('default_guide').set(
-          {'guidebookUrl': downloadUrl},
-          SetOptions(merge: true),
+        String downloadUrl;
+        final String fileName = result.files.single.name;
+        final String storagePath =
+            'guides/${DateTime.now().millisecondsSinceEpoch}_$fileName';
+
+        if (kIsWeb) {
+          final Uint8List fileBytes = result.files.single.bytes!;
+          downloadUrl = await _uploadFileBytes(fileBytes, storagePath);
+        } else {
+          final File file = File(result.files.single.path!);
+          downloadUrl = await _uploadFile(file, storagePath);
+        }
+
+        final newGuidebook = Guidebook(
+          name: fileName,
+          url: downloadUrl,
+          storagePath: storagePath,
         );
+
+        await _guideCollection.doc('default_guide').update({
+          'guidebooks': FieldValue.arrayUnion([newGuidebook.toMap()])
+        });
+
         await fetchGuideContent();
       } catch (e) {
         _error = 'Failed to upload guidebook: $e';
@@ -76,52 +105,25 @@ class GuideProvider with ChangeNotifier {
     }
   }
 
-  Future<void> addPlanImage() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      type: FileType.image,
-    );
-
-    if (result != null) {
-      File file = File(result.files.single.path!);
-      _isLoading = true;
-      notifyListeners();
-
-      try {
-        final fileName = 'plan_${DateTime.now().millisecondsSinceEpoch}.jpg';
-        final downloadUrl = await _uploadFile(file, 'guides/plans/$fileName');
-        
-        await _guideCollection.doc('default_guide').update({
-          'planImageUrls': FieldValue.arrayUnion([downloadUrl])
-        });
-
-        await fetchGuideContent();
-      } catch (e) {
-        _error = 'Failed to upload plan image: $e';
-      } finally {
-        _isLoading = false;
-        notifyListeners();
-      }
-    }
-  }
-
-  Future<void> removePlanImage(String imageUrl) async {
+  Future<void> removeGuidebook(Guidebook guidebook) async {
     _isLoading = true;
     notifyListeners();
 
     try {
-      final ref = _storage.refFromURL(imageUrl);
+      final ref = _storage.ref().child(guidebook.storagePath);
       await ref.delete();
 
       await _guideCollection.doc('default_guide').update({
-        'planImageUrls': FieldValue.arrayRemove([imageUrl])
+        'guidebooks': FieldValue.arrayRemove([guidebook.toMap()])
       });
-      
+
       await fetchGuideContent();
     } catch (e) {
-      _error = 'Failed to remove plan image: $e';
+      _error = 'Failed to remove guidebook: $e';
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 }
+

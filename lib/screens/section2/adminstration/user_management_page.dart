@@ -44,20 +44,21 @@ class _UserManagementPageState extends State<UserManagementPage> {
     } catch (e) {
       setState(() => _isLoading = false);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('فشل في جلب المستخدمين: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('فشل في جلب المستخدمين: $e')));
     }
   }
 
   void _filterUsers() {
     final query = _searchController.text.toLowerCase();
     setState(() {
-      _filteredUsers = _allUsers.where((user) {
-        final userName = user.name.toLowerCase();
-        final userEmail = user.email?.toLowerCase() ?? '';
-        return userName.contains(query) || userEmail.contains(query);
-      }).toList();
+      _filteredUsers =
+          _allUsers.where((user) {
+            final userName = user.name.toLowerCase();
+            final userEmail = user.email?.toLowerCase() ?? '';
+            return userName.contains(query) || userEmail.contains(query);
+          }).toList();
     });
   }
 
@@ -77,15 +78,69 @@ class _UserManagementPageState extends State<UserManagementPage> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('فشل تحديث الدور: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('فشل تحديث الدور: $e')));
+    }
+  }
+
+  Future<void> _deleteUser(UserProfile user) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('تأكيد الحذف'),
+            content: Text(
+              'هل أنت متأكد أنك تريد حذف المستخدم ${user.name}? لا يمكن التراجع عن هذا الإجراء.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('إلغاء'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('حذف', style: TextStyle(color: Colors.red)),
+              ),
+            ],
+          ),
+    );
+
+    if (confirm == true) {
+      try {
+        await _authService.deleteUser(user.id);
+        setState(() {
+          _allUsers.removeWhere((u) => u.id == user.id);
+          _filteredUsers.removeWhere((u) => u.id == user.id);
+        });
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تم حذف المستخدم بنجاح'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('فشل حذف المستخدم: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final roles = ['Super Admin', 'Admin', 'Professor', 'miniProfessor', 'Student'];
+    final roles = [
+      'Super Admin',
+      'Admin',
+      'Professor',
+      'miniProfessor',
+      'Student',
+    ];
 
     return Directionality(
       textDirection: TextDirection.rtl,
@@ -112,99 +167,146 @@ class _UserManagementPageState extends State<UserManagementPage> {
                 ),
               ),
               Expanded(
-                child: _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _filteredUsers.isEmpty
+                child:
+                    _isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : _filteredUsers.isEmpty
                         ? Center(
-                            child: Text(
-                              'لا يوجد مستخدمين مطابقين للبحث',
-                              style: TextStyle(
-                                fontSize: Responsive.text(context, size: TextSize.medium),
-                                color: Colors.grey,
+                          child: Text(
+                            'لا يوجد مستخدمين مطابقين للبحث',
+                            style: TextStyle(
+                              fontSize: Responsive.text(
+                                context,
+                                size: TextSize.medium,
                               ),
+                              color: Colors.grey,
                             ),
-                          )
+                          ),
+                        )
                         : ListView.builder(
-                            padding: const EdgeInsets.all(8.0),
-                            itemCount: _filteredUsers.length,
-                            itemBuilder: (context, index) {
-                              final user = _filteredUsers[index];
-                              final selectedRole = _selectedRoles[user.id];
-                              final hasChanged = selectedRole != null && selectedRole != user.role;
+                          padding: const EdgeInsets.all(8.0),
+                          itemCount: _filteredUsers.length,
+                          itemBuilder: (context, index) {
+                            final user = _filteredUsers[index];
+                            final selectedRole = _selectedRoles[user.id];
+                            final hasChanged =
+                                selectedRole != null &&
+                                selectedRole != user.role;
 
-                              return Card(
-                                elevation: 4,
-                                margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(15),
+                            return Card(
+                              elevation: 4,
+                              margin: const EdgeInsets.symmetric(
+                                vertical: 8,
+                                horizontal: 8,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(15),
+                              ),
+                              child: Padding(
+                                padding: Responsive.padding(
+                                  context,
+                                  size: Space.medium,
                                 ),
-                                child: Padding(
-                                  padding: Responsive.padding(context, size: Space.medium),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        user.name,
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: Responsive.text(context, size: TextSize.medium),
-                                        ),
-                                      ),
-                                      Text(
-                                        user.email ?? 'لا يوجد بريد إلكتروني',
-                                        style: TextStyle(
-                                          color: Colors.grey[600],
-                                          fontSize: Responsive.text(context, size: TextSize.small),
-                                        ),
-                                      ),
-                                      SizedBox(height: Responsive.space(context, size: Space.medium)),
-                                      DropdownButtonFormField<String>(
-                                        value: selectedRole ?? user.role,
-                                        decoration: InputDecoration(
-                                          labelText: 'الدور الحالي',
-                                          border: OutlineInputBorder(
-                                            borderRadius: BorderRadius.circular(10),
-                                          ),
-                                        ),
-                                        items: roles.map((String value) {
-                                          return DropdownMenuItem<String>(
-                                            value: value,
-                                            child: Text(value),
-                                          );
-                                        }).toList(),
-                                        onChanged: (String? newValue) {
-                                          if (newValue != null) {
-                                            setState(() {
-                                              _selectedRoles[user.id] = newValue;
-                                            });
-                                          }
-                                        },
-                                      ),
-                                      if (hasChanged)
-                                        Padding(
-                                          padding: const EdgeInsets.only(top: 12.0),
-                                          child: Align(
-                                            alignment: Alignment.centerLeft,
-                                            child: ElevatedButton.icon(
-                                              onPressed: () => _updateRole(user),
-                                              icon: const Icon(Icons.save),
-                                              label: const Text('حفظ التغييرات'),
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: Theme.of(context).primaryColor,
-                                                foregroundColor: Colors.white,
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius: BorderRadius.circular(10),
-                                                ),
-                                              ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Text(
+                                          user.name,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: Responsive.text(
+                                              context,
+                                              size: TextSize.medium,
                                             ),
                                           ),
                                         ),
-                                    ],
-                                  ),
+                                        Spacer(),
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.delete_forever,
+                                            color: Colors.redAccent,
+                                          ),
+                                          onPressed: () => _deleteUser(user),
+                                          tooltip: 'حذف المستخدم',
+                                        ),
+                                      ],
+                                    ),
+                                    Text(
+                                      user.email ?? 'لا يوجد بريد إلكتروني',
+                                      style: TextStyle(
+                                        color: Colors.grey[600],
+                                        fontSize: Responsive.text(
+                                          context,
+                                          size: TextSize.small,
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      height: Responsive.space(
+                                        context,
+                                        size: Space.medium,
+                                      ),
+                                    ),
+                                    DropdownButtonFormField<String>(
+                                      value: selectedRole ?? user.role,
+                                      decoration: InputDecoration(
+                                        labelText: 'الدور الحالي',
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
+                                      ),
+                                      items:
+                                          roles.map((String value) {
+                                            return DropdownMenuItem<String>(
+                                              value: value,
+                                              child: Text(value),
+                                            );
+                                          }).toList(),
+                                      onChanged: (String? newValue) {
+                                        if (newValue != null) {
+                                          setState(() {
+                                            _selectedRoles[user.id] = newValue;
+                                          });
+                                        }
+                                      },
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 8.0),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          if (hasChanged)
+                                            ElevatedButton.icon(
+                                              onPressed:
+                                                  () => _updateRole(user),
+                                              icon: const Icon(Icons.save),
+                                              label: const Text('حفظ'),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor:
+                                                    Theme.of(
+                                                      context,
+                                                    ).primaryColor,
+                                                foregroundColor: Colors.white,
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(10),
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              );
-                            },
-                          ),
+                              ),
+                            );
+                          },
+                        ),
               ),
             ],
           ),

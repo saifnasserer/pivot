@@ -12,6 +12,7 @@ class UserProfile {
   String aboutMe;
   List<String> teachingSubjects;
   List<String> enrolledSubjects;
+  String gender;
 
   UserProfile({
     required this.id,
@@ -25,6 +26,7 @@ class UserProfile {
     this.aboutMe = '',
     this.teachingSubjects = const [],
     this.enrolledSubjects = const [],
+    this.gender = 'ذكر',
   });
 
   // Optional: copyWith method for easier updates
@@ -40,6 +42,7 @@ class UserProfile {
     String? aboutMe,
     List<String>? teachingSubjects,
     List<String>? enrolledSubjects,
+    String? gender,
   }) {
     return UserProfile(
       id: id ?? this.id,
@@ -53,6 +56,7 @@ class UserProfile {
       aboutMe: aboutMe ?? this.aboutMe,
       teachingSubjects: teachingSubjects ?? [...this.teachingSubjects],
       enrolledSubjects: enrolledSubjects ?? [...this.enrolledSubjects],
+      gender: gender ?? this.gender,
     );
   }
 
@@ -70,6 +74,7 @@ class UserProfile {
       aboutMe: json['aboutMe'] ?? '',
       teachingSubjects: List<String>.from(json['teachingSubjects'] ?? []),
       enrolledSubjects: List<String>.from(json['enrolledSubjects'] ?? []),
+      gender: json['gender'] as String? ?? 'ذكر',
     );
   }
 
@@ -87,6 +92,7 @@ class UserProfile {
       'aboutMe': aboutMe,
       'teachingSubjects': teachingSubjects,
       'enrolledSubjects': enrolledSubjects,
+      'gender': gender,
     };
   }
 
@@ -105,7 +111,8 @@ class UserProfile {
         other.role == role &&
         listEquals(other.teachingSubjects, teachingSubjects) &&
         listEquals(other.enrolledSubjects, enrolledSubjects) &&
-        other.aboutMe == aboutMe;
+        other.aboutMe == aboutMe &&
+        other.gender == gender;
   }
 
   @override
@@ -122,6 +129,7 @@ class UserProfile {
       Object.hashAll(teachingSubjects),
       Object.hashAll(enrolledSubjects),
       aboutMe,
+      gender,
     );
   }
 }

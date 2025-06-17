@@ -9,9 +9,11 @@ import 'package:pivot/screens/section1/first_landing.dart';
 import 'package:pivot/screens/section1/no_internet_screen.dart';
 import 'package:pivot/screens/section2/landing.dart';
 import 'package:pivot/services/auth_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:pivot/screens/section1/maintenance_screen.dart';
 import 'package:provider/provider.dart';
 
-enum AuthStatus { checking, noInternet, authenticated, unauthenticated }
+enum AuthStatus { checking, noInternet, authenticated, unauthenticated, maintenanceMode }
 
 class AuthWrapper extends StatefulWidget {
   static const String id = 'auth_wrapper';
@@ -36,6 +38,37 @@ class _AuthWrapperState extends State<AuthWrapper> {
   void dispose() {
     _authSubscription?.cancel();
     super.dispose();
+  }
+
+  Future<AuthStatus> _checkMaintenanceAndNavigate(UserProfileProvider provider) async {
+    try {
+      debugPrint('[AuthWrapper] Checking maintenance status from server...');
+      final maintenanceDoc = await FirebaseFirestore.instance
+          .collection('settings')
+          .doc('app')
+          .get(const GetOptions(source: Source.server));
+
+      final isMaintenanceMode =
+          maintenanceDoc.exists && (maintenanceDoc.data()?['isMaintenanceMode'] ?? false);
+      debugPrint('[AuthWrapper] Maintenance status from server: $isMaintenanceMode');
+
+      final userRole = provider.loggedInUserProfile?.role;
+      debugPrint('[AuthWrapper] User role from provider: $userRole');
+
+      if (isMaintenanceMode && userRole != 'Super Admin') {
+        debugPrint(
+            '[AuthWrapper] Condition MET: Maintenance is ON and user is NOT a Super Admin. Redirecting.');
+        return AuthStatus.maintenanceMode;
+      } else {
+        debugPrint(
+            '[AuthWrapper] Condition NOT MET: Maintenance is OFF or user IS a Super Admin. Proceeding.');
+        return AuthStatus.authenticated;
+      }
+    } catch (e) {
+      debugPrint(
+          '[AuthWrapper] Error checking maintenance mode: $e. Defaulting to normal authentication flow.');
+      return AuthStatus.authenticated;
+    }
   }
 
   Future<void> _handleAuthState(User? user) async {
@@ -63,10 +96,11 @@ class _AuthWrapperState extends State<AuthWrapper> {
     final provider = Provider.of<UserProfileProvider>(context, listen: false);
     if (provider.loggedInUserProfile != null &&
         provider.loggedInUserProfile!.id == user.uid) {
-      debugPrint(
-        '[AuthWrapper] Profile already loaded. Setting state to authenticated.',
-      );
-      setState(() => _status = AuthStatus.authenticated);
+      debugPrint('[AuthWrapper] Profile already loaded. Checking maintenance mode...');
+      final newStatus = await _checkMaintenanceAndNavigate(provider);
+      if (mounted) {
+        setState(() => _status = newStatus);
+      }
       return;
     }
 
@@ -78,10 +112,11 @@ class _AuthWrapperState extends State<AuthWrapper> {
       if (!mounted) return;
 
       if (profileLoaded) {
-        debugPrint(
-          '[AuthWrapper] Profile loaded successfully. Setting state to authenticated.',
-        );
-        setState(() => _status = AuthStatus.authenticated);
+        debugPrint('[AuthWrapper] Profile loaded successfully. Checking maintenance mode...');
+        final newStatus = await _checkMaintenanceAndNavigate(provider);
+        if (mounted) {
+          setState(() => _status = newStatus);
+        }
       } else {
         debugPrint('[AuthWrapper] Profile loading failed. Signing out.');
         await _authService.signOut(); // This will re-trigger the stream
@@ -123,6 +158,8 @@ class _AuthWrapperState extends State<AuthWrapper> {
         );
       case AuthStatus.unauthenticated:
         return const FirstLanding();
+      case AuthStatus.maintenanceMode:
+        return const MaintenanceScreen();
     }
   }
 }

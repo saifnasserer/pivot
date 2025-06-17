@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:pivot/screens/section2/landing.dart';
 import 'package:pivot/screens/models/circular_button.dart';
+import 'package:pivot/data/form_options.dart';
 import 'package:pivot/screens/models/custom_dropdown.dart';
 import '../../../../responsive.dart';
 import 'package:provider/provider.dart';
@@ -9,7 +10,6 @@ import '../../../providers/user_profile_provider.dart';
 import '../../../models/user_profile.dart';
 import '../../../services/auth_service.dart'; // Import AuthService
 import '../../../services/local_auth_service.dart';
-import '../../../providers/settings_provider.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -19,6 +19,7 @@ class Signup_2 extends StatefulWidget {
   final String email;
   final String phone;
   final String password;
+  final String gender;
 
   const Signup_2({
     super.key,
@@ -26,6 +27,7 @@ class Signup_2 extends StatefulWidget {
     required this.email,
     required this.phone,
     required this.password,
+    required this.gender,
   });
 
   static String id = 'signup2';
@@ -46,18 +48,7 @@ class _Signup_2State extends State<Signup_2> {
   String? selectedDepartment;
   String? selectedSection;
 
-  // Store the full list of departments
-  final List<String> _allDepartments = ['CS', 'IS', 'AI', 'SC', 'General'];
-
-  // State variable for currently available departments
   List<String> _availableDepartments = [];
-
-  final List<String> years = [
-    'الفرقة الأولى',
-    'الفرقة الثانية',
-    'الفرقة الثالثة',
-    'الفرقة الرابعة',
-  ];
   List<String> _availableSections = [];
 
   // Declare and initialize AuthService
@@ -68,8 +59,7 @@ class _Signup_2State extends State<Signup_2> {
   @override
   void initState() {
     super.initState();
-    // Initialize available departments with the full list
-    _availableDepartments = List.from(_allDepartments);
+    _availableDepartments = FormOptions.getDepartmentsForYear(null);
   }
 
   Future<void> _promptEnableBiometrics(
@@ -200,36 +190,25 @@ class _Signup_2State extends State<Signup_2> {
                         ),
                         CustomDropdown(
                           value: selectedYear,
-                          items: years,
+                          items: FormOptions.academicYears,
                           hint: 'اختر الفرقة',
                           isValid: _isYearValid,
                           onChanged: (String? newValue) {
                             setState(() {
                               selectedYear = newValue;
                               _isYearValid = true;
+
+                              // Reset and update dependent dropdowns
                               selectedDepartment = null;
                               _isDepartmentValid = false;
                               selectedSection = null;
                               _isSectionValid = false;
-                              _availableSections = []; // Clear sections
 
-                              if (newValue == 'الفرقة الأولى' ||
-                                  newValue == 'الفرقة الثانية') {
-                                _availableDepartments =
-                                    _allDepartments
-                                        .where((d) => d == 'General')
-                                        .toList();
-                              } else {
-                                _availableDepartments =
-                                    _allDepartments
-                                        .where((d) => d != 'General')
-                                        .toList();
-                              }
+                              _availableDepartments = FormOptions.getDepartmentsForYear(newValue);
+                              _availableSections = FormOptions.getSectionsForYear(newValue, null);
                             });
                             WidgetsBinding.instance.addPostFrameCallback((_) {
-                              FocusScope.of(
-                                context,
-                              ).requestFocus(_departmentFocus);
+                              FocusScope.of(context).requestFocus(_departmentFocus);
                             });
                           },
                         ),
@@ -245,28 +224,14 @@ class _Signup_2State extends State<Signup_2> {
                             setState(() {
                               selectedDepartment = newValue;
                               _isDepartmentValid = true;
-                              selectedSection = null; // Reset section
-                              _isSectionValid = false;
 
-                              if (newValue == 'General') {
-                                _availableSections = ['Not Applicable'];
-                                selectedSection = 'Not Applicable';
-                                _isSectionValid = true;
-                              } else if (newValue != null) {
-                                final settingsProvider =
-                                    Provider.of<SettingsProvider>(
-                                      context,
-                                      listen: false,
-                                    );
-                                final count =
-                                    settingsProvider.sectionCounts[newValue] ??
-                                    8; // Default to 8
-                                _availableSections = List.generate(
-                                  count,
-                                  (i) => (i + 1).toString(),
-                                );
-                              } else {
-                                _availableSections = [];
+                              _availableSections =
+                                  FormOptions.getSectionsForYear(
+                                      selectedYear, selectedDepartment);
+                              if (!_availableSections
+                                  .contains(selectedSection)) {
+                                selectedSection = null;
+                                _isSectionValid = false;
                               }
                             });
                             WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -342,6 +307,7 @@ class _Signup_2State extends State<Signup_2> {
         'level': selectedYear,
         'section': selectedSection,
         'profileImageUrl': null,
+        'gender': widget.gender,
       };
 
       try {

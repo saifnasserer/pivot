@@ -8,6 +8,7 @@ import 'package:pivot/screens/section2/adminstration/global_subject_management_s
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pivot/screens/section1/auth_wrapper.dart';
+import 'package:pivot/services/remote_config_service.dart';
 
 class SuperAdminPanelScreen extends StatefulWidget {
   const SuperAdminPanelScreen({super.key});
@@ -172,20 +173,43 @@ class _SuperAdminPanelScreenState extends State<SuperAdminPanelScreen> {
             },
           ),
           const Divider(height: 1),
+          // ListTile(
+          //   leading: const Icon(Icons.cleaning_services),
+          //   title: Text(
+          //     'مسح ذاكرة التخزين المؤقت للصور',
+          //     style: TextStyle(
+          //       fontSize: Responsive.text(context, size: TextSize.medium),
+          //     ),
+          //   ),
+          //   onTap: () async {
+          //     await provider.clearImageCache();
+          //     if (!context.mounted) return;
+          //     ScaffoldMessenger.of(context).showSnackBar(
+          //       const SnackBar(
+          //         content: Text('تم مسح ذاكرة التخزين المؤقت للصور بنجاح!'),
+          //       ),
+          //     );
+          //   },
+          // ),
+          const Divider(height: 1),
           ListTile(
-            leading: const Icon(Icons.cleaning_services),
+            leading: const Icon(Icons.sync),
             title: Text(
-              'مسح ذاكرة التخزين المؤقت للصور',
+              'ارفع الابديت (Remote Config)',
               style: TextStyle(
                 fontSize: Responsive.text(context, size: TextSize.medium),
               ),
             ),
             onTap: () async {
-              await provider.clearImageCache();
+              final remoteConfigService = Provider.of<RemoteConfigService>(
+                context,
+                listen: false,
+              );
+              final success = await remoteConfigService.forceFetch();
               if (!context.mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('تم مسح ذاكرة التخزين المؤقت للصور بنجاح!'),
+                SnackBar(
+                  content: Text(success ? 'تم التحديث بنجاح!' : 'فشل التحديث.'),
                 ),
               );
             },
@@ -214,25 +238,33 @@ class _SuperAdminPanelScreenState extends State<SuperAdminPanelScreen> {
         return Directionality(
           textDirection: TextDirection.rtl,
           child: AlertDialog(
-            title: const Text('تأكيد تسجيل الخروج'),
-            content: const Text('هل أنت متأكد أنك تريد تسجيل الخروج؟'),
+            title: const Text('تسجيل الخروج', textAlign: TextAlign.center),
             actions: <Widget>[
-              TextButton(
-                child: const Text('لا'),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-              ),
-              TextButton(
-                child: const Text('نعم'),
-                onPressed: () async {
-                  await FirebaseAuth.instance.signOut();
-                  if (!mounted) return;
-                  Navigator.of(context).pushNamedAndRemoveUntil(
-                    AuthWrapper.id,
-                    (Route<dynamic> route) => false,
-                  );
-                },
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  TextButton(
+                    style: TextButton.styleFrom(backgroundColor: Colors.red),
+                    child: const Text(
+                      'تأكيد',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    onPressed: () async {
+                      await FirebaseAuth.instance.signOut();
+                      if (!mounted) return;
+                      Navigator.of(context).pushNamedAndRemoveUntil(
+                        AuthWrapper.id,
+                        (Route<dynamic> route) => false,
+                      );
+                    },
+                  ),
+                  TextButton(
+                    child: const Text('لا'),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                ],
               ),
             ],
           ),

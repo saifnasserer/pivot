@@ -5,7 +5,6 @@ import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/screens/section2/adminstration/add_edit_subject_dialog.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/providers/guide_provider.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class GlobalSubjectManagementScreen extends StatefulWidget {
@@ -305,111 +304,54 @@ class _GlobalSubjectManagementScreenState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('دليل الكلية (PDF)',
+                    const Text('أدلة القسم',
                         style: TextStyle(
                             fontSize: 18, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 16),
-                    if (guideContent.guidebookUrl.isNotEmpty)
-                      ListTile(
-                        leading:
-                            Icon(Icons.picture_as_pdf, color: Colors.red),
-                        title: Text('عرض الدليل الحالي'),
-                        onTap: () async {
-                          final uri = Uri.parse(guideContent.guidebookUrl);
-                          if (await canLaunchUrl(uri)) {
-                            await launchUrl(uri);
-                          }
-                        },
-                      ),
-                    const SizedBox(height: 16),
-                    Center(
-                      child: ElevatedButton.icon(
-                        icon: Icon(Icons.upload_file),
-                        label: Text('تحديث ملف الدليل'),
-                        onPressed: guideProvider.isLoading
-                            ? null
-                            : () => guideProvider.updateGuidebook(),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Card(
-              elevation: 3.0,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('صور الخطط المقترحة',
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 16),
-                    if (guideContent.planImageUrls.isEmpty)
-                      Center(child: Text('لا توجد صور حالياً.')),
-                    if (guideContent.planImageUrls.isNotEmpty)
-                      GridView.builder(
+                    if (guideContent.guidebooks.isEmpty)
+                      const Center(child: Text('لا توجد أدلة متاحة حالياً.')),
+                    if (guideContent.guidebooks.isNotEmpty)
+                      ListView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 10,
-                          mainAxisSpacing: 10,
-                        ),
-                        itemCount: guideContent.planImageUrls.length,
+                        itemCount: guideContent.guidebooks.length,
                         itemBuilder: (context, index) {
-                          final imageUrl =
-                              guideContent.planImageUrls[index];
-                          return Stack(
-                            alignment: Alignment.topLeft,
-                            children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: CachedNetworkImage(
-                                  imageUrl: imageUrl,
-                                  fit: BoxFit.cover,
-                                  width: double.infinity,
-                                  height: double.infinity,
-                                  placeholder: (context, url) => Center(
-                                      child: CircularProgressIndicator()),
-                                  errorWidget: (context, url, error) =>
-                                      Icon(Icons.error),
-                                ),
+                          final guidebook = guideContent.guidebooks[index];
+                          return Card(
+                            margin: const EdgeInsets.symmetric(vertical: 4.0),
+                            child: ListTile(
+                              leading: const Icon(Icons.picture_as_pdf,
+                                  color: Colors.red),
+                              title: Text(
+                                guidebook.name,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              Positioned(
-                                top: 4,
-                                left: 4,
-                                child: CircleAvatar(
-                                  backgroundColor: Colors.black54,
-                                  radius: 16,
-                                  child: IconButton(
-                                    padding: EdgeInsets.zero,
-                                    icon: Icon(Icons.close,
-                                        color: Colors.white, size: 16),
-                                    onPressed: guideProvider.isLoading
-                                        ? null
-                                        : () => guideProvider
-                                            .removePlanImage(imageUrl),
-                                  ),
-                                ),
+                              trailing: IconButton(
+                                icon: const Icon(Icons.delete,
+                                    color: Colors.redAccent),
+                                onPressed: guideProvider.isLoading
+                                    ? null
+                                    : () => guideProvider
+                                        .removeGuidebook(guidebook),
                               ),
-                            ],
+                              onTap: () async {
+                                final uri = Uri.parse(guidebook.url);
+                                if (await canLaunchUrl(uri)) {
+                                  await launchUrl(uri);
+                                }
+                              },
+                            ),
                           );
                         },
                       ),
                     const SizedBox(height: 16),
                     Center(
                       child: ElevatedButton.icon(
-                        icon: Icon(Icons.add_a_photo),
-                        label: Text('إضافة صورة خطة'),
+                        icon: const Icon(Icons.upload_file),
+                        label: const Text('إضافة دليل جديد (PDF)'),
                         onPressed: guideProvider.isLoading
                             ? null
-                            : () => guideProvider.addPlanImage(),
+                            : () => guideProvider.addGuidebook(),
                       ),
                     ),
                   ],

@@ -36,7 +36,11 @@ Future<void> profile_options(BuildContext context) async {
           children: [
             Icon(Icons.logout, color: Colors.white),
             SizedBox(width: 10),
-            Text('تسجيل الخروج', style: TextStyle(color: Colors.white)),
+            Text(
+              'تسجيل الخروج',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white),
+            ),
           ],
         ),
       ),
@@ -140,7 +144,9 @@ Future<void> profile_options(BuildContext context) async {
       Navigator.pushNamed(context, GlobalSubjectManagementScreen.id);
       break;
     case 'edit_profile':
-      Navigator.pushNamed(context, EditProfile.id);
+      if (userProfile != null) {
+        Navigator.pushNamed(context, EditProfile.id, arguments: userProfile);
+      }
       break;
     case 'select_subjects':
       if (userProfile?.role == 'Student') {
@@ -190,19 +196,26 @@ Future<void> profile_options(BuildContext context) async {
         );
         if (selectedIds != null) {
           try {
-            final userProfileProvider =
-                Provider.of<UserProfileProvider>(context, listen: false);
+            final userProfileProvider = Provider.of<UserProfileProvider>(
+              context,
+              listen: false,
+            );
             await userProfileProvider.updateTeachingSubjects(selectedIds);
 
             if (context.mounted) {
-              final subjectProvider =
-                  Provider.of<SubjectProvider>(context, listen: false);
-              await subjectProvider
-                  .fetchAndFilterSubjects(userProfileProvider.userProfile);
+              final subjectProvider = Provider.of<SubjectProvider>(
+                context,
+                listen: false,
+              );
+              await subjectProvider.fetchAndFilterSubjects(
+                userProfileProvider.userProfile,
+              );
 
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('Your subjects have been updated successfully.'),
+                  content: Text(
+                    'Your subjects have been updated successfully.',
+                  ),
                   backgroundColor: Colors.green,
                 ),
               );
@@ -232,15 +245,20 @@ Future<void> profile_options(BuildContext context) async {
       );
       if (selectedIds != null) {
         try {
-          final userProfileProvider =
-              Provider.of<UserProfileProvider>(context, listen: false);
+          final userProfileProvider = Provider.of<UserProfileProvider>(
+            context,
+            listen: false,
+          );
           await userProfileProvider.updateEnrolledSubjects(selectedIds);
 
           if (context.mounted) {
-            final subjectProvider =
-                Provider.of<SubjectProvider>(context, listen: false);
-            await subjectProvider
-                .fetchAndFilterSubjects(userProfileProvider.userProfile);
+            final subjectProvider = Provider.of<SubjectProvider>(
+              context,
+              listen: false,
+            );
+            await subjectProvider.fetchAndFilterSubjects(
+              userProfileProvider.userProfile,
+            );
 
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
@@ -276,40 +294,54 @@ Future<void> _showLogoutConfirmationDialog(BuildContext context) async {
       return Directionality(
         textDirection: TextDirection.rtl,
         child: AlertDialog(
-          title: const Text('تأكيد تسجيل الخروج'),
+          title: const Text('تسجيل الخروج؟', textAlign: TextAlign.center),
           content: const SingleChildScrollView(
-            child: ListBody(
-              children: <Widget>[
-                Text('هل أنت متأكد أنك تريد تسجيل الخروج؟'),
-              ],
-            ),
+            // child: ListBody(
+            //   children: <Widget>[
+            //     Text('هل أنت متأكد أنك تريد تسجيل الخروج؟'),
+            //   ],
+            // ),
           ),
           actions: <Widget>[
-            TextButton(
-              child: const Text('لا'),
-              onPressed: () {
-                Navigator.of(dialogContext).pop(); // Dismiss the dialog
-              },
-            ),
-            TextButton(
-              child: const Text('نعم'),
-              onPressed: () async {
-                Navigator.of(dialogContext).pop(); // Dismiss the dialog
-                final storage = const FlutterSecureStorage();
-                await storage.deleteAll();
-                await FirebaseAuth.instance.signOut();
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                TextButton(
+                  style: ButtonStyle(
+                    backgroundColor: WidgetStatePropertyAll(Colors.red),
+                  ),
+                  child: const Text(
+                    'تأكيد',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  onPressed: () async {
+                    Navigator.of(dialogContext).pop(); // Dismiss the dialog
+                    final storage = const FlutterSecureStorage();
+                    await storage.deleteAll();
+                    await FirebaseAuth.instance.signOut();
 
-                if (context.mounted) {
-                  Provider.of<UserProfileProvider>(context, listen: false)
-                      .clearProfile();
+                    if (context.mounted) {
+                      Provider.of<UserProfileProvider>(
+                        context,
+                        listen: false,
+                      ).clearProfile();
 
-                  Navigator.pushNamedAndRemoveUntil(
-                    context,
-                    FirstLanding.id,
-                    (Route<dynamic> route) => false,
-                  );
-                }
-              },
+                      Navigator.pushNamedAndRemoveUntil(
+                        context,
+                        FirstLanding.id,
+                        (Route<dynamic> route) => false,
+                      );
+                    }
+                  },
+                ),
+                TextButton(
+                  child: const Text('لا', textAlign: TextAlign.center),
+                  onPressed: () {
+                    Navigator.of(dialogContext).pop(); // Dismiss the dialog
+                  },
+                ),
+              ],
             ),
           ],
         ),

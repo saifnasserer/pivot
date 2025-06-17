@@ -5,12 +5,12 @@ import 'package:pivot/providers/doctor_subject_provider.dart';
 import 'package:pivot/providers/subject_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
-import 'package:pivot/screens/models/category_model.dart';
-import 'package:pivot/screens/models/material_links_widget.dart';
-import 'package:pivot/screens/section3/profile_widgets/Profile_options.dart';
 import 'package:pivot/screens/section4/doctor/add_subject_link_dialog.dart';
 import 'package:pivot/screens/section4/doctor/doctor_categories.dart';
 import 'package:pivot/screens/section4/doctor_details.dart';
+import 'package:pivot/screens/models/category_model.dart';
+import 'package:pivot/screens/models/material_links_widget.dart';
+import 'package:pivot/screens/section3/profile_widgets/Profile_options.dart';
 import 'package:provider/provider.dart';
 
 class DoctorProfile extends StatefulWidget {
@@ -28,16 +28,6 @@ class _DoctorProfileState extends State<DoctorProfile> {
   String? _previousProfileId;
   bool _isEditingAboutMe = false;
   late TextEditingController _aboutMeController;
-
-  bool get _canEdit {
-    final currentUser = context.read<UserProfileProvider>().userProfile;
-    if (currentUser == null) {
-      return false;
-    }
-    final role = currentUser.role;
-    const allowedRoles = ['Super Admin', 'Admin', 'Professor'];
-    return allowedRoles.contains(role);
-  }
 
   @override
   void initState() {
@@ -58,7 +48,6 @@ class _DoctorProfileState extends State<DoctorProfile> {
     final argument = ModalRoute.of(context)?.settings.arguments;
     UserProfile? profileToShow;
 
-
     if (argument is UserProfile) {
       profileToShow = argument;
     } else {
@@ -78,7 +67,9 @@ class _DoctorProfileState extends State<DoctorProfile> {
   }
 
   void _fetchInitialData(UserProfile userProfile) {
-    context.read<SubjectProvider>().fetchAndFilterSubjects(userProfile).then((_) {
+    context.read<SubjectProvider>().fetchAndFilterSubjects(userProfile).then((
+      _,
+    ) {
       if (mounted) {
         final subjects = context.read<SubjectProvider>().filteredSubjects;
         if (subjects.isNotEmpty) {
@@ -103,9 +94,10 @@ class _DoctorProfileState extends State<DoctorProfile> {
       if (subjects.isNotEmpty && index < subjects.length) {
         final subjectId = subjects[index].id;
         final doctorId = _displayedProfile!.id;
-        context
-            .read<DoctorSubjectProvider>()
-            .fetchLecturesForSubject(doctorId, subjectId);
+        context.read<DoctorSubjectProvider>().fetchLecturesForSubject(
+          doctorId,
+          subjectId,
+        );
       }
     }
   }
@@ -133,21 +125,28 @@ class _DoctorProfileState extends State<DoctorProfile> {
     }
   }
 
-  List<Widget> _getCategoryContentSlivers() {
-    final subjectProvider = context.watch<SubjectProvider>();
-    final doctorSubjectProvider = context.watch<DoctorSubjectProvider>();
+  List<Widget> _getCategoryContentSlivers(BuildContext context) {
+    final loggedInUser = context.watch<UserProfileProvider>().userProfile;
+    final isOwnProfile = loggedInUser?.id == _displayedProfile?.id;
     final userProfile = _displayedProfile;
 
     if (userProfile == null) {
       return [const SliverToBoxAdapter(child: SizedBox.shrink())];
     }
 
+    final subjectProvider = context.watch<SubjectProvider>();
+    final doctorSubjectProvider = context.watch<DoctorSubjectProvider>();
+
     switch (_currentCategory) {
       case 'المواد':
         final subjects = subjectProvider.filteredSubjects;
 
         if (subjectProvider.isLoading) {
-          return [const SliverFillRemaining(child: Center(child: CircularProgressIndicator()))];
+          return [
+            const SliverFillRemaining(
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          ];
         }
 
         if (subjects.isEmpty) {
@@ -182,9 +181,13 @@ class _DoctorProfileState extends State<DoctorProfile> {
           ),
           const SliverToBoxAdapter(child: Divider(indent: 4, endIndent: 1)),
           if (doctorSubjectProvider.isLoading)
-            const SliverFillRemaining(child: Center(child: CircularProgressIndicator()))
+            const SliverFillRemaining(
+              child: Center(child: CircularProgressIndicator()),
+            )
           else if (doctorSubjectProvider.error != null)
-            SliverFillRemaining(child: Center(child: Text(doctorSubjectProvider.error!)))
+            SliverFillRemaining(
+              child: Center(child: Text(doctorSubjectProvider.error!)),
+            )
           else if (lectures.isEmpty)
             const SliverToBoxAdapter(
               child: Padding(
@@ -195,25 +198,35 @@ class _DoctorProfileState extends State<DoctorProfile> {
           else
             SliverList(
               delegate: SliverChildBuilderDelegate(
-                (context, index) =>
-                    SubjectModel(lecture: lectures[index], canEdit: _canEdit),
+                (context, index) => SubjectModel(
+                  lecture: lectures[index],
+                  canEdit: isOwnProfile,
+                ),
                 childCount: lectures.length,
               ),
             ),
         ];
-      case 'حول':
+      case 'عن الدكتور':
         return [
           SliverToBoxAdapter(
-            child: _isEditingAboutMe
-                ? _buildAboutMeEditor(context, userProfile)
-                : _buildAboutMeDisplay(context, userProfile),
+            child: Directionality(
+              textDirection: TextDirection.rtl,
+              child:
+                  _isEditingAboutMe
+                      ? _buildAboutMeEditor(context, userProfile)
+                      : _buildAboutMeDisplay(
+                        context,
+                        userProfile,
+                        isOwnProfile,
+                      ),
+            ),
           ),
         ];
       default:
         return [
           const SliverFillRemaining(
             child: Center(child: Text('Content not available.')),
-          )
+          ),
         ];
     }
   }
@@ -221,28 +234,39 @@ class _DoctorProfileState extends State<DoctorProfile> {
   Widget _buildAboutMeDisplay(
     BuildContext context,
     UserProfile userProfile,
+    bool canEdit,
   ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text('About Me', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            if (_canEdit)
-              IconButton(
-                icon: const Icon(Icons.edit),
-                onPressed: () {
-                  setState(() {
-                    _isEditingAboutMe = true;
-                  });
-                },
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'عن الدكتور',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Text(userProfile.aboutMe.isNotEmpty ? userProfile.aboutMe : 'Not provided yet.'),
-      ],
+              if (canEdit)
+                IconButton(
+                  icon: const Icon(Icons.edit),
+                  onPressed: () {
+                    setState(() {
+                      _isEditingAboutMe = true;
+                    });
+                  },
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            userProfile.aboutMe.isNotEmpty
+                ? userProfile.aboutMe
+                : 'Not provided yet.',
+          ),
+        ],
+      ),
     );
   }
 
@@ -271,7 +295,10 @@ class _DoctorProfileState extends State<DoctorProfile> {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               TextButton(
-                child: const Text('Cancel'),
+                child: const Text(
+                  'الغاء',
+                  style: TextStyle(color: Colors.black),
+                ),
                 onPressed: () {
                   setState(() {
                     _isEditingAboutMe = false;
@@ -280,7 +307,8 @@ class _DoctorProfileState extends State<DoctorProfile> {
                 },
               ),
               ElevatedButton(
-                child: const Text('Save'),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.black),
+                child: const Text('حفظ', style: TextStyle(color: Colors.white)),
                 onPressed: () async {
                   try {
                     await userProfileProvider.updateAboutMe(
@@ -295,6 +323,9 @@ class _DoctorProfileState extends State<DoctorProfile> {
                         ),
                       );
                       setState(() {
+                        _displayedProfile = userProfile.copyWith(
+                          aboutMe: _aboutMeController.text,
+                        );
                         _isEditingAboutMe = false;
                       });
                     }
@@ -320,6 +351,8 @@ class _DoctorProfileState extends State<DoctorProfile> {
   @override
   Widget build(BuildContext context) {
     final userProfile = _displayedProfile;
+    final loggedInUser = context.watch<UserProfileProvider>().userProfile;
+    final isOwnProfile = loggedInUser?.id == userProfile?.id;
 
     final appBar = AppBar(
       backgroundColor: Colors.white,
@@ -330,10 +363,11 @@ class _DoctorProfileState extends State<DoctorProfile> {
         onPressed: () => Navigator.pop(context),
       ),
       actions: [
-        IconButton(
-          icon: const Icon(Icons.more_vert_sharp, color: Colors.black),
-          onPressed: () => profile_options(context),
-        ),
+        if (isOwnProfile)
+          IconButton(
+            icon: const Icon(Icons.more_vert_sharp, color: Colors.black),
+            onPressed: () => profile_options(context),
+          ),
       ],
     );
 
@@ -344,14 +378,17 @@ class _DoctorProfileState extends State<DoctorProfile> {
       );
     }
 
+
+
     return Scaffold(
       backgroundColor: Colors.white,
-      floatingActionButton: _canEdit && _currentCategory == 'المواد'
-          ? FloatingActionButton(
-              onPressed: _showAddLectureDialog,
-              child: const Icon(Icons.add),
-            )
-          : null,
+      floatingActionButton:
+          isOwnProfile && _currentCategory == 'المواد'
+              ? FloatingActionButton(
+                onPressed: _showAddLectureDialog,
+                child: const Icon(Icons.add),
+              )
+              : null,
       appBar: appBar,
       body: SafeArea(
         child: Padding(
@@ -377,7 +414,7 @@ class _DoctorProfileState extends State<DoctorProfile> {
                 ),
               ),
               const SliverToBoxAdapter(child: Divider(indent: 4, endIndent: 1)),
-              ..._getCategoryContentSlivers(),
+              ..._getCategoryContentSlivers(context),
             ],
           ),
         ),
