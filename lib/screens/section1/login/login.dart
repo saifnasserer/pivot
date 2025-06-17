@@ -7,7 +7,7 @@ import 'package:pivot/screens/section2/landing.dart';
 import 'package:pivot/screens/models/circular_button.dart';
 import 'package:pivot/screens/models/custom_text_field.dart';
 import 'package:provider/provider.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // Add this import
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../responsive.dart';
 import '../../../services/auth_service.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -23,226 +23,69 @@ class Login extends StatefulWidget {
 }
 
 class _LoginState extends State<Login> {
-  bool _isBiometricAvailable = false;
-  final _storage = const FlutterSecureStorage();
   final _formKey = GlobalKey<FormState>();
   final FocusNode _emailFocus = FocusNode();
   final FocusNode _passwordFocus = FocusNode();
 
-  // Add an instance of AuthService
   final AuthService _authService = AuthService();
+  final LocalAuthService _localAuthService = LocalAuthService();
+  final _storage = const FlutterSecureStorage();
+
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
 
   String _email = '';
   String _password = '';
-
   bool _isPasswordVisible = false;
-
   bool _isEmailValid = false;
-
   bool _isPasswordValid = false;
+  bool _isBiometricAvailable = false;
 
-  Future<void> _login() async {
-    if (_formKey.currentState!.validate()) {
-      _formKey.currentState!.save();
-      try {
-        UserProfile? userProfile = await _authService.signInWithEmailAndPassword(
-            _email.toLowerCase().trim(), _password);
-        if (mounted && userProfile != null) {
-          final provider =
-              Provider.of<UserProfileProvider>(context, listen: false);
-          provider.setLoggedInUserProfile(userProfile);
-          provider.setUserProfile(userProfile);
+  @override
+  void initState() {
+    super.initState();
+    _initBiometrics();
+    _emailController.addListener(() {
+      setState(() {
+        _isEmailValid = _validateEmail(_emailController.text) == null;
+      });
+    });
+    _passwordController.addListener(() {
+      setState(() {
+        _isPasswordValid = _validatePassword(_passwordController.text) == null;
+      });
+    });
+  }
 
-          // After successful login, check if we should prompt for biometrics.
-          await _promptEnableBiometric(
-            userProfile.id,
-            _email.toLowerCase().trim(),
-            _password,
-          );
-
-          Navigator.pushNamedAndRemoveUntil(
-            context,
-            Landing.id,
-            (route) => false,
-          );
-        }
-      } on FirebaseAuthException catch (e) {
-        String errorMessage;
-        switch (e.code) {
-          case 'user-not-found':
-          case 'invalid-credential':
-            errorMessage = 'اما فية غلط في البيانات او المستخدم غير مسجل';
-            break;
-          case 'wrong-password':
-            errorMessage = 'كلمة المرور غير صحيحة.';
-            break;
-          case 'invalid-email':
-            errorMessage = 'البريد الإلكتروني غير صالح.';
-            break;
-          case 'user-disabled':
-            errorMessage = 'تم تعطيل هذا المستخدم.';
-            break;
-          default:
-            errorMessage = 'حدث خطأ غير متوقع. حاول مرة أخرى.';
-        }
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                errorMessage,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: Responsive.text(context) * .9,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('An error occurred: ${e.toString()}'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
+  Future<void> _initBiometrics() async {
+    if (!kIsWeb) {
+      final isAvailable = await _localAuthService.isBiometricSupported();
+      final prefs = await SharedPreferences.getInstance();
+      final isBiometricEnabled = prefs.getBool('isBiometricEnabled') ?? false;
+      if (mounted) {
+        setState(() {
+          _isBiometricAvailable = isAvailable && isBiometricEnabled;
+        });
       }
     }
   }
 
-  Future<void> _promptEnableBiometric(
-    String uid,
-    String email,
-    String password,
-  ) async {
-    if (kIsWeb) {
-      return;
-    }
-
-    final bool canAuth = await LocalAuthService.canAuthenticate();
-    final prefs = await SharedPreferences.getInstance();
-    final bool alreadyEnabled = prefs.getBool('biometric_enabled_$uid') ?? false;
-
-    if (mounted && canAuth && !alreadyEnabled) {
-      final bool enable = await showDialog<bool>(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: const Text('تمكين تسجيل الدخول بالبصمة'),
-              content: const Text(
-                'هل ترغب في استخدام بصمة الإصبع أو معرف الوجه لتسجيل الدخول بشكل أسرع في المرة القادمة؟',
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text('لاحقاً'),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(true),
-                  child: const Text('تمكين'),
-                ),
-              ],
-            ),
-          ) ??
-          false;
-
-      if (enable) {
-        await prefs.setBool('biometric_enabled_$uid', true);
-        await _storage.write(key: 'email', value: email);
-        await _storage.write(key: 'password', value: password);
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('تم تمكين تسجيل الدخول بالبصمة بنجاح.'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      }
-    }
-  }
-
-  Future<void> _biometricLogin() async {
-    final isAuthenticated = await LocalAuthService.authenticate(
-      'الرجاء المصادقة لتسجيل الدخول',
-    );
-    if (isAuthenticated && mounted) {
-      final credentials = await _storage.readAll();
-      final email = credentials['email'];
-      final password = credentials['password'];
-
-      if (email != null && password != null) {
-        try {
-          UserProfile? userProfile = await _authService
-              .signInWithEmailAndPassword(email.toLowerCase().trim(), password);
-          if (mounted && userProfile != null) {
-            Provider.of<UserProfileProvider>(
-              context,
-              listen: false,
-            ).setUserProfile(userProfile);
-            Navigator.pushNamedAndRemoveUntil(
-              context,
-              Landing.id,
-              (route) => false,
-            );
-          }
-        } on FirebaseAuthException catch (e) {
-          String errorMessage;
-          switch (e.code) {
-            case 'user-not-found':
-            case 'invalid-credential':
-              errorMessage = 'اما فية غلط في البيانات او المستخدم غير مسجل';
-              break;
-            case 'wrong-password':
-              errorMessage = 'كلمة المرور غير صحيحة.';
-              break;
-            case 'invalid-email':
-              errorMessage = 'البريد الإلكتروني غير صالح.';
-              break;
-            case 'user-disabled':
-              errorMessage = 'تم تعطيل هذا المستخدم.';
-              break;
-            default:
-              errorMessage = 'حدث خطأ غير متوقع. حاول مرة أخرى.';
-          }
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  errorMessage,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: Responsive.text(context) * .9,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-        } catch (e) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('An error occurred: ${e.toString()}'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-        }
-      }
-    }
+  @override
+  void dispose() {
+    _emailFocus.dispose();
+    _passwordFocus.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 
   String? _validateEmail(String? value) {
     if (value == null || value.isEmpty) {
       return 'الرجاء إدخال البريد الإلكتروني';
     }
-    if (!value.toLowerCase().endsWith('fci.bu.edu.eg')) {
-      return 'لازم يكون ايميل كلية حاسبات';
+    final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+    if (!emailRegex.hasMatch(value)) {
+      return 'الرجاء إدخال بريد إلكتروني صحيح';
     }
     return null;
   }
@@ -251,179 +94,295 @@ class _LoginState extends State<Login> {
     if (value == null || value.isEmpty) {
       return 'الرجاء إدخال كلمة المرور';
     }
-    if (value.length < 8) {
-      return 'الباسورد علي الاقل 8 حروف';
+    if (value.length < 6) {
+      return 'يجب أن تكون كلمة المرور 6 أحرف على الأقل';
     }
     return null;
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _checkBiometricStatus();
-  }
-
-  Future<void> _checkBiometricStatus() async {
-    if (kIsWeb) {
-      debugPrint('[Biometric Check] Running on web, skipping.');
+  Future<void> _login() async {
+    if (!_formKey.currentState!.validate()) {
       return;
     }
 
-    debugPrint('[Biometric Check] Checking for biometrics on device...');
-    final canAuth = await LocalAuthService.canAuthenticate();
-    debugPrint('[Biometric Check] Can device authenticate? -> $canAuth');
+    try {
+      UserProfile? userProfile = await _authService.signInWithEmailAndPassword(
+          _email.toLowerCase().trim(), _password);
+      if (mounted && userProfile != null) {
+        final provider =
+            Provider.of<UserProfileProvider>(context, listen: false);
+        provider.setLoggedInUserProfile(userProfile);
+        provider.setUserProfile(userProfile);
 
-    final credentials = await _storage.readAll();
-    final hasCredentials = credentials.containsKey('email');
-    debugPrint('[Biometric Check] Are credentials saved? -> $hasCredentials');
+        await _promptEnableBiometric(
+          _email.toLowerCase().trim(),
+          _password,
+        );
 
-    if (mounted && canAuth && hasCredentials) {
-      debugPrint(
-        '[Biometric Check] SUCCESS: Conditions met, showing biometric icon.',
-      );
-      setState(() {
-        _isBiometricAvailable = true;
-      });
-    } else {
-      debugPrint(
-        '[Biometric Check] FAILED: Conditions not met, biometric icon will be hidden.',
-      );
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          Landing.id,
+          (route) => false,
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      String errorMessage;
+      switch (e.code) {
+        case 'user-not-found':
+        case 'invalid-credential':
+          errorMessage = 'اما فية غلط في البيانات او المستخدم غير مسجل';
+          break;
+        case 'wrong-password':
+          errorMessage = 'كلمة المرور غير صحيحة.';
+          break;
+        case 'invalid-email':
+          errorMessage = 'البريد الإلكتروني غير صالح.';
+          break;
+        case 'user-disabled':
+          errorMessage = 'تم تعطيل هذا المستخدم.';
+          break;
+        default:
+          errorMessage = 'حدث خطأ غير متوقع. حاول مرة أخرى.';
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              errorMessage,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: Responsive.text(context) * .9,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('An error occurred: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
-  @override
-  void dispose() {
-    _emailFocus.dispose();
-    _passwordFocus.dispose();
-    super.dispose();
+  Future<void> _promptEnableBiometric(
+    String email,
+    String password,
+  ) async {
+    if (kIsWeb) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final isBiometricSupported = await _localAuthService.isBiometricSupported();
+    final isBiometricEnabled = prefs.getBool('isBiometricEnabled') ?? false;
+
+    if (isBiometricSupported && !isBiometricEnabled) {
+      final bool wantsToEnable = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Enable Biometric Login'),
+              content: const Text(
+                  'Would you like to enable biometric login for faster access?'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('No'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('Yes'),
+                ),
+              ],
+            ),
+          ) ??
+          false;
+
+      if (wantsToEnable) {
+        await _storage.write(key: 'biometric_email', value: email);
+        await _storage.write(key: 'biometric_password', value: password);
+        await prefs.setBool('isBiometricEnabled', true);
+        if (mounted) {
+          setState(() {
+            _isBiometricAvailable = true;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Biometric login enabled.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> authenticateUser() async {
+    if (kIsWeb) return;
+
+    try {
+      final bool didAuthenticate = await _localAuthService.authenticate(
+        'Please authenticate to log in',
+      );
+
+      if (didAuthenticate && mounted) {
+        final email = await _storage.read(key: 'biometric_email');
+        final password = await _storage.read(key: 'biometric_password');
+
+        if (email != null && password != null) {
+          _emailController.text = email;
+          _passwordController.text = password;
+          _email = email;
+          _password = password;
+          await _login();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'Biometric credentials not found. Please log in manually.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Authentication failed.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('An error occurred during authentication: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
-        statusBarBrightness: Brightness.dark,
-      ),
-      child: GestureDetector(
-        onTap: () {
-          FocusScope.of(context).unfocus();
-        },
-        child: Scaffold(
-          backgroundColor: Colors.white,
-          body: SafeArea(
-            child: Align(
-              alignment: Alignment.center,
-              child: Form(
-                key: _formKey,
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      Padding(
-                        padding: Responsive.paddingHorizontal(
-                          context,
-                          size: Space.xlarge,
+    return WillPopScope(
+      onWillPop: () async {
+        SystemNavigator.pop();
+        return true;
+      },
+      child: Scaffold(
+        body: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: Responsive.paddingHorizontal(context, size: Space.xlarge),
+                child: Form(
+                  key: _formKey,
+                  child: AutofillGroup(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'تسجيل الدخول',
+                          style: TextStyle(
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.heading,
+                            ),
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                        child: Column(
-                          // crossAxisAlignment: CrossAxisAlignment.center,
-                          // mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            SizedBox(
-                              height: Responsive.space(
-                                context,
-                                size: Space.xlarge,
-                              ),
-                            ),
-                            Text(
-                              'تسجيل الدخول',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: Responsive.text(
-                                  context,
-                                  size: TextSize.heading,
-                                ),
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            SizedBox(
-                              height: Responsive.space(
-                                context,
-                                size: Space.xlarge,
-                              ),
-                            ),
-                            CustomTextField(
-                              focusNode: _emailFocus,
-                              hint: 'الايميل الجامعي',
-                              validator: _validateEmail,
-                              keyboardType: TextInputType.emailAddress,
-                              isValid: _isEmailValid,
-                              onEditingComplete: () {
-                                FocusScope.of(
-                                  context,
-                                ).requestFocus(_passwordFocus);
-                              },
-                              onChanged: (value) {
-                                setState(() {
-                                  _isEmailValid = _validateEmail(value) == null;
-                                  if (_isEmailValid) _email = value;
-                                });
-                              },
-                            ),
-                            SizedBox(
-                              height: Responsive.space(
-                                context,
-                                size: Space.medium,
-                              ),
-                            ),
-                            CustomTextField(
-                              focusNode: _passwordFocus,
-                              hint: 'الباسورد',
-                              validator: _validatePassword,
-                              textInputAction: TextInputAction.done,
-                              obscureText: !_isPasswordVisible,
-                              isValid: _isPasswordValid,
-                              suffixIcon: IconButton(
-                                icon: Icon(
-                                  _isPasswordVisible
-                                      ? Icons.visibility_off
-                                      : Icons.visibility,
-                                  size: Responsive.text(
+                        SizedBox(
+                          height: Responsive.space(context, size: Space.xlarge) *
+                              2,
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'البريد الإلكتروني',
+                                style: TextStyle(
+                                  fontSize: Responsive.text(
                                     context,
-                                    size: TextSize.medium,
+                                    size: TextSize.small,
                                   ),
-                                  color: Colors.grey,
+                                  fontWeight: FontWeight.w500,
                                 ),
-                                onPressed: () {
-                                  setState(() {
-                                    _isPasswordVisible = !_isPasswordVisible;
-                                  });
-                                },
                               ),
-                              onChanged: (value) {
-                                setState(() {
-                                  _isPasswordValid =
-                                      _validatePassword(value) == null;
-                                  if (_isPasswordValid) _password = value;
-                                });
-                              },
-                            ),
-                          ],
+                              const SizedBox(height: 8.0),
+                              CustomTextField(
+                                controller: _emailController,
+                                focusNode: _emailFocus,
+                                hint: 'ادخل بريدك الإلكتروني',
+                                keyboardType: TextInputType.emailAddress,
+                                validator: _validateEmail,
+                                isValid: _isEmailValid,
+                                onChanged: (value) => _email = value,
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-
-                      Padding(
-                        padding: EdgeInsets.symmetric(vertical: 8.0),
-                        child: TextButton(
-                          onPressed: () {
-                            // يمكن إضافة التنقل إلى صفحة استعادة كلمة المرور هنا
-                          },
-                          child: GestureDetector(
-                            onTap: () {
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'كلمة المرور',
+                                style: TextStyle(
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.small,
+                                  ),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(height: 8.0),
+                              CustomTextField(
+                                controller: _passwordController,
+                                focusNode: _passwordFocus,
+                                hint: 'ادخل كلمة المرور',
+                                validator: _validatePassword,
+                                obscureText: !_isPasswordVisible,
+                                isValid: _isPasswordValid,
+                                onChanged: (value) => _password = value,
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    _isPasswordVisible
+                                        ? Icons.visibility_off
+                                        : Icons.visibility,
+                                    size: Responsive.text(
+                                      context,
+                                      size: TextSize.medium,
+                                    ),
+                                    color: Colors.grey,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _isPasswordVisible = !_isPasswordVisible;
+                                    });
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          child: TextButton(
+                            onPressed: () {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => ForgotPasswordScreen(),
+                                  builder: (context) =>
+                                      ForgotPasswordScreen(),
                                 ),
                               );
                             },
@@ -440,34 +399,34 @@ class _LoginState extends State<Login> {
                             ),
                           ),
                         ),
-                      ),
-
-                      SizedBox(
-                        height:
-                            Responsive.space(context, size: Space.xlarge) * 4,
-                      ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          if (_isBiometricAvailable)
-                            Padding(
-                              padding: const EdgeInsets.only(right: 16.0),
-                              child: CircularButton(
-                                onPressed: _biometricLogin,
-                                icon: Icons.fingerprint,
+                        SizedBox(
+                          height:
+                              Responsive.space(context, size: Space.xlarge) *
+                                  2,
+                        ),
+                        CircularButton(
+                          onPressed: _login,
+                          icon: Icons.check,
+                        ),
+                        if (_isBiometricAvailable)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 24.0),
+                            child: ElevatedButton.icon(
+                              onPressed: authenticateUser,
+                              icon: const Icon(Icons.fingerprint),
+                              label: const Text('Login using Biometric'),
+                              style: ElevatedButton.styleFrom(
+                                foregroundColor: Colors.black,
                                 backgroundColor: Colors.grey.shade200,
-                                iconColor: Colors.black,
+                                minimumSize: const Size(double.infinity, 50),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
                               ),
                             ),
-                          Expanded(
-                            child: CircularButton(
-                              onPressed: _login,
-                              icon: Icons.check,
-                            ),
                           ),
-                        ],
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),

@@ -62,6 +62,8 @@ class _Signup_2State extends State<Signup_2> {
 
   // Declare and initialize AuthService
   final AuthService _authService = AuthService();
+  final LocalAuthService _localAuthService = LocalAuthService();
+  final _storage = const FlutterSecureStorage();
 
   @override
   void initState() {
@@ -81,7 +83,7 @@ class _Signup_2State extends State<Signup_2> {
     }
 
     debugPrint('[Biometric Prompt] Checking for biometrics on device...');
-    final bool canAuth = await LocalAuthService.canAuthenticate();
+    final bool canAuth = await _localAuthService.isBiometricSupported();
     debugPrint('[Biometric Prompt] Can device authenticate? -> $canAuth');
 
     if (mounted && canAuth) {
@@ -113,12 +115,16 @@ class _Signup_2State extends State<Signup_2> {
 
       if (enable) {
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setBool('biometric_enabled_$uid', true);
+        await prefs.setBool('isBiometricEnabled', true);
 
         // Securely store credentials
-        const storage = FlutterSecureStorage();
-        await storage.write(key: 'email', value: email);
-        await storage.write(key: 'password', value: password);
+        await _storage.write(key: 'biometric_email', value: email);
+        await _storage.write(key: 'biometric_password', value: password);
+
+        debugPrint(
+          '[Biometric Prompt] SUCCESS: Biometrics enabled and credentials stored.',
+        );
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -128,6 +134,10 @@ class _Signup_2State extends State<Signup_2> {
           );
         }
       }
+    } else {
+      debugPrint(
+        '[Biometric Prompt] FAILED: Device does not support biometrics.',
+      );
     }
 
     if (mounted) {
