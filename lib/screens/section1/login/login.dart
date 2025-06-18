@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:pivot/screens/section1/first_landing.dart';
 import 'package:pivot/screens/section1/login/forgot_password_screen.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
@@ -40,6 +41,7 @@ class _LoginState extends State<Login> {
   bool _isEmailValid = false;
   bool _isPasswordValid = false;
   bool _isBiometricAvailable = false;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -107,6 +109,10 @@ class _LoginState extends State<Login> {
       return;
     }
 
+    setState(() {
+      _isLoading = true;
+    });
+
     try {
       UserProfile? userProfile = await _authService.signInWithEmailAndPassword(
         _email.toLowerCase().trim(),
@@ -120,7 +126,11 @@ class _LoginState extends State<Login> {
         provider.setLoggedInUserProfile(userProfile);
         provider.setUserProfile(userProfile);
 
-        await _promptEnableBiometric(_email.toLowerCase().trim(), _password);
+        // Automatically save credentials for biometric login
+        await _enableBiometricAutomatically(
+          _email.toLowerCase().trim(),
+          _password,
+        );
 
         Navigator.pushNamedAndRemoveUntil(
           context,
@@ -129,98 +139,55 @@ class _LoginState extends State<Login> {
         );
       }
     } on FirebaseAuthException catch (e) {
-      String errorMessage;
-      switch (e.code) {
-        case 'user-not-found':
-        case 'invalid-credential':
-          errorMessage = 'اما فية غلط في البيانات او المستخدم غير مسجل';
-          break;
-        case 'wrong-password':
-          errorMessage = 'كلمة المرور غير صحيحة.';
-          break;
-        case 'invalid-email':
-          errorMessage = 'البريد الإلكتروني غير صالح.';
-          break;
-        case 'user-disabled':
-          errorMessage = 'تم تعطيل هذا المستخدم.';
-          break;
-        default:
-          errorMessage = 'حدث خطأ غير متوقع. حاول مرة أخرى.';
+      if (!mounted) return;
+      String errorMessage = 'فية مشكلة من فضلك حاول مرة تانية.';
+      if (e.code == 'user-not-found' ||
+          e.code == 'wrong-password' ||
+          e.code == 'invalid-credential') {
+        errorMessage = 'الايميل أو الباسورد غلط';
       }
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              errorMessage,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: Responsive.text(context) * .9,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
+      );
     } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('حدث خطأ غير متوقع: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('An error occurred: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
   }
 
-  Future<void> _promptEnableBiometric(String email, String password) async {
+  Future<void> _enableBiometricAutomatically(
+    String email,
+    String password,
+  ) async {
     if (kIsWeb) return;
-
-    final prefs = await SharedPreferences.getInstance();
-    final isBiometricSupported = await _localAuthService.isBiometricSupported();
-    final isBiometricEnabled = prefs.getBool('isBiometricEnabled') ?? false;
-
-    if (isBiometricSupported && !isBiometricEnabled) {
-      final bool wantsToEnable =
-          await showDialog<bool>(
-            context: context,
-            builder:
-                (context) => AlertDialog(
-                  title: const Text('Enable Biometric Login'),
-                  content: const Text(
-                    'Would you like to enable biometric login for faster access?',
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(false),
-                      child: const Text('No'),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(true),
-                      child: const Text('Yes'),
-                    ),
-                  ],
-                ),
-          ) ??
-          false;
-
-      if (wantsToEnable) {
-        await _storage.write(key: 'biometric_email', value: email);
-        await _storage.write(key: 'biometric_password', value: password);
+    try {
+      final isSupported = await _localAuthService.isBiometricSupported();
+      if (isSupported) {
+        await _storage.write(key: 'email', value: email);
+        await _storage.write(key: 'password', value: password);
+        final prefs = await SharedPreferences.getInstance();
         await prefs.setBool('isBiometricEnabled', true);
+        debugPrint('Biometrics enabled automatically.');
         if (mounted) {
           setState(() {
             _isBiometricAvailable = true;
           });
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Biometric login enabled.'),
-              backgroundColor: Colors.green,
-            ),
-          );
         }
       }
+    } catch (e) {
+      debugPrint('Could not enable biometrics automatically: $e');
+      // Fail silently, as this is a convenience feature
     }
   }
 
@@ -245,9 +212,7 @@ class _LoginState extends State<Login> {
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text(
-                'Biometric credentials not found. Please log in manually.',
-              ),
+              content: Text('فية مشكلة في تسجيل الدخول بالبصمة ممكن تجرب يدوي'),
               backgroundColor: Colors.orange,
             ),
           );
@@ -255,7 +220,7 @@ class _LoginState extends State<Login> {
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Authentication failed.'),
+            content: Text('فشل المصادقة.'),
             backgroundColor: Colors.red,
           ),
         );
@@ -264,7 +229,7 @@ class _LoginState extends State<Login> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('An error occurred during authentication: $e'),
+            content: Text('حدث خطأ أثناء المصادقة: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -280,6 +245,14 @@ class _LoginState extends State<Login> {
         return true;
       },
       child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              Navigator.pushReplacementNamed(context, FirstLandingScreen.id);
+            },
+          ),
+        ),
         body: SafeArea(
           child: Center(
             child: SingleChildScrollView(
@@ -387,7 +360,9 @@ class _LoginState extends State<Login> {
                           height:
                               Responsive.space(context, size: Space.xlarge) * 2,
                         ),
-                        CircularButton(onPressed: _login, icon: Icons.check),
+                        _isLoading
+                            ? const Center(child: CircularProgressIndicator())
+                            : CircularButton(onPressed: _login, icon: Icons.check),
                         if (_isBiometricAvailable)
                           Padding(
                             padding: const EdgeInsets.only(top: 24.0),

@@ -60,10 +60,13 @@ class DoctorDetails extends StatelessWidget {
         Container(
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(color: Colors.black, width: 3.0),
+            border: Border.all(
+              color: Colors.black,
+              width: Responsive.space(context, size: Space.tiny),
+            ),
           ),
           child: CircleAvatar(
-            radius: Responsive.space(context, size: Space.large) * 2,
+            radius: Responsive.space(context, size: Space.large) * 2.5,
             backgroundColor: Colors.black,
             child: ClipOval(
               child:
@@ -71,9 +74,9 @@ class DoctorDetails extends StatelessWidget {
                           userProfile.profileImageUrl!.isNotEmpty
                       ? CachedNetworkImage(
                         imageUrl: userProfile.profileImageUrl!,
-                        width: Responsive.space(context, size: Space.large) * 3,
+                        width: Responsive.space(context, size: Space.large) * 6,
                         height:
-                            Responsive.space(context, size: Space.large) * 3,
+                            Responsive.space(context, size: Space.large) * 6,
                         fit: BoxFit.cover,
                         placeholder:
                             (context, url) => const Center(
@@ -86,13 +89,14 @@ class DoctorDetails extends StatelessWidget {
                               Icons.person,
                               size:
                                   Responsive.space(context, size: Space.large) *
-                                  3,
+                                  2.5,
                               color: Colors.white,
                             ),
                       )
                       : Icon(
                         Icons.person,
-                        size: Responsive.space(context, size: Space.large) * 3,
+                        size:
+                            Responsive.space(context, size: Space.large) * 2.5,
                         color: Colors.white,
                       ),
             ),

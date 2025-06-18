@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:pivot/screens/section2/landing.dart';
 import 'package:pivot/screens/models/circular_button.dart';
 import 'package:pivot/data/form_options.dart';
+import 'package:pivot/providers/settings_provider.dart';
 import 'package:pivot/screens/models/custom_dropdown.dart';
 import '../../../../responsive.dart';
 import 'package:provider/provider.dart';
@@ -43,6 +44,7 @@ class _Signup_2State extends State<Signup_2> {
   bool _isYearValid = false;
   bool _isDepartmentValid = false;
   bool _isSectionValid = false;
+  bool _isLoading = false;
 
   String? selectedYear;
   String? selectedDepartment;
@@ -151,6 +153,8 @@ class _Signup_2State extends State<Signup_2> {
 
   @override
   Widget build(BuildContext context) {
+    final settingsProvider = Provider.of<SettingsProvider>(context, listen: false);
+    final sectionCounts = settingsProvider.sectionCounts;
     return GestureDetector(
       onTap: () {
         FocusScope.of(context).unfocus();
@@ -205,7 +209,7 @@ class _Signup_2State extends State<Signup_2> {
                               _isSectionValid = false;
 
                               _availableDepartments = FormOptions.getDepartmentsForYear(newValue);
-                              _availableSections = FormOptions.getSectionsForYear(newValue, null);
+                              _availableSections = [];
                             });
                             WidgetsBinding.instance.addPostFrameCallback((_) {
                               FocusScope.of(context).requestFocus(_departmentFocus);
@@ -225,9 +229,13 @@ class _Signup_2State extends State<Signup_2> {
                               selectedDepartment = newValue;
                               _isDepartmentValid = true;
 
-                              _availableSections =
-                                  FormOptions.getSectionsForYear(
-                                      selectedYear, selectedDepartment);
+                              if (selectedDepartment != null && sectionCounts.containsKey(selectedDepartment)) {
+                                _availableSections = List<String>.generate(sectionCounts[selectedDepartment]!,
+                                  (i) => 'Section ${i + 1}',
+                                );
+                              } else {
+                                _availableSections = [];
+                              }
                               if (!_availableSections
                                   .contains(selectedSection)) {
                                 selectedSection = null;
@@ -268,10 +276,12 @@ class _Signup_2State extends State<Signup_2> {
                       context,
                       size: Space.large,
                     ),
-                    child: CircularButton(
-                      onPressed: _submitForm,
-                      icon: Icons.check,
-                    ),
+                    child: _isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : CircularButton(
+                            onPressed: _submitForm,
+                            icon: Icons.check,
+                          ),
                   ),
                 ],
               ),
@@ -300,6 +310,10 @@ class _Signup_2State extends State<Signup_2> {
 
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
+
+      setState(() {
+        _isLoading = true;
+      });
 
       Map<String, dynamic> userData = {
         'name': widget.name,
@@ -369,6 +383,12 @@ class _Signup_2State extends State<Signup_2> {
               backgroundColor: Colors.red,
             ),
           );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
         }
       }
     }

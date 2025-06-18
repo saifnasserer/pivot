@@ -21,6 +21,7 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
   String _title = '';
   String _location = '';
   String _time = '';
+  final _timeController = TextEditingController();
   ScheduleItemType _selectedType = ScheduleItemType.lecture; // Default type
 
   bool get _isEditing => widget.itemToEdit != null;
@@ -33,8 +34,15 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
       _title = item.title;
       _location = item.location;
       _time = item.time;
+      _timeController.text = item.time;
       _selectedType = item.type;
     }
+  }
+
+  @override
+  void dispose() {
+    _timeController.dispose();
+    super.dispose();
   }
 
   void _submitForm() {
@@ -143,12 +151,25 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
               ),
               SizedBox(height: Responsive.space(context)),
 
-              CustomTextField(
-                hint: 'الوقت',
-                onChanged: (value) {
-                  setState(() {
-                    _time = value;
-                  });
+              TextFormField(
+                controller: _timeController,
+                readOnly: true,
+                decoration: const InputDecoration(
+                  hintText: 'الوقت',
+                  border: OutlineInputBorder(),
+                  suffixIcon: Icon(Icons.access_time),
+                ),
+                onTap: () async {
+                  final TimeOfDay? picked = await showTimePicker(
+                    context: context,
+                    initialTime: TimeOfDay.now(),
+                  );
+                  if (picked != null) {
+                    setState(() {
+                      _time = picked.format(context);
+                      _timeController.text = _time;
+                    });
+                  }
                 },
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -156,7 +177,6 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
                   }
                   return null;
                 },
-                keyboardType: TextInputType.datetime,
               ),
               SizedBox(height: Responsive.space(context)),
             ],

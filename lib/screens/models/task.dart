@@ -10,9 +10,10 @@ class Task {
   String description;
   DateTime dueDate;
   TaskImportance importance;
-  String subjectId; // To associate task with a specific subject
-  String sectionId; // To associate task with a specific section
+  String? subjectId; // To associate task with a specific subject
+  String? sectionId; // To associate task with a specific section
   List<String> completedBy; // List of user IDs who completed the task
+  bool isPersonal;
 
   Task({
     String? id, // Make ID optional
@@ -20,9 +21,10 @@ class Task {
     this.description = '',
     required this.dueDate,
     this.importance = TaskImportance.mid,
-    required this.subjectId,
-    required this.sectionId,
+    this.subjectId,
+    this.sectionId,
     this.completedBy = const [],
+    this.isPersonal = false,
   }) : id = id ?? const Uuid().v4(); // Generate ID if null
 
   // Helper method to check if the task is completed by a specific user
@@ -41,6 +43,7 @@ class Task {
       'subjectId': subjectId,
       'sectionId': sectionId,
       'completedBy': completedBy,
+      'isPersonal': isPersonal,
     };
   }
 
@@ -58,6 +61,7 @@ class Task {
       subjectId: map['subjectId'],
       sectionId: map['sectionId'],
       completedBy: List<String>.from(map['completedBy'] ?? []),
+      isPersonal: map['isPersonal'] ?? false,
     );
   }
 
@@ -71,6 +75,7 @@ class Task {
     String? subjectId,
     String? sectionId,
     List<String>? completedBy,
+    bool? isPersonal,
   }) {
     return Task(
       id: id ?? this.id,
@@ -81,6 +86,7 @@ class Task {
       subjectId: subjectId ?? this.subjectId,
       sectionId: sectionId ?? this.sectionId,
       completedBy: completedBy ?? this.completedBy,
+      isPersonal: isPersonal ?? this.isPersonal,
     );
   }
 }

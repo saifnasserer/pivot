@@ -20,7 +20,7 @@ class ProfileDetails extends StatelessWidget {
               Text(
                 'الفرقة ${userProfile.level}',
                 style: TextStyle(
-                  fontSize: Responsive.space(context, size: Space.small) * 1.5,
+                  fontSize: Responsive.space(context, size: Space.small) * 2,
                   color: Color(0xffd9d9d9),
                 ),
               ),
@@ -33,7 +33,7 @@ class ProfileDetails extends StatelessWidget {
                       userProfile.name,
                       style: TextStyle(
                         fontSize:
-                            Responsive.space(context, size: Space.large) * 1.2,
+                            Responsive.space(context, size: Space.large) * 1.5,
                         color: Colors.black,
                         fontWeight: FontWeight.bold,
                       ),
@@ -48,7 +48,7 @@ class ProfileDetails extends StatelessWidget {
               AutoSizeText(
                 (' ${userProfile.department} سكشن ${userProfile.section} قسم '),
                 style: TextStyle(
-                  fontSize: Responsive.space(context, size: Space.small) * 1.5,
+                  fontSize: Responsive.space(context, size: Space.small) * 2,
                   color: Color(0xffd9d9d9),
                   fontWeight: FontWeight.bold,
                 ),
@@ -60,10 +60,13 @@ class ProfileDetails extends StatelessWidget {
         Container(
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(color: Colors.black, width: 3.0),
+            border: Border.all(
+              color: Colors.black,
+              width: Responsive.space(context, size: Space.small) / 2,
+            ),
           ),
           child: CircleAvatar(
-            radius: Responsive.space(context, size: Space.large) * 3,
+            radius: Responsive.space(context, size: Space.large) * 2.5,
             backgroundColor: Colors.black,
             child: ClipOval(
               child:
@@ -86,13 +89,14 @@ class ProfileDetails extends StatelessWidget {
                               Icons.person,
                               size:
                                   Responsive.space(context, size: Space.large) *
-                                  3,
+                                  2.5,
                               color: Colors.white,
                             ),
                       )
                       : Icon(
                         Icons.person,
-                        size: Responsive.space(context, size: Space.large) * 3,
+                        size:
+                            Responsive.space(context, size: Space.large) * 2.5,
                         color: Colors.white,
                       ),
             ),

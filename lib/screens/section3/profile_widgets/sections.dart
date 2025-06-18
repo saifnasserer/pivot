@@ -14,7 +14,6 @@ List<Widget> buildSectionsSlivers(BuildContext context) {
   final sectionProvider = Provider.of<SectionProvider>(context);
   final subjectProvider = Provider.of<SubjectProvider>(context);
 
-  // Wait for all required data to be loaded.
   if (userProfileProvider.isLoading || sectionProvider.isLoading) {
     return [
       const SliverFillRemaining(
@@ -28,40 +27,61 @@ List<Widget> buildSectionsSlivers(BuildContext context) {
   final enrolledSubjects = subjectProvider.filteredSubjects;
 
   if (userProfile == null) {
-    return [const SliverFillRemaining(child: Center(child: Text('User not found')))];
+    return [
+      const SliverFillRemaining(child: Center(child: Text('User not found'))),
+    ];
   }
 
   final userSectionName = userProfile.section;
   final enrolledSubjectIds = enrolledSubjects.map((s) => s.id).toSet();
 
-  final relevantSections = allSections.where((section) {
-    // Match if the section name (e.g., 'سكشن 3') contains the user's section number (e.g., '3')
-    return enrolledSubjectIds.contains(section.subjectId) && section.name.contains(userSectionName);
-  }).toList();
+  final relevantSections =
+      allSections.where((section) {
+        return enrolledSubjectIds.contains(section.subjectId) &&
+            section.name.contains(userSectionName);
+      }).toList();
 
   if (relevantSections.isEmpty) {
     return [
-      const SliverFillRemaining(
+      SliverFillRemaining(
         hasScrollBody: false,
-        child: Center(child: Text('لا توجد سكاشن مسجلة لك حالياً')),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.calendar_today_outlined,
+                size: 48,
+                color: Colors.grey[400],
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'لا توجد سكاشن مسجلة لك حالياً',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+        ),
       ),
     ];
   }
 
-  final subjectMap = {for (var subject in enrolledSubjects) subject.id: subject};
+  final subjectMap = {
+    for (var subject in enrolledSubjects) subject.id: subject,
+  };
 
   return [
-    SliverList(
-      delegate: SliverChildBuilderDelegate(
-        (context, index) {
+    SliverPadding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate((context, index) {
           final section = relevantSections[index];
           final subject = subjectMap[section.subjectId];
           if (subject == null) {
             return const SizedBox.shrink();
           }
           return SectionListItem(section: section, subject: subject);
-        },
-        childCount: relevantSections.length,
+        }, childCount: relevantSections.length),
       ),
     ),
   ];
@@ -78,17 +98,35 @@ class SectionListItem extends StatelessWidget {
   final Subject subject;
 
   void _showAssistantSelectionDialog(
-      BuildContext context, List<UserProfile> assistants) {
+    BuildContext context,
+    List<UserProfile> assistants,
+  ) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('اختار المعيد'),
-          content: SingleChildScrollView(
-            child: ListBody(
-              children: assistants.map((assistant) {
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text('اختار المعيد', textAlign: TextAlign.center),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.separated(
+              shrinkWrap: true,
+              itemCount: assistants.length,
+              separatorBuilder: (context, index) => const Divider(height: 1),
+              itemBuilder: (context, index) {
+                final assistant = assistants[index];
                 return ListTile(
-                  title: Text(assistant.name),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 4,
+                  ),
+                  title: Text(
+                    assistant.name,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontWeight: FontWeight.w500),
+                  ),
                   onTap: () {
                     Navigator.of(context).pop();
                     Navigator.pushNamed(
@@ -98,10 +136,10 @@ class SectionListItem extends StatelessWidget {
                     );
                   },
                 );
-              }).toList(),
+              },
             ),
           ),
-          actions: <Widget>[
+          actions: [
             TextButton(
               child: const Text('إلغاء'),
               onPressed: () => Navigator.of(context).pop(),
@@ -114,26 +152,36 @@ class SectionListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final instructors = Provider.of<SubjectProvider>(context, listen: false)
-        .instructorsBySubject[subject.id];
+    final instructors =
+        Provider.of<SubjectProvider>(
+          context,
+          listen: false,
+        ).instructorsBySubject[subject.id];
     final assistants =
-        instructors?.where((prof) => prof.role == 'miniProfessor').toList() ?? [];
+        instructors?.where((prof) => prof.role == 'miniProfessor').toList() ??
+        [];
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+      padding: const EdgeInsets.only(bottom: 12.0),
       child: Card(
-        elevation: 2.0,
+        elevation: 0.5,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12.0),
+          borderRadius: BorderRadius.circular(16.0),
+          side: BorderSide(color: Colors.grey.shade200),
         ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: () {
             if (assistants.isEmpty) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('لا يوجد معيدين مسجلين لهذه المادة بعد'),
-                  backgroundColor: Colors.orange,
+                SnackBar(
+                  content: const Text('لا يوجد معيدين مسجلين لهذه المادة بعد'),
+                  backgroundColor: Colors.orange.shade800,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  margin: const EdgeInsets.all(12),
                 ),
               );
             } else if (assistants.length == 1) {
@@ -146,99 +194,113 @@ class SectionListItem extends StatelessWidget {
               _showAssistantSelectionDialog(context, assistants);
             }
           },
-          child: IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Chevron icon
-                Container(
-                  color: Colors.grey.shade100,
-                  padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                  child: Icon(
-                    Icons.arrow_back_ios,
-                    color: Colors.grey.shade500,
-                    size: 16,
-                  ),
-                ),
-
-                // Main content
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 16.0, horizontal: 12.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border(
+                right: BorderSide(color: Colors.teal.shade400, width: 5.0),
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Icon(
+                        Icons.chevron_left,
+                        color: Colors.grey.shade500,
+                        size: 20,
+                      ),
+                      Expanded(
+                        child: Text(
                           subject.name,
                           textAlign: TextAlign.right,
                           style: TextStyle(
-                            fontSize:
-                                Responsive.text(context, size: TextSize.medium),
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.medium,
+                            ),
                             fontWeight: FontWeight.bold,
-                            color: Colors.black87,
                           ),
                         ),
-                        const SizedBox(height: 4.0),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12.0),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Text(
+                        '${section.name} - المكان: ${section.location}',
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                          color: Colors.grey.shade700,
+                          fontSize:
+                              Responsive.text(context, size: TextSize.small) *
+                              1.2,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(
+                        Icons.location_on_outlined,
+                        size: 16,
+                        color: Colors.grey.shade600,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8.0),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Text(
+                        '${section.days} - ${section.time}',
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                          color: Colors.grey.shade700,
+                          fontSize:
+                              Responsive.text(context, size: TextSize.small) *
+                              1.2,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(
+                        Icons.access_time,
+                        size: 16,
+                        color: Colors.grey.shade600,
+                      ),
+                    ],
+                  ),
+                  if (assistants.isNotEmpty) ...[
+                    const SizedBox(height: 12.0),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
                         Text(
-                          '${section.name} - المكان: ${section.location}',
+                          assistants.length == 1
+                              ? assistants.first.name
+                              : '${assistants.length} معيد',
                           textAlign: TextAlign.right,
                           style: TextStyle(
-                            color: Colors.grey.shade700,
+                            color: Colors.teal.shade700,
+                            fontWeight: FontWeight.w500,
                             fontSize:
                                 Responsive.text(context, size: TextSize.small) *
-                                    1.3,
+                                1.2,
                           ),
                         ),
-                        Text(
-                          'المواعيد: ${section.days} - ${section.time}',
-                          textAlign: TextAlign.right,
-                          style: TextStyle(
-                            color: Colors.grey.shade700,
-                            fontSize:
-                                Responsive.text(context, size: TextSize.small) *
-                                    1.3,
-                          ),
+                        const SizedBox(width: 8),
+                        Icon(
+                          Icons.person_outline,
+                          size: 16,
+                          color: Colors.teal.shade700,
                         ),
-                        if (assistants.isNotEmpty) ...[
-                          const SizedBox(height: 12.0),
-                          Wrap(
-                            alignment: WrapAlignment.end,
-                            spacing: 8.0,
-                            runSpacing: 4.0,
-                            children: assistants
-                                .map((p) => Chip(
-                                      label: Text(
-                                        p.name,
-                                        style: TextStyle(
-                                          fontSize: Responsive.text(context,
-                                                  size: TextSize.small) *
-                                              1.1,
-                                        ),
-                                      ),
-                                      backgroundColor: Colors.grey.shade200,
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 4.0, vertical: 0),
-                                      labelPadding: const EdgeInsets.only(
-                                          left: 4, right: 2),
-                                      materialTapTargetSize:
-                                          MaterialTapTargetSize.shrinkWrap,
-                                    ))
-                                .toList(),
-                          )
-                        ],
                       ],
                     ),
-                  ),
-                ),
-
-                // Accent bar
-                Container(
-                  width: 8.0,
-                  color: Colors.teal, // A different color for sections
-                ),
-              ],
+                  ],
+                ],
+              ),
             ),
           ),
         ),

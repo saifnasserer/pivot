@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:pivot/providers/schadule_provider.dart';
 import 'package:pivot/providers/subject_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
@@ -42,6 +43,10 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await RemoteConfigService.instance.initialize(); // Initialize Remote Config
   if (kIsWeb) {
@@ -75,9 +80,7 @@ class Pivot extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ScheduleProvider()),
         ChangeNotifierProvider.value(value: userProfileProvider),
         ChangeNotifierProvider(create: (_) => SubjectProvider()),
-        ChangeNotifierProvider(
-          create: (_) => Bookmarks(),
-        ), // Add Bookmarks provider
+        ChangeNotifierProvider(create: (_) => Bookmarks()),
         ChangeNotifierProvider(create: (_) => DoctorSubjectProvider()),
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
         ChangeNotifierProvider(create: (_) => SuperAdminProvider()),
@@ -100,10 +103,13 @@ class Pivot extends StatelessWidget {
             }
             // Fallback for when arguments are not of the correct type
             return MaterialPageRoute(
-              builder: (_) => Scaffold(
-                appBar: AppBar(title: const Text('Error')),
-                body: const Center(child: Text('Error: Invalid profile data.')),
-              ),
+              builder:
+                  (_) => Scaffold(
+                    appBar: AppBar(title: const Text('Error')),
+                    body: const Center(
+                      child: Text('Error: Invalid profile data.'),
+                    ),
+                  ),
             );
           }
           if (settings.name == TasksControl.id) {
@@ -125,7 +131,7 @@ class Pivot extends StatelessWidget {
           AuthWrapper.id: (context) => const AuthWrapper(),
           NoInternetScreen.id:
               (context) => NoInternetScreen(onRetry: () {}), // Dummy retry
-          FirstLanding.id: (context) => const FirstLanding(),
+          FirstLandingScreen.id: (context) => const FirstLandingScreen(),
           Signup_1.id: (context) => const Signup_1(),
           Login.id: (context) => const Login(),
           Landing.id: (context) => const Landing(),
@@ -159,6 +165,8 @@ class Pivot extends StatelessWidget {
             titleTextStyle: TextStyle(
               color: Colors.black,
               fontSize: Responsive.text(context, size: TextSize.heading),
+              fontFamily: 'NotoSansArabic',
+              fontWeight: FontWeight.bold,
             ),
           ),
         ),

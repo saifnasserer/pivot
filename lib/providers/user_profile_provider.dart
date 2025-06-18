@@ -59,7 +59,7 @@ class UserProfileProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> updateTeachingSubjects(List<String> subjectIds) async {
+  Future<UserProfile?> updateTeachingSubjects(List<String> subjectIds) async {
     final user = _auth.currentUser;
     if (_loggedInUserProfile != null && user != null) {
       try {
@@ -77,14 +77,16 @@ class UserProfileProvider with ChangeNotifier {
         }
 
         notifyListeners();
+        return _loggedInUserProfile;
       } catch (e) {
         print('Failed to update teaching subjects: $e');
         rethrow;
       }
     }
+    return null;
   }
 
-  Future<void> updateEnrolledSubjects(List<String> subjectIds) async {
+  Future<UserProfile?> updateEnrolledSubjects(List<String> subjectIds) async {
     final user = _auth.currentUser;
     if (_loggedInUserProfile != null && user != null) {
       try {
@@ -96,11 +98,13 @@ class UserProfileProvider with ChangeNotifier {
           enrolledSubjects: subjectIds,
         );
         notifyListeners();
+        return _loggedInUserProfile;
       } catch (e) {
         print('Failed to update enrolled subjects: $e');
         rethrow;
       }
     }
+    return null;
   }
 
   Future<void> fetchAllUsers() async {

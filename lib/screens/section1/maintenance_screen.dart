@@ -39,7 +39,7 @@ class MaintenanceScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Lottie.asset(
-                'animation/update.json',
+                'assets/animation/update.json',
                 width: Responsive.space(context, size: Space.large) * 5,
                 height: Responsive.space(context, size: Space.large) * 5,
               ),

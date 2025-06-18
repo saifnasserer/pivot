@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:pivot/screens/section1/first_landing.dart';
 import 'package:pivot/screens/section1/signup/signup_page2.dart';
 import 'package:pivot/data/form_options.dart';
 import 'package:pivot/screens/models/circular_button.dart';
@@ -92,6 +93,14 @@ class _Signup_1State extends State<Signup_1> {
           FocusScope.of(context).unfocus();
         },
         child: Scaffold(
+          appBar: AppBar(
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () {
+                Navigator.pushReplacementNamed(context, FirstLandingScreen.id);
+              },
+            ),
+          ),
           backgroundColor: Colors.white,
           body: SafeArea(
             child: Form(

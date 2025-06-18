@@ -2,11 +2,12 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:pivot/providers/bookmarks.dart';
 import 'package:pivot/responsive.dart';
-import 'package:pivot/screens/section2/adminstration/models/announcement_data.dart';
+
 import 'package:provider/provider.dart';
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class CardModel extends StatefulWidget {
   final String? id;
@@ -43,18 +44,6 @@ class CardModel extends StatefulWidget {
 class _CardModelState extends State<CardModel> {
   bool _isTitleExpanded = false;
 
-  AnnouncementData _createAnnouncementData() {
-    return AnnouncementData(
-      id: widget.id,
-      title: widget.title,
-      date: widget.date,
-      color: widget.color,
-      description: widget.description,
-      tags: widget.tags,
-      imageUrls: widget.imageUrls,
-      links: widget.links,
-    );
-  }
 
   // Builds the horizontally scrolling image gallery
   Widget _buildImageGallery(BuildContext context) {
@@ -69,9 +58,10 @@ class _CardModelState extends State<CardModel> {
         itemCount: widget.imageUrls.length,
         itemBuilder: (context, index) {
           final imageUrl = widget.imageUrls[index];
-          debugPrint('Attempting to load image from URL: $imageUrl');
           return Padding(
-            padding: const EdgeInsets.only(left: 8.0),
+            padding: EdgeInsets.only(
+              left: Responsive.space(context, size: Space.small),
+            ),
             child: GestureDetector(
               onTap: () {
                 Navigator.of(context).push(
@@ -130,7 +120,9 @@ class _CardModelState extends State<CardModel> {
         children:
             widget.links.map((link) {
               return Padding(
-                padding: const EdgeInsets.only(top: 4.0),
+                padding: EdgeInsets.only(
+                  top: Responsive.space(context, size: Space.small),
+                ),
                 child: InkWell(
                   onTap: () async {
                     final urlString = link['url'];
@@ -160,12 +152,14 @@ class _CardModelState extends State<CardModel> {
                   },
                   borderRadius: BorderRadius.circular(20),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
+                    padding: EdgeInsets.symmetric(
+                      horizontal:
+                          Responsive.space(context, size: Space.small) * 1.5,
+                      vertical:
+                          Responsive.space(context, size: Space.small) * 0.5,
                     ),
                     decoration: BoxDecoration(
-                      color: widget.color.withOpacity(0.2),
+                      color: widget.color.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
@@ -198,15 +192,13 @@ class _CardModelState extends State<CardModel> {
   @override
   Widget build(BuildContext context) {
     final bookmarksProvider = Provider.of<Bookmarks>(context);
-    final bool isCurrentlyBookmarked = bookmarksProvider.isBookmarked(
-      _createAnnouncementData(),
-    );
+    final bool isBookmarked = bookmarksProvider.isBookmarked(widget.id!);
 
     return Container(
-      margin: const EdgeInsets.all(3),
+      margin: EdgeInsets.all(Responsive.space(context, size: Space.small)),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        color: widget.color.withOpacity(0.15),
+        color: widget.color.withValues(alpha: 0.15),
       ),
       child: Padding(
         padding: EdgeInsets.all(Responsive.space(context, size: Space.large)),
@@ -232,7 +224,8 @@ class _CardModelState extends State<CardModel> {
                                       context,
                                       size: TextSize.medium,
                                     ) *
-                                    1.5,
+                                    1.2,
+
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -260,15 +253,13 @@ class _CardModelState extends State<CardModel> {
                           maxLines: 2,
                           minFontSize: Responsive.text(
                             context,
-                            size: TextSize.medium,
+                            size: TextSize.small,
                           ),
                           style: TextStyle(
-                            fontSize:
-                                Responsive.text(
-                                  context,
-                                  size: TextSize.heading,
-                                ) *
-                                1.5,
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.heading,
+                            ),
                             fontWeight: FontWeight.bold,
                           ),
                           overflowReplacement: Column(
@@ -311,23 +302,33 @@ class _CardModelState extends State<CardModel> {
                       height: Responsive.space(context, size: Space.medium),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 5,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: Responsive.space(
+                          context,
+                          size: Space.small,
+                        ),
+                        vertical: Responsive.space(context, size: Space.small),
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.7),
-                        borderRadius: BorderRadius.circular(12),
+                        color: Colors.black.withValues(alpha: 0.7),
+                        borderRadius: BorderRadius.circular(
+                          Responsive.space(context, size: Space.medium),
+                        ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.calendar_today,
-                            size: 16,
+                            size: Responsive.text(
+                              context,
+                              size: TextSize.small,
+                            ),
                             color: Colors.white,
                           ),
-                          const SizedBox(width: 4),
+                          SizedBox(
+                            width: Responsive.space(context, size: Space.small),
+                          ),
                           Text(
                             widget.date,
                             style: TextStyle(
@@ -370,21 +371,25 @@ class _CardModelState extends State<CardModel> {
             SizedBox(height: Responsive.space(context, size: Space.medium)),
             if (widget.tags.isNotEmpty)
               Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: Responsive.space(context, size: Space.small),
+                runSpacing: Responsive.space(context, size: Space.small),
                 alignment: WrapAlignment.end,
                 children:
                     widget.tags.map((tag) {
                       return Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
+                        padding: EdgeInsets.symmetric(
+                          horizontal:
+                              Responsive.space(context, size: Space.small) *
+                              1.5,
+                          vertical:
+                              Responsive.space(context, size: Space.small) *
+                              0.5,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xffe1e0da).withOpacity(0.5),
+                          color: const Color(0xffe1e0da).withValues(alpha: 0.5),
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: widget.color.withOpacity(0.5),
+                            color: widget.color.withValues(alpha: 0.5),
                             width: 1,
                           ),
                         ),
@@ -407,7 +412,9 @@ class _CardModelState extends State<CardModel> {
               children: [
                 Container(
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(
+                      Responsive.space(context, size: Space.medium),
+                    ),
                     color: Colors.white,
                     border: Border.all(color: Colors.black),
                   ),
@@ -421,10 +428,26 @@ class _CardModelState extends State<CardModel> {
                       children: [
                         IconButton(
                           onPressed: () {
-                            String shareText = widget.title;
-                            if (widget.links.isNotEmpty) {
-                              shareText += '\n\n${widget.links.first}';
+                            final user = FirebaseAuth.instance.currentUser;
+                            final userName = user?.displayName ?? 'مستخدم';
+
+                            String shareText =
+                                '$userName شارك معاك الخبر ده من ابلكيشن pivot';
+                            shareText += '\n------------------------------------';
+
+                            shareText += '\n\n${widget.title}';
+
+                            if (widget.description.isNotEmpty) {
+                              shareText += '\n\n${widget.description}';
                             }
+
+                            if (widget.links.isNotEmpty) {
+                              shareText += '\n\nالروابط:';
+                              for (var link in widget.links) {
+                                shareText += '\n- ${link['title']}: ${link['url']}';
+                              }
+                            }
+
                             Share.share(shareText);
                           },
                           icon: const Icon(Icons.share),
@@ -439,16 +462,10 @@ class _CardModelState extends State<CardModel> {
                               context,
                               listen: false,
                             );
-                            final itemData = _createAnnouncementData();
-
-                            if (isCurrentlyBookmarked) {
-                              bookmarks.removeBookmark(itemData);
-                            } else {
-                              bookmarks.addBookmark(itemData);
-                            }
+                            bookmarks.toggleBookmark(widget.id!);
                           },
                           icon: Icon(
-                            isCurrentlyBookmarked
+                            isBookmarked
                                 ? Icons.bookmark
                                 : Icons.bookmark_border,
                             color: Colors.black,
@@ -575,8 +592,8 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer>
           ),
           // Back button
           Positioned(
-            top: 40.0,
-            left: 16.0,
+            top: Responsive.space(context, size: Space.medium),
+            left: Responsive.space(context, size: Space.medium),
             child: IconButton(
               icon: const Icon(
                 Icons.arrow_back_ios_new,

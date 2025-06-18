@@ -23,6 +23,8 @@ class AssistantProfile extends StatefulWidget {
 }
 
 class _AssistantProfileState extends State<AssistantProfile> {
+  final ScrollController _scrollController = ScrollController();
+  final GlobalKey _profileDetailsKey = GlobalKey();
   String _currentCategory = 'المواد';
   int _selectedSubjectIndex = 0;
   UserProfile? _displayedProfile;
@@ -38,6 +40,7 @@ class _AssistantProfileState extends State<AssistantProfile> {
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _aboutMeController.dispose();
     super.dispose();
   }
@@ -81,6 +84,17 @@ class _AssistantProfileState extends State<AssistantProfile> {
   }
 
   void _onMainCategoryChanged(String category) {
+    Future.delayed(const Duration(milliseconds: 50), () {
+      final context = _profileDetailsKey.currentContext;
+      if (context != null) {
+        final box = context.findRenderObject() as RenderBox;
+        _scrollController.animateTo(
+          box.size.height + Responsive.space(context, size: Space.large),
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeOut,
+        );
+      }
+    });
     setState(() {
       _currentCategory = category;
     });
@@ -332,9 +346,13 @@ class _AssistantProfileState extends State<AssistantProfile> {
         child: Padding(
           padding: Responsive.paddingHorizontal(context),
           child: CustomScrollView(
+            controller: _scrollController,
             slivers: [
               SliverToBoxAdapter(
-                child: DoctorDetails(userProfile: _displayedProfile!),
+                child: Container(
+                  key: _profileDetailsKey,
+                  child: DoctorDetails(userProfile: _displayedProfile!),
+                ),
               ),
               SliverToBoxAdapter(
                 child: SizedBox(

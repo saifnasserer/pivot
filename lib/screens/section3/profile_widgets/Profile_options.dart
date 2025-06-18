@@ -4,7 +4,6 @@ import 'package:pivot/screens/section1/first_landing.dart';
 import 'package:pivot/screens/section2/adminstration/user_management_page.dart';
 import 'package:pivot/screens/section2/adminstration/global_subject_management_screen.dart';
 import 'package:pivot/screens/section3/edit_profile.dart' show EditProfile;
-import 'package:pivot/providers/subject_provider.dart';
 import 'package:pivot/screens/section3/subject_selection_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -149,137 +148,25 @@ Future<void> profile_options(BuildContext context) async {
       }
       break;
     case 'select_subjects':
-      if (userProfile?.role == 'Student') {
-        final selectedIds = await Navigator.push<List<String>>(
-          context,
-          MaterialPageRoute(
-            builder:
-                (context) => SubjectSelectionScreen(
-                  previouslySelectedIds: userProfile?.enrolledSubjects ?? [],
-                ),
-          ),
-        );
-        if (selectedIds != null) {
-          try {
-            await Provider.of<UserProfileProvider>(
-              context,
-              listen: false,
-            ).updateEnrolledSubjects(selectedIds);
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Your courses have been updated successfully.'),
-                  backgroundColor: Colors.green,
-                ),
-              );
-            }
-          } catch (e) {
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Failed to update courses. Please try again.'),
-                  backgroundColor: Colors.red,
-                ),
-              );
-            }
-          }
-        }
-      } else {
-        final selectedIds = await Navigator.push<List<String>>(
-          context,
-          MaterialPageRoute(
-            builder:
-                (context) => SubjectSelectionScreen(
-                  previouslySelectedIds: userProfile?.teachingSubjects ?? [],
-                ),
-          ),
-        );
-        if (selectedIds != null) {
-          try {
-            final userProfileProvider = Provider.of<UserProfileProvider>(
-              context,
-              listen: false,
-            );
-            await userProfileProvider.updateTeachingSubjects(selectedIds);
-
-            if (context.mounted) {
-              final subjectProvider = Provider.of<SubjectProvider>(
-                context,
-                listen: false,
-              );
-              await subjectProvider.fetchAndFilterSubjects(
-                userProfileProvider.userProfile,
-              );
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Your subjects have been updated successfully.',
-                  ),
-                  backgroundColor: Colors.green,
-                ),
-              );
-            }
-          } catch (e) {
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Failed to update subjects: $e'),
-                  backgroundColor: Colors.red,
-                ),
-              );
-            }
-          }
-        }
-      }
-      break;
-    case 'enroll_in_courses':
-      final selectedIds = await Navigator.push<List<String>>(
+      await Navigator.push(
         context,
         MaterialPageRoute(
-          builder:
-              (context) => SubjectSelectionScreen(
-                previouslySelectedIds: userProfile?.enrolledSubjects ?? [],
-              ),
+          builder: (context) => SubjectSelectionScreen(
+            previouslySelectedIds: userProfile?.teachingSubjects ?? [],
+          ),
         ),
       );
-      if (selectedIds != null) {
-        try {
-          final userProfileProvider = Provider.of<UserProfileProvider>(
-            context,
-            listen: false,
-          );
-          await userProfileProvider.updateEnrolledSubjects(selectedIds);
-
-          if (context.mounted) {
-            final subjectProvider = Provider.of<SubjectProvider>(
-              context,
-              listen: false,
-            );
-            await subjectProvider.fetchAndFilterSubjects(
-              userProfileProvider.userProfile,
-            );
-
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Your courses have been updated successfully.'),
-                backgroundColor: Colors.green,
-              ),
-            );
-          }
-        } catch (e) {
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Failed to update courses: $e'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-        }
-      }
       break;
-
+    case 'enroll_in_courses':
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => SubjectSelectionScreen(
+            previouslySelectedIds: userProfile?.enrolledSubjects ?? [],
+          ),
+        ),
+      );
+      break;
     case 'logout':
       await _showLogoutConfirmationDialog(context);
       break;
@@ -329,7 +216,7 @@ Future<void> _showLogoutConfirmationDialog(BuildContext context) async {
 
                       Navigator.pushNamedAndRemoveUntil(
                         context,
-                        FirstLanding.id,
+                        FirstLandingScreen.id,
                         (Route<dynamic> route) => false,
                       );
                     }

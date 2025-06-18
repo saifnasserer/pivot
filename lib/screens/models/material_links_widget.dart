@@ -3,6 +3,7 @@ import 'package:pivot/responsive.dart';
 import 'package:pivot/models/lecture_model.dart';
 import 'package:pivot/providers/doctor_subject_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SubjectModel extends StatelessWidget {
   final Lecture lecture;
@@ -68,6 +69,19 @@ class SubjectModel extends StatelessWidget {
     );
   }
 
+  Future<void> _launchURL(BuildContext context, String urlString) async {
+    final Uri? url = Uri.tryParse(urlString);
+    if (url != null && await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } else {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('تعذر فتح الرابط: $urlString')),
+        );
+      }
+    }
+  }
+
   void _showLinksDialog(BuildContext context, List<Map<String, String>> initialLinks) {
     final provider = Provider.of<DoctorSubjectProvider>(context, listen: false);
     List<Map<String, String>> links = List.from(initialLinks);
@@ -106,12 +120,7 @@ class SubjectModel extends StatelessWidget {
                             tooltip: 'حذف الرابط',
                           )
                         : null,
-                    onTap: () {
-                      print('Tapped on ${link['url']}');
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Opening ${link['url']}')),
-                      );
-                    },
+                    onTap: () => _launchURL(context, link['url']!),
                   );
                 },
               ),

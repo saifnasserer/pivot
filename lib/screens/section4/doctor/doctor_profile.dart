@@ -22,6 +22,8 @@ class DoctorProfile extends StatefulWidget {
 }
 
 class _DoctorProfileState extends State<DoctorProfile> {
+  final ScrollController _scrollController = ScrollController();
+  final GlobalKey _profileDetailsKey = GlobalKey();
   String _currentCategory = 'المواد';
   int _selectedSubjectIndex = 0;
   UserProfile? _displayedProfile;
@@ -37,6 +39,7 @@ class _DoctorProfileState extends State<DoctorProfile> {
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _aboutMeController.dispose();
     super.dispose();
   }
@@ -80,6 +83,17 @@ class _DoctorProfileState extends State<DoctorProfile> {
   }
 
   void _onMainCategoryChanged(String category) {
+    Future.delayed(const Duration(milliseconds: 50), () {
+      final context = _profileDetailsKey.currentContext;
+      if (context != null) {
+        final box = context.findRenderObject() as RenderBox;
+        _scrollController.animateTo(
+          box.size.height + Responsive.space(context, size: Space.large),
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeOut,
+        );
+      }
+    });
     setState(() {
       _currentCategory = category;
     });
@@ -378,8 +392,6 @@ class _DoctorProfileState extends State<DoctorProfile> {
       );
     }
 
-
-
     return Scaffold(
       backgroundColor: Colors.white,
       floatingActionButton:
@@ -390,33 +402,30 @@ class _DoctorProfileState extends State<DoctorProfile> {
               )
               : null,
       appBar: appBar,
-      body: SafeArea(
-        child: Padding(
-          padding: Responsive.paddingHorizontal(context),
-          child: CustomScrollView(
-            slivers: [
-              SliverToBoxAdapter(
-                child: SizedBox(
-                  height: Responsive.space(context, size: Space.xlarge),
-                ),
-              ),
-              SliverToBoxAdapter(
+      body: Padding(
+        padding: Responsive.paddingHorizontal(context),
+        child: CustomScrollView(
+          controller: _scrollController,
+          slivers: [
+            SliverToBoxAdapter(
+              child: Container(
+                key: _profileDetailsKey,
                 child: DoctorDetails(userProfile: userProfile),
               ),
-              SliverToBoxAdapter(
-                child: SizedBox(
-                  height: Responsive.space(context, size: Space.large),
-                ),
+            ),
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: Responsive.space(context, size: Space.large),
               ),
-              SliverToBoxAdapter(
-                child: DoctorCategories(
-                  onCategoryChanged: _onMainCategoryChanged,
-                ),
+            ),
+            SliverToBoxAdapter(
+              child: DoctorCategories(
+                onCategoryChanged: _onMainCategoryChanged,
               ),
-              const SliverToBoxAdapter(child: Divider(indent: 4, endIndent: 1)),
-              ..._getCategoryContentSlivers(context),
-            ],
-          ),
+            ),
+            const SliverToBoxAdapter(child: Divider(indent: 4, endIndent: 1)),
+            ..._getCategoryContentSlivers(context),
+          ],
         ),
       ),
     );

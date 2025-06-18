@@ -1,26 +1,34 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/screens/section1/login/login.dart';
 import 'package:pivot/screens/section1/signup/signup_page1.dart';
 import 'package:pivot/screens/section2/landing.dart';
 import 'package:pivot/services/auth_service.dart';
+import 'package:pivot/services/local_auth_service.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../responsive.dart';
 
-class FirstLanding extends StatefulWidget {
-  const FirstLanding({super.key});
-  static String id = 'landing1';
+class FirstLandingScreen extends StatefulWidget {
+  const FirstLandingScreen({super.key});
+  static const String id = 'first_landing_screen';
 
   @override
-  State<FirstLanding> createState() => _FirstLandingState();
+  State<FirstLandingScreen> createState() => _FirstLandingScreenState();
 }
 
-class _FirstLandingState extends State<FirstLanding> {
+class _FirstLandingScreenState extends State<FirstLandingScreen> {
   final AuthService _authService = AuthService();
+  final LocalAuthService _localAuthService = LocalAuthService();
+  final _storage = const FlutterSecureStorage();
   bool _isLoading = true;
+  bool _isLoggingIn = false;
 
   @override
   void initState() {
@@ -52,6 +60,76 @@ class _FirstLandingState extends State<FirstLanding> {
     }
   }
 
+  Future<void> _handleLogin() async {
+    if (_isLoggingIn) return;
+
+    setState(() {
+      _isLoggingIn = true;
+    });
+
+    try {
+      if (kIsWeb) {
+        Navigator.pushReplacementNamed(context, Login.id);
+        return;
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      final isBiometricEnabled = prefs.getBool('isBiometricEnabled') ?? false;
+      final isSupported = await _localAuthService.isBiometricSupported();
+
+      if (isBiometricEnabled && isSupported) {
+        final isAuthenticated = await _localAuthService.authenticate(
+          'الرجاء المصادقة لتسجيل الدخول',
+        );
+
+        if (isAuthenticated) {
+          final email = await _storage.read(key: 'email');
+          final password = await _storage.read(key: 'password');
+
+          if (email != null && password != null) {
+            UserProfile? userProfile =
+                await _authService.signInWithEmailAndPassword(email, password);
+
+            if (mounted && userProfile != null) {
+              final provider =
+                  Provider.of<UserProfileProvider>(context, listen: false);
+              provider.setLoggedInUserProfile(userProfile);
+              provider.setUserProfile(userProfile);
+
+              Navigator.pushNamedAndRemoveUntil(
+                  context, Landing.id, (route) => false);
+              return; // Exit after successful login
+            } else if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                    content: Text(
+                        'فشل تسجيل الدخول بالبصمة. الرجاء تسجيل الدخول يدويًا.')),
+              );
+            }
+          }
+        }
+      }
+      // Fallback to manual login screen
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, Login.id);
+      }
+    } catch (e) {
+      debugPrint('Biometric login error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('خطأ في المصادقة: $e')),
+        );
+        Navigator.pushReplacementNamed(context, Login.id);
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoggingIn = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -66,7 +144,7 @@ class _FirstLandingState extends State<FirstLanding> {
     }
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle(
+      value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light,
         statusBarBrightness: Brightness.light,
@@ -100,11 +178,9 @@ class _FirstLandingState extends State<FirstLanding> {
                           '! ... واخيراً',
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: Responsive.text(
-                                  context,
-                                  size: TextSize.heading,
-                                ) *
-                                1.5,
+                            fontSize:
+                                Responsive.text(context, size: TextSize.heading) *
+                                    1.5,
                           ),
                         ),
                         Text(
@@ -112,11 +188,9 @@ class _FirstLandingState extends State<FirstLanding> {
                           'حياة جامعية منظمة',
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: Responsive.text(
-                                  context,
-                                  size: TextSize.heading,
-                                ) *
-                                2.5,
+                            fontSize:
+                                Responsive.text(context, size: TextSize.heading) *
+                                    2.5,
                           ),
                         ),
                       ],
@@ -130,27 +204,35 @@ class _FirstLandingState extends State<FirstLanding> {
                       width: Responsive.space(context, size: Space.small),
                     ),
                     ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            Responsive.space(context, size: Space.large),
+                          ),
+                        ),
+                        padding: EdgeInsets.symmetric(
+                          horizontal:
+                              Responsive.space(context, size: Space.large),
+                          vertical: Responsive.space(context, size: Space.small),
+                        ),
+                      ),
                       onPressed: () {
-                        Navigator.pushNamed(context, Signup_1.id);
+                        Navigator.pushReplacementNamed(context, Signup_1.id);
                       },
                       child: Row(
                         children: [
                           Icon(
                             Icons.arrow_back,
                             color: Colors.black,
-                            size: Responsive.text(
-                              context,
-                              size: TextSize.medium,
-                            ),
+                            size: Responsive.text(context, size: TextSize.medium),
                           ),
                           Text(
                             ' حساب جديد',
                             style: TextStyle(
                               color: Colors.black,
-                              fontSize: Responsive.text(
-                                context,
-                                size: TextSize.medium,
-                              ),
+                              fontSize:
+                                  Responsive.text(context, size: TextSize.medium),
                             ),
                           ),
                         ],
@@ -160,31 +242,35 @@ class _FirstLandingState extends State<FirstLanding> {
                       width: Responsive.space(context, size: Space.medium),
                     ),
                     TextButton(
-                      onPressed: () {
-                        Navigator.pushNamed(context, Login.id);
-                      },
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.arrow_back,
-                            color: Colors.white,
-                            size: Responsive.text(
-                              context,
-                              size: TextSize.medium,
-                            ),
-                          ),
-                          Text(
-                            ' تسجيل الدخول',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: Responsive.text(
-                                context,
-                                size: TextSize.medium,
+                      onPressed: _isLoggingIn ? null : _handleLogin,
+                      child: _isLoggingIn
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
                               ),
+                            )
+                          : Row(
+                              children: [
+                                Icon(
+                                  Icons.arrow_forward,
+                                  color: Colors.white,
+                                  size: Responsive.text(context,
+                                      size: TextSize.medium),
+                                ),
+                                Text(
+                                  ' تسجيل الدخول',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: Responsive.text(context,
+                                        size: TextSize.medium),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                        ],
-                      ),
                     ),
                   ],
                 ),
