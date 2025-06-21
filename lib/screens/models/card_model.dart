@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:pivot/providers/bookmarks.dart';
 import 'package:pivot/responsive.dart';
+import 'package:pivot/models/user_profile.dart';
 
 import 'package:provider/provider.dart';
 import 'package:auto_size_text/auto_size_text.dart';
@@ -44,11 +45,10 @@ class CardModel extends StatefulWidget {
 class _CardModelState extends State<CardModel> {
   bool _isTitleExpanded = false;
 
-
   // Builds the horizontally scrolling image gallery
   Widget _buildImageGallery(BuildContext context) {
     return Container(
-      height: 120,
+      height: Responsive.space(context, size: Space.large) * 3,
       margin: EdgeInsets.only(
         top: Responsive.space(context, size: Space.medium),
       ),
@@ -72,18 +72,20 @@ class _CardModelState extends State<CardModel> {
                 );
               },
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(12.0),
+                borderRadius: BorderRadius.circular(
+                  Responsive.space(context, size: Space.small),
+                ),
                 child: Hero(
                   tag: imageUrl,
                   child: CachedNetworkImage(
                     imageUrl: imageUrl,
-                    width: 120,
-                    height: 120,
+                    width: Responsive.space(context, size: Space.large) * 3,
+                    height: Responsive.space(context, size: Space.large) * 3,
                     fit: BoxFit.cover,
                     placeholder:
                         (context, url) => Container(
-                          width: 120,
-                          height: 120,
+                          width: Responsive.space(context, size: Space.large),
+                          height: Responsive.space(context, size: Space.large),
                           color: Colors.grey[200],
                           child: const Center(
                             child: CircularProgressIndicator(),
@@ -91,8 +93,8 @@ class _CardModelState extends State<CardModel> {
                         ),
                     errorWidget:
                         (context, url, error) => Container(
-                          width: 120,
-                          height: 120,
+                          width: Responsive.space(context, size: Space.large),
+                          height: Responsive.space(context, size: Space.large),
                           color: Colors.grey[200],
                           child: const Icon(
                             Icons.broken_image,
@@ -173,7 +175,9 @@ class _CardModelState extends State<CardModel> {
                             color: Colors.black.withOpacity(0.8),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        SizedBox(
+                          width: Responsive.space(context, size: Space.small),
+                        ),
                         Icon(
                           Icons.link,
                           color: Colors.black.withOpacity(0.6),
@@ -369,43 +373,43 @@ class _CardModelState extends State<CardModel> {
             ),
             // Static footer area
             SizedBox(height: Responsive.space(context, size: Space.medium)),
-            if (widget.tags.isNotEmpty)
-              Wrap(
-                spacing: Responsive.space(context, size: Space.small),
-                runSpacing: Responsive.space(context, size: Space.small),
-                alignment: WrapAlignment.end,
-                children:
-                    widget.tags.map((tag) {
-                      return Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal:
-                              Responsive.space(context, size: Space.small) *
-                              1.5,
-                          vertical:
-                              Responsive.space(context, size: Space.small) *
-                              0.5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xffe1e0da).withValues(alpha: 0.5),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: widget.color.withValues(alpha: 0.5),
-                            width: 1,
-                          ),
-                        ),
-                        child: Text(
-                          tag,
-                          style: TextStyle(
-                            fontSize:
-                                Responsive.text(context, size: TextSize.small) *
-                                0.9,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      );
-                    }).toList(),
-              ),
-            SizedBox(height: Responsive.space(context, size: Space.medium)),
+            // if (widget.tags.isNotEmpty)
+            //   Wrap(
+            //     spacing: Responsive.space(context, size: Space.small),
+            //     runSpacing: Responsive.space(context, size: Space.small),
+            //     alignment: WrapAlignment.end,
+            //     children:
+            //         widget.tags.map((tag) {
+            //           return Container(
+            //             padding: EdgeInsets.symmetric(
+            //               horizontal:
+            //                   Responsive.space(context, size: Space.small) *
+            //                   1.5,
+            //               vertical:
+            //                   Responsive.space(context, size: Space.small) *
+            //                   0.5,
+            //             ),
+            //             decoration: BoxDecoration(
+            //               color: const Color(0xffe1e0da).withValues(alpha: 0.5),
+            //               borderRadius: BorderRadius.circular(16),
+            //               border: Border.all(
+            //                 color: widget.color.withValues(alpha: 0.5),
+            //                 width: 1,
+            //               ),
+            //             ),
+            //             child: Text(
+            //               tag,
+            //               style: TextStyle(
+            //                 fontSize:
+            //                     Responsive.text(context, size: TextSize.small) *
+            //                     0.9,
+            //                 fontWeight: FontWeight.w500,
+            //               ),
+            //             ),
+            //           );
+            //         }).toList(),
+            //   ),
+            // SizedBox(height: Responsive.space(context, size: Space.medium)),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -433,7 +437,8 @@ class _CardModelState extends State<CardModel> {
 
                             String shareText =
                                 '$userName شارك معاك الخبر ده من ابلكيشن pivot';
-                            shareText += '\n------------------------------------';
+                            shareText +=
+                                '\n------------------------------------';
 
                             shareText += '\n\n${widget.title}';
 
@@ -444,7 +449,8 @@ class _CardModelState extends State<CardModel> {
                             if (widget.links.isNotEmpty) {
                               shareText += '\n\nالروابط:';
                               for (var link in widget.links) {
-                                shareText += '\n- ${link['title']}: ${link['url']}';
+                                shareText +=
+                                    '\n- ${link['title']}: ${link['url']}';
                               }
                             }
 
@@ -608,6 +614,38 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer>
           ),
         ],
       ),
+    );
+  }
+}
+
+class AttachmentListWidget extends StatelessWidget {
+  final List<Map<String, String>> attachments;
+  const AttachmentListWidget({super.key, required this.attachments});
+
+  @override
+  Widget build(BuildContext context) {
+    if (attachments.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        const SizedBox(height: 12),
+        const Text('المرفقات:', style: TextStyle(fontWeight: FontWeight.bold)),
+        ...attachments.map(
+          (att) => ListTile(
+            leading: const Icon(Icons.attach_file),
+            title: Text(att['title'] ?? ''),
+            onTap: () async {
+              final url = att['url'];
+              if (url != null && await canLaunchUrl(Uri.parse(url))) {
+                await launchUrl(
+                  Uri.parse(url),
+                  mode: LaunchMode.externalApplication,
+                );
+              }
+            },
+          ),
+        ),
+      ],
     );
   }
 }

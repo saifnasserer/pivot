@@ -4,6 +4,8 @@ import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/models/custom_text_field.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
+  const ForgotPasswordScreen({super.key});
+
   @override
   _ForgotPasswordScreenState createState() => _ForgotPasswordScreenState();
 }

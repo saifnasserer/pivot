@@ -139,8 +139,8 @@ class _AddSubjectLinkDialogState extends State<AddSubjectLinkDialog> {
             backgroundColor: Theme.of(context).primaryColor,
             foregroundColor: Theme.of(context).colorScheme.onPrimary,
           ),
-          child: const Text('إضافة'),
           onPressed: _submit,
+          child: const Text('إضافة'),
         ),
       ],
     );

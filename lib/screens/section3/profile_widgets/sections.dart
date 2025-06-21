@@ -54,10 +54,13 @@ List<Widget> buildSectionsSlivers(BuildContext context) {
                 size: 48,
                 color: Colors.grey[400],
               ),
-              const SizedBox(height: 16),
-              const Text(
+              SizedBox(height: Responsive.space(context, size: Space.medium)),
+              Text(
                 'لا توجد سكاشن مسجلة لك حالياً',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                style: TextStyle(
+                  fontSize: Responsive.text(context, size: TextSize.medium),
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ],
           ),
@@ -89,10 +92,10 @@ List<Widget> buildSectionsSlivers(BuildContext context) {
 
 class SectionListItem extends StatelessWidget {
   const SectionListItem({
-    Key? key,
+    super.key,
     required this.section,
     required this.subject,
-  }) : super(key: key);
+  });
 
   final Section section;
   final Subject subject;
@@ -118,9 +121,9 @@ class SectionListItem extends StatelessWidget {
               itemBuilder: (context, index) {
                 final assistant = assistants[index];
                 return ListTile(
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 4,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: Responsive.space(context, size: Space.medium),
+                    vertical: Responsive.space(context, size: Space.tiny),
                   ),
                   title: Text(
                     assistant.name,
@@ -162,7 +165,9 @@ class SectionListItem extends StatelessWidget {
         [];
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
+      padding: EdgeInsets.only(
+        bottom: Responsive.space(context, size: Space.small),
+      ),
       child: Card(
         elevation: 0.5,
         shape: RoundedRectangleBorder(
@@ -181,7 +186,7 @@ class SectionListItem extends StatelessWidget {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  margin: const EdgeInsets.all(12),
+                  margin: Responsive.padding(context, size: Space.small),
                 ),
               );
             } else if (assistants.length == 1) {
@@ -201,7 +206,7 @@ class SectionListItem extends StatelessWidget {
               ),
             ),
             child: Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: Responsive.padding(context, size: Space.medium),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -228,7 +233,9 @@ class SectionListItem extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12.0),
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.small),
+                  ),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
@@ -242,7 +249,9 @@ class SectionListItem extends StatelessWidget {
                               1.2,
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      SizedBox(
+                        width: Responsive.space(context, size: Space.small),
+                      ),
                       Icon(
                         Icons.location_on_outlined,
                         size: 16,
@@ -250,7 +259,9 @@ class SectionListItem extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8.0),
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.small),
+                  ),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
@@ -264,7 +275,9 @@ class SectionListItem extends StatelessWidget {
                               1.2,
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      SizedBox(
+                        width: Responsive.space(context, size: Space.small),
+                      ),
                       Icon(
                         Icons.access_time,
                         size: 16,
@@ -273,7 +286,9 @@ class SectionListItem extends StatelessWidget {
                     ],
                   ),
                   if (assistants.isNotEmpty) ...[
-                    const SizedBox(height: 12.0),
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.small),
+                    ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
@@ -290,7 +305,9 @@ class SectionListItem extends StatelessWidget {
                                 1.2,
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        SizedBox(
+                          width: Responsive.space(context, size: Space.small),
+                        ),
                         Icon(
                           Icons.person_outline,
                           size: 16,

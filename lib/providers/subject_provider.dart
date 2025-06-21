@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/services/subject_service.dart';
+import 'package:pivot/services/cache_service.dart';
 
 class SubjectProvider with ChangeNotifier {
   final SubjectService _subjectService = SubjectService();
@@ -16,7 +17,7 @@ class SubjectProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  Map<String, List<UserProfile>> _instructorsBySubject = {};
+  final Map<String, List<UserProfile>> _instructorsBySubject = {};
   Map<String, List<UserProfile>> get instructorsBySubject =>
       _instructorsBySubject;
 
@@ -54,7 +55,16 @@ class SubjectProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      // Step 1: Load from cache first
+      final cachedSubjects = CacheService.instance.getCachedSubjects();
+      if (cachedSubjects.isNotEmpty) {
+        _allSubjects = cachedSubjects;
+        notifyListeners();
+      }
+
+      // Step 2: Fetch from server in the background
       _allSubjects = await _subjectService.getSubjects();
+      await CacheService.instance.cacheSubjects(_allSubjects);
     } catch (e) {
       _error = 'Failed to fetch all subjects: ${e.toString()}';
     } finally {
@@ -113,7 +123,7 @@ class SubjectProvider with ChangeNotifier {
       _allSubjects = await _subjectService.getSubjects();
 
       List<String> userSubjectIds = [];
-      if (userProfile.role == 'Student') {
+      if (userProfile.role == 'Student' || userProfile.role == 'Admin') {
         userSubjectIds = userProfile.enrolledSubjects;
       } else if (userProfile.role.toLowerCase() == 'professor' ||
           userProfile.role.toLowerCase() == 'miniprofessor' ||

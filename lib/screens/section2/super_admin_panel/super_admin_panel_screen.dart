@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/providers/super_admin_provider.dart';
 import 'package:pivot/responsive.dart';
-import 'package:pivot/screens/section2/admin_control.dart';
-
+import 'package:pivot/screens/models/custom_text_field.dart';
 import 'package:pivot/screens/section2/adminstration/user_management_page.dart';
+import 'package:pivot/screens/section2/adminstration/add_user_screen.dart';
 import 'package:pivot/screens/section2/adminstration/global_subject_management_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pivot/screens/section1/auth_wrapper.dart';
 import 'package:pivot/services/remote_config_service.dart';
+import 'package:pivot/screens/section2/super_admin_panel/analytics_screen.dart';
 
 class SuperAdminPanelScreen extends StatefulWidget {
   const SuperAdminPanelScreen({super.key});
@@ -18,6 +19,8 @@ class SuperAdminPanelScreen extends StatefulWidget {
 }
 
 class _SuperAdminPanelScreenState extends State<SuperAdminPanelScreen> {
+  bool _showAnalytics = true;
+
   @override
   void initState() {
     super.initState();
@@ -35,22 +38,41 @@ class _SuperAdminPanelScreenState extends State<SuperAdminPanelScreen> {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        appBar: AppBar(title: const Text('الادارة')),
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          title: Text(
+            'لوحة الإدارة',
+            style: TextStyle(
+              fontSize: Responsive.text(context, size: TextSize.heading),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          backgroundColor: Colors.white,
+          elevation: 0,
+          iconTheme: const IconThemeData(color: Colors.black),
+        ),
         body: Consumer<SuperAdminProvider>(
           builder: (context, provider, child) {
             if (provider.isLoading) {
-              return const Center(child: CircularProgressIndicator());
+              return Center(
+                child: CircularProgressIndicator(color: Colors.black),
+              );
             }
             return RefreshIndicator(
               onRefresh: () => provider.fetchDashboardData(),
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: Responsive.padding(context, size: Space.medium),
+                padding: Responsive.padding(context, size: Space.large),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _buildSectionTitle(context, 'إحصائيات'),
-                    _buildAnalyticsCard(provider),
+                    // Analytics Section (Collapsible)
+                    _buildAnalyticsSection(provider),
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.large),
+                    ),
+                    _buildSectionTitle(context, 'إجراءات سريعة'),
+                    _buildQuickActionsCard(),
                     SizedBox(
                       height: Responsive.space(context, size: Space.large),
                     ),
@@ -71,136 +93,238 @@ class _SuperAdminPanelScreenState extends State<SuperAdminPanelScreen> {
     );
   }
 
-  Widget _buildSectionTitle(BuildContext context, String title) {
-    return Padding(
-      padding: EdgeInsets.only(
-        bottom: Responsive.space(context, size: Space.small),
-      ),
-      child: Text(
-        title,
-        style: TextStyle(
-          fontSize: Responsive.text(context, size: TextSize.heading),
-          fontWeight: FontWeight.bold,
-          color: Colors.black,
+  Widget _buildAnalyticsSection(SuperAdminProvider provider) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _buildSectionTitle(context, 'إحصائيات'),
+            Row(
+              children: [
+                IconButton(
+                  onPressed: () {
+                    Navigator.pushNamed(context, AnalyticsScreen.id);
+                  },
+                  icon: Icon(
+                    Icons.analytics,
+                    color: Colors.blue,
+                    size: Responsive.text(context, size: TextSize.heading),
+                  ),
+                  tooltip: 'عرض التحليلات التفصيلية',
+                ),
+                IconButton(
+                  onPressed: () {
+                    setState(() {
+                      _showAnalytics = !_showAnalytics;
+                    });
+                  },
+                  icon: Icon(
+                    _showAnalytics ? Icons.expand_less : Icons.expand_more,
+                    color: Colors.blue,
+                    size: Responsive.text(context, size: TextSize.heading),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
+        if (_showAnalytics) ...[
+          SizedBox(height: Responsive.space(context, size: Space.medium)),
+          _buildCompactAnalyticsCard(provider),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildCompactAnalyticsCard(SuperAdminProvider provider) {
+    return Container(
+      width: double.infinity,
+      padding: Responsive.padding(context, size: Space.large),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildCompactInfoTile(
+              context,
+              Icons.people,
+              'إجمالي',
+              provider.totalUsers.toString(),
+              Colors.blue,
+            ),
+          ),
+          SizedBox(width: Responsive.space(context, size: Space.medium)),
+          Expanded(
+            child: _buildCompactInfoTile(
+              context,
+              Icons.shield,
+              'الطلاب',
+              '${provider.userRolesCount['Student'] ?? 0}',
+              Colors.green,
+            ),
+          ),
+          SizedBox(width: Responsive.space(context, size: Space.medium)),
+          Expanded(
+            child: _buildCompactInfoTile(
+              context,
+              Icons.admin_panel_settings,
+              'المدراء',
+              '${provider.userRolesCount['admin'] ?? 0}',
+              Colors.orange,
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildAnalyticsCard(SuperAdminProvider provider) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      child: Padding(
-        padding: Responsive.padding(context, size: Space.medium),
-        child: Column(
-          children: [
-            _buildInfoTile(
-              context,
-              Icons.people,
-              'إجمالي المستخدمين',
-              provider.totalUsers.toString(),
+  Widget _buildCompactInfoTile(
+    BuildContext context,
+    IconData icon,
+    String title,
+    String value,
+    Color color,
+  ) {
+    return Container(
+      padding: Responsive.padding(context, size: Space.medium),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: Responsive.padding(context, size: Space.small),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
             ),
-            const Divider(),
-            _buildInfoTile(
-              context,
-              Icons.shield,
-              'الأدوار',
-              '${provider.userRolesCount['Student'] ?? 0} طالب, ${provider.userRolesCount['Professor'] ?? 0} أستاذ',
+            child: Icon(
+              icon,
+              size: Responsive.text(context, size: TextSize.medium),
+              color: color,
             ),
-            const Divider(),
-            _buildInfoTile(
-              context,
-              Icons.cloud_done,
-              'حالة النظام',
-              'يعمل',
-              color: Colors.green,
+          ),
+          SizedBox(height: Responsive.space(context, size: Space.small)),
+          Text(
+            value,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: Responsive.text(context, size: TextSize.medium),
+              color: Colors.black87,
             ),
-          ],
-        ),
+          ),
+          Text(
+            title,
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: Responsive.text(context, size: TextSize.small),
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(BuildContext context, String title) {
+    return Text(
+      title,
+      style: TextStyle(
+        fontSize: Responsive.text(context, size: TextSize.heading),
+        fontWeight: FontWeight.bold,
+        color: Colors.black87,
       ),
     );
   }
 
   Widget _buildManagementCard() {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
       child: Column(
         children: [
           _buildManagementTile(
             context,
             Icons.manage_accounts,
             'إدارة أدوار المستخدمين',
+            'إدارة صلاحيات وأدوار المستخدمين',
             () {
               Navigator.pushNamed(context, UserManagementPage.id);
             },
           ),
-          const Divider(height: 1),
-          _buildManagementTile(context, Icons.school, 'إدارة السكاشن', () {
-            Navigator.pushNamed(context, '/section-management');
-          }),
-          const Divider(height: 1),
-          _buildManagementTile(context, Icons.menu_book, 'إدارة المواد', () {
-            Navigator.pushNamed(context, GlobalSubjectManagementScreen.id);
-          }),
-          // const Divider(height: 1),
-          // _buildManagementTile(context, Icons.campaign, 'إدارة الإعلانات', () {
-          //   Navigator.pushNamed(context, AdminControl.id);
-          // }),
+          _buildDivider(),
+          _buildManagementTile(
+            context,
+            Icons.school,
+            'إدارة السكاشن',
+            'إدارة أقسام وفرق الطلاب',
+            () {
+              Navigator.pushNamed(context, '/section-management');
+            },
+          ),
+          _buildDivider(),
+          _buildManagementTile(
+            context,
+            Icons.menu_book,
+            'إدارة المواد',
+            'إدارة المواد الدراسية والمناهج',
+            () {
+              Navigator.pushNamed(context, GlobalSubjectManagementScreen.id);
+            },
+          ),
+          _buildDivider(),
+          _buildManagementTile(
+            context,
+            Icons.feedback,
+            'إدارة الملاحظات',
+            'عرض وإدارة ملاحظات المستخدمين',
+            () {
+              Navigator.pushNamed(context, '/feedback-management');
+            },
+          ),
+          _buildDivider(),
+          _buildManagementTile(
+            context,
+            Icons.history,
+            'آخر النشاطات',
+            'عرض سجل النشاطات الأخيرة',
+            () {
+              Navigator.pushNamed(context, '/activity-log');
+            },
+          ),
         ],
       ),
     );
   }
 
   Widget _buildSettingsCard(SuperAdminProvider provider) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
       child: Column(
         children: [
-          SwitchListTile(
-            title: Text(
-              'وضع الصيانة',
-              style: TextStyle(
-                fontSize: Responsive.text(context, size: TextSize.medium),
-              ),
-            ),
-            secondary: const Icon(Icons.construction),
-            value: provider.isMaintenanceMode,
-            onChanged: (bool value) {
-              provider.setMaintenanceMode(value);
-            },
-          ),
-          const Divider(height: 1),
-          // ListTile(
-          //   leading: const Icon(Icons.cleaning_services),
-          //   title: Text(
-          //     'مسح ذاكرة التخزين المؤقت للصور',
-          //     style: TextStyle(
-          //       fontSize: Responsive.text(context, size: TextSize.medium),
-          //     ),
-          //   ),
-          //   onTap: () async {
-          //     await provider.clearImageCache();
-          //     if (!context.mounted) return;
-          //     ScaffoldMessenger.of(context).showSnackBar(
-          //       const SnackBar(
-          //         content: Text('تم مسح ذاكرة التخزين المؤقت للصور بنجاح!'),
-          //       ),
-          //     );
-          //   },
-          // ),
-          const Divider(height: 1),
-          ListTile(
-            leading: const Icon(Icons.sync),
-            title: Text(
-              'ارفع الابديت (Remote Config)',
-              style: TextStyle(
-                fontSize: Responsive.text(context, size: TextSize.medium),
-              ),
-            ),
-            onTap: () async {
+          _buildSettingsTile(
+            context,
+            Icons.sync,
+            'رفع الإبديت',
+            'تحديث إعدادات التطبيق من السيرفر',
+            () async {
               final remoteConfigService = Provider.of<RemoteConfigService>(
                 context,
                 listen: false,
@@ -210,21 +334,98 @@ class _SuperAdminPanelScreenState extends State<SuperAdminPanelScreen> {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(success ? 'تم التحديث بنجاح!' : 'فشل التحديث.'),
+                  backgroundColor: success ? Colors.green : Colors.red,
                 ),
               );
             },
+            Colors.blue,
           ),
-          const Divider(height: 1),
-          ListTile(
-            leading: const Icon(Icons.logout, color: Colors.red),
-            title: Text(
-              'تسجيل الخروج',
-              style: TextStyle(
-                fontSize: Responsive.text(context, size: TextSize.medium),
-                color: Colors.red,
-              ),
-            ),
-            onTap: () => _showLogoutConfirmationDialog(),
+          _buildDivider(),
+          _buildSettingsTile(
+            context,
+            Icons.logout,
+            'تسجيل الخروج',
+            'تسجيل الخروج من الحساب',
+            () => _showLogoutConfirmationDialog(),
+            Colors.red,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDivider() {
+    return Container(
+      height: 1,
+      margin: EdgeInsets.symmetric(
+        horizontal: Responsive.space(context, size: Space.large),
+      ),
+      color: Colors.grey[300],
+    );
+  }
+
+  Widget _buildQuickActionsCard() {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Column(
+        children: [
+          _buildQuickActionTile(
+            context,
+            Icons.person_add,
+            'إضافة مستخدم',
+            'إضافة مستخدم جديد',
+            Colors.green,
+            () async {
+              final result = await Navigator.pushNamed(
+                context,
+                AddUserScreen.id,
+              );
+              if (result == true) {
+                // Refresh data if user was added successfully
+                Provider.of<SuperAdminProvider>(
+                  context,
+                  listen: false,
+                ).fetchDashboardData();
+              }
+            },
+          ),
+          _buildDivider(),
+          _buildQuickActionTile(
+            context,
+            Icons.notifications,
+            'إرسال إشعار',
+            'إرسال إشعار سريع',
+            Colors.blue,
+            () {
+              Navigator.pushNamed(context, '/send-notifications');
+            },
+          ),
+          _buildDivider(),
+          _buildQuickActionTile(
+            context,
+            Icons.refresh,
+            'تحديث البيانات',
+            'تحديث البيانات من السيرفر',
+            Colors.orange,
+            () async {
+              final provider = Provider.of<SuperAdminProvider>(
+                context,
+                listen: false,
+              );
+              await provider.fetchDashboardData();
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('تم تحديث البيانات بنجاح'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -238,31 +439,79 @@ class _SuperAdminPanelScreenState extends State<SuperAdminPanelScreen> {
         return Directionality(
           textDirection: TextDirection.rtl,
           child: AlertDialog(
-            title: const Text('تسجيل الخروج', textAlign: TextAlign.center),
-            actions: <Widget>[
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Text(
+              'تسجيل الخروج',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: Responsive.text(context, size: TextSize.heading),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            content: Text(
+              'هل أنت متأكد من تسجيل الخروج؟',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: Responsive.text(context, size: TextSize.medium),
+              ),
+            ),
+            actions: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  TextButton(
-                    style: TextButton.styleFrom(backgroundColor: Colors.red),
-                    child: const Text(
-                      'تأكيد',
-                      style: TextStyle(color: Colors.white),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    onPressed: () async {
-                      await FirebaseAuth.instance.signOut();
-                      if (!mounted) return;
-                      Navigator.of(context).pushNamedAndRemoveUntil(
-                        AuthWrapper.id,
-                        (Route<dynamic> route) => false,
-                      );
-                    },
+                    child: TextButton(
+                      child: Text(
+                        'تأكيد',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: Responsive.text(
+                            context,
+                            size: TextSize.medium,
+                          ),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      onPressed: () async {
+                        await FirebaseAuth.instance.signOut();
+                        if (!mounted) return;
+                        Navigator.of(context).pushNamedAndRemoveUntil(
+                          AuthWrapper.id,
+                          (Route<dynamic> route) => false,
+                        );
+                      },
+                    ),
                   ),
-                  TextButton(
-                    child: const Text('لا'),
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                    },
+                  SizedBox(
+                    width: Responsive.space(context, size: Space.medium),
+                  ),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: TextButton(
+                      child: Text(
+                        'إلغاء',
+                        style: TextStyle(
+                          color: Colors.black87,
+                          fontSize: Responsive.text(
+                            context,
+                            size: TextSize.medium,
+                          ),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                    ),
                   ),
                 ],
               ),
@@ -273,49 +522,212 @@ class _SuperAdminPanelScreenState extends State<SuperAdminPanelScreen> {
     );
   }
 
-  Widget _buildInfoTile(
+  Widget _buildManagementTile(
     BuildContext context,
     IconData icon,
     String title,
-    String subtitle, {
-    Color? color,
-  }) {
-    return ListTile(
-      leading: Icon(icon, size: 30),
-      title: Text(
-        title,
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: Responsive.text(context, size: TextSize.medium),
-        ),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: TextStyle(
-          color: color ?? Colors.black54,
-          fontSize: Responsive.text(context, size: TextSize.small),
-          fontWeight: FontWeight.w500,
+    String subtitle,
+    VoidCallback onTap,
+  ) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Container(
+          padding: Responsive.padding(context, size: Space.large),
+          child: Row(
+            children: [
+              Container(
+                padding: Responsive.padding(context, size: Space.small),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  size: Responsive.text(context, size: TextSize.heading),
+                  color: Colors.black87,
+                ),
+              ),
+              SizedBox(width: Responsive.space(context, size: Space.medium)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: Responsive.text(
+                          context,
+                          size: TextSize.medium,
+                        ),
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: Responsive.text(
+                          context,
+                          size: TextSize.small,
+                        ),
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios,
+                color: Colors.grey[400],
+                size: Responsive.text(context, size: TextSize.small),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildManagementTile(
+  Widget _buildSettingsTile(
     BuildContext context,
     IconData icon,
     String title,
+    String subtitle,
     VoidCallback onTap,
+    Color color,
   ) {
-    return ListTile(
-      leading: Icon(icon),
-      title: Text(
-        title,
-        style: TextStyle(
-          fontSize: Responsive.text(context, size: TextSize.medium),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Container(
+          padding: Responsive.padding(context, size: Space.large),
+          child: Row(
+            children: [
+              Container(
+                padding: Responsive.padding(context, size: Space.small),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  size: Responsive.text(context, size: TextSize.heading),
+                  color: color,
+                ),
+              ),
+              SizedBox(width: Responsive.space(context, size: Space.medium)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: Responsive.text(
+                          context,
+                          size: TextSize.medium,
+                        ),
+                        fontWeight: FontWeight.w600,
+                        color: color,
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: Responsive.text(
+                          context,
+                          size: TextSize.small,
+                        ),
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios,
+                color: Colors.grey[400],
+                size: Responsive.text(context, size: TextSize.small),
+              ),
+            ],
+          ),
         ),
       ),
-      trailing: const Icon(Icons.arrow_forward_ios),
-      onTap: onTap,
+    );
+  }
+
+  Widget _buildQuickActionTile(
+    BuildContext context,
+    IconData icon,
+    String title,
+    String subtitle,
+    Color color,
+    VoidCallback onTap,
+  ) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Container(
+          padding: Responsive.padding(context, size: Space.large),
+          child: Row(
+            children: [
+              Container(
+                padding: Responsive.padding(context, size: Space.small),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  size: Responsive.text(context, size: TextSize.heading),
+                  color: color,
+                ),
+              ),
+              SizedBox(width: Responsive.space(context, size: Space.medium)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: Responsive.text(
+                          context,
+                          size: TextSize.medium,
+                        ),
+                        fontWeight: FontWeight.w600,
+                        color: color,
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: Responsive.text(
+                          context,
+                          size: TextSize.small,
+                        ),
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios,
+                color: Colors.grey[400],
+                size: Responsive.text(context, size: TextSize.small),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

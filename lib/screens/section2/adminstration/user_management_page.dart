@@ -16,8 +16,10 @@ class _UserManagementPageState extends State<UserManagementPage> {
   final TextEditingController _searchController = TextEditingController();
   List<UserProfile> _allUsers = [];
   List<UserProfile> _filteredUsers = [];
-  Map<String, String> _selectedRoles = {};
+  final Map<String, String> _selectedRoles = {};
+  final Set<String> _selectedUsers = {};
   bool _isLoading = true;
+  String _selectedRoleFilter = 'الكل';
 
   @override
   void initState() {
@@ -44,9 +46,12 @@ class _UserManagementPageState extends State<UserManagementPage> {
     } catch (e) {
       setState(() => _isLoading = false);
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('فشل في جلب المستخدمين: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('فشل في جلب المستخدمين: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -57,9 +62,22 @@ class _UserManagementPageState extends State<UserManagementPage> {
           _allUsers.where((user) {
             final userName = user.name.toLowerCase();
             final userEmail = user.email?.toLowerCase() ?? '';
-            return userName.contains(query) || userEmail.contains(query);
+            final matchesSearch =
+                userName.contains(query) || userEmail.contains(query);
+
+            if (_selectedRoleFilter == 'الكل') return matchesSearch;
+            return matchesSearch && user.role == _selectedRoleFilter;
           }).toList();
     });
+  }
+
+  void _onRoleFilterChanged(String? newValue) {
+    if (newValue != null) {
+      setState(() {
+        _selectedRoleFilter = newValue;
+        _filterUsers();
+      });
+    }
   }
 
   Future<void> _updateRole(UserProfile user) async {
@@ -74,13 +92,19 @@ class _UserManagementPageState extends State<UserManagementPage> {
       });
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('تم تحديث دور ${user.name} بنجاح')),
+        SnackBar(
+          content: Text('تم تحديث دور ${user.name} بنجاح'),
+          backgroundColor: Colors.green,
+        ),
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('فشل تحديث الدور: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('فشل تحديث الدور: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -88,21 +112,76 @@ class _UserManagementPageState extends State<UserManagementPage> {
     final confirm = await showDialog<bool>(
       context: context,
       builder:
-          (context) => AlertDialog(
-            title: const Text('تأكيد الحذف'),
-            content: Text(
-              'هل أنت متأكد أنك تريد حذف المستخدم ${user.name}? لا يمكن التراجع عن هذا الإجراء.',
+          (context) => Directionality(
+            textDirection: TextDirection.rtl,
+            child: AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: Text(
+                'تأكيد الحذف',
+                style: TextStyle(
+                  fontSize: Responsive.text(context, size: TextSize.heading),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              content: Text(
+                'هل أنت متأكد أنك تريد حذف المستخدم ${user.name}? لا يمكن التراجع عن هذا الإجراء.',
+                style: TextStyle(
+                  fontSize: Responsive.text(context, size: TextSize.medium),
+                ),
+              ),
+              actions: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: TextButton(
+                        onPressed: () => Navigator.of(context).pop(true),
+                        child: Text(
+                          'حذف',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.medium,
+                            ),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      width: Responsive.space(context, size: Space.medium),
+                    ),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.grey[200],
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: TextButton(
+                        onPressed: () => Navigator.of(context).pop(false),
+                        child: Text(
+                          'إلغاء',
+                          style: TextStyle(
+                            color: Colors.black87,
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.medium,
+                            ),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('إلغاء'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('حذف', style: TextStyle(color: Colors.red)),
-              ),
-            ],
           ),
     );
 
@@ -112,6 +191,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
         setState(() {
           _allUsers.removeWhere((u) => u.id == user.id);
           _filteredUsers.removeWhere((u) => u.id == user.id);
+          _selectedUsers.remove(user.id);
         });
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -132,9 +212,193 @@ class _UserManagementPageState extends State<UserManagementPage> {
     }
   }
 
+  Future<void> _bulkUpdateRoles() async {
+    if (_selectedUsers.isEmpty) return;
+
+    final roles = [
+      'Super Admin',
+      'Admin',
+      'Professor',
+      'miniProfessor',
+      'Student',
+    ];
+    String? selectedRole;
+
+    final result = await showDialog<String>(
+      context: context,
+      builder:
+          (context) => Directionality(
+            textDirection: TextDirection.rtl,
+            child: AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: Text(
+                'تحديث الأدوار',
+                style: TextStyle(
+                  fontSize: Responsive.text(context, size: TextSize.heading),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'اختر الدور الجديد للمستخدمين المحددين (${_selectedUsers.length})',
+                    style: TextStyle(
+                      fontSize: Responsive.text(context, size: TextSize.medium),
+                    ),
+                  ),
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.medium),
+                  ),
+                  DropdownButtonFormField<String>(
+                    decoration: InputDecoration(
+                      labelText: 'الدور الجديد',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    items:
+                        roles
+                            .map(
+                              (role) => DropdownMenuItem(
+                                value: role,
+                                child: Text(role),
+                              ),
+                            )
+                            .toList(),
+                    onChanged: (value) => selectedRole = value,
+                  ),
+                ],
+              ),
+              actions: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.blue,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: TextButton(
+                        onPressed:
+                            () => Navigator.of(context).pop(selectedRole),
+                        child: Text(
+                          'تحديث',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.medium,
+                            ),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      width: Responsive.space(context, size: Space.medium),
+                    ),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.grey[200],
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: TextButton(
+                        onPressed: () => Navigator.of(context).pop(null),
+                        child: Text(
+                          'إلغاء',
+                          style: TextStyle(
+                            color: Colors.black87,
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.medium,
+                            ),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+    );
+
+    if (result != null) {
+      try {
+        for (final userId in _selectedUsers) {
+          await _authService.updateUserRole(userId, result);
+        }
+
+        setState(() {
+          for (final user in _allUsers) {
+            if (_selectedUsers.contains(user.id)) {
+              user.role = result;
+            }
+          }
+          _selectedUsers.clear();
+        });
+
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('تم تحديث ${_selectedUsers.length} مستخدم بنجاح'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('فشل تحديث الأدوار: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Color _getRoleColor(String role) {
+    switch (role) {
+      case 'Super Admin':
+        return Colors.red;
+      case 'Admin':
+        return Colors.orange;
+      case 'Professor':
+        return Colors.purple;
+      case 'miniProfessor':
+        return Colors.indigo;
+      case 'Student':
+        return Colors.green;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  IconData _getRoleIcon(String role) {
+    switch (role) {
+      case 'Super Admin':
+        return Icons.admin_panel_settings;
+      case 'Admin':
+        return Icons.manage_accounts;
+      case 'Professor':
+        return Icons.school;
+      case 'miniProfessor':
+        return Icons.person;
+      case 'Student':
+        return Icons.person_outline;
+      default:
+        return Icons.person;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final roles = [
+      'الكل',
       'Super Admin',
       'Admin',
       'Professor',
@@ -145,46 +409,136 @@ class _UserManagementPageState extends State<UserManagementPage> {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
+        backgroundColor: Colors.white,
         appBar: AppBar(
-          title: const Text('إدارة أدوار المستخدمين'),
-          centerTitle: true,
+          title: Text(
+            'إدارة أدوار المستخدمين',
+            style: TextStyle(
+              fontSize: Responsive.text(context, size: TextSize.heading),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          backgroundColor: Colors.white,
+          elevation: 0,
+          iconTheme: const IconThemeData(color: Colors.black),
+          actions: [
+            if (_selectedUsers.isNotEmpty)
+              Container(
+                margin: EdgeInsets.only(
+                  right: Responsive.space(context, size: Space.medium),
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.blue,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: TextButton.icon(
+                  onPressed: _bulkUpdateRoles,
+                  icon: Icon(Icons.edit, color: Colors.white, size: 16),
+                  label: Text(
+                    'تحديث ${_selectedUsers.length}',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: Responsive.text(context, size: TextSize.small),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
         body: RefreshIndicator(
           onRefresh: _fetchUsers,
           child: Column(
             children: [
-              Padding(
-                padding: Responsive.padding(context, size: Space.medium),
-                child: TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    labelText: 'ابحث بالاسم أو البريد الإلكتروني',
-                    prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(15),
+              // Search and Filter Section
+              Container(
+                padding: Responsive.padding(context, size: Space.large),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
+                ),
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        labelText: 'ابحث بالاسم أو البريد الإلكتروني',
+                        prefixIcon: const Icon(Icons.search),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                      ),
                     ),
-                  ),
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.medium),
+                    ),
+                    DropdownButtonFormField<String>(
+                      value: _selectedRoleFilter,
+                      decoration: InputDecoration(
+                        labelText: 'تصفية حسب الدور',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                      ),
+                      items:
+                          roles
+                              .map(
+                                (role) => DropdownMenuItem(
+                                  value: role,
+                                  child: Text(role),
+                                ),
+                              )
+                              .toList(),
+                      onChanged: _onRoleFilterChanged,
+                    ),
+                  ],
                 ),
               ),
+
+    
+              // Users List
               Expanded(
                 child:
                     _isLoading
                         ? const Center(child: CircularProgressIndicator())
                         : _filteredUsers.isEmpty
                         ? Center(
-                          child: Text(
-                            'لا يوجد مستخدمين مطابقين للبحث',
-                            style: TextStyle(
-                              fontSize: Responsive.text(
-                                context,
-                                size: TextSize.medium,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.people_outline,
+                                size: 64,
+                                color: Colors.grey[400],
                               ),
-                              color: Colors.grey,
-                            ),
+                              SizedBox(
+                                height: Responsive.space(
+                                  context,
+                                  size: Space.medium,
+                                ),
+                              ),
+                              Text(
+                                'لا يوجد مستخدمين مطابقين للبحث',
+                                style: TextStyle(
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.medium,
+                                  ),
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
                           ),
                         )
                         : ListView.builder(
-                          padding: const EdgeInsets.all(8.0),
+                          padding: Responsive.padding(
+                            context,
+                            size: Space.medium,
+                          ),
                           itemCount: _filteredUsers.length,
                           itemBuilder: (context, index) {
                             final user = _filteredUsers[index];
@@ -192,123 +546,326 @@ class _UserManagementPageState extends State<UserManagementPage> {
                             final hasChanged =
                                 selectedRole != null &&
                                 selectedRole != user.role;
+                            final isSelected = _selectedUsers.contains(user.id);
 
-                            return Card(
-                              elevation: 4,
-                              margin: const EdgeInsets.symmetric(
-                                vertical: 8,
-                                horizontal: 8,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(15),
-                              ),
-                              child: Padding(
-                                padding: Responsive.padding(
-                                  context,
-                                  size: Space.medium,
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Text(
-                                          user.name,
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: Responsive.text(
-                                              context,
-                                              size: TextSize.medium,
-                                            ),
-                                          ),
-                                        ),
-                                        Spacer(),
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.delete_forever,
-                                            color: Colors.redAccent,
-                                          ),
-                                          onPressed: () => _deleteUser(user),
-                                          tooltip: 'حذف المستخدم',
-                                        ),
-                                      ],
-                                    ),
-                                    Text(
-                                      user.email ?? 'لا يوجد بريد إلكتروني',
-                                      style: TextStyle(
-                                        color: Colors.grey[600],
-                                        fontSize: Responsive.text(
-                                          context,
-                                          size: TextSize.small,
-                                        ),
-                                      ),
-                                    ),
-                                    SizedBox(
-                                      height: Responsive.space(
-                                        context,
-                                        size: Space.medium,
-                                      ),
-                                    ),
-                                    DropdownButtonFormField<String>(
-                                      value: selectedRole ?? user.role,
-                                      decoration: InputDecoration(
-                                        labelText: 'الدور الحالي',
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            10,
-                                          ),
-                                        ),
-                                      ),
-                                      items:
-                                          roles.map((String value) {
-                                            return DropdownMenuItem<String>(
-                                              value: value,
-                                              child: Text(value),
-                                            );
-                                          }).toList(),
-                                      onChanged: (String? newValue) {
-                                        if (newValue != null) {
-                                          setState(() {
-                                            _selectedRoles[user.id] = newValue;
-                                          });
-                                        }
-                                      },
-                                    ),
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 8.0),
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          if (hasChanged)
-                                            ElevatedButton.icon(
-                                              onPressed:
-                                                  () => _updateRole(user),
-                                              icon: const Icon(Icons.save),
-                                              label: const Text('حفظ'),
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor:
-                                                    Theme.of(
-                                                      context,
-                                                    ).primaryColor,
-                                                foregroundColor: Colors.white,
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(10),
-                                                ),
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
+                            return _buildUserCard(
+                              user,
+                              selectedRole,
+                              hasChanged,
+                              isSelected,
                             );
                           },
                         ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatTile(
+    BuildContext context,
+    IconData icon,
+    String title,
+    String value,
+    Color color,
+  ) {
+    return Expanded(
+      child: Container(
+        padding: Responsive.padding(context, size: Space.medium),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 24),
+            SizedBox(height: Responsive.space(context, size: Space.small)),
+            Text(
+              value,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: Responsive.text(context, size: TextSize.medium),
+                color: color,
+              ),
+            ),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: Responsive.text(context, size: TextSize.small),
+                color: Colors.grey[600],
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUserCard(
+    UserProfile user,
+    String? selectedRole,
+    bool hasChanged,
+    bool isSelected,
+  ) {
+    return Container(
+      margin: EdgeInsets.only(
+        bottom: Responsive.space(context, size: Space.medium),
+      ),
+      decoration: BoxDecoration(
+        color: isSelected ? Colors.blue.withOpacity(0.1) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isSelected ? Colors.blue : Colors.grey[200]!,
+          width: isSelected ? 2 : 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {
+            setState(() {
+              if (isSelected) {
+                _selectedUsers.remove(user.id);
+              } else {
+                _selectedUsers.add(user.id);
+              }
+            });
+          },
+          child: Padding(
+            padding: Responsive.padding(context, size: Space.large),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header with user info and actions
+                Row(
+                  children: [
+                    // User avatar and info
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 50,
+                            height: 50,
+                            decoration: BoxDecoration(
+                              color: _getRoleColor(user.role).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(25),
+                            ),
+                            child: Icon(
+                              _getRoleIcon(user.role),
+                              color: _getRoleColor(user.role),
+                              size: 24,
+                            ),
+                          ),
+                          SizedBox(
+                            width: Responsive.space(
+                              context,
+                              size: Space.medium,
+                            ),
+                          ),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  user.name,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: Responsive.text(
+                                      context,
+                                      size: TextSize.medium,
+                                    ),
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                                Text(
+                                  user.email ?? 'لا يوجد بريد إلكتروني',
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: Responsive.text(
+                                      context,
+                                      size: TextSize.small,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Role badge
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: Responsive.space(
+                          context,
+                          size: Space.small,
+                        ),
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _getRoleColor(user.role).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: _getRoleColor(user.role).withOpacity(0.3),
+                        ),
+                      ),
+                      child: Text(
+                        user.role,
+                        style: TextStyle(
+                          color: _getRoleColor(user.role),
+                          fontWeight: FontWeight.bold,
+                          fontSize: Responsive.text(
+                            context,
+                            size: TextSize.small,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                SizedBox(height: Responsive.space(context, size: Space.medium)),
+
+                // Role selection dropdown
+                DropdownButtonFormField<String>(
+                  value: selectedRole ?? user.role,
+                  decoration: InputDecoration(
+                    labelText: 'تغيير الدور',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey[50],
+                  ),
+                  items:
+                      [
+                            'Super Admin',
+                            'Admin',
+                            'Professor',
+                            'miniProfessor',
+                            'Student',
+                          ]
+                          .map(
+                            (role) => DropdownMenuItem(
+                              value: role,
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    _getRoleIcon(role),
+                                    color: _getRoleColor(role),
+                                    size: 16,
+                                  ),
+                                  SizedBox(
+                                    width: Responsive.space(
+                                      context,
+                                      size: Space.small,
+                                    ),
+                                  ),
+                                  Text(role),
+                                ],
+                              ),
+                            ),
+                          )
+                          .toList(),
+                  onChanged: (String? newValue) {
+                    if (newValue != null) {
+                      setState(() {
+                        _selectedRoles[user.id] = newValue;
+                      });
+                    }
+                  },
+                ),
+
+                // Action buttons
+                if (hasChanged || isSelected)
+                  Padding(
+                    padding: EdgeInsets.only(
+                      top: Responsive.space(context, size: Space.medium),
+                    ),
+                    child: Row(
+                      children: [
+                        if (hasChanged)
+                          Expanded(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.blue,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: TextButton.icon(
+                                onPressed: () => _updateRole(user),
+                                icon: const Icon(
+                                  Icons.save,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
+                                label: Text(
+                                  'حفظ التغييرات',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: Responsive.text(
+                                      context,
+                                      size: TextSize.small,
+                                    ),
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        if (hasChanged && isSelected)
+                          SizedBox(
+                            width: Responsive.space(
+                              context,
+                              size: Space.medium,
+                            ),
+                          ),
+                        if (isSelected)
+                          Expanded(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.red,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: TextButton.icon(
+                                onPressed: () => _deleteUser(user),
+                                icon: const Icon(
+                                  Icons.delete_forever,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
+                                label: Text(
+                                  'حذف المستخدم',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: Responsive.text(
+                                      context,
+                                      size: TextSize.small,
+                                    ),
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),

@@ -171,7 +171,12 @@ void showAddAnnouncementDialog({
                                           : null,
                                 ),
                               ),
-                              SizedBox(height: 4),
+                              SizedBox(
+                                height: Responsive.space(
+                                  context,
+                                  size: Space.tiny,
+                                ),
+                              ),
                               Text(
                                 'مهم',
                                 style: TextStyle(
@@ -184,7 +189,9 @@ void showAddAnnouncementDialog({
                               ),
                             ],
                           ),
-                          SizedBox(width: 20),
+                          SizedBox(
+                            width: Responsive.space(context, size: Space.large),
+                          ),
 
                           // Medium - Yellow
                           Column(
@@ -221,7 +228,12 @@ void showAddAnnouncementDialog({
                                           : null,
                                 ),
                               ),
-                              SizedBox(height: 4),
+                              SizedBox(
+                                height: Responsive.space(
+                                  context,
+                                  size: Space.tiny,
+                                ),
+                              ),
                               Text(
                                 'نص نص',
                                 style: TextStyle(
@@ -234,7 +246,9 @@ void showAddAnnouncementDialog({
                               ),
                             ],
                           ),
-                          SizedBox(width: 20),
+                          SizedBox(
+                            width: Responsive.space(context, size: Space.large),
+                          ),
 
                           // Normal - Green
                           Column(
@@ -271,7 +285,12 @@ void showAddAnnouncementDialog({
                                           : null,
                                 ),
                               ),
-                              SizedBox(height: 4),
+                              SizedBox(
+                                height: Responsive.space(
+                                  context,
+                                  size: Space.tiny,
+                                ),
+                              ),
                               Text(
                                 'عادي',
                                 style: TextStyle(

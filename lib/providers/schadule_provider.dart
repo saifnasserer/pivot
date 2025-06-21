@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 import '../screens/models/schedule_item.dart';
 import '../services/schedule_service.dart';
+import 'package:pivot/services/cache_service.dart';
 
 class ScheduleProvider with ChangeNotifier {
   final ScheduleService _scheduleService = ScheduleService();
@@ -35,7 +36,21 @@ class ScheduleProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      // Step 1: Load from cache first
+      final cachedSchedule = CacheService.instance.getCachedSchedule();
+      if (cachedSchedule.isNotEmpty) {
+        _schedule = {};
+        for (var item in cachedSchedule) {
+          _schedule.putIfAbsent(item.day, () => []).add(item);
+        }
+        notifyListeners();
+      }
+
+      // Step 2: Fetch from server in the background
       _schedule = await _scheduleService.getSchedule();
+      // Flatten schedule to a list for caching
+      final allItems = _schedule.values.expand((list) => list).toList();
+      await CacheService.instance.cacheSchedule(allItems);
     } catch (e) {
       _error = 'Failed to fetch schedule: ${e.toString()}';
     } finally {

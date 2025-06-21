@@ -28,11 +28,12 @@ class _AddEditSubjectDialogState extends State<AddEditSubjectDialog> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameController;
   late TextEditingController _codeController;
+  late TextEditingController _englishNameController;
 
   final List<String> _departments = ['CS', 'IS', 'AI', 'SC', 'General'];
   final List<int> _years = List.generate(8, (i) => i + 1);
 
-  String? _selectedDepartment;
+  List<String> _selectedDepartments = [];
   int? _selectedYear;
 
   bool get _isEditing => widget.subject != null;
@@ -42,16 +43,19 @@ class _AddEditSubjectDialogState extends State<AddEditSubjectDialog> {
     super.initState();
     _nameController = TextEditingController(text: widget.subject?.name ?? '');
     _codeController = TextEditingController(text: widget.subject?.code ?? '');
+    _englishNameController = TextEditingController(
+      text: widget.subject?.englishName ?? '',
+    );
 
     if (_isEditing) {
       _selectedYear = widget.subject!.year;
-      _selectedDepartment =
+      _selectedDepartments =
           _departments.contains(widget.subject!.department)
-              ? widget.subject!.department
-              : null;
+              ? [widget.subject!.department]
+              : [];
     } else {
       _selectedYear = _years.first;
-      _selectedDepartment = _departments.first;
+      _selectedDepartments = [];
     }
   }
 
@@ -59,17 +63,28 @@ class _AddEditSubjectDialogState extends State<AddEditSubjectDialog> {
   void dispose() {
     _nameController.dispose();
     _codeController.dispose();
+    _englishNameController.dispose();
     super.dispose();
   }
 
   void _onSave() {
     if (_formKey.currentState!.validate()) {
+      if (_selectedDepartments.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('الرجاء اختيار قسم واحد على الأقل')),
+        );
+        return;
+      }
       final newSubject = Subject(
         id: widget.subject?.id ?? '',
         name: _nameController.text,
         code: _codeController.text,
         year: _selectedYear!,
-        department: _selectedDepartment!,
+        department: _selectedDepartments.first,
+        englishName: _englishNameController.text,
+        description: widget.subject?.description,
+        enrolledStudents: widget.subject?.enrolledStudents ?? [],
+        doctorId: widget.subject?.doctorId,
       );
       Navigator.of(context).pop(newSubject);
     }
@@ -141,33 +156,111 @@ class _AddEditSubjectDialogState extends State<AddEditSubjectDialog> {
               SizedBox(height: Responsive.space(context)),
               CustomTextField(
                 controller: _codeController,
-                hint: 'كود المادة',
+                hint: 'عدد الساعات',
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'الرجاء إدخال كود';
+                    return 'الرجاء إدخال عدد الساعات';
                   }
                   return null;
                 },
               ),
               SizedBox(height: Responsive.space(context)),
-              DropdownButtonFormField<String>(
-                value: _selectedDepartment,
-                hint: const Text('القسم'),
-                items:
-                    _departments.map((String department) {
-                      return DropdownMenuItem<String>(
-                        value: department,
-                        child: Text(department),
-                      );
-                    }).toList(),
-                onChanged: (String? newValue) {
-                  setState(() {
-                    _selectedDepartment = newValue;
-                  });
+              CustomTextField(
+                controller: _englishNameController,
+                hint: 'Subject Name (English)',
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter the English name';
+                  }
+                  return null;
                 },
-                decoration: _getInputDecoration('القسم'),
-                validator:
-                    (value) => value == null ? 'الرجاء اختيار قسم' : null,
+              ),
+              SizedBox(height: Responsive.space(context)),
+              GestureDetector(
+                onTap: () async {
+                  final result = await showDialog<List<String>>(
+                    context: context,
+                    builder: (context) {
+                      List<String> tempSelected = List.from(
+                        _selectedDepartments,
+                      );
+                      return StatefulBuilder(
+                        builder: (context, setState) {
+                          return AlertDialog(
+                            title: const Text('اختر الأقسام'),
+                            content: SizedBox(
+                              width: double.maxFinite,
+                              child: ListView(
+                                shrinkWrap: true,
+                                children:
+                                    _departments.map((dep) {
+                                      return CheckboxListTile(
+                                        value: tempSelected.contains(dep),
+                                        title: Text(dep),
+                                        onChanged: (checked) {
+                                          setState(() {
+                                            if (checked == true) {
+                                              tempSelected.add(dep);
+                                            } else {
+                                              tempSelected.remove(dep);
+                                            }
+                                          });
+                                        },
+                                      );
+                                    }).toList(),
+                              ),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed:
+                                    () => Navigator.pop(
+                                      context,
+                                      _selectedDepartments,
+                                    ),
+                                child: const Text('إلغاء'),
+                              ),
+                              ElevatedButton(
+                                onPressed:
+                                    () => Navigator.pop(context, tempSelected),
+                                child: const Text('تم'),
+                              ),
+                            ],
+                          );
+                        },
+                      );
+                    },
+                  );
+                  if (result != null) {
+                    setState(() {
+                      _selectedDepartments = result;
+                    });
+                  }
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 16,
+                    horizontal: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF7F7F7),
+                    borderRadius: BorderRadius.circular(
+                      Responsive.space(context, size: Space.medium),
+                    ),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: Text(
+                    _selectedDepartments.isEmpty
+                        ? 'اختر الأقسام'
+                        : _selectedDepartments.join(', '),
+                    style: TextStyle(
+                      color:
+                          _selectedDepartments.isEmpty
+                              ? Colors.grey
+                              : Colors.black,
+                    ),
+                  ),
+                ),
               ),
               SizedBox(height: Responsive.space(context)),
               DropdownButtonFormField<int>(

@@ -18,7 +18,7 @@ class WeekTasks extends StatefulWidget {
 
 class _WeekTasksState extends State<WeekTasks> {
   bool _isCompletedTasksExpanded = false;
-  List<Task> _personalTasks = [];
+  final List<Task> _personalTasks = [];
 
   void _showAddEditTaskDialog(BuildContext context, {Task? task}) async {
     final result = await showDialog<Task>(
@@ -138,146 +138,124 @@ class _WeekTasksState extends State<WeekTasks> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.symmetric(
-                    horizontal: Responsive.space(context, size: Space.medium),
                     vertical: Responsive.space(context, size: Space.small),
                   ),
                   child: Container(
                     decoration: BoxDecoration(
+                      color: Colors.grey.withOpacity(0.05),
                       borderRadius: BorderRadius.circular(
                         Responsive.space(context, size: Space.medium),
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
+                      border: Border.all(
+                        color: Colors.grey.withOpacity(0.2),
+                        width: 1,
+                      ),
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(
                         Responsive.space(context, size: Space.medium),
                       ),
-                      child: Material(
-                        color: Colors.white,
-                        child: Theme(
-                          data: Theme.of(
-                            context,
-                          ).copyWith(dividerColor: Colors.transparent),
-                          child: ExpansionTile(
-                            tilePadding: EdgeInsets.symmetric(
-                              horizontal: Responsive.space(
-                                context,
-                                size: Space.medium,
-                              ),
-                              vertical: Responsive.space(
-                                context,
-                                size: Space.small,
-                              ),
+                      child: Theme(
+                        data: Theme.of(
+                          context,
+                        ).copyWith(dividerColor: Colors.transparent),
+                        child: ExpansionTile(
+                          tilePadding: EdgeInsets.symmetric(
+                            horizontal: Responsive.space(
+                              context,
+                              size: Space.medium,
                             ),
-                            backgroundColor: Colors.white,
-                            collapsedBackgroundColor: Colors.white,
-                            title: Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: Responsive.space(
-                                  context,
-                                  size: Space.small,
-                                ),
-                                vertical: Responsive.space(
-                                  context,
-                                  size: Space.small,
-                                ),
-                              ),
-                              child: Text(
-                                'التسكات اللي خلصت',
-                                style: TextStyle(
-                                  color: Colors.black87,
-                                  fontSize: Responsive.space(context),
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-
-                            initiallyExpanded: _isCompletedTasksExpanded,
-                            onExpansionChanged: (isExpanded) {
-                              setState(() {
-                                _isCompletedTasksExpanded = isExpanded;
-                              });
-                            },
-                            children:
-                                completedTasks.map((task) {
-                                  return Padding(
-                                    padding: EdgeInsets.only(
-                                      bottom:
-                                          task == completedTasks.last
-                                              ? Responsive.space(
-                                                context,
-                                                size: Space.small,
-                                              )
-                                              : 0,
-                                    ),
-                                    child: TaskModel(
-                                      task: task,
-                                      admin: false,
-                                      onStatusChanged: () {
-                                        if (task.isPersonal) {
-                                          final user =
-                                              Provider.of<UserProfileProvider>(
-                                                context,
-                                                listen: false,
-                                              ).userProfile;
-                                          if (user == null) return;
-
-                                          final newCompletedBy =
-                                              List<String>.from(
-                                                task.completedBy,
-                                              );
-                                          if (task.isCompletedFor(user.id)) {
-                                            newCompletedBy.remove(user.id);
-                                          } else {
-                                            newCompletedBy.add(user.id);
-                                          }
-
-                                          final updatedTask = task.copyWith(
-                                            completedBy: newCompletedBy,
-                                          );
-
-                                          setState(() {
-                                            final taskIndex = _personalTasks
-                                                .indexWhere(
-                                                  (t) => t.id == updatedTask.id,
-                                                );
-                                            if (taskIndex != -1) {
-                                              _personalTasks[taskIndex] =
-                                                  updatedTask;
-                                            }
-                                          });
-                                        } else {
-                                          taskProvider.toggleTaskCompletion(
-                                            task.id,
-                                          );
-                                        }
-                                      },
-                                      onEdit:
-                                          () => _showAddEditTaskDialog(
-                                            context,
-                                            task: task,
-                                          ),
-                                      onDelete: () {
-                                        if (task.isPersonal) {
-                                          setState(() {
-                                            _personalTasks.removeWhere(
-                                              (t) => t.id == task.id,
-                                            );
-                                          });
-                                        } else {
-                                          taskProvider.deleteTask(task.id);
-                                        }
-                                      },
-                                    ),
-                                  );
-                                }).toList(),
                           ),
+                          title: Text(
+                            'التسكات اللي خلصت',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.black87,
+                              fontSize: Responsive.text(
+                                context,
+                                size: TextSize.medium,
+                              ),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          controlAffinity: ListTileControlAffinity.leading,
+                          initiallyExpanded: _isCompletedTasksExpanded,
+                          onExpansionChanged: (isExpanded) {
+                            setState(() {
+                              _isCompletedTasksExpanded = isExpanded;
+                            });
+                          },
+                          children:
+                              completedTasks.map((task) {
+                                return Padding(
+                                  padding: EdgeInsets.only(
+                                    bottom:
+                                        task == completedTasks.last
+                                            ? Responsive.space(
+                                              context,
+                                              size: Space.small,
+                                            )
+                                            : 0,
+                                  ),
+                                  child: TaskModel(
+                                    task: task,
+                                    admin: false,
+                                    onStatusChanged: () {
+                                      if (task.isPersonal) {
+                                        final user =
+                                            Provider.of<UserProfileProvider>(
+                                              context,
+                                              listen: false,
+                                            ).userProfile;
+                                        if (user == null) return;
+
+                                        final newCompletedBy =
+                                            List<String>.from(task.completedBy);
+                                        if (task.isCompletedFor(user.id)) {
+                                          newCompletedBy.remove(user.id);
+                                        } else {
+                                          newCompletedBy.add(user.id);
+                                        }
+
+                                        final updatedTask = task.copyWith(
+                                          completedBy: newCompletedBy,
+                                        );
+
+                                        setState(() {
+                                          final taskIndex = _personalTasks
+                                              .indexWhere(
+                                                (t) => t.id == updatedTask.id,
+                                              );
+                                          if (taskIndex != -1) {
+                                            _personalTasks[taskIndex] =
+                                                updatedTask;
+                                          }
+                                        });
+                                      } else {
+                                        taskProvider.toggleTaskCompletion(
+                                          task.id,
+                                        );
+                                      }
+                                    },
+                                    onEdit:
+                                        () => _showAddEditTaskDialog(
+                                          context,
+                                          task: task,
+                                        ),
+                                    onDelete: () {
+                                      if (task.isPersonal) {
+                                        setState(() {
+                                          _personalTasks.removeWhere(
+                                            (t) => t.id == task.id,
+                                          );
+                                        });
+                                      } else {
+                                        taskProvider.deleteTask(task.id);
+                                      }
+                                    },
+                                  ),
+                                );
+                              }).toList(),
                         ),
                       ),
                     ),
@@ -289,9 +267,15 @@ class _WeekTasksState extends State<WeekTasks> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showAddEditTaskDialog(context),
-        label: const Text('اضافة تاسك'),
-        icon: const Icon(Icons.add),
         backgroundColor: Colors.black,
+        label: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('تاسك'),
+            SizedBox(width: Responsive.space(context, size: Space.tiny)),
+            const Icon(Icons.add, size: 18),
+          ],
+        ),
       ),
     );
   }

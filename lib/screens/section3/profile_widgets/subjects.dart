@@ -62,8 +62,7 @@ List<Widget> buildSubjectsSlivers(
 }
 
 class SubjectListItem extends StatelessWidget {
-  const SubjectListItem({Key? key, required this.subject, this.instructors})
-    : super(key: key);
+  const SubjectListItem({super.key, required this.subject, this.instructors});
 
   final Subject subject;
   final List<UserProfile>? instructors;
@@ -186,7 +185,7 @@ class SubjectListItem extends StatelessWidget {
                         ),
                       ),
                     );
-                  }).toList(),
+                  }),
                   SizedBox(
                     height: Responsive.space(context, size: Space.medium),
                   ),

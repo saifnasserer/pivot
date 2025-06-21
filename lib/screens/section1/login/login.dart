@@ -15,6 +15,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import '../../../services/local_auth_service.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../services/permission_service.dart';
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -126,6 +127,9 @@ class _LoginState extends State<Login> {
         provider.setLoggedInUserProfile(userProfile);
         provider.setUserProfile(userProfile);
 
+        // Request notification permission after successful login
+        await _requestNotificationPermission();
+
         // Automatically save credentials for biometric login
         await _enableBiometricAutomatically(
           _email.toLowerCase().trim(),
@@ -147,13 +151,16 @@ class _LoginState extends State<Login> {
         errorMessage = 'الايميل أو الباسورد غلط';
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text(errorMessage, textAlign: TextAlign.center),
+          backgroundColor: Colors.red,
+        ),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('حدث خطأ غير متوقع: $e'),
+          content: Text('حدث خطأ غير متوقع: $e', textAlign: TextAlign.center),
           backgroundColor: Colors.red,
         ),
       );
@@ -191,12 +198,29 @@ class _LoginState extends State<Login> {
     }
   }
 
+  // Request notification permission with user-friendly dialog
+  Future<void> _requestNotificationPermission() async {
+    if (kIsWeb) return; // Notifications not supported on web
+
+    try {
+      // Use existing static method from PermissionService
+      bool granted = await PermissionService.requestStoragePermission();
+
+      if (!granted && mounted) {
+        // Show dialog to open settings if permission denied
+        await PermissionService.requestStoragePermissionWithRationale(context);
+      }
+    } catch (e) {
+      debugPrint('Error requesting notification permission: $e');
+    }
+  }
+
   Future<void> authenticateUser() async {
     if (kIsWeb) return;
 
     try {
       final bool didAuthenticate = await _localAuthService.authenticate(
-        'Please authenticate to log in',
+        'تسجيل الدخول',
       );
 
       if (didAuthenticate && mounted) {
@@ -212,7 +236,10 @@ class _LoginState extends State<Login> {
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('فية مشكلة في تسجيل الدخول بالبصمة ممكن تجرب يدوي'),
+              content: Text(
+                'فية مشكلة في تسجيل الدخول بالبصمة ممكن تجرب يدوي',
+                textAlign: TextAlign.center,
+              ),
               backgroundColor: Colors.orange,
             ),
           );
@@ -220,7 +247,7 @@ class _LoginState extends State<Login> {
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('فشل المصادقة.'),
+            content: Text('فشل المصادقة.', textAlign: TextAlign.center),
             backgroundColor: Colors.red,
           ),
         );
@@ -229,7 +256,10 @@ class _LoginState extends State<Login> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('حدث خطأ أثناء المصادقة: $e'),
+            content: Text(
+              'حدث خطأ أثناء المصادقة: $e',
+              textAlign: TextAlign.center,
+            ),
             backgroundColor: Colors.red,
           ),
         );
@@ -362,24 +392,10 @@ class _LoginState extends State<Login> {
                         ),
                         _isLoading
                             ? const Center(child: CircularProgressIndicator())
-                            : CircularButton(onPressed: _login, icon: Icons.check),
-                        if (_isBiometricAvailable)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 24.0),
-                            child: ElevatedButton.icon(
-                              onPressed: authenticateUser,
-                              icon: const Icon(Icons.fingerprint),
-                              label: const Text('Login using Biometric'),
-                              style: ElevatedButton.styleFrom(
-                                foregroundColor: Colors.black,
-                                backgroundColor: Colors.grey.shade200,
-                                minimumSize: const Size(double.infinity, 50),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                              ),
+                            : CircularButton(
+                              onPressed: _login,
+                              icon: Icons.check,
                             ),
-                          ),
                       ],
                     ),
                   ),

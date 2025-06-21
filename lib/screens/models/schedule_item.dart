@@ -1,11 +1,27 @@
-enum ScheduleItemType { lecture, section }
+import 'package:hive/hive.dart';
+part 'schedule_item.g.dart';
 
-class ScheduleItem {
+@HiveType(typeId: 3)
+enum ScheduleItemType {
+  @HiveField(0)
+  lecture,
+  @HiveField(1)
+  section,
+}
+
+@HiveType(typeId: 4)
+class ScheduleItem extends HiveObject {
+  @HiveField(0)
   final String id;
+  @HiveField(1)
   final String title;
+  @HiveField(2)
   final String time;
+  @HiveField(3)
   final String location;
+  @HiveField(4)
   final String day;
+  @HiveField(5)
   final ScheduleItemType type;
 
   ScheduleItem({
@@ -24,9 +40,10 @@ class ScheduleItem {
       time: json['time'] as String,
       location: json['location'] as String,
       day: json['day'] as String,
-      type: (json['type'] as String) == 'lecture'
-          ? ScheduleItemType.lecture
-          : ScheduleItemType.section,
+      type:
+          (json['type'] as String) == 'lecture'
+              ? ScheduleItemType.lecture
+              : ScheduleItemType.section,
     );
   }
 

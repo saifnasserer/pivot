@@ -1,11 +1,20 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:hive/hive.dart';
+part 'section_model.g.dart';
 
-class Section {
+@HiveType(typeId: 1)
+class Section extends HiveObject {
+  @HiveField(0)
   final String id;
+  @HiveField(1)
   final String name;
+  @HiveField(2)
   final String subjectId;
+  @HiveField(3)
   final String days;
+  @HiveField(4)
   final String time;
+  @HiveField(5)
   final String location;
 
   Section({

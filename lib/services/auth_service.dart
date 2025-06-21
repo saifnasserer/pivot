@@ -29,6 +29,7 @@ class AuthService {
 
   // Sign out
   Future<void> signOut() async {
+    final user = _firebaseAuth.currentUser;
     await _firebaseAuth.signOut();
   }
 
@@ -74,8 +75,10 @@ class AuthService {
   // You might also want a method to fetch user profile data
   Future<UserProfile?> getUserProfile(String uid) async {
     try {
-      DocumentSnapshot doc =
-          await _firestore.collection('users').doc(uid).get();
+      DocumentSnapshot doc = await _firestore
+          .collection('users')
+          .doc(uid)
+          .get();
       if (doc.exists) {
         return UserProfile.fromJson(doc.data() as Map<String, dynamic>);
       } else {
@@ -136,6 +139,41 @@ class AuthService {
       await _firestore.collection('users').doc(uid).delete();
     } catch (e) {
       print('Error deleting user document: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> sendPasswordResetEmail(String email) async {
+    await _firebaseAuth.sendPasswordResetEmail(email: email);
+  }
+
+  // Method to create user with email and password (for admin use)
+  Future<UserCredential> createUserWithEmailAndPassword(
+    String email,
+    String password,
+  ) async {
+    try {
+      final result = await _firebaseAuth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      return result;
+    } catch (e) {
+      print('Error creating user: $e');
+      rethrow;
+    }
+  }
+
+  // Method to create user profile in Firestore
+  Future<void> createUserProfile(UserProfile userProfile) async {
+    try {
+      await _firestore
+          .collection('users')
+          .doc(userProfile.id)
+          .set(userProfile.toJson());
+    } catch (e) {
+      print('Error creating user profile: $e');
       rethrow;
     }
   }

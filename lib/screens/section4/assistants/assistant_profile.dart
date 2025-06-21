@@ -315,7 +315,8 @@ class _AssistantProfileState extends State<AssistantProfile> {
         ],
       ),
       floatingActionButton:
-          isOwnProfile && _currentCategory == 'المواد'
+          (isOwnProfile || (loggedInUser?.role == 'Admin')) &&
+                  _currentCategory == 'المواد'
               ? FloatingActionButton(
                 backgroundColor: Colors.black,
                 onPressed: () {

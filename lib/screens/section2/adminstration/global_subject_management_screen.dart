@@ -1,3 +1,4 @@
+import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:pivot/providers/subject_provider.dart';
@@ -28,50 +29,210 @@ class _GlobalSubjectManagementScreenState
       Provider.of<SubjectProvider>(context, listen: false).fetchAllSubjects();
       Provider.of<GuideProvider>(context, listen: false).fetchGuideContent();
     });
-    for (var subject in Provider.of<SubjectProvider>(context, listen: false).allSubjects) {
+    for (var subject
+        in Provider.of<SubjectProvider>(context, listen: false).allSubjects) {
       _expandedState[subject.year] = false;
     }
   }
 
+  Color _getYearColor(int year) {
+    final colors = [
+      Colors.blue,
+      Colors.green,
+      Colors.orange,
+      Colors.purple,
+      Colors.teal,
+    ];
+    return colors[year % colors.length];
+  }
+
+  IconData _getDepartmentIcon(String department) {
+    switch (department.toUpperCase()) {
+      case 'CS':
+        return Icons.computer;
+      case 'IS':
+        return Icons.info_outline;
+      case 'AI':
+        return Icons.psychology;
+      case 'SC':
+        return Icons.science_outlined;
+      default:
+        return Icons.school;
+    }
+  }
+
+  Color _getDepartmentColor(String department) {
+    switch (department.toUpperCase()) {
+      case 'CS':
+        return Colors.blue;
+      case 'IS':
+        return Colors.green;
+      case 'AI':
+        return Colors.purple;
+      case 'SC':
+        return Colors.orange;
+      default:
+        return Colors.grey;
+    }
+  }
+
   Widget _buildSubjectCard(Subject subject) {
-    return Card(
-      elevation: 3.0,
-      margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
-      color: Colors.white,
-      shadowColor: Colors.grey.withOpacity(0.2),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+    final deptColor = _getDepartmentColor(subject.department);
+
+    return Container(
+      margin: EdgeInsets.only(
+        bottom: Responsive.space(context, size: Space.medium),
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey[200]!),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Row(
+        padding: Responsive.padding(context, size: Space.large),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            // Subject Header
+            Row(
               children: [
-                Text(
-                  subject.name,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: Responsive.text(context, size: TextSize.medium),
+                Container(
+                  padding: Responsive.padding(context, size: Space.small),
+                  decoration: BoxDecoration(
+                    color: deptColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    _getDepartmentIcon(subject.department),
+                    color: deptColor,
+                    size: 24,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'الكود: ${subject.code}  |  القسم: ${subject.department}',
-                  style: TextStyle(
-                    color: Colors.grey[700],
-                    fontSize: Responsive.text(context, size: TextSize.small),
+                SizedBox(width: Responsive.space(context, size: Space.medium)),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      AutoSizeText(
+                        subject.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: Responsive.text(
+                            context,
+                            size: TextSize.medium,
+                          ),
+                          color: Colors.black87,
+                        ),
+                      ),
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.small),
+                      ),
+                      Row(
+                        children: [
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: Responsive.space(
+                                context,
+                                size: Space.small,
+                              ),
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: deptColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: deptColor.withOpacity(0.3),
+                              ),
+                            ),
+                            child: Text(
+                              subject.department,
+                              style: TextStyle(
+                                color: deptColor,
+                                fontWeight: FontWeight.bold,
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.small,
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(
+                            width: Responsive.space(context, size: Space.small),
+                          ),
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: Responsive.space(
+                                context,
+                                size: Space.small,
+                              ),
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: Colors.grey.withOpacity(0.3),
+                              ),
+                            ),
+                            child: Text(
+                              'كود: ${subject.code}',
+                              style: TextStyle(
+                                color: Colors.grey[700],
+                                fontWeight: FontWeight.w500,
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.small,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
+                ),
+
+                // Action Buttons
+                Column(
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.blue,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: IconButton(
+                        icon: Icon(Icons.edit, color: Colors.white, size: 20),
+                        onPressed: () => _editSubject(subject),
+                        tooltip: 'تعديل المادة',
+                      ),
+                    ),
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.small),
+                    ),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: IconButton(
+                        icon: Icon(Icons.delete, color: Colors.white, size: 20),
+                        onPressed: () => _deleteSubject(subject),
+                        tooltip: 'حذف المادة',
+                      ),
+                    ),
+                  ],
                 ),
               ],
-            ),
-            const Spacer(),
-            IconButton(
-              icon: Icon(Icons.edit, color: Theme.of(context).primaryColor),
-              onPressed: () => _editSubject(subject),
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete, color: Colors.redAccent),
-              onPressed: () => _deleteSubject(subject),
             ),
           ],
         ),
@@ -92,9 +253,13 @@ class _GlobalSubjectManagementScreenState
         ).updateSubject(updatedSubject);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('تم تحديث المادة بنجاح'),
+            SnackBar(
+              content: Text('تم تحديث المادة ${subject.name} بنجاح'),
               backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
           );
         }
@@ -104,6 +269,10 @@ class _GlobalSubjectManagementScreenState
             SnackBar(
               content: Text('فشل تحديث المادة: $e'),
               backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
           );
         }
@@ -114,21 +283,78 @@ class _GlobalSubjectManagementScreenState
   Future<void> _deleteSubject(Subject subject) async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('تأكيد الحذف'),
-        content: Text('هل أنت متأكد من رغبتك في حذف مادة ${subject.name}؟'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('إلغاء'),
+      builder:
+          (context) => Directionality(
+            textDirection: TextDirection.rtl,
+            child: AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: Text(
+                'تأكيد الحذف',
+                style: TextStyle(
+                  fontSize: Responsive.text(context, size: TextSize.heading),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              content: Text(
+                'هل أنت متأكد من رغبتك في حذف مادة ${subject.name}؟ لا يمكن التراجع عن هذا الإجراء.',
+                style: TextStyle(
+                  fontSize: Responsive.text(context, size: TextSize.medium),
+                ),
+              ),
+              actions: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: TextButton(
+                        onPressed: () => Navigator.of(context).pop(true),
+                        child: Text(
+                          'حذف',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.medium,
+                            ),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      width: Responsive.space(context, size: Space.medium),
+                    ),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.grey[200],
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: TextButton(
+                        onPressed: () => Navigator.of(context).pop(false),
+                        child: Text(
+                          'إلغاء',
+                          style: TextStyle(
+                            color: Colors.black87,
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.medium,
+                            ),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('حذف'),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-          ),
-        ],
-      ),
     );
 
     if (confirm == true) {
@@ -139,9 +365,13 @@ class _GlobalSubjectManagementScreenState
         ).deleteSubject(subject.id);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('تم حذف المادة بنجاح'),
+            SnackBar(
+              content: Text('تم حذف المادة ${subject.name} بنجاح'),
               backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
           );
         }
@@ -151,6 +381,10 @@ class _GlobalSubjectManagementScreenState
             SnackBar(
               content: Text('فشل حذف المادة: $e'),
               backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
           );
         }
@@ -168,9 +402,13 @@ class _GlobalSubjectManagementScreenState
         ).addSubject(newSubject);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('تمت إضافة المادة بنجاح'),
+            SnackBar(
+              content: Text('تمت إضافة المادة ${newSubject.name} بنجاح'),
               backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
           );
         }
@@ -180,6 +418,10 @@ class _GlobalSubjectManagementScreenState
             SnackBar(
               content: Text('فشل إضافة المادة: $e'),
               backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
           );
         }
@@ -189,18 +431,81 @@ class _GlobalSubjectManagementScreenState
 
   Widget _buildSubjectsManagementTab() {
     return Scaffold(
+      backgroundColor: Colors.white,
       body: Consumer<SubjectProvider>(
         builder: (context, subjectProvider, child) {
           if (subjectProvider.isLoading) {
-            return const Center(child: CircularProgressIndicator());
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(color: Colors.black),
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.medium),
+                  ),
+                  Text(
+                    'جاري تحميل المواد...',
+                    style: TextStyle(
+                      fontSize: Responsive.text(context, size: TextSize.medium),
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            );
           }
           if (subjectProvider.error != null) {
-            return Center(child: Text('حدث خطأ: ${subjectProvider.error}'));
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.medium),
+                  ),
+                  Text(
+                    'حدث خطأ: ${subjectProvider.error}',
+                    style: TextStyle(
+                      fontSize: Responsive.text(context, size: TextSize.medium),
+                      color: Colors.grey[600],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            );
           }
           if (subjectProvider.allSubjects.isEmpty) {
-            return const Center(
-              child: Text(
-                'لم يتم العثور على مواد. لإضافة مادة جديدة، اضغط على زر +',
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.menu_book_outlined,
+                    size: 64,
+                    color: Colors.grey[400],
+                  ),
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.medium),
+                  ),
+                  Text(
+                    'لم يتم العثور على مواد',
+                    style: TextStyle(
+                      fontSize: Responsive.text(context, size: TextSize.medium),
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.small),
+                  ),
+                  Text(
+                    'لإضافة مادة جديدة، اضغط على زر +',
+                    style: TextStyle(
+                      fontSize: Responsive.text(context, size: TextSize.small),
+                      color: Colors.grey[500],
+                    ),
+                  ),
+                ],
               ),
             );
           }
@@ -211,67 +516,230 @@ class _GlobalSubjectManagementScreenState
           }
           final sortedYears = groupedSubjects.keys.toList()..sort();
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(16.0),
-            itemCount: sortedYears.length,
-            itemBuilder: (context, index) {
-              final year = sortedYears[index];
-              final subjectsInYear = groupedSubjects[year]!;
-              subjectsInYear.sort((a, b) => a.name.compareTo(b.name));
-
-              final isExpanded = _expandedState[year] ?? false;
-
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  InkWell(
-                    onTap: () {
-                      setState(() {
-                        _expandedState[year] = !isExpanded;
-                      });
-                    },
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(
-                        vertical: Responsive.space(context, size: Space.small),
+          return Column(
+            children: [
+              // Statistics Section
+              Container(
+                padding: Responsive.padding(context, size: Space.large),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'إحصائيات المواد',
+                      style: TextStyle(
+                        fontSize: Responsive.text(
+                          context,
+                          size: TextSize.heading,
+                        ),
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    ),
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.medium),
+                    ),
+                    Row(
+                      children: [
+                        _buildStatTile(
+                          context,
+                          Icons.menu_book,
+                          'إجمالي المواد',
+                          subjectProvider.allSubjects.length.toString(),
+                          Colors.blue,
+                        ),
+                        SizedBox(
+                          width: Responsive.space(context, size: Space.medium),
+                        ),
+                        _buildStatTile(
+                          context,
+                          Icons.category,
+                          'الترميات',
+                          sortedYears.length.toString(),
+                          Colors.green,
+                        ),
+                        SizedBox(
+                          width: Responsive.space(context, size: Space.medium),
+                        ),
+                        _buildStatTile(
+                          context,
+                          Icons.school,
+                          'الأقسام',
+                          subjectProvider.allSubjects
+                              .map((s) => s.department)
+                              .toSet()
+                              .length
+                              .toString(),
+                          Colors.orange,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              // Subjects List
+              Expanded(
+                child: ListView.builder(
+                  padding: Responsive.padding(context, size: Space.large),
+                  itemCount: sortedYears.length,
+                  itemBuilder: (context, index) {
+                    final year = sortedYears[index];
+                    final subjectsInYear = groupedSubjects[year]!;
+                    subjectsInYear.sort((a, b) => a.name.compareTo(b.name));
+
+                    final isExpanded = _expandedState[year] ?? false;
+                    final yearColor = _getYearColor(year);
+
+                    return Container(
+                      margin: EdgeInsets.only(
+                        bottom: Responsive.space(context, size: Space.large),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'الترم: $year',
-                            style: TextStyle(
-                              fontSize: Responsive.text(
-                                context,
-                                size: TextSize.heading,
+                          // Year Header
+                          Container(
+                            decoration: BoxDecoration(
+                              color: yearColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: yearColor.withOpacity(0.3),
                               ),
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(context).primaryColor,
+                            ),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(12),
+                                onTap: () {
+                                  setState(() {
+                                    _expandedState[year] = !isExpanded;
+                                  });
+                                },
+                                child: Padding(
+                                  padding: Responsive.padding(
+                                    context,
+                                    size: Space.medium,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        padding: Responsive.padding(
+                                          context,
+                                          size: Space.small,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: yearColor.withOpacity(0.2),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                        child: Icon(
+                                          Icons.grade,
+                                          color: yearColor,
+                                          size: 20,
+                                        ),
+                                      ),
+                                      SizedBox(
+                                        width: Responsive.space(
+                                          context,
+                                          size: Space.medium,
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'الترم $year',
+                                              style: TextStyle(
+                                                fontSize: Responsive.text(
+                                                  context,
+                                                  size: TextSize.medium,
+                                                ),
+                                                fontWeight: FontWeight.bold,
+                                                color: yearColor,
+                                              ),
+                                            ),
+                                            Text(
+                                              '${subjectsInYear.length} مادة',
+                                              style: TextStyle(
+                                                fontSize: Responsive.text(
+                                                  context,
+                                                  size: TextSize.small,
+                                                ),
+                                                color: Colors.grey[600],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Icon(
+                                        isExpanded
+                                            ? Icons.expand_less
+                                            : Icons.expand_more,
+                                        color: yearColor,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
-                          Icon(
-                            isExpanded ? Icons.expand_less : Icons.expand_more,
-                            color: Theme.of(context).primaryColor,
-                          ),
+
+                          // Subjects in Year
+                          if (isExpanded) ...[
+                            SizedBox(
+                              height: Responsive.space(
+                                context,
+                                size: Space.medium,
+                              ),
+                            ),
+                            ...subjectsInYear.map(
+                              (subject) => _buildSubjectCard(subject),
+                            ),
+                          ],
                         ],
                       ),
-                    ),
-                  ),
-                  if (isExpanded)
-                    ...subjectsInYear.map(
-                      (subject) => _buildSubjectCard(subject),
-                    ),
-                ],
-              );
-            },
+                    );
+                  },
+                ),
+              ),
+            ],
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _addSubject,
-        label: const Text('إضافة مادة'),
-        icon: const Icon(Icons.add),
-        backgroundColor: Theme.of(context).primaryColor,
-        foregroundColor: Colors.white,
+      floatingActionButton: Container(
+        decoration: BoxDecoration(
+          color: Colors.black,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              spreadRadius: 2,
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: FloatingActionButton.extended(
+          onPressed: _addSubject,
+          label: Text(
+            'إضافة مادة',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: Responsive.text(context, size: TextSize.medium),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          icon: Icon(Icons.add, color: Colors.white),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+        ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
     );
@@ -281,35 +749,156 @@ class _GlobalSubjectManagementScreenState
     return Consumer<GuideProvider>(
       builder: (context, guideProvider, child) {
         if (guideProvider.isLoading && guideProvider.guideContent == null) {
-          return const Center(child: CircularProgressIndicator());
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(color: Colors.black),
+                SizedBox(height: Responsive.space(context, size: Space.medium)),
+                Text(
+                  'جاري تحميل الأدلة...',
+                  style: TextStyle(
+                    fontSize: Responsive.text(context, size: TextSize.medium),
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          );
         }
         if (guideProvider.error != null) {
-          return Center(child: Text('حدث خطأ: ${guideProvider.error}'));
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+                SizedBox(height: Responsive.space(context, size: Space.medium)),
+                Text(
+                  'حدث خطأ: ${guideProvider.error}',
+                  style: TextStyle(
+                    fontSize: Responsive.text(context, size: TextSize.medium),
+                    color: Colors.grey[600],
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          );
         }
         if (guideProvider.guideContent == null) {
-          return const Center(child: Text('لا يوجد محتوى للدليل.'));
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.picture_as_pdf_outlined,
+                  size: 64,
+                  color: Colors.grey[400],
+                ),
+                SizedBox(height: Responsive.space(context, size: Space.medium)),
+                Text(
+                  'لا يوجد محتوى للدليل',
+                  style: TextStyle(
+                    fontSize: Responsive.text(context, size: TextSize.medium),
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          );
         }
 
         final guideContent = guideProvider.guideContent!;
 
         return ListView(
-          padding: const EdgeInsets.all(16.0),
+          padding: Responsive.padding(context, size: Space.large),
           children: [
-            Card(
-              elevation: 3.0,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey[200]!),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.1),
+                    spreadRadius: 1,
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: Responsive.padding(context, size: Space.large),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('أدلة القسم',
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Container(
+                          padding: Responsive.padding(
+                            context,
+                            size: Space.small,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            Icons.picture_as_pdf,
+                            color: Colors.red,
+                            size: 24,
+                          ),
+                        ),
+                        SizedBox(
+                          width: Responsive.space(context, size: Space.medium),
+                        ),
+                        Text(
+                          'أدلة القسم',
+                          style: TextStyle(
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.heading,
+                            ),
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.medium),
+                    ),
+
                     if (guideContent.guidebooks.isEmpty)
-                      const Center(child: Text('لا توجد أدلة متاحة حالياً.')),
+                      Center(
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.folder_open,
+                              size: 48,
+                              color: Colors.grey[400],
+                            ),
+                            SizedBox(
+                              height: Responsive.space(
+                                context,
+                                size: Space.small,
+                              ),
+                            ),
+                            Text(
+                              'لا توجد أدلة متاحة حالياً',
+                              style: TextStyle(
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.medium,
+                                ),
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
                     if (guideContent.guidebooks.isNotEmpty)
                       ListView.builder(
                         shrinkWrap: true,
@@ -317,22 +906,64 @@ class _GlobalSubjectManagementScreenState
                         itemCount: guideContent.guidebooks.length,
                         itemBuilder: (context, index) {
                           final guidebook = guideContent.guidebooks[index];
-                          return Card(
-                            margin: const EdgeInsets.symmetric(vertical: 4.0),
+                          return Container(
+                            margin: EdgeInsets.only(
+                              bottom: Responsive.space(
+                                context,
+                                size: Space.small,
+                              ),
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[50],
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.grey[200]!),
+                            ),
                             child: ListTile(
-                              leading: const Icon(Icons.picture_as_pdf,
-                                  color: Colors.red),
+                              leading: Container(
+                                padding: Responsive.padding(
+                                  context,
+                                  size: Space.small,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  Icons.picture_as_pdf,
+                                  color: Colors.red,
+                                  size: 20,
+                                ),
+                              ),
                               title: Text(
                                 guidebook.name,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.medium,
+                                  ),
+                                ),
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              trailing: IconButton(
-                                icon: const Icon(Icons.delete,
-                                    color: Colors.redAccent),
-                                onPressed: guideProvider.isLoading
-                                    ? null
-                                    : () => guideProvider
-                                        .removeGuidebook(guidebook),
+                              trailing: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.red,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: IconButton(
+                                  icon: Icon(
+                                    Icons.delete,
+                                    color: Colors.white,
+                                    size: 18,
+                                  ),
+                                  onPressed:
+                                      guideProvider.isLoading
+                                          ? null
+                                          : () => guideProvider.removeGuidebook(
+                                            guidebook,
+                                          ),
+                                  tooltip: 'حذف الدليل',
+                                ),
                               ),
                               onTap: () async {
                                 final uri = Uri.parse(guidebook.url);
@@ -344,14 +975,44 @@ class _GlobalSubjectManagementScreenState
                           );
                         },
                       ),
-                    const SizedBox(height: 16),
+
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.medium),
+                    ),
+
                     Center(
-                      child: ElevatedButton.icon(
-                        icon: const Icon(Icons.upload_file),
-                        label: const Text('إضافة دليل جديد (PDF)'),
-                        onPressed: guideProvider.isLoading
-                            ? null
-                            : () => guideProvider.addGuidebook(),
+                      child: Container(
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: Colors.blue,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: TextButton.icon(
+                          icon: Icon(Icons.upload_file, color: Colors.white),
+                          label: Text(
+                            'إضافة دليل جديد (PDF)',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: Responsive.text(
+                                context,
+                                size: TextSize.medium,
+                              ),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          onPressed:
+                              guideProvider.isLoading
+                                  ? null
+                                  : () => guideProvider.addGuidebook(),
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.symmetric(
+                              vertical: Responsive.space(
+                                context,
+                                size: Space.medium,
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -364,6 +1025,47 @@ class _GlobalSubjectManagementScreenState
     );
   }
 
+  Widget _buildStatTile(
+    BuildContext context,
+    IconData icon,
+    String title,
+    String value,
+    Color color,
+  ) {
+    return Expanded(
+      child: Container(
+        padding: Responsive.padding(context, size: Space.medium),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 24),
+            SizedBox(height: Responsive.space(context, size: Space.small)),
+            Text(
+              value,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: Responsive.text(context, size: TextSize.medium),
+                color: color,
+              ),
+            ),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: Responsive.text(context, size: TextSize.small),
+                color: Colors.grey[600],
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Directionality(
@@ -371,12 +1073,47 @@ class _GlobalSubjectManagementScreenState
       child: DefaultTabController(
         length: 2,
         child: Scaffold(
+          backgroundColor: Colors.white,
           appBar: AppBar(
-            title: const Text('الإدارة العامة'),
-            bottom: const TabBar(
+            title: Text(
+              'الإدارة العامة',
+              style: TextStyle(
+                fontSize: Responsive.text(context, size: TextSize.heading),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            backgroundColor: Colors.white,
+            elevation: 0,
+            iconTheme: const IconThemeData(color: Colors.black),
+            bottom: TabBar(
+              labelColor: Colors.black,
+              unselectedLabelColor: Colors.grey[600],
+              indicatorColor: Colors.black,
               tabs: [
-                Tab(text: 'إدارة المواد'),
-                Tab(text: 'إدارة الدليل'),
+                Tab(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.menu_book, size: 20),
+                      SizedBox(
+                        width: Responsive.space(context, size: Space.small),
+                      ),
+                      Text('إدارة المواد'),
+                    ],
+                  ),
+                ),
+                Tab(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.picture_as_pdf, size: 20),
+                      SizedBox(
+                        width: Responsive.space(context, size: Space.small),
+                      ),
+                      Text('إدارة الدليل'),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),

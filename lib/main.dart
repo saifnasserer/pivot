@@ -13,13 +13,14 @@ import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/screens/section1/login/login.dart';
 import 'package:pivot/screens/section1/auth_wrapper.dart';
 import 'package:pivot/screens/section1/first_landing.dart';
-import 'package:pivot/screens/section1/no_internet_screen.dart';
+
 import 'package:pivot/screens/section1/signup/signup_page1.dart';
 // import 'package:pivot/screens/section1/signup/signup_page2.dart'; // Removed unused import
 import 'package:pivot/screens/section2/admin_control.dart';
 import 'package:pivot/screens/section2/adminstration/user_management_page.dart';
 import 'package:pivot/screens/section2/adminstration/section_management_screen.dart';
 import 'package:pivot/screens/section2/adminstration/global_subject_management_screen.dart';
+import 'package:pivot/screens/section2/adminstration/send_notification_screen.dart';
 import 'package:pivot/screens/section2/super_admin_panel/super_admin_panel_screen.dart';
 import 'package:pivot/screens/section2/landing.dart';
 import 'package:pivot/screens/section3/profile.dart';
@@ -40,6 +41,13 @@ import 'firebase_options.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:pivot/screens/section2/super_admin_panel/analytics_screen.dart';
+import 'package:pivot/services/cache_service.dart';
+import 'package:pivot/services/notification_service.dart';
+import 'package:pivot/services/notification_trigger_service.dart';
+import 'dart:async';
+import 'package:pivot/screens/section2/adminstration/add_user_screen.dart';
+import 'package:pivot/screens/section3/feedback_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -48,7 +56,15 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await CacheService.instance.init(); // Initialize cache service
   await RemoteConfigService.instance.initialize(); // Initialize Remote Config
+
+  // Initialize notification service
+  await NotificationService().initialize();
+
+  // Run auto notifications on app start
+  await NotificationTriggerService().runAllAutoNotifications();
+
   if (kIsWeb) {
     // Only set persistence for web
     await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
@@ -61,7 +77,7 @@ void main() async {
     await userProfileProvider.loadLoggedInUserProfile();
   }
 
-  runApp(Pivot(userProfileProvider: userProfileProvider));
+  runApp(PivotWithNotifications(userProfileProvider: userProfileProvider));
 }
 
 class Pivot extends StatelessWidget {
@@ -129,8 +145,7 @@ class Pivot extends StatelessWidget {
         initialRoute: AuthWrapper.id, // Set the initial route
         routes: {
           AuthWrapper.id: (context) => const AuthWrapper(),
-          NoInternetScreen.id:
-              (context) => NoInternetScreen(onRetry: () {}), // Dummy retry
+
           FirstLandingScreen.id: (context) => const FirstLandingScreen(),
           Signup_1.id: (context) => const Signup_1(),
           Login.id: (context) => const Login(),
@@ -141,10 +156,14 @@ class Pivot extends StatelessWidget {
           UserManagementPage.id: (context) => const UserManagementPage(),
           '/section-management': (context) => const SectionManagementScreen(),
           '/super-admin-panel': (context) => const SuperAdminPanelScreen(),
+          '/send-notifications': (context) => const SendNotificationScreen(),
           GlobalSubjectManagementScreen.id:
               (context) => const GlobalSubjectManagementScreen(),
           AssistantProfile.id: (context) => const AssistantProfile(),
           TasksControl.id: (context) => const TasksControl(),
+          AnalyticsScreen.id: (context) => const AnalyticsScreen(),
+          AddUserScreen.id: (context) => const AddUserScreen(),
+          FeedbackScreen.id: (context) => const FeedbackScreen(),
         },
         theme: ThemeData(
           colorScheme: ColorScheme.fromSwatch().copyWith(
@@ -174,5 +193,43 @@ class Pivot extends StatelessWidget {
         home: const AuthWrapper(), // Ensure AuthWrapper is the home
       ),
     );
+  }
+}
+
+// Add a StatefulWidget wrapper to handle periodic notifications
+class PivotWithNotifications extends StatefulWidget {
+  final UserProfileProvider userProfileProvider;
+
+  const PivotWithNotifications({super.key, required this.userProfileProvider});
+
+  @override
+  State<PivotWithNotifications> createState() => _PivotWithNotificationsState();
+}
+
+class _PivotWithNotificationsState extends State<PivotWithNotifications> {
+  Timer? _notificationTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startPeriodicNotifications();
+  }
+
+  void _startPeriodicNotifications() {
+    // Run notifications every 15 minutes
+    _notificationTimer = Timer.periodic(const Duration(minutes: 15), (timer) {
+      NotificationTriggerService().checkAndSendPeriodicNotifications();
+    });
+  }
+
+  @override
+  void dispose() {
+    _notificationTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Pivot(userProfileProvider: widget.userProfileProvider);
   }
 }

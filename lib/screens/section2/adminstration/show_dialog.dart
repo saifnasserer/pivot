@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:pivot/responsive.dart';
@@ -8,7 +9,10 @@ import 'package:pivot/screens/section2/adminstration/models/announcement_data.da
 import 'package:provider/provider.dart';
 import '../../models/custom_text_field.dart';
 import 'package:pivot/providers/announcement_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
+// import 'package:permission_handler/permission_handler.dart';
+import 'package:pivot/services/permission_service.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 // Available colors for selection
 final List<Color> availableColors = [
@@ -46,6 +50,11 @@ void showAddAnnouncementDialog({
     announcement?.links ?? [],
   );
   final ImagePicker picker = ImagePicker();
+
+  // State for draft, publishAt, expireAt
+  bool isDraft = announcement?.draft ?? false;
+  DateTime? publishAt = announcement?.publishAt;
+  DateTime? expireAt = announcement?.expireAt;
 
   // Form key for validation
   final formKey = GlobalKey<FormState>();
@@ -131,6 +140,75 @@ void showAddAnnouncementDialog({
                         height: Responsive.space(context, size: Space.medium),
                       ),
 
+                      // File Picker Section (for PDFs and other files)
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.attach_file),
+                        label: const Text('ملف (PDF)'),
+                        onPressed: () async {
+                          final hasPermission =
+                              await PermissionService.requestStoragePermissionWithRationale(
+                                context,
+                              );
+                          if (!hasPermission) return;
+                          FilePickerResult? result = await FilePicker.platform
+                              .pickFiles(
+                                type: FileType.custom,
+                                allowedExtensions: ['pdf'],
+                              );
+                          if (result != null &&
+                              result.files.single.path != null) {
+                            final file = File(result.files.single.path!);
+                            final fileName = result.files.single.name;
+                            // Upload to Firebase Storage
+                            final storageRef = FirebaseStorage.instance.ref().child(
+                              'announcements/attachments/${DateTime.now().millisecondsSinceEpoch}_$fileName',
+                            );
+                            final uploadTask = storageRef.putFile(file);
+                            final snapshot = await uploadTask.whenComplete(
+                              () {},
+                            );
+                            final downloadUrl =
+                                await snapshot.ref.getDownloadURL();
+                            // Ask user for a title or use file name
+                            String? linkTitle = await showDialog<String>(
+                              context: context,
+                              builder: (context) {
+                                String tempTitle = fileName;
+                                return AlertDialog(
+                                  title: const Text('عنوان الملف'),
+                                  content: TextField(
+                                    decoration: const InputDecoration(
+                                      hintText: 'أدخل عنوان الرابط',
+                                    ),
+                                    controller: TextEditingController(
+                                      text: fileName,
+                                    ),
+                                    onChanged: (v) => tempTitle = v,
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed:
+                                          () =>
+                                              Navigator.pop(context, tempTitle),
+                                      child: const Text('موافق'),
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+                            setState(() {
+                              links.add({
+                                'title': linkTitle ?? fileName,
+                                'url': downloadUrl,
+                              });
+                            });
+                          }
+                        },
+                      ),
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.medium),
+                      ),
+
                       // Image Picker Section
                       _buildImagePickerSection(
                         context,
@@ -200,7 +278,12 @@ void showAddAnnouncementDialog({
                                           : null,
                                 ),
                               ),
-                              SizedBox(height: 4),
+                              SizedBox(
+                                height: Responsive.space(
+                                  context,
+                                  size: Space.tiny,
+                                ),
+                              ),
                               Text(
                                 'مهم',
                                 style: TextStyle(
@@ -213,7 +296,9 @@ void showAddAnnouncementDialog({
                               ),
                             ],
                           ),
-                          SizedBox(width: 20),
+                          SizedBox(
+                            width: Responsive.space(context, size: Space.large),
+                          ),
 
                           // Medium - Yellow
                           Column(
@@ -250,7 +335,12 @@ void showAddAnnouncementDialog({
                                           : null,
                                 ),
                               ),
-                              SizedBox(height: 4),
+                              SizedBox(
+                                height: Responsive.space(
+                                  context,
+                                  size: Space.tiny,
+                                ),
+                              ),
                               Text(
                                 'نص نص',
                                 style: TextStyle(
@@ -263,7 +353,9 @@ void showAddAnnouncementDialog({
                               ),
                             ],
                           ),
-                          SizedBox(width: 20),
+                          SizedBox(
+                            width: Responsive.space(context, size: Space.large),
+                          ),
 
                           // Normal - Green
                           Column(
@@ -300,7 +392,12 @@ void showAddAnnouncementDialog({
                                           : null,
                                 ),
                               ),
-                              SizedBox(height: 4),
+                              SizedBox(
+                                height: Responsive.space(
+                                  context,
+                                  size: Space.tiny,
+                                ),
+                              ),
                               Text(
                                 'عادي',
                                 style: TextStyle(
@@ -399,6 +496,100 @@ void showAddAnnouncementDialog({
                         height: Responsive.space(context, size: Space.medium),
                       ),
 
+                      // Draft checkbox
+                      CheckboxListTile(
+                        value: isDraft,
+                        onChanged: (v) => setState(() => isDraft = v ?? false),
+                        title: const Text('حفظ كمسودة'),
+                        controlAffinity: ListTileControlAffinity.leading,
+                      ),
+                      // Scheduled publish date
+                      ListTile(
+                        title: const Text('تاريخ النشر (اختياري)'),
+                        subtitle: Text(
+                          publishAt != null
+                              ? DateFormat(
+                                'yyyy/MM/dd HH:mm',
+                              ).format(publishAt!)
+                              : 'غير محدد',
+                        ),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.calendar_today),
+                          onPressed: () async {
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: publishAt ?? DateTime.now(),
+                              firstDate: DateTime.now(),
+                              lastDate: DateTime.now().add(
+                                const Duration(days: 365),
+                              ),
+                            );
+                            if (picked != null) {
+                              final time = await showTimePicker(
+                                context: context,
+                                initialTime: TimeOfDay.fromDateTime(
+                                  (publishAt ?? DateTime.now()),
+                                ),
+                              );
+                              if (time != null) {
+                                setState(() {
+                                  publishAt = DateTime(
+                                    picked.year,
+                                    picked.month,
+                                    picked.day,
+                                    time.hour,
+                                    time.minute,
+                                  );
+                                });
+                              }
+                            }
+                          },
+                        ),
+                        onLongPress: () => setState(() => publishAt = null),
+                      ),
+                      // Expiry date
+                      ListTile(
+                        title: const Text('تاريخ الانتهاء (اختياري)'),
+                        subtitle: Text(
+                          expireAt != null
+                              ? DateFormat('yyyy/MM/dd HH:mm').format(expireAt!)
+                              : 'غير محدد',
+                        ),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.calendar_today),
+                          onPressed: () async {
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: expireAt ?? DateTime.now(),
+                              firstDate: DateTime.now(),
+                              lastDate: DateTime.now().add(
+                                const Duration(days: 365),
+                              ),
+                            );
+                            if (picked != null) {
+                              final time = await showTimePicker(
+                                context: context,
+                                initialTime: TimeOfDay.fromDateTime(
+                                  (expireAt ?? DateTime.now()),
+                                ),
+                              );
+                              if (time != null) {
+                                setState(() {
+                                  expireAt = DateTime(
+                                    picked.year,
+                                    picked.month,
+                                    picked.day,
+                                    time.hour,
+                                    time.minute,
+                                  );
+                                });
+                              }
+                            }
+                          },
+                        ),
+                        onLongPress: () => setState(() => expireAt = null),
+                      ),
+
                       // Action buttons
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -490,6 +681,9 @@ void showAddAnnouncementDialog({
                                   imageUrls: imageUrls,
                                   links: links,
                                   timestamp: DateTime.now(),
+                                  draft: isDraft,
+                                  publishAt: publishAt,
+                                  expireAt: expireAt,
                                 );
 
                                 // Hide loading indicator
@@ -577,28 +771,19 @@ Widget _buildImagePickerSection(
       ),
       SizedBox(height: Responsive.space(context, size: Space.small)),
       OutlinedButton.icon(
-        icon: Icon(Icons.add_photo_alternate_outlined),
-        label: Text('إضافة صور'),
+        icon: Icon(Icons.image),
+        label: Text('إرفاق صورة'),
         onPressed: () async {
-          var status = await Permission.photos.status;
-          if (status.isDenied) {
-            status = await Permission.photos.request();
-          }
-
-          if (status.isGranted) {
-            final List<XFile> images = await picker.pickMultiImage();
-            if (images.isNotEmpty) {
-              setState(() {
-                pickedImages.addAll(images);
-              });
-            }
-          } else {
-            // Handle the case where permission is denied
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Photo library permission is required to select images.'),
-              ),
-            );
+          final hasPermission =
+              await PermissionService.requestPhotosPermissionWithRationale(
+                context,
+              );
+          if (!hasPermission) return;
+          final List<XFile> images = await picker.pickMultiImage();
+          if (images.isNotEmpty) {
+            setState(() {
+              pickedImages.addAll(images);
+            });
           }
         },
         style: OutlinedButton.styleFrom(
@@ -629,9 +814,13 @@ Widget _buildImagePickerSection(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(8),
                       image: DecorationImage(
-                        image: (kIsWeb
-                            ? NetworkImage(pickedImages[index].path)
-                            : FileImage(File(pickedImages[index].path))) as ImageProvider,
+                        image:
+                            (kIsWeb
+                                    ? CachedNetworkImageProvider(
+                                      pickedImages[index].path,
+                                    )
+                                    : FileImage(File(pickedImages[index].path)))
+                                as ImageProvider,
                         fit: BoxFit.cover,
                       ),
                     ),

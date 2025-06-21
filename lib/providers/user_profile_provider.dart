@@ -5,6 +5,7 @@ import 'dart:io' show File;
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/user_profile.dart';
+import 'package:pivot/services/cache_service.dart';
 
 class UserProfileProvider with ChangeNotifier {
   UserProfile? _userProfile; // The profile being viewed on a profile screen
@@ -111,15 +112,31 @@ class UserProfileProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     try {
+      // Step 1: Load from cache first
+      final cachedUsers = CacheService.instance.getCachedUsers();
+      if (cachedUsers.isNotEmpty) {
+        _allUsers = cachedUsers;
+        _isLoading = false;
+        notifyListeners(); // Notify with cached data
+      }
+
+      // Step 2: Fetch from server in the background
       final snapshot = await _firestore.collection('users').get();
-      _allUsers =
-          snapshot.docs.map((doc) => UserProfile.fromJson(doc.data())).toList();
+      final serverUsers = snapshot.docs
+          .map((doc) => UserProfile.fromJson(doc.data()))
+          .toList();
+
+      // Step 3: Update UI and cache if new data is available
+      if (serverUsers.length != cachedUsers.length) {
+        _allUsers = serverUsers;
+        await CacheService.instance.cacheUsers(serverUsers);
+      }
     } catch (e) {
       print('Failed to fetch all users: $e');
       // Optionally handle the error
     } finally {
       _isLoading = false;
-      notifyListeners();
+      notifyListeners(); // Notify with final data (or if an error occurred)
     }
   }
 
@@ -158,14 +175,22 @@ class UserProfileProvider with ChangeNotifier {
         _loggedInUserProfile = _loggedInUserProfile!.copyWith(aboutMe: aboutMe);
       }
       notifyListeners();
+      // Log profile update
+      // await ActivityLogService().logAction(
+      //   action: 'Profile updated',
+      //   details: 'About me updated for user $userId',
+      // );
     } catch (e) {
       print('Failed to update about me: $e');
       rethrow;
     }
   }
 
-  Future<void> updateUserProfileData(String userId, Map<String, dynamic> data,
-      {XFile? imageFile}) async {
+  Future<void> updateUserProfileData(
+    String userId,
+    Map<String, dynamic> data, {
+    XFile? imageFile,
+  }) async {
     try {
       String? imageUrl;
       if (imageFile != null) {
@@ -211,6 +236,11 @@ class UserProfileProvider with ChangeNotifier {
       }
 
       notifyListeners();
+      // Log profile update
+      // await ActivityLogService().logAction(
+      //   action: 'Profile updated',
+      //   details: 'Profile data updated for user $userId',
+      // );
     } catch (e) {
       print('Error updating user profile: $e');
       rethrow;

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pivot/screens/models/task.dart';
+import 'package:pivot/services/notification_trigger_service.dart';
 
 class TaskProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -32,17 +33,21 @@ class TaskProvider with ChangeNotifier {
     notifyListeners();
 
     _tasksSubscription?.cancel();
-    _tasksSubscription = _tasksCollection.snapshots().listen((snapshot) {
-      _tasks = snapshot.docs.map((doc) {
-        return Task.fromMap(doc.data() as Map<String, dynamic>);
-      }).toList();
-      _isLoading = false;
-      notifyListeners();
-    }, onError: (error) {
-      _error = 'Failed to fetch tasks: $error';
-      _isLoading = false;
-      notifyListeners();
-    });
+    _tasksSubscription = _tasksCollection.snapshots().listen(
+      (snapshot) {
+        _tasks =
+            snapshot.docs.map((doc) {
+              return Task.fromMap(doc.data() as Map<String, dynamic>);
+            }).toList();
+        _isLoading = false;
+        notifyListeners();
+      },
+      onError: (error) {
+        _error = 'Failed to fetch tasks: $error';
+        _isLoading = false;
+        notifyListeners();
+      },
+    );
   }
 
   // Returns tasks filtered by a specific section ID
@@ -54,6 +59,9 @@ class TaskProvider with ChangeNotifier {
   Future<void> addTask(Task task) async {
     try {
       await _tasksCollection.doc(task.id).set(task.toMap());
+      // Send auto notifications for new tasks
+      await NotificationTriggerService().sendTaskDueTodayNotifications();
+      await NotificationTriggerService().sendEarlyTaskReminders();
     } catch (e) {
       // Re-throw the exception to be handled by the UI
       throw Exception('Failed to add task: $e');
@@ -84,14 +92,17 @@ class TaskProvider with ChangeNotifier {
       if (task.completedBy.contains(userId)) {
         // If already completed, remove user from the list
         await taskRef.update({
-          'completedBy': FieldValue.arrayRemove([userId])
+          'completedBy': FieldValue.arrayRemove([userId]),
         });
       } else {
         // If not completed, add user to the list
         await taskRef.update({
-          'completedBy': FieldValue.arrayUnion([userId])
+          'completedBy': FieldValue.arrayUnion([userId]),
         });
       }
+
+      // Send overdue task notifications after status change
+      await NotificationTriggerService().sendOverdueTaskNotifications();
     } catch (e) {
       throw Exception('Failed to toggle task status: $e');
     }
@@ -100,6 +111,16 @@ class TaskProvider with ChangeNotifier {
   // Deletes a task from Firestore
   Future<void> deleteTask(String id) async {
     try {
+      final doc = await _tasksCollection.doc(id).get();
+      String title = '';
+      if (doc.exists) {
+        final data = doc.data();
+        if (data != null &&
+            data is Map<String, dynamic> &&
+            data['title'] != null) {
+          title = data['title'] as String;
+        }
+      }
       await _tasksCollection.doc(id).delete();
     } catch (e) {
       throw Exception('Failed to delete task: $e');
@@ -112,4 +133,3 @@ class TaskProvider with ChangeNotifier {
     super.dispose();
   }
 }
-

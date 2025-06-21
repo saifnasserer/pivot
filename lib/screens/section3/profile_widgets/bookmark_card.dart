@@ -14,97 +14,250 @@ class BookmarkCard extends StatelessWidget {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(
-              Responsive.space(context, size: Space.large),
-            ),
-          ),
-          title: Text(
-            bookmark.title,
-            style: TextStyle(
-              fontSize: Responsive.text(context, size: TextSize.heading),
-              fontWeight: FontWeight.bold,
-              color: Colors.black.withValues(alpha: 0.8),
-            ),
-            textAlign: TextAlign.right,
-          ),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: ListView(
-              shrinkWrap: true,
-              children: [
-                Text(
-                  bookmark.date,
-                  style: TextStyle(
-                    fontSize: Responsive.text(context, size: TextSize.small),
-                    color: Colors.black.withValues(alpha: 0.6),
-                  ),
-                  textAlign: TextAlign.right,
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          child: Stack(
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 32),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.07),
+                      blurRadius: 24,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
                 ),
-                SizedBox(height: Responsive.space(context, size: Space.small)),
-                Text(
-                  bookmark.description,
-                  style: TextStyle(
-                    fontSize: Responsive.text(context, size: TextSize.medium),
-                    color: Colors.black.withValues(alpha: 0.8),
-                  ),
-                  textAlign: TextAlign.right,
-                ),
-                SizedBox(height: Responsive.space(context, size: Space.medium)),
-                _buildImageGallery(context),
-                SizedBox(height: Responsive.space(context, size: Space.medium)),
-                _buildLinksList(context),
-                SizedBox(height: Responsive.space(context, size: Space.medium)),
-                Wrap(
-                  spacing: Responsive.space(context, size: Space.small),
-                  runSpacing: Responsive.space(context, size: Space.small),
-                  alignment: WrapAlignment.end,
-                  children:
-                      bookmark.tags.map((tag) {
-                        return Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal:
-                                Responsive.space(context, size: Space.small) *
-                                1.5,
-                            vertical:
-                                Responsive.space(context, size: Space.small) *
-                                0.5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(
-                              0xffe1e0da,
-                            ).withValues(alpha: 0.5),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: bookmark.color.withValues(alpha: 0.5),
-                              width: 1,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Header with color and icon
+                    Container(
+                      decoration: BoxDecoration(
+                        color: bookmark.color.withOpacity(0.13),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(24),
+                        ),
+                      ),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: Responsive.space(
+                          context,
+                          size: Space.large,
+                        ),
+                        vertical: Responsive.space(context, size: Space.medium),
+                      ),
+                      child: Row(
+                        children: [
+                          Material(
+                            color: Colors.transparent,
+                            child: IconButton(
+                              icon: Icon(
+                                Icons.bookmark_remove,
+                                color: Colors.redAccent,
+                                size: 26,
+                              ),
+                              tooltip: 'إزالة من المحفظات',
+                              onPressed: () {}, // TODO: implement remove logic
                             ),
                           ),
-                          child: Text(
-                            tag,
-                            style: TextStyle(
-                              fontSize:
-                                  Responsive.text(
+                          SizedBox(
+                            width: Responsive.space(context, size: Space.small),
+                          ),
+                          Expanded(
+                            child: Text(
+                              bookmark.title,
+                              textAlign: TextAlign.right,
+                              style: TextStyle(
+                                fontSize:
+                                    Responsive.text(
+                                      context,
+                                      size: TextSize.heading,
+                                    ) *
+                                    1.1,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black.withOpacity(0.9),
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+
+                          // Remove button (future use)
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: Responsive.space(
+                          context,
+                          size: Space.large,
+                        ),
+                        vertical: Responsive.space(context, size: Space.medium),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Icon(
+                                Icons.calendar_today,
+                                size: 18,
+                                color: Colors.grey[600],
+                              ),
+                              SizedBox(
+                                width: Responsive.space(
+                                  context,
+                                  size: Space.tiny,
+                                ),
+                              ),
+                              Text(
+                                bookmark.date,
+                                style: TextStyle(
+                                  fontSize: Responsive.text(
                                     context,
                                     size: TextSize.small,
-                                  ) *
-                                  0.9,
-                              fontWeight: FontWeight.w500,
+                                  ),
+                                  color: Colors.grey[700],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(
+                            height: Responsive.space(
+                              context,
+                              size: Space.small,
                             ),
                           ),
-                        );
-                      }).toList(),
+                          Divider(thickness: 1, color: Colors.grey[200]),
+                          SizedBox(
+                            height: Responsive.space(
+                              context,
+                              size: Space.small,
+                            ),
+                          ),
+                          Text(
+                            bookmark.description,
+                            style: TextStyle(
+                              fontSize: Responsive.text(
+                                context,
+                                size: TextSize.medium,
+                              ),
+                              color: Colors.black.withOpacity(0.85),
+                            ),
+                            textAlign: TextAlign.right,
+                          ),
+                          if (bookmark.imageUrls.isNotEmpty) ...[
+                            SizedBox(
+                              height: Responsive.space(
+                                context,
+                                size: Space.medium,
+                              ),
+                            ),
+                            _buildImageGallery(context),
+                          ],
+                          if (bookmark.links.isNotEmpty) ...[
+                            SizedBox(
+                              height: Responsive.space(
+                                context,
+                                size: Space.medium,
+                              ),
+                            ),
+                            _buildLinksList(context),
+                          ],
+                          if (bookmark.tags.isNotEmpty) ...[
+                            SizedBox(
+                              height: Responsive.space(
+                                context,
+                                size: Space.medium,
+                              ),
+                            ),
+                            Wrap(
+                              spacing: Responsive.space(
+                                context,
+                                size: Space.small,
+                              ),
+                              runSpacing: Responsive.space(
+                                context,
+                                size: Space.small,
+                              ),
+                              alignment: WrapAlignment.end,
+                              children:
+                                  bookmark.tags.map((tag) {
+                                    return Container(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal:
+                                            Responsive.space(
+                                              context,
+                                              size: Space.small,
+                                            ) *
+                                            1.5,
+                                        vertical:
+                                            Responsive.space(
+                                              context,
+                                              size: Space.small,
+                                            ) *
+                                            0.5,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: bookmark.color.withOpacity(0.08),
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(
+                                          color: bookmark.color.withOpacity(
+                                            0.3,
+                                          ),
+                                          width: 1,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        tag,
+                                        style: TextStyle(
+                                          fontSize:
+                                              Responsive.text(
+                                                context,
+                                                size: TextSize.small,
+                                              ) *
+                                              0.95,
+                                          fontWeight: FontWeight.w500,
+                                          color: Colors.black.withOpacity(0.8),
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.small),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              // Floating close button
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Material(
+                  color: Colors.white,
+                  shape: const CircleBorder(),
+                  elevation: 2,
+                  child: IconButton(
+                    icon: const Icon(Icons.close, color: Colors.black87),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text('Close', textAlign: TextAlign.center),
-            ),
-          ],
         );
       },
     );
@@ -168,7 +321,9 @@ class BookmarkCard extends StatelessWidget {
                             color: Colors.black.withOpacity(0.8),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        SizedBox(
+                          width: Responsive.space(context, size: Space.small),
+                        ),
                         Icon(
                           Icons.link,
                           color: Colors.black.withOpacity(0.6),
@@ -333,6 +488,249 @@ class BookmarkCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// Extracted dialog for details view
+class BookmarkDetailsDialog extends StatelessWidget {
+  final dynamic model; // Can be a bookmark or announcement
+  final Color color;
+  final VoidCallback? onRemove;
+  final String title;
+  final String date;
+  final String description;
+  final List<String> imageUrls;
+  final List<Map<String, String>> links;
+  final List<String> tags;
+
+  const BookmarkDetailsDialog({
+    super.key,
+    required this.model,
+    required this.color,
+    required this.title,
+    required this.date,
+    required this.description,
+    required this.imageUrls,
+    required this.links,
+    required this.tags,
+    this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: Stack(
+        children: [
+          Container(
+            margin: const EdgeInsets.only(top: 32),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.07),
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Header with color and icon
+                Container(
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.13),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(24),
+                    ),
+                  ),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: Responsive.space(context, size: Space.large),
+                    vertical: Responsive.space(context, size: Space.medium),
+                  ),
+                  child: Row(
+                    children: [
+                      if (onRemove != null)
+                        Material(
+                          color: Colors.transparent,
+                          child: IconButton(
+                            icon: Icon(
+                              Icons.bookmark_remove,
+                              color: Colors.redAccent,
+                              size: 26,
+                            ),
+                            tooltip: 'إزالة',
+                            onPressed: onRemove,
+                          ),
+                        ),
+                      SizedBox(
+                        width: Responsive.space(context, size: Space.small),
+                      ),
+                      Expanded(
+                        child: Text(
+                          title,
+                          textAlign: TextAlign.right,
+                          style: TextStyle(
+                            fontSize:
+                                Responsive.text(
+                                  context,
+                                  size: TextSize.heading,
+                                ) *
+                                1.1,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black.withOpacity(0.9),
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: Responsive.space(context, size: Space.large),
+                    vertical: Responsive.space(context, size: Space.medium),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Icon(
+                            Icons.calendar_today,
+                            size: 18,
+                            color: Colors.grey[600],
+                          ),
+                          SizedBox(
+                            width: Responsive.space(context, size: Space.tiny),
+                          ),
+                          Text(
+                            date,
+                            style: TextStyle(
+                              fontSize: Responsive.text(
+                                context,
+                                size: TextSize.small,
+                              ),
+                              color: Colors.grey[700],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.small),
+                      ),
+                      Divider(thickness: 1, color: Colors.grey[200]),
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.small),
+                      ),
+                      Text(
+                        description,
+                        style: TextStyle(
+                          fontSize: Responsive.text(
+                            context,
+                            size: TextSize.medium,
+                          ),
+                          color: Colors.black.withOpacity(0.85),
+                        ),
+                        textAlign: TextAlign.right,
+                      ),
+                      if (imageUrls.isNotEmpty) ...[
+                        SizedBox(
+                          height: Responsive.space(context, size: Space.medium),
+                        ),
+                        // You can reuse _buildImageGallery logic here if needed
+                      ],
+                      if (links.isNotEmpty) ...[
+                        SizedBox(
+                          height: Responsive.space(context, size: Space.medium),
+                        ),
+                        // You can reuse _buildLinksList logic here if needed
+                      ],
+                      if (tags.isNotEmpty) ...[
+                        SizedBox(
+                          height: Responsive.space(context, size: Space.medium),
+                        ),
+                        Wrap(
+                          spacing: Responsive.space(context, size: Space.small),
+                          runSpacing: Responsive.space(
+                            context,
+                            size: Space.small,
+                          ),
+                          alignment: WrapAlignment.end,
+                          children:
+                              tags.map((tag) {
+                                return Container(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal:
+                                        Responsive.space(
+                                          context,
+                                          size: Space.small,
+                                        ) *
+                                        1.5,
+                                    vertical:
+                                        Responsive.space(
+                                          context,
+                                          size: Space.small,
+                                        ) *
+                                        0.5,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: color.withOpacity(0.08),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: color.withOpacity(0.3),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    tag,
+                                    style: TextStyle(
+                                      fontSize:
+                                          Responsive.text(
+                                            context,
+                                            size: TextSize.small,
+                                          ) *
+                                          0.95,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.black.withOpacity(0.8),
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                SizedBox(height: Responsive.space(context, size: Space.small)),
+              ],
+            ),
+          ),
+          // Floating close button
+          Positioned(
+            top: 8,
+            right: 8,
+            child: Material(
+              color: Colors.white,
+              shape: const CircleBorder(),
+              elevation: 2,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.black87),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

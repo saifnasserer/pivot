@@ -37,12 +37,17 @@ class TaskModel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final userProfileProvider = Provider.of<UserProfileProvider>(context, listen: false);
+    final userProfileProvider = Provider.of<UserProfileProvider>(
+      context,
+      listen: false,
+    );
     final userId = userProfileProvider.userProfile?.id;
 
     // Determine completion status for the current user
-    final bool isCompleted = userId != null ? task.isCompletedFor(userId) : false;
-    final bool isOverdue = !isCompleted && task.dueDate.isBefore(DateTime.now());
+    final bool isCompleted =
+        userId != null ? task.isCompletedFor(userId) : false;
+    final bool isOverdue =
+        !isCompleted && task.dueDate.isBefore(DateTime.now());
 
     // Format date and day of the week in Arabic
     final String formattedDayOfWeek = DateFormat(
@@ -59,9 +64,10 @@ class TaskModel extends StatelessWidget {
     // Compute contrasting text color based on completion status
     final Color textColor = isCompleted ? Colors.grey : Colors.black87;
     final Color primaryColor = isCompleted ? Colors.grey : importanceColor;
-    final Color borderColor = isOverdue
-        ? Colors.red.shade700
-        : (task.isPersonal ? Colors.blue.shade300 : primaryColor);
+    final Color borderColor =
+        isOverdue
+            ? Colors.red.shade700
+            : (task.isPersonal ? Colors.blue.shade300 : primaryColor);
     final IconData checkboxIcon =
         isCompleted
             ? Icons.check_box_rounded
@@ -69,12 +75,10 @@ class TaskModel extends StatelessWidget {
 
     return GestureDetector(
       onTap: () {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          showDialog(
-            context: context,
-            builder: (_) => TaskDetailsDialog(task: task),
-          );
-        });
+        showDialog(
+          context: context,
+          builder: (_) => TaskDetailsDialog(task: task),
+        );
       },
       child: Padding(
         padding: EdgeInsets.only(
@@ -98,13 +102,16 @@ class TaskModel extends StatelessWidget {
             ), // Thicker border for overdue tasks
           ),
           child: Padding(
-            padding: EdgeInsets.all(Responsive.space(context, size: Space.large)),
+            padding: EdgeInsets.all(
+              Responsive.space(context, size: Space.large),
+            ),
             child: Column(
               crossAxisAlignment:
                   CrossAxisAlignment.start, // Align content to start
               children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.end, // Space out elements
+                  mainAxisAlignment:
+                      MainAxisAlignment.end, // Space out elements
                   children: [
                     Expanded(
                       child: AutoSizeText(
@@ -126,7 +133,9 @@ class TaskModel extends StatelessWidget {
                         ),
                       ),
                     ),
-                    SizedBox(width: Responsive.space(context, size: Space.small)),
+                    SizedBox(
+                      width: Responsive.space(context, size: Space.small),
+                    ),
                     // Checkbox
                     Container(
                       decoration: BoxDecoration(
@@ -153,7 +162,10 @@ class TaskModel extends StatelessWidget {
                     ),
                     child: Container(
                       padding: EdgeInsets.symmetric(
-                        horizontal: Responsive.space(context, size: Space.small),
+                        horizontal: Responsive.space(
+                          context,
+                          size: Space.small,
+                        ),
                         vertical:
                             Responsive.space(context, size: Space.small) * 0.5,
                       ),

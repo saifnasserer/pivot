@@ -11,9 +11,7 @@ class SettingsProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  SettingsProvider() {
-    fetchSectionCounts();
-  }
+  SettingsProvider();
 
   Future<void> fetchSectionCounts() async {
     _isLoading = true;

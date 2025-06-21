@@ -1,24 +1,17 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/screens/section1/first_landing.dart';
-import 'package:pivot/screens/section1/no_internet_screen.dart';
+
 import 'package:pivot/screens/section2/landing.dart';
 import 'package:pivot/services/auth_service.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:pivot/screens/section1/maintenance_screen.dart';
 import 'package:provider/provider.dart';
+import 'package:pivot/responsive.dart';
 
-enum AuthStatus {
-  checking,
-  noInternet,
-  authenticated,
-  unauthenticated,
-  maintenanceMode,
-}
+enum AuthStatus { checking, authenticated, unauthenticated, error }
 
 class AuthWrapper extends StatefulWidget {
   static const String id = 'auth_wrapper';
@@ -32,11 +25,35 @@ class _AuthWrapperState extends State<AuthWrapper> {
   AuthStatus _status = AuthStatus.checking;
   final AuthService _authService = AuthService();
   StreamSubscription<User?>? _authSubscription;
+  String? _errorMessage;
+  bool _isInitialized = false;
 
   @override
   void initState() {
     super.initState();
-    _authSubscription = _authService.authStateChanges.listen(_handleAuthState);
+    _initializeAuth();
+  }
+
+  Future<void> _initializeAuth() async {
+    try {
+      // Add a small delay to ensure Firebase is fully initialized
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      if (!mounted) return;
+
+      _authSubscription = _authService.authStateChanges.listen(
+        _handleAuthState,
+      );
+      setState(() => _isInitialized = true);
+    } catch (e) {
+      debugPrint('[AuthWrapper] Error initializing auth: $e');
+      if (mounted) {
+        setState(() {
+          _status = AuthStatus.error;
+          _errorMessage = 'فشل في تهيئة التطبيق. يرجى إعادة تشغيل التطبيق.';
+        });
+      }
+    }
   }
 
   @override
@@ -45,118 +62,154 @@ class _AuthWrapperState extends State<AuthWrapper> {
     super.dispose();
   }
 
-  Future<AuthStatus> _checkMaintenanceAndNavigate(
-    UserProfileProvider provider,
-  ) async {
-    try {
-      debugPrint('[AuthWrapper] Checking maintenance status from server...');
-      final maintenanceDoc = await FirebaseFirestore.instance
-          .collection('settings')
-          .doc('app')
-          .get(const GetOptions(source: Source.server));
-
-      final isMaintenanceMode =
-          maintenanceDoc.exists &&
-          (maintenanceDoc.data()?['isMaintenanceMode'] ?? false);
-      debugPrint(
-        '[AuthWrapper] Maintenance status from server: $isMaintenanceMode',
-      );
-
-      final userRole = provider.loggedInUserProfile?.role;
-      debugPrint('[AuthWrapper] User role from provider: $userRole');
-
-      if (isMaintenanceMode && userRole != 'Super Admin') {
-        debugPrint(
-          '[AuthWrapper] Condition MET: Maintenance is ON and user is NOT a Super Admin. Redirecting.',
-        );
-        return AuthStatus.maintenanceMode;
-      } else {
-        debugPrint(
-          '[AuthWrapper] Condition NOT MET: Maintenance is OFF or user IS a Super Admin. Proceeding.',
-        );
-        return AuthStatus.authenticated;
-      }
-    } catch (e) {
-      debugPrint(
-        '[AuthWrapper] Error checking maintenance mode: $e. Defaulting to normal authentication flow.',
-      );
-      return AuthStatus.authenticated;
-    }
-  }
-
   Future<void> _handleAuthState(User? user) async {
     debugPrint('[AuthWrapper] Auth state changed. User: ${user?.uid}');
-    // 1. Check internet connection
-    final connectivityResult = await Connectivity().checkConnectivity();
-    if (!mounted) return;
-    if (connectivityResult.contains(ConnectivityResult.none)) {
-      debugPrint('[AuthWrapper] No internet. Setting state to noInternet.');
-      setState(() => _status = AuthStatus.noInternet);
-      return;
-    }
 
-    // 2. Check auth status from stream
+    if (!mounted) return;
+
+    // Check auth status from stream
     if (user == null) {
       debugPrint(
         '[AuthWrapper] User is null. Setting state to unauthenticated.',
       );
-      Provider.of<UserProfileProvider>(context, listen: false).clearProfile();
-      setState(() => _status = AuthStatus.unauthenticated);
-      return;
-    }
-
-    // 3. Check if profile is already loaded (from main.dart)
-    final provider = Provider.of<UserProfileProvider>(context, listen: false);
-    if (provider.loggedInUserProfile != null &&
-        provider.loggedInUserProfile!.id == user.uid) {
-      debugPrint(
-        '[AuthWrapper] Profile already loaded. Checking maintenance mode...',
-      );
-      final newStatus = await _checkMaintenanceAndNavigate(provider);
+      try {
+        Provider.of<UserProfileProvider>(context, listen: false).clearProfile();
+      } catch (e) {
+        debugPrint('[AuthWrapper] Error clearing profile: $e');
+      }
       if (mounted) {
-        setState(() => _status = newStatus);
+        setState(() => _status = AuthStatus.unauthenticated);
       }
       return;
     }
 
-    // 4. If not loaded, fetch it (for fresh logins)
+    // Check if profile is already loaded (from main.dart)
     try {
+      final provider = Provider.of<UserProfileProvider>(context, listen: false);
+      if (provider.loggedInUserProfile != null &&
+          provider.loggedInUserProfile!.id == user.uid) {
+        debugPrint(
+          '[AuthWrapper] Profile already loaded. Setting state to authenticated.',
+        );
+        if (mounted) {
+          setState(() => _status = AuthStatus.authenticated);
+        }
+        return;
+      }
+
+      // If not loaded, fetch it (for fresh logins)
       debugPrint('[AuthWrapper] Profile not loaded. Loading profile...');
-      final bool profileLoaded = await provider.loadLoggedInUserProfile();
+      // Add a timeout (e.g., 15 seconds)
+      final bool profileLoaded = await provider
+          .loadLoggedInUserProfile()
+          .timeout(
+            const Duration(seconds: 15),
+            onTimeout: () {
+              debugPrint('[AuthWrapper] Profile loading timed out');
+              return false;
+            },
+          );
 
       if (!mounted) return;
 
       if (profileLoaded) {
         debugPrint(
-          '[AuthWrapper] Profile loaded successfully. Checking maintenance mode...',
+          '[AuthWrapper] Profile loaded successfully. Setting state to authenticated.',
         );
-        final newStatus = await _checkMaintenanceAndNavigate(provider);
         if (mounted) {
-          setState(() => _status = newStatus);
+          setState(() => _status = AuthStatus.authenticated);
         }
       } else {
-        debugPrint('[AuthWrapper] Profile loading failed. Signing out.');
-        await _authService.signOut(); // This will re-trigger the stream
+        debugPrint(
+          '[AuthWrapper] Profile loading failed or timed out. Signing out.',
+        );
+        await _authService.signOut();
+        if (mounted) {
+          setState(() {
+            _status = AuthStatus.error;
+            _errorMessage =
+                'فشل تحميل الملف الشخصي أو انتهت المهلة. تحقق من اتصالك بالإنترنت أو حاول مرة أخرى.';
+          });
+        }
       }
     } catch (e) {
       debugPrint(
         '[AuthWrapper] Error during profile loading: $e. Signing out.',
       );
-      await _authService.signOut(); // This will re-trigger the stream
+      try {
+        await _authService.signOut();
+      } catch (signOutError) {
+        debugPrint('[AuthWrapper] Error signing out: $signOutError');
+      }
+      if (mounted) {
+        setState(() {
+          _status = AuthStatus.error;
+          _errorMessage =
+              'حدث خطأ أثناء تحميل الملف الشخصي. يرجى المحاولة مرة أخرى.';
+        });
+      }
     }
+  }
+
+  void _retryAuth() {
+    setState(() {
+      _status = AuthStatus.checking;
+      _errorMessage = null;
+    });
+    // Re-subscribe to auth state (simulate a fresh start)
+    _authSubscription?.cancel();
+    _initializeAuth();
   }
 
   @override
   Widget build(BuildContext context) {
+    // Show loading while initializing
+    if (!_isInitialized) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(color: Colors.black),
+              SizedBox(height: Responsive.space(context, size: Space.medium)),
+              Text(
+                'جاري تحميل التطبيق...',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.black87,
+                  fontFamily: 'NotoSansArabic',
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     switch (_status) {
       case AuthStatus.checking:
-        return const Scaffold(
-          body: Center(child: CircularProgressIndicator(color: Colors.black)),
+        return Scaffold(
+          backgroundColor: Colors.white,
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(color: Colors.black),
+                SizedBox(height: Responsive.space(context, size: Space.medium)),
+                Text(
+                  'جاري التحقق من الحساب...',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.black87,
+                    fontFamily: 'NotoSansArabic',
+                  ),
+                ),
+              ],
+            ),
+          ),
         );
-      case AuthStatus.noInternet:
-        return NoInternetScreen(
-          onRetry: () => _handleAuthState(FirebaseAuth.instance.currentUser),
-        );
+
       case AuthStatus.authenticated:
         // Use a Consumer to ensure the Landing screen is only built after
         // the UserProfileProvider has been updated and has a valid profile.
@@ -164,9 +217,26 @@ class _AuthWrapperState extends State<AuthWrapper> {
           builder: (context, userProfileProvider, child) {
             if (userProfileProvider.loggedInUserProfile == null) {
               // This state should be brief, show a loading indicator.
-              return const Scaffold(
+              return Scaffold(
+                backgroundColor: Colors.white,
                 body: Center(
-                  child: CircularProgressIndicator(color: Colors.black),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircularProgressIndicator(color: Colors.black),
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.medium),
+                      ),
+                      Text(
+                        'جاري تحميل الملف الشخصي...',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.black87,
+                          fontFamily: 'NotoSansArabic',
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               );
             }
@@ -175,8 +245,47 @@ class _AuthWrapperState extends State<AuthWrapper> {
         );
       case AuthStatus.unauthenticated:
         return const FirstLandingScreen();
-      case AuthStatus.maintenanceMode:
-        return const MaintenanceScreen();
+      case AuthStatus.error:
+        return Scaffold(
+          backgroundColor: Colors.white,
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                  const SizedBox(height: 16),
+                  Text(
+                    _errorMessage ?? 'حدث خطأ غير متوقع.',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      color: Colors.black87,
+                      fontFamily: 'NotoSansArabic',
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: _retryAuth,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 32,
+                        vertical: 12,
+                      ),
+                    ),
+                    child: const Text(
+                      'إعادة المحاولة',
+                      style: TextStyle(fontFamily: 'NotoSansArabic'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
     }
   }
 }

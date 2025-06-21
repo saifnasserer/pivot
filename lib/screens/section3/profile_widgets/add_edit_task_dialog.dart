@@ -5,6 +5,10 @@ import 'package:uuid/uuid.dart';
 import 'dart:ui' as ui;
 import 'package:pivot/screens/models/custom_dropdown.dart';
 import 'package:pivot/screens/models/custom_text_field.dart';
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart' as firebase_storage;
+import 'package:pivot/responsive.dart';
 
 class AddEditTaskDialog extends StatefulWidget {
   final Task? task;
@@ -22,6 +26,7 @@ class _AddEditTaskDialogState extends State<AddEditTaskDialog> {
   late TextEditingController _descriptionController;
   late DateTime _selectedDate;
   late TaskImportance _selectedImportance;
+  List<Map<String, String>> attachments = [];
 
   @override
   void initState() {
@@ -32,6 +37,9 @@ class _AddEditTaskDialogState extends State<AddEditTaskDialog> {
     );
     _selectedDate = widget.task?.dueDate ?? DateTime.now();
     _selectedImportance = widget.task?.importance ?? TaskImportance.mid;
+    if (widget.task != null && widget.task!.attachments != null) {
+      attachments = List<Map<String, String>>.from(widget.task!.attachments!);
+    }
   }
 
   @override
@@ -64,6 +72,7 @@ class _AddEditTaskDialogState extends State<AddEditTaskDialog> {
         completedBy: widget.task?.completedBy ?? [],
         sectionId: widget.task?.sectionId,
         subjectId: widget.task?.subjectId,
+        attachments: attachments,
       );
       Navigator.of(context).pop(newTask);
     }
@@ -124,14 +133,14 @@ class _AddEditTaskDialogState extends State<AddEditTaskDialog> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: Responsive.space(context, size: Space.medium)),
                 CustomTextField(
                   controller: _descriptionController,
                   hint: 'التفاصيل',
                   maxLines: 3,
                   minLines: 3,
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: Responsive.space(context, size: Space.medium)),
                 Container(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   decoration: BoxDecoration(
@@ -150,7 +159,7 @@ class _AddEditTaskDialogState extends State<AddEditTaskDialog> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: Responsive.space(context, size: Space.medium)),
                 CustomDropdown(
                   hint: 'الأهمية',
                   color: const Color(0xFFF7F7F7),
@@ -165,6 +174,77 @@ class _AddEditTaskDialogState extends State<AddEditTaskDialog> {
                         _selectedImportance = TaskImportance.values.firstWhere(
                           (e) => _getImportanceArabicName(e) == newValue,
                         );
+                      });
+                    }
+                  },
+                ),
+                SizedBox(height: Responsive.space(context, size: Space.medium)),
+                Text(
+                  'المرفقات:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                ...attachments.map(
+                  (att) => ListTile(
+                    leading: const Icon(Icons.attach_file),
+                    title: Text(att['title'] ?? ''),
+                    subtitle: Text(att['url'] ?? ''),
+                    onTap: () async {
+                      final url = att['url'];
+                      if (url != null) {
+                        // Open the URL (use url_launcher if needed)
+                      }
+                    },
+                  ),
+                ),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.attach_file),
+                  label: const Text('إرفاق ملف/صورة'),
+                  onPressed: () async {
+                    FilePickerResult? result =
+                        await FilePicker.platform.pickFiles();
+                    if (result != null && result.files.single.path != null) {
+                      final file = File(result.files.single.path!);
+                      final fileName = result.files.single.name;
+                      // Upload to Firebase Storage
+                      final storageRef = firebase_storage
+                          .FirebaseStorage
+                          .instance
+                          .ref()
+                          .child(
+                            'tasks/attachments/${DateTime.now().millisecondsSinceEpoch}_$fileName',
+                          );
+                      final uploadTask = storageRef.putFile(file);
+                      final snapshot = await uploadTask.whenComplete(() {});
+                      final downloadUrl = await snapshot.ref.getDownloadURL();
+                      // Ask user for a title or use file name
+                      String? linkTitle = await showDialog<String>(
+                        context: context,
+                        builder: (context) {
+                          String tempTitle = fileName;
+                          return AlertDialog(
+                            title: const Text('عنوان الملف'),
+                            content: TextField(
+                              decoration: const InputDecoration(
+                                hintText: 'أدخل عنوان الرابط',
+                              ),
+                              controller: TextEditingController(text: fileName),
+                              onChanged: (v) => tempTitle = v,
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed:
+                                    () => Navigator.pop(context, tempTitle),
+                                child: const Text('موافق'),
+                              ),
+                            ],
+                          );
+                        },
+                      );
+                      setState(() {
+                        attachments.add({
+                          'title': linkTitle ?? fileName,
+                          'url': downloadUrl,
+                        });
                       });
                     }
                   },

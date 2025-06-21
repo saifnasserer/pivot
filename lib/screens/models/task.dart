@@ -14,6 +14,7 @@ class Task {
   String? sectionId; // To associate task with a specific section
   List<String> completedBy; // List of user IDs who completed the task
   bool isPersonal;
+  List<Map<String, String>>? attachments;
 
   Task({
     String? id, // Make ID optional
@@ -25,6 +26,7 @@ class Task {
     this.sectionId,
     this.completedBy = const [],
     this.isPersonal = false,
+    this.attachments,
   }) : id = id ?? const Uuid().v4(); // Generate ID if null
 
   // Helper method to check if the task is completed by a specific user
@@ -39,11 +41,13 @@ class Task {
       'title': title,
       'description': description,
       'dueDate': Timestamp.fromDate(dueDate),
-      'importance': importance.toString().split('.').last, // Store enum as string
+      'importance':
+          importance.toString().split('.').last, // Store enum as string
       'subjectId': subjectId,
       'sectionId': sectionId,
       'completedBy': completedBy,
       'isPersonal': isPersonal,
+      'attachments': attachments,
     };
   }
 
@@ -62,6 +66,14 @@ class Task {
       sectionId: map['sectionId'],
       completedBy: List<String>.from(map['completedBy'] ?? []),
       isPersonal: map['isPersonal'] ?? false,
+      attachments:
+          map['attachments'] != null
+              ? List<Map<String, String>>.from(
+                (map['attachments'] as List).map(
+                  (item) => Map<String, String>.from(item),
+                ),
+              )
+              : null,
     );
   }
 
@@ -76,6 +88,7 @@ class Task {
     String? sectionId,
     List<String>? completedBy,
     bool? isPersonal,
+    List<Map<String, String>>? attachments,
   }) {
     return Task(
       id: id ?? this.id,
@@ -87,6 +100,7 @@ class Task {
       sectionId: sectionId ?? this.sectionId,
       completedBy: completedBy ?? this.completedBy,
       isPersonal: isPersonal ?? this.isPersonal,
+      attachments: attachments ?? this.attachments,
     );
   }
 }

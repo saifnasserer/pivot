@@ -1,12 +1,26 @@
-class Subject {
+import 'package:hive/hive.dart';
+part 'subject_model.g.dart';
+
+@HiveType(typeId: 2)
+class Subject extends HiveObject {
+  @HiveField(0)
   final String id;
+  @HiveField(1)
   final String name;
+  @HiveField(2)
   final String code;
+  @HiveField(3)
   final int year;
+  @HiveField(4)
   final String? doctorId;
+  @HiveField(5)
   final String department;
+  @HiveField(6)
   final String? description;
+  @HiveField(7)
   final List<String> enrolledStudents;
+  @HiveField(8)
+  final String englishName;
 
   Subject({
     required this.id,
@@ -17,6 +31,7 @@ class Subject {
     required this.department,
     this.description,
     this.enrolledStudents = const [],
+    required this.englishName,
   });
 
   Subject copyWith({
@@ -28,6 +43,7 @@ class Subject {
     String? department,
     String? description,
     List<String>? enrolledStudents,
+    String? englishName,
   }) {
     return Subject(
       id: id ?? this.id,
@@ -38,6 +54,7 @@ class Subject {
       department: department ?? this.department,
       description: description ?? this.description,
       enrolledStudents: enrolledStudents ?? this.enrolledStudents,
+      englishName: englishName ?? this.englishName,
     );
   }
 
@@ -51,6 +68,7 @@ class Subject {
       department: json['department'] as String,
       description: json['description'] as String?,
       enrolledStudents: List<String>.from(json['enrolledStudents'] ?? []),
+      englishName: json['englishName'] as String? ?? '',
     );
   }
 
@@ -63,6 +81,7 @@ class Subject {
       'department': department,
       'description': description,
       'enrolledStudents': enrolledStudents,
+      'englishName': englishName,
     };
   }
 }

@@ -14,6 +14,7 @@ import '../../../services/local_auth_service.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../../../services/permission_service.dart';
 
 class Signup_2 extends StatefulWidget {
   final String name;
@@ -151,9 +152,29 @@ class _Signup_2State extends State<Signup_2> {
     super.dispose();
   }
 
+  // Request notification permission with user-friendly dialog
+  Future<void> _requestNotificationPermission() async {
+    if (kIsWeb) return; // Notifications not supported on web
+
+    try {
+      // Use existing static method from PermissionService
+      bool granted = await PermissionService.requestStoragePermission();
+
+      if (!granted && mounted) {
+        // Show dialog to open settings if permission denied
+        await PermissionService.requestStoragePermissionWithRationale(context);
+      }
+    } catch (e) {
+      debugPrint('Error requesting notification permission: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final settingsProvider = Provider.of<SettingsProvider>(context, listen: false);
+    final settingsProvider = Provider.of<SettingsProvider>(
+      context,
+      listen: false,
+    );
     final sectionCounts = settingsProvider.sectionCounts;
     return GestureDetector(
       onTap: () {
@@ -208,11 +229,14 @@ class _Signup_2State extends State<Signup_2> {
                               selectedSection = null;
                               _isSectionValid = false;
 
-                              _availableDepartments = FormOptions.getDepartmentsForYear(newValue);
+                              _availableDepartments =
+                                  FormOptions.getDepartmentsForYear(newValue);
                               _availableSections = [];
                             });
                             WidgetsBinding.instance.addPostFrameCallback((_) {
-                              FocusScope.of(context).requestFocus(_departmentFocus);
+                              FocusScope.of(
+                                context,
+                              ).requestFocus(_departmentFocus);
                             });
                           },
                         ),
@@ -229,15 +253,20 @@ class _Signup_2State extends State<Signup_2> {
                               selectedDepartment = newValue;
                               _isDepartmentValid = true;
 
-                              if (selectedDepartment != null && sectionCounts.containsKey(selectedDepartment)) {
-                                _availableSections = List<String>.generate(sectionCounts[selectedDepartment]!,
-                                  (i) => 'Section ${i + 1}',
+                              if (selectedDepartment != null &&
+                                  sectionCounts.containsKey(
+                                    selectedDepartment,
+                                  )) {
+                                _availableSections = List<String>.generate(
+                                  sectionCounts[selectedDepartment]!,
+                                  (i) => '${i + 1}',
                                 );
                               } else {
                                 _availableSections = [];
                               }
-                              if (!_availableSections
-                                  .contains(selectedSection)) {
+                              if (!_availableSections.contains(
+                                selectedSection,
+                              )) {
                                 selectedSection = null;
                                 _isSectionValid = false;
                               }
@@ -276,12 +305,13 @@ class _Signup_2State extends State<Signup_2> {
                       context,
                       size: Space.large,
                     ),
-                    child: _isLoading
-                        ? const Center(child: CircularProgressIndicator())
-                        : CircularButton(
-                            onPressed: _submitForm,
-                            icon: Icons.check,
-                          ),
+                    child:
+                        _isLoading
+                            ? const Center(child: CircularProgressIndicator())
+                            : CircularButton(
+                              onPressed: _submitForm,
+                              icon: Icons.check,
+                            ),
                   ),
                 ],
               ),
@@ -322,6 +352,7 @@ class _Signup_2State extends State<Signup_2> {
         'section': selectedSection,
         'profileImageUrl': null,
         'gender': widget.gender,
+        'registrationDate': DateTime.now().toIso8601String(),
       };
 
       try {
@@ -337,6 +368,10 @@ class _Signup_2State extends State<Signup_2> {
             context,
             listen: false,
           ).setUserProfile(userProfile!);
+
+          // Request notification permission after successful signup
+          await _requestNotificationPermission();
+
           // Ask to enable biometrics before navigating
           await _promptEnableBiometrics(
             userProfile.id,

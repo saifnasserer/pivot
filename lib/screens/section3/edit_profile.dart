@@ -4,7 +4,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:image_cropper/image_cropper.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pivot/models/user_profile.dart';
@@ -16,6 +15,7 @@ import 'package:pivot/providers/settings_provider.dart';
 import 'package:pivot/data/form_options.dart';
 import 'package:pivot/screens/models/custom_text_field.dart';
 import 'package:provider/provider.dart';
+import 'package:pivot/services/permission_service.dart';
 
 class EditProfile extends StatefulWidget {
   static const String id = 'edit_profile';
@@ -76,6 +76,14 @@ class _EditProfileState extends State<EditProfile> {
     _isDepartmentValid = _department != null;
     _isSectionValid = _section != null;
     _isGenderValid = _gender != null;
+
+    // Fetch section counts after the first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<SettingsProvider>(
+        context,
+        listen: false,
+      ).fetchSectionCounts();
+    });
   }
 
   @override
@@ -90,55 +98,48 @@ class _EditProfileState extends State<EditProfile> {
   }
 
   Future<void> _pickImage() async {
+    debugPrint('[EditProfile] Starting image pick process');
+    bool granted = await PermissionService.requestPhotosPermissionWithRationale(
+      context,
+    );
+    debugPrint('[EditProfile] Permission granted: $granted');
+    if (!granted) return;
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+    debugPrint('[EditProfile] Picked file: \\${pickedFile?.path}');
     if (pickedFile == null) return;
 
-    final croppedFile = await ImageCropper().cropImage(
-      sourcePath: pickedFile.path,
-      uiSettings: [
-        AndroidUiSettings(
-          toolbarTitle: 'Crop Image',
-          toolbarColor: Colors.black,
-          toolbarWidgetColor: Colors.white,
-          initAspectRatio: CropAspectRatioPreset.original,
-          lockAspectRatio: false,
-          aspectRatioPresets: [
-            CropAspectRatioPreset.square,
-            CropAspectRatioPreset.ratio3x2,
-            CropAspectRatioPreset.original,
-            CropAspectRatioPreset.ratio4x3,
-            CropAspectRatioPreset.ratio16x9,
-          ],
-        ),
-        IOSUiSettings(
-          title: 'Crop Image',
-          aspectRatioPresets: [
-            CropAspectRatioPreset.square,
-            CropAspectRatioPreset.ratio3x2,
-            CropAspectRatioPreset.original,
-            CropAspectRatioPreset.ratio4x3,
-            CropAspectRatioPreset.ratio16x9,
-          ],
-        ),
-      ],
-    );
+    setState(() {
+      _imageFile = File(pickedFile.path);
+    });
 
-    if (croppedFile == null) return;
+    // Optionally compress the image
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final targetPath =
+          '${tempDir.path}/${DateTime.now().millisecondsSinceEpoch}.jpg';
+      debugPrint('[EditProfile] Compressing image to: $targetPath');
 
-    final tempDir = await getTemporaryDirectory();
-    final targetPath =
-        '${tempDir.path}/${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final compressedFile = await FlutterImageCompress.compressAndGetFile(
+        pickedFile.path,
+        targetPath,
+        quality: 60,
+        minWidth: 600,
+        minHeight: 600,
+        format: CompressFormat.jpeg,
+      );
+      debugPrint('[EditProfile] Compressed file: \\${compressedFile?.path}');
 
-    final compressedFile = await FlutterImageCompress.compressAndGetFile(
-      croppedFile.path,
-      targetPath,
-      quality: 80,
-    );
-
-    if (compressedFile != null) {
-      setState(() {
-        _imageFile = File(compressedFile.path);
-      });
+      if (compressedFile != null) {
+        setState(() {
+          _imageFile = File(compressedFile.path);
+        });
+        debugPrint('[EditProfile] Image set in state');
+      }
+    } catch (e) {
+      debugPrint('[EditProfile] Exception during compression: $e');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('حدث خطأ أثناء ضغط الصورة: $e')));
     }
   }
 
@@ -160,6 +161,10 @@ class _EditProfileState extends State<EditProfile> {
   Widget build(BuildContext context) {
     final settingsProvider = context.watch<SettingsProvider>();
     final sectionCounts = settingsProvider.sectionCounts;
+
+    if (settingsProvider.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
     // Dynamically update sections based on the selected department
     if (_department != null && sectionCounts.containsKey(_department)) {
@@ -199,7 +204,9 @@ class _EditProfileState extends State<EditProfile> {
                       backgroundImage:
                           _imageFile != null
                               ? (kIsWeb
-                                      ? NetworkImage(_imageFile!.path)
+                                      ? CachedNetworkImageProvider(
+                                        _imageFile!.path,
+                                      )
                                       : FileImage(File(_imageFile!.path)))
                                   as ImageProvider
                               : (widget.userProfile.profileImageUrl != null &&
@@ -369,11 +376,16 @@ class _EditProfileState extends State<EditProfile> {
                     Column(
                       children: [
                         _isUploading
-                            ? const Column(
+                            ? Column(
                               children: [
                                 CircularProgressIndicator(),
-                                SizedBox(height: 8),
-                                Text('Uploading your image...'),
+                                SizedBox(
+                                  height: Responsive.space(
+                                    context,
+                                    size: Space.small,
+                                  ),
+                                ),
+                                Text('يتم رفع الصورة'),
                               ],
                             )
                             : Column(
@@ -462,8 +474,13 @@ class _EditProfileState extends State<EditProfile> {
                                   },
                                   icon: Icons.save,
                                 ),
-                                const SizedBox(height: 8),
-                                const Text('حفظ'),
+                                SizedBox(
+                                  height: Responsive.space(
+                                    context,
+                                    size: Space.small,
+                                  ),
+                                ),
+                                Text('حفظ'),
                               ],
                             ),
                       ],
@@ -477,8 +494,10 @@ class _EditProfileState extends State<EditProfile> {
                           icon: Icons.cancel,
                           backgroundColor: Colors.red,
                         ),
-                        const SizedBox(height: 8),
-                        const Text('إلغاء'),
+                        SizedBox(
+                          height: Responsive.space(context, size: Space.small),
+                        ),
+                        Text('إلغاء'),
                       ],
                     ),
                   ],

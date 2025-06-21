@@ -15,30 +15,40 @@ class SectionManagementScreen extends StatefulWidget {
 
 class _SectionManagementScreenState extends State<SectionManagementScreen> {
   final _formKey = GlobalKey<FormState>();
-  late Map<String, TextEditingController> _controllers;
-  bool _isLoading = false;
+  late final Map<String, TextEditingController> _controllers;
+  bool _isSaving = false;
+  bool _isInitialized = false;
 
   final Map<String, String> _departmentDisplayNames = const {
-    'CS': 'CS',
-    'IS': 'IS',
-    'AI': 'AI',
-    'SC': 'SC',
+    'CS': 'علوم الحاسوب',
+    'IS': 'نظم المعلومات',
+    'AI': 'الذكاء الاصطناعي',
+    'SC': 'علوم الحاسوب',
     'General': 'عام',
+  };
+
+  final Map<String, Color> _departmentColors = const {
+    'CS': Colors.blue,
+    'IS': Colors.green,
+    'AI': Colors.purple,
+    'SC': Colors.orange,
+    'General': Colors.grey,
   };
 
   @override
   void initState() {
     super.initState();
-    final settingsProvider = Provider.of<SettingsProvider>(
-      context,
-      listen: false,
-    );
     _controllers = {
       for (var deptKey in _departmentDisplayNames.keys)
-        deptKey: TextEditingController(
-          text: (settingsProvider.sectionCounts[deptKey] ?? 8).toString(),
-        ),
+        deptKey: TextEditingController(),
     };
+    // Fetch data after the first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<SettingsProvider>(
+        context,
+        listen: false,
+      ).fetchSectionCounts();
+    });
   }
 
   @override
@@ -67,7 +77,7 @@ class _SectionManagementScreenState extends State<SectionManagementScreen> {
 
   Future<void> _saveSettings() async {
     if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
+      setState(() => _isSaving = true);
 
       final newCounts = <String, int>{};
       _controllers.forEach((dept, controller) {
@@ -81,9 +91,13 @@ class _SectionManagementScreenState extends State<SectionManagementScreen> {
         ).updateSectionCounts(newCounts);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('تم حفظ الإعدادات بنجاح'),
+            SnackBar(
+              content: Text('تم حفظ إعدادات السكاشن بنجاح'),
               backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
           );
         }
@@ -93,15 +107,32 @@ class _SectionManagementScreenState extends State<SectionManagementScreen> {
             SnackBar(
               content: Text('حدث خطأ أثناء الحفظ: $e'),
               backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
           );
         }
       } finally {
         if (mounted) {
-          setState(() => _isLoading = false);
+          setState(() => _isSaving = false);
         }
       }
     }
+  }
+
+  int _getTotalSections() {
+    int total = 0;
+    _controllers.forEach((dept, controller) {
+      total += int.tryParse(controller.text) ?? 0;
+    });
+    return total;
+  }
+
+  int _getAverageSections() {
+    if (_controllers.isEmpty) return 0;
+    return (_getTotalSections() / _controllers.length).round();
   }
 
   @override
@@ -109,80 +140,274 @@ class _SectionManagementScreenState extends State<SectionManagementScreen> {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        appBar: AppBar(title: const Text('إدارة السكاشن'), centerTitle: true),
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          title: Text(
+            'إدارة السكاشن',
+            style: TextStyle(
+              fontSize: Responsive.text(context, size: TextSize.heading),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          backgroundColor: Colors.white,
+          elevation: 0,
+          iconTheme: const IconThemeData(color: Colors.black),
+        ),
         body: Consumer<SettingsProvider>(
           builder: (context, settingsProvider, child) {
-            if (settingsProvider.isLoading && _controllers.isEmpty) {
-              return const Center(child: CircularProgressIndicator());
+            // Populate controllers only once after data is loaded
+            if (!settingsProvider.isLoading && !_isInitialized) {
+              for (var key in _departmentDisplayNames.keys) {
+                final count = settingsProvider.sectionCounts[key] ?? 8;
+                _controllers[key]?.text = count.toString();
+              }
+              // Use a post frame callback to avoid calling setState during a build
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) setState(() => _isInitialized = true);
+              });
             }
+
+            // Show loading indicator until controllers are initialized
+            if (!_isInitialized) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(color: Colors.black),
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.medium),
+                    ),
+                    Text(
+                      'جاري تحميل إعدادات السكاشن...',
+                      style: TextStyle(
+                        fontSize: Responsive.text(
+                          context,
+                          size: TextSize.medium,
+                        ),
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            // Main UI
             return Form(
               key: _formKey,
               child: Column(
                 children: [
+                  // Statistics Section
+                  Container(
+                    padding: Responsive.padding(context, size: Space.large),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      border: Border(
+                        bottom: BorderSide(color: Colors.grey[200]!),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'إحصائيات السكاشن',
+                          style: TextStyle(
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.heading,
+                            ),
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        SizedBox(
+                          height: Responsive.space(context, size: Space.medium),
+                        ),
+                        Row(
+                          children: [
+                            _buildStatTile(
+                              context,
+                              Icons.school,
+                              'إجمالي السكاشن',
+                              _getTotalSections().toString(),
+                              Colors.blue,
+                            ),
+                            SizedBox(
+                              width: Responsive.space(
+                                context,
+                                size: Space.medium,
+                              ),
+                            ),
+                            _buildStatTile(
+                              context,
+                              Icons.analytics,
+                              'المتوسط',
+                              _getAverageSections().toString(),
+                              Colors.green,
+                            ),
+                            SizedBox(
+                              width: Responsive.space(
+                                context,
+                                size: Space.medium,
+                              ),
+                            ),
+                            _buildStatTile(
+                              context,
+                              Icons.category,
+                              'الأقسام',
+                              _departmentDisplayNames.length.toString(),
+                              Colors.orange,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Departments List
                   Expanded(
                     child: ListView(
-                      padding: const EdgeInsets.all(16.0),
+                      padding: Responsive.padding(context, size: Space.large),
                       children:
                           _departmentDisplayNames.entries.map((entry) {
                             final deptKey = entry.key;
                             final deptName = entry.value;
-                            return Card(
-                              elevation: 4,
-                              margin: const EdgeInsets.symmetric(vertical: 8.0),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(15),
+                            final deptColor =
+                                _departmentColors[deptKey] ?? Colors.grey;
+
+                            return Container(
+                              margin: EdgeInsets.only(
+                                bottom: Responsive.space(
+                                  context,
+                                  size: Space.medium,
+                                ),
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: Colors.grey[200]!),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.grey.withOpacity(0.1),
+                                    spreadRadius: 1,
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
                               ),
                               child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 8.0,
-                                  horizontal: 16.0,
+                                padding: Responsive.padding(
+                                  context,
+                                  size: Space.large,
                                 ),
-                                child: Row(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Icon(
-                                      _getDeptIcon(deptKey),
-                                      size: 30,
-                                      color: Theme.of(context).primaryColor,
-                                    ),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                      child: Text(
-                                        'قسم $deptName',
-                                        style: TextStyle(
-                                          fontSize: Responsive.text(
+                                    // Department Header
+                                    Row(
+                                      children: [
+                                        Container(
+                                          padding: Responsive.padding(
                                             context,
-                                            size: TextSize.medium,
+                                            size: Space.small,
                                           ),
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                    SizedBox(
-                                      width: 80,
-                                      child: TextFormField(
-                                        controller: _controllers[deptKey],
-                                        keyboardType: TextInputType.number,
-                                        textAlign: TextAlign.center,
-                                        decoration: InputDecoration(
-                                          labelText: 'العدد',
-                                          border: OutlineInputBorder(
+                                          decoration: BoxDecoration(
+                                            color: deptColor.withOpacity(0.1),
                                             borderRadius: BorderRadius.circular(
-                                              10,
+                                              12,
                                             ),
                                           ),
-                                          contentPadding:
-                                              const EdgeInsets.symmetric(
-                                                horizontal: 8,
-                                              ),
+                                          child: Icon(
+                                            _getDeptIcon(deptKey),
+                                            size: Responsive.text(
+                                              context,
+                                              size: TextSize.heading,
+                                            ),
+                                            color: deptColor,
+                                          ),
                                         ),
-                                        validator: (value) {
-                                          if (value == null || value.isEmpty)
-                                            return 'مطلوب';
-                                          if (int.tryParse(value) == null)
-                                            return 'رقم غير صالح';
-                                          return null;
-                                        },
+                                        SizedBox(
+                                          width: Responsive.space(
+                                            context,
+                                            size: Space.medium,
+                                          ),
+                                        ),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                'قسم $deptName',
+                                                style: TextStyle(
+                                                  fontSize: Responsive.text(
+                                                    context,
+                                                    size: TextSize.medium,
+                                                  ),
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.black87,
+                                                ),
+                                              ),
+                                              Text(
+                                                'عدد السكاشن المطلوبة',
+                                                style: TextStyle(
+                                                  fontSize: Responsive.text(
+                                                    context,
+                                                    size: TextSize.small,
+                                                  ),
+                                                  color: Colors.grey[600],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+
+                                    SizedBox(
+                                      height: Responsive.space(
+                                        context,
+                                        size: Space.medium,
                                       ),
+                                    ),
+
+                                    // Section Count Input
+                                    TextFormField(
+                                      controller: _controllers[deptKey],
+                                      keyboardType: TextInputType.number,
+                                      textAlign: TextAlign.center,
+                                      decoration: InputDecoration(
+                                        labelText: 'عدد السكاشن',
+                                        hintText: 'أدخل العدد المطلوب',
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                        filled: true,
+                                        fillColor: Colors.grey[50],
+                                        prefixIcon: Icon(
+                                          Icons.numbers,
+                                          color: deptColor,
+                                        ),
+                                        suffixText: 'سكاشن',
+                                      ),
+                                      validator: (value) {
+                                        if (value == null || value.isEmpty) {
+                                          return 'مطلوب إدخال عدد السكاشن';
+                                        }
+                                        if (int.tryParse(value) == null) {
+                                          return 'يجب إدخال رقم صحيح';
+                                        }
+                                        final count = int.parse(value);
+                                        if (count < 1) {
+                                          return 'يجب أن يكون العدد أكبر من صفر';
+                                        }
+                                        if (count > 50) {
+                                          return 'يجب أن يكون العدد أقل من 50';
+                                        }
+                                        return null;
+                                      },
                                     ),
                                   ],
                                 ),
@@ -191,28 +416,50 @@ class _SectionManagementScreenState extends State<SectionManagementScreen> {
                           }).toList(),
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: ElevatedButton.icon(
-                      onPressed: _isLoading ? null : _saveSettings,
-                      icon: _isLoading ? Container() : const Icon(Icons.save),
-                      label:
-                          _isLoading
-                              ? const CircularProgressIndicator(
-                                color: Colors.white,
-                              )
-                              : const Text('حفظ التغييرات'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Theme.of(context).primaryColor,
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(double.infinity, 50),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
+
+                  // Save Button
+                  Container(
+                    padding: Responsive.padding(context, size: Space.large),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border(top: BorderSide(color: Colors.grey[200]!)),
+                    ),
+                    child: Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.black,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: TextButton.icon(
+                        onPressed: _isSaving ? null : _saveSettings,
+                        icon:
+                            _isSaving
+                                ? SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                                : Icon(Icons.save, color: Colors.white),
+                        label: Text(
+                          _isSaving ? 'جاري الحفظ...' : 'حفظ إعدادات السكاشن',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.medium,
+                            ),
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                        textStyle: TextStyle(
-                          fontSize: Responsive.text(
-                            context,
-                            size: TextSize.medium,
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.symmetric(
+                            vertical: Responsive.space(
+                              context,
+                              size: Space.medium,
+                            ),
                           ),
                         ),
                       ),
@@ -222,6 +469,47 @@ class _SectionManagementScreenState extends State<SectionManagementScreen> {
               ),
             );
           },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatTile(
+    BuildContext context,
+    IconData icon,
+    String title,
+    String value,
+    Color color,
+  ) {
+    return Expanded(
+      child: Container(
+        padding: Responsive.padding(context, size: Space.medium),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 24),
+            SizedBox(height: Responsive.space(context, size: Space.small)),
+            Text(
+              value,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: Responsive.text(context, size: TextSize.medium),
+                color: color,
+              ),
+            ),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: Responsive.text(context, size: TextSize.small),
+                color: Colors.grey[600],
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
       ),
     );

@@ -17,6 +17,7 @@ class CustomTextField extends StatelessWidget {
     this.minLines,
     this.maxLines = 1,
     this.controller,
+    this.textCapitalization = TextCapitalization.none,
   });
 
   final String hint;
@@ -32,6 +33,7 @@ class CustomTextField extends StatelessWidget {
   final bool isValid;
   final int? minLines;
   final int? maxLines;
+  final TextCapitalization textCapitalization;
 
   InputDecoration _getInputDecoration(BuildContext context) {
     return InputDecoration(
@@ -100,7 +102,7 @@ class CustomTextField extends StatelessWidget {
       maxLines: maxLines,
       onChanged: onChanged,
       decoration: _getInputDecoration(context),
-      textCapitalization: TextCapitalization.words,
+      textCapitalization: textCapitalization,
     );
   }
 }

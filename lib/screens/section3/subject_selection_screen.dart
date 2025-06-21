@@ -21,9 +21,11 @@ class SubjectSelectionScreen extends StatefulWidget {
 }
 
 class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
-  bool _isLoading = false;
+  bool _isSaving = false;
+  bool _saveSuccess = false;
   final Map<int, bool> _expandedState = {};
   late Set<String> _selectedSubjectIds;
+  bool _showEnglish = false; // Language toggle
 
   @override
   void initState() {
@@ -70,7 +72,7 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      subject.name,
+                      _showEnglish ? subject.englishName : subject.name,
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: Responsive.text(
@@ -79,7 +81,9 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.tiny),
+                    ),
                     Text(
                       'القسم: ${subject.department}',
                       style: TextStyle(
@@ -153,7 +157,7 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: Responsive.space(context, size: Space.medium)),
                 ListView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
@@ -308,6 +312,15 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
           title: const Text('اختر كورساتك'),
           centerTitle: true,
           actions: [
+            IconButton(
+              icon: Icon(_showEnglish ? Icons.language : Icons.translate),
+              tooltip: _showEnglish ? 'عرض بالعربية' : 'Show in English',
+              onPressed: () {
+                setState(() {
+                  _showEnglish = !_showEnglish;
+                });
+              },
+            ),
             Consumer<GuideProvider>(
               builder: (context, guideProvider, child) {
                 final hasContent =
@@ -338,68 +351,100 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
         ),
         body: _buildSubjectsList(),
         floatingActionButton: FloatingActionButton(
-          onPressed: _isLoading
-              ? null
-              : () async {
-                  setState(() {
-                    _isLoading = true;
-                  });
+          onPressed:
+              _isSaving
+                  ? null
+                  : () async {
+                    setState(() {
+                      _isSaving = true;
+                      _saveSuccess = false;
+                    });
 
-                  try {
-                    final userProfileProvider = Provider.of<UserProfileProvider>(
-                      context,
-                      listen: false,
-                    );
-                    final subjectProvider = Provider.of<SubjectProvider>(
-                      context,
-                      listen: false,
-                    );
-
-                    final userRole = userProfileProvider.loggedInUserProfile?.role;
-                    UserProfile? updatedProfile;
-
-                    if (userRole == 'Student') {
-                      updatedProfile = await userProfileProvider
-                          .updateEnrolledSubjects(_selectedSubjectIds.toList());
-                    } else if (userRole == 'Professor' ||
-                        userRole == 'miniProfessor' ||
-                        userRole == 'Doctor') {
-                      updatedProfile = await userProfileProvider
-                          .updateTeachingSubjects(_selectedSubjectIds.toList());
-                    }
-
-                    if (mounted && updatedProfile != null) {
-                      await subjectProvider
-                          .fetchAndFilterSubjects(updatedProfile);
-                    }
-
-                    if (mounted) {
-                      Navigator.pop(context);
-                    }
-                  } catch (e) {
-                    // Handle error, maybe show a snackbar
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Failed to update subjects: $e'),
-                          backgroundColor: Colors.red,
-                        ),
+                    bool success = false;
+                    try {
+                      final userProfileProvider =
+                          Provider.of<UserProfileProvider>(
+                            context,
+                            listen: false,
+                          );
+                      final subjectProvider = Provider.of<SubjectProvider>(
+                        context,
+                        listen: false,
                       );
+
+                      final userRole =
+                          userProfileProvider.loggedInUserProfile?.role;
+                      UserProfile? updatedProfile;
+
+                      if (userRole == 'Student' || userRole == 'Admin') {
+                        updatedProfile = await userProfileProvider
+                            .updateEnrolledSubjects(
+                              _selectedSubjectIds.toList(),
+                            );
+                      } else if (userRole == 'Professor' ||
+                          userRole == 'miniProfessor' ||
+                          userRole == 'Doctor') {
+                        updatedProfile = await userProfileProvider
+                            .updateTeachingSubjects(
+                              _selectedSubjectIds.toList(),
+                            );
+                      } else {
+                        // Handle unknown role
+                        throw Exception('Unknown user role: $userRole');
+                      }
+
+                      if (updatedProfile != null) {
+                        await subjectProvider.fetchAndFilterSubjects(
+                          updatedProfile,
+                        );
+                        // After updating subjects, fetch the latest user profile to ensure
+                        // the UI reflects the changes upon returning to the previous screen.
+                        await userProfileProvider.loadLoggedInUserProfile();
+                        success = true;
+                      } else {
+                        throw Exception('Failed to update profile');
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Failed to update subjects: $e'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    } finally {
+                      if (mounted) {
+                        if (success) {
+                          setState(() {
+                            _isSaving = false;
+                            _saveSuccess = true;
+                          });
+                          await Future.delayed(
+                            const Duration(milliseconds: 800),
+                          );
+                          if (mounted) {
+                            // Return true to indicate success, allowing the previous screen to react.
+                            Navigator.pop(context, true);
+                          }
+                        } else {
+                          setState(() {
+                            _isSaving = false;
+                          });
+                        }
+                      }
                     }
-                  } finally {
-                    if (mounted) {
-                      setState(() {
-                        _isLoading = false;
-                      });
-                    }
-                  }
-                },
-          child: _isLoading
-              ? const CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                )
-              : const Icon(Icons.check_rounded),
-          backgroundColor: Theme.of(context).primaryColor,
+                  },
+          backgroundColor:
+              _saveSuccess ? Colors.green : Theme.of(context).primaryColor,
+          child:
+              _isSaving
+                  ? const CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  )
+                  : _saveSuccess
+                  ? const Icon(Icons.done_all)
+                  : const Icon(Icons.check_rounded),
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       ),

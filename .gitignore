@@ -44,3 +44,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+
+functions/pivot-28563-firebase-adminsdk-fbsvc-12baa1b7d9.json

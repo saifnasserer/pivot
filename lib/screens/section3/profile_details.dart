@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/responsive.dart';
 import 'package:auto_size_text/auto_size_text.dart';
+import 'package:pivot/screens/models/card_model.dart';
 
 class ProfileDetails extends StatelessWidget {
   const ProfileDetails({super.key, required this.userProfile});
@@ -72,26 +73,43 @@ class ProfileDetails extends StatelessWidget {
               child:
                   userProfile.profileImageUrl != null &&
                           userProfile.profileImageUrl!.isNotEmpty
-                      ? CachedNetworkImage(
-                        imageUrl: userProfile.profileImageUrl!,
-                        width: Responsive.space(context, size: Space.large) * 6,
-                        height:
-                            Responsive.space(context, size: Space.large) * 6,
-                        fit: BoxFit.cover,
-                        placeholder:
-                            (context, url) => const Center(
-                              child: CircularProgressIndicator(
+                      ? GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder:
+                                  (context) => FullScreenImageViewer(
+                                    imageUrl: userProfile.profileImageUrl!,
+                                  ),
+                            ),
+                          );
+                        },
+                        child: CachedNetworkImage(
+                          imageUrl: userProfile.profileImageUrl!,
+                          width:
+                              Responsive.space(context, size: Space.large) * 6,
+                          height:
+                              Responsive.space(context, size: Space.large) * 6,
+                          fit: BoxFit.cover,
+                          placeholder:
+                              (context, url) => const Center(
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                ),
+                              ),
+                          errorWidget:
+                              (context, url, error) => Icon(
+                                Icons.person,
+                                size:
+                                    Responsive.space(
+                                      context,
+                                      size: Space.large,
+                                    ) *
+                                    2.5,
                                 color: Colors.white,
                               ),
-                            ),
-                        errorWidget:
-                            (context, url, error) => Icon(
-                              Icons.person,
-                              size:
-                                  Responsive.space(context, size: Space.large) *
-                                  2.5,
-                              color: Colors.white,
-                            ),
+                        ),
                       )
                       : Icon(
                         Icons.person,

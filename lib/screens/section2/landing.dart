@@ -6,8 +6,9 @@ import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/section2/admin_control.dart';
 import 'package:pivot/screens/section2/category_section.dart';
 import 'package:pivot/screens/section3/profile.dart';
-import 'package:pivot/screens/models/card_model.dart';
 import 'package:provider/provider.dart';
+import 'package:pivot/screens/models/card_model.dart';
+import 'package:pivot/screens/models/search_card.dart';
 
 class Landing extends StatefulWidget {
   const Landing({super.key});
@@ -20,6 +21,7 @@ class Landing extends StatefulWidget {
 class LandingState extends State<Landing> {
   String? _userDepartment;
 
+  final TextEditingController _userSearchController = TextEditingController();
   @override
   void initState() {
     super.initState();
@@ -41,6 +43,12 @@ class LandingState extends State<Landing> {
         department: _userDepartment,
       );
     });
+  }
+
+  @override
+  void dispose() {
+    _userSearchController.dispose();
+    super.dispose();
   }
 
   @override
@@ -89,10 +97,6 @@ class LandingState extends State<Landing> {
                             departmentCode = null;
                             timeFilter = null;
                           }
-
-                          debugPrint(
-                            '[LANDING onCategoryChanged] Fetching with department: $departmentCode, timeFilter: $timeFilter',
-                          );
                           announcementProvider.fetchAnnouncements(
                             department: departmentCode,
                             timeFilter: timeFilter,
@@ -100,6 +104,7 @@ class LandingState extends State<Landing> {
                         },
                       ),
                     ),
+
                     Consumer<UserProfileProvider>(
                       builder: (context, userProfileProvider, child) {
                         final userRole = userProfileProvider.userProfile?.role;
@@ -115,20 +120,23 @@ class LandingState extends State<Landing> {
                         }
                       },
                     ),
-                    // IconButton(
-                    //   icon: Icon(Icons.search),
-                    //   onPressed: () {
-                    //     // Handle search icon press
-                    //     // Navigator.pushNamed(context, DoctorProfile.id);
-                    //   },
-                    // ),
+                    IconButton(
+                      icon: const Icon(Icons.search),
+                      tooltip: 'بحث',
+                      onPressed: () => showUserSearchModal(context),
+                    ),
+
                     Consumer<UserProfileProvider>(
                       builder: (context, userProfileProvider, child) {
                         return IconButton(
                           icon: const Icon(Icons.person_outline_rounded),
                           onPressed: () {
-                            if (userProfileProvider.userProfile?.role == 'Super Admin') {
-                              Navigator.pushNamed(context, '/super-admin-panel');
+                            if (userProfileProvider.userProfile?.role ==
+                                'Super Admin') {
+                              Navigator.pushNamed(
+                                context,
+                                '/super-admin-panel',
+                              );
                             } else {
                               Navigator.pushNamed(context, Profile.id);
                             }
@@ -158,11 +166,20 @@ class LandingState extends State<Landing> {
                           ),
                         );
                       }
+                      // Sort pinned announcements to the top
+                      final sortedAnnouncements = List.of(
+                        provider.announcements,
+                      )..sort((a, b) {
+                        if (a.pinned == b.pinned) {
+                          return b.timestamp.compareTo(a.timestamp);
+                        }
+                        return b.pinned ? 1 : -1;
+                      });
                       return PageView.builder(
-                        itemCount: provider.announcements.length,
+                        itemCount: sortedAnnouncements.length,
                         scrollDirection: Axis.vertical,
                         itemBuilder: (context, index) {
-                          final announcement = provider.announcements[index];
+                          final announcement = sortedAnnouncements[index];
                           return Padding(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 8.0,

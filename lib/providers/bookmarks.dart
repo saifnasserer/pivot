@@ -59,16 +59,24 @@ class Bookmarks extends ChangeNotifier {
     if (isCurrentlyBookmarked) {
       _bookmarkIds.remove(announcementId);
       await userDocRef.update({
-        'bookmarks': FieldValue.arrayRemove([announcementId])
+        'bookmarks': FieldValue.arrayRemove([announcementId]),
       });
+      // Log unbookmark
+      // await ActivityLogService().logAction(
+      //   action: 'Announcement unbookmarked',
+      //   details: 'Announcement ID: $announcementId',
+      // );
     } else {
       _bookmarkIds.add(announcementId);
       await userDocRef.set({
-        'bookmarks': FieldValue.arrayUnion([announcementId])
+        'bookmarks': FieldValue.arrayUnion([announcementId]),
       }, SetOptions(merge: true));
+      // Log bookmark
+      // await ActivityLogService().logAction(
+      //   action: 'Announcement bookmarked',
+      //   details: 'Announcement ID: $announcementId',
+      // );
     }
     notifyListeners();
   }
 }
-
-
