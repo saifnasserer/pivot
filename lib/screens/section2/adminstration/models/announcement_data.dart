@@ -1,6 +1,7 @@
 import 'package:hive/hive.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:hive/hive.dart' show HiveConstructor;
 part 'announcement_data.g.dart';
 
 /// Data class for announcements, compatible with Firestore
@@ -52,6 +53,23 @@ class AnnouncementData extends HiveObject {
        publishAtMillis = publishAt?.millisecondsSinceEpoch,
        expireAtMillis = expireAt?.millisecondsSinceEpoch;
 
+  // Constructor for Hive (internal use)
+  AnnouncementData._hive({
+    this.id,
+    required this.title,
+    required this.date,
+    required this.colorValue,
+    required this.description,
+    required this.tags,
+    required this.timestampMillis,
+    this.imageUrls = const [],
+    this.links = const [],
+    this.pinned = false,
+    this.draft = false,
+    this.publishAtMillis,
+    this.expireAtMillis,
+  });
+
   Color get color => Color(colorValue);
   DateTime get timestamp =>
       DateTime.fromMillisecondsSinceEpoch(timestampMillis);
@@ -63,6 +81,45 @@ class AnnouncementData extends HiveObject {
       expireAtMillis != null
           ? DateTime.fromMillisecondsSinceEpoch(expireAtMillis!)
           : null;
+
+  // Factory constructor for Hive
+  factory AnnouncementData.fromHive({
+    String? id,
+    required String title,
+    required String date,
+    required int colorValue,
+    required String description,
+    required List<String> tags,
+    required int timestampMillis,
+    List<String> imageUrls = const [],
+    List<Map<String, String>> links = const [],
+    bool pinned = false,
+    bool draft = false,
+    int? publishAtMillis,
+    int? expireAtMillis,
+  }) {
+    return AnnouncementData(
+      id: id,
+      title: title,
+      date: date,
+      color: Color(colorValue),
+      description: description,
+      tags: tags,
+      timestamp: DateTime.fromMillisecondsSinceEpoch(timestampMillis),
+      imageUrls: imageUrls,
+      links: links,
+      pinned: pinned,
+      draft: draft,
+      publishAt:
+          publishAtMillis != null
+              ? DateTime.fromMillisecondsSinceEpoch(publishAtMillis)
+              : null,
+      expireAt:
+          expireAtMillis != null
+              ? DateTime.fromMillisecondsSinceEpoch(expireAtMillis)
+              : null,
+    );
+  }
 
   // Convert an AnnouncementData object into a map for Firestore
   Map<String, dynamic> toJson() {

@@ -9,6 +9,7 @@ import 'package:pivot/screens/section3/profile.dart';
 import 'package:provider/provider.dart';
 import 'package:pivot/screens/models/card_model.dart';
 import 'package:pivot/screens/models/search_card.dart';
+import 'package:pivot/screens/models/notification_test_widget.dart';
 
 class Landing extends StatefulWidget {
   const Landing({super.key});
@@ -108,7 +109,20 @@ class LandingState extends State<Landing> {
                     Consumer<UserProfileProvider>(
                       builder: (context, userProfileProvider, child) {
                         final userRole = userProfileProvider.userProfile?.role;
-                        if (userRole != null && userRole != 'Student') {
+                        if (userRole != null && userRole == 'Super Admin') {
+                          return IconButton(
+                            icon: const Icon(
+                              Icons.notifications_active_outlined,
+                            ),
+                            tooltip: 'Test Notifications',
+                            onPressed: () {
+                              Navigator.pushNamed(
+                                context,
+                                NotificationTestWidget.id,
+                              );
+                            },
+                          );
+                        } else if (userRole != null && userRole != 'Student') {
                           return IconButton(
                             icon: const Icon(Icons.add_circle_outline_rounded),
                             onPressed: () {
@@ -116,7 +130,7 @@ class LandingState extends State<Landing> {
                             },
                           );
                         } else {
-                          return const SizedBox.shrink(); // Return an empty widget if not allowed
+                          return const SizedBox.shrink();
                         }
                       },
                     ),

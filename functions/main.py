@@ -1,29 +1,22 @@
-import functions_framework
-import firebase_admin
-from firebase_admin import credentials, messaging, exceptions
-from flask import Request, jsonify
+import firebase_functions
+from firebase_functions import https_fn
+from firebase_admin import initialize_app, messaging, exceptions
 import json
 
-# تحميل بيانات الحساب الخدمي (Service Account)
-try:
-    # Check if Firebase app is already initialized
-    firebase_admin.get_app()
-except ValueError:
-    # Initialize Firebase only if not already initialized
-    cred = credentials.Certificate("pivot-28563-firebase-adminsdk-fbsvc-12baa1b7d9.json")
-firebase_admin.initialize_app(cred)
+# Initialize Firebase app
+initialize_app()
 
-@functions_framework.http
-def send_notification(request: Request):
+@https_fn.on_request()
+def send_notification(req: https_fn.Request) -> https_fn.Response:
     # Handle CORS
-    if request.method == 'OPTIONS':
+    if req.method == 'OPTIONS':
         headers = {
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Methods': 'POST',
             'Access-Control-Allow-Headers': 'Content-Type',
             'Access-Control-Max-Age': '3600'
         }
-        return ('', 204, headers)
+        return https_fn.Response('', status=204, headers=headers)
     
     # Set CORS headers for the main request
     headers = {
@@ -34,42 +27,105 @@ def send_notification(request: Request):
     
     try:
         # Only allow POST requests
-        if request.method != 'POST':
-            return (jsonify({'error': 'Method not allowed'}), 405, headers)
+        if req.method != 'POST':
+            return https_fn.Response(
+                json.dumps({'error': 'Method not allowed'}),
+                status=405,
+                headers=headers
+            )
         
-    data = request.get_json()
+        data = req.get_json()
 
         if not data:
-            return (jsonify({'error': 'No data provided'}), 400, headers)
+            return https_fn.Response(
+                json.dumps({'error': 'No data provided'}),
+                status=400,
+                headers=headers
+            )
         
-    token = data.get("token")
-    title = data.get("title", "No Title")
-    body = data.get("body", "No Body")
+        token = data.get("token")
+        title = data.get("title", "No Title")
+        body = data.get("body", "No Body")
+        icon = data.get("icon", "ic_launcher")  # Default to app icon
+        color = data.get("color", "#000000")    # Default to black
+        sound = data.get("sound", "default")    # Default sound
 
         if not token:
-            return (jsonify({'error': 'Token is required'}), 400, headers)
+            return https_fn.Response(
+                json.dumps({'error': 'Token is required'}),
+                status=400,
+                headers=headers
+            )
         
-    message = messaging.Message(
-        notification=messaging.Notification(title=title, body=body),
-        token=token,
-    )
+        # Create notification with custom options
+        notification = messaging.Notification(
+            title=title,
+            body=body,
+        )
+        
+        # Create Android-specific configuration
+        android_config = messaging.AndroidConfig(
+            notification=messaging.AndroidNotification(
+                icon=icon,
+                color=color,
+                sound=sound,
+                priority='high',
+                default_sound=True,
+                default_vibrate_timings=True,
+                default_light_settings=True,
+            ),
+        )
+        
+        message = messaging.Message(
+            notification=notification,
+            android=android_config,
+            token=token,
+        )
 
-    response = messaging.send(message)
-        return (jsonify({
-            'success': True, 
-            'message_id': response,
-            'message': 'Notification sent successfully'
-        }), 200, headers)
+        response = messaging.send(message)
+        return https_fn.Response(
+            json.dumps({
+                'success': True, 
+                'message_id': response,
+                'message': 'Notification sent successfully'
+            }),
+            status=200,
+            headers=headers
+        )
         
     except exceptions.InvalidArgumentError as e:
-        return (jsonify({'error': f'Invalid argument, likely an invalid token: {str(e)}'}), 400, headers)
+        return https_fn.Response(
+            json.dumps({'error': f'Invalid argument, likely an invalid token: {str(e)}'}),
+            status=400,
+            headers=headers
+        )
     except messaging.UnregisteredError:
-        return (jsonify({'error': 'Invalid or unregistered token'}), 400, headers)
+        return https_fn.Response(
+            json.dumps({'error': 'Invalid or unregistered token'}),
+            status=400,
+            headers=headers
+        )
     except messaging.QuotaExceededError:
-        return (jsonify({'error': 'Quota exceeded'}), 429, headers)
+        return https_fn.Response(
+            json.dumps({'error': 'Quota exceeded'}),
+            status=429,
+            headers=headers
+        )
     except messaging.SenderIdMismatchError:
-        return (jsonify({'error': 'Sender ID mismatch'}), 400, headers)
+        return https_fn.Response(
+            json.dumps({'error': 'Sender ID mismatch'}),
+            status=400,
+            headers=headers
+        )
     except messaging.ThirdPartyAuthError:
-        return (jsonify({'error': 'Third party auth error'}), 401, headers)
+        return https_fn.Response(
+            json.dumps({'error': 'Third party auth error'}),
+            status=401,
+            headers=headers
+        )
     except Exception as e:
-        return (jsonify({'error': f'Internal server error: {str(e)}'}), 500, headers)
+        return https_fn.Response(
+            json.dumps({'error': f'Internal server error: {str(e)}'}),
+            status=500,
+            headers=headers
+        )

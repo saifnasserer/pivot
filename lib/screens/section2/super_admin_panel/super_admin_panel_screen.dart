@@ -10,6 +10,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pivot/screens/section1/auth_wrapper.dart';
 import 'package:pivot/services/remote_config_service.dart';
 import 'package:pivot/screens/section2/super_admin_panel/analytics_screen.dart';
+import 'package:pivot/screens/section2/adminstration/feedback_management_screen.dart';
 
 class SuperAdminPanelScreen extends StatefulWidget {
   const SuperAdminPanelScreen({super.key});
@@ -291,17 +292,7 @@ class _SuperAdminPanelScreenState extends State<SuperAdminPanelScreen> {
             'إدارة الملاحظات',
             'عرض وإدارة ملاحظات المستخدمين',
             () {
-              Navigator.pushNamed(context, '/feedback-management');
-            },
-          ),
-          _buildDivider(),
-          _buildManagementTile(
-            context,
-            Icons.history,
-            'آخر النشاطات',
-            'عرض سجل النشاطات الأخيرة',
-            () {
-              Navigator.pushNamed(context, '/activity-log');
+              Navigator.pushNamed(context, FeedbackManagementScreen.id);
             },
           ),
         ],

@@ -289,7 +289,8 @@ class _Signup_2State extends State<Signup_2> {
                           onChanged: (String? newValue) {
                             setState(() {
                               selectedSection = newValue;
-                              _isSectionValid = true;
+                              _isSectionValid =
+                                  newValue != null && newValue.isNotEmpty;
                             });
                             FocusScope.of(context).unfocus();
                           },

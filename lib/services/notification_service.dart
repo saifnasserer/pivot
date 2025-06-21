@@ -1,6 +1,7 @@
 import 'dart:convert';
+import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -12,95 +13,105 @@ class NotificationService {
   NotificationService._internal();
 
   final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
-  final FlutterLocalNotificationsPlugin _localNotifications =
-      FlutterLocalNotificationsPlugin();
 
-  // Firebase Function URL - replace with your actual deployed function URL
   static const String _functionUrl =
       'https://us-central1-pivot-28563.cloudfunctions.net/send_notification';
 
   Future<void> initialize() async {
-    // Request permission for notifications
-    NotificationSettings settings = await _firebaseMessaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
+    await AwesomeNotifications().initialize('resource://drawable/app_icon', [
+      NotificationChannel(
+        channelKey: 'pivot_notifications',
+        channelName: 'Pivot Notifications',
+        channelDescription: 'Notifications from Pivot app',
+        defaultColor: Colors.black,
+        ledColor: Colors.white,
+        importance: NotificationImportance.High,
+        channelShowBadge: true,
+        enableVibration: true,
+        playSound: true,
+      ),
+    ], debug: true);
 
-    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-      print('User granted notification permission');
-    } else {
-      print('User declined or has not accepted notification permission');
+    await _requestPermissions();
+    await _configureFCMListeners();
+    await _getAndSaveFCMToken();
+  }
+
+  Future<void> _requestPermissions() async {
+    bool isAllowed = await AwesomeNotifications().isNotificationAllowed();
+    if (!isAllowed) {
+      await AwesomeNotifications().requestPermissionToSendNotifications();
     }
+  }
 
-    // Initialize local notifications
-    await _initializeLocalNotifications();
-
-    // Get FCM token
+  Future<void> _getAndSaveFCMToken() async {
     String? token = await _firebaseMessaging.getToken();
     if (token != null) {
       print('FCM Token: $token');
       await _saveToken(token);
       await saveTokenToFirestore(token);
     }
+  }
 
-    // Listen for token refresh
-    _firebaseMessaging.onTokenRefresh.listen((newToken) {
-      print('FCM Token refreshed: $newToken');
-      _saveToken(newToken);
-      saveTokenToFirestore(newToken);
-    });
-
-    // Handle background messages
-    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
-    // Handle foreground messages
+  Future<void> _configureFCMListeners() async {
+    print("NotificationService: Configuring FCM listeners...");
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      print('Got a message whilst in the foreground!');
-      print('Message data: ${message.data}');
-
-      if (message.notification != null) {
-        print('Message also contained a notification: ${message.notification}');
-        _showLocalNotification(message);
-      }
+      print("NotificationService: FOREGROUND message received!");
+      print(
+        "NotificationService: Title: ${message.notification?.title}, Body: ${message.notification?.body}",
+      );
+      _showAwesomeNotification(message);
     });
+
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    print("NotificationService: FCM listeners configured.");
   }
 
-  Future<void> _initializeLocalNotifications() async {
-    const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+  Future<void> _showAwesomeNotification(RemoteMessage message) async {
+    print("NotificationService: Attempting to show notification...");
+    final notification = message.notification;
+    if (notification == null) {
+      print(
+        "NotificationService: Message has no notification payload, aborting.",
+      );
+      return;
+    }
 
-    const DarwinInitializationSettings initializationSettingsIOS =
-        DarwinInitializationSettings();
-
-    const InitializationSettings initializationSettings =
-        InitializationSettings(
-          android: initializationSettingsAndroid,
-          iOS: initializationSettingsIOS,
-        );
-
-    await _localNotifications.initialize(initializationSettings);
+    try {
+      await AwesomeNotifications().createNotification(
+        content: NotificationContent(
+          id: message.hashCode,
+          channelKey: 'pivot_notifications',
+          title: notification.title,
+          body: notification.body,
+          notificationLayout: NotificationLayout.Default,
+          category: NotificationCategory.Message,
+          payload: Map<String, String>.from(message.data),
+          largeIcon: message.data['image_url'],
+          bigPicture: message.data['image_url'],
+        ),
+      );
+      print("NotificationService: createNotification call succeeded.");
+    } catch (e) {
+      print("NotificationService: ERROR creating notification: $e");
+    }
   }
 
-  Future<void> _showLocalNotification(RemoteMessage message) async {
-    const AndroidNotificationDetails androidPlatformChannelSpecifics =
-        AndroidNotificationDetails(
-          'pivot_notifications',
-          'Pivot Notifications',
-          channelDescription: 'Notifications from Pivot app',
-          importance: Importance.max,
-          priority: Priority.high,
-        );
-
-    const NotificationDetails platformChannelSpecifics = NotificationDetails(
-      android: androidPlatformChannelSpecifics,
-    );
-
-    await _localNotifications.show(
-      message.hashCode,
-      message.notification?.title,
-      message.notification?.body,
-      platformChannelSpecifics,
+  // Show a local test notification
+  Future<void> showLocalTestNotification({
+    required String title,
+    required String body,
+    Map<String, String>? payload,
+  }) async {
+    await AwesomeNotifications().createNotification(
+      content: NotificationContent(
+        id: DateTime.now().millisecondsSinceEpoch.remainder(100000),
+        channelKey: 'pivot_notifications',
+        title: title,
+        body: body,
+        payload: payload,
+        notificationLayout: NotificationLayout.Default,
+      ),
     );
   }
 
@@ -114,7 +125,6 @@ class NotificationService {
     return prefs.getString('fcm_token');
   }
 
-  // Save FCM token to Firestore user profile
   Future<void> saveTokenToFirestore(String token) async {
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -133,17 +143,15 @@ class NotificationService {
     }
   }
 
-  // Get FCM token for a specific user
   Future<String?> getUserFCMToken(String userId) async {
     try {
-      final doc =
+      DocumentSnapshot doc =
           await FirebaseFirestore.instance
               .collection('users')
               .doc(userId)
               .get();
-
-      if (doc.exists) {
-        return doc.data()?['fcmToken'] as String?;
+      if (doc.exists && doc.data() != null) {
+        return (doc.data() as Map<String, dynamic>)['fcmToken'] as String?;
       }
       return null;
     } catch (e) {
@@ -152,68 +160,65 @@ class NotificationService {
     }
   }
 
-  // Get FCM tokens for multiple users
   Future<List<String>> getMultipleUserFCMTokens(List<String> userIds) async {
     List<String> tokens = [];
-
-    try {
-      for (String userId in userIds) {
-        final token = await getUserFCMToken(userId);
-        if (token != null) {
-          tokens.add(token);
-        }
-      }
-    } catch (e) {
-      print('Error getting multiple FCM tokens: $e');
+    for (String userId in userIds) {
+      final token = await getUserFCMToken(userId);
+      if (token != null) tokens.add(token);
     }
-
     return tokens;
   }
 
-  // Get all users with FCM tokens (for admin notifications)
   Future<List<String>> getAllUserFCMTokens() async {
     List<String> tokens = [];
-
     try {
       final querySnapshot =
           await FirebaseFirestore.instance
               .collection('users')
               .where('fcmToken', isNotEqualTo: null)
               .get();
-
       for (var doc in querySnapshot.docs) {
         final token = doc.data()['fcmToken'] as String?;
-        if (token != null) {
-          tokens.add(token);
-        }
+        if (token != null) tokens.add(token);
       }
     } catch (e) {
       print('Error getting all FCM tokens: $e');
     }
-
     return tokens;
   }
 
-  // Send notification to another device
   Future<bool> sendNotification({
     required String targetToken,
     required String title,
     required String body,
+    String? icon,
+    String? color,
+    String? sound,
+    String? imageUrl,
   }) async {
     try {
+      final Map<String, dynamic> payload = {
+        'token': targetToken,
+        'title': title,
+        'body': body,
+      };
+
+      if (icon != null) payload['icon'] = icon;
+      if (color != null) payload['color'] = color;
+      if (sound != null) payload['sound'] = sound;
+      if (imageUrl != null) payload['image_url'] = imageUrl;
+
       final response = await http.post(
         Uri.parse(_functionUrl),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'token': targetToken, 'title': title, 'body': body}),
+        body: jsonEncode(payload),
       );
 
       if (response.statusCode == 200) {
-        final responseData = jsonDecode(response.body);
-        print('Notification sent successfully: ${responseData['message_id']}');
+        print('Notification sent successfully: ${response.body}');
         return true;
       } else {
-        final errorData = jsonDecode(response.body);
-        print('Failed to send notification: ${errorData['error']}');
+        print('Failed to send notification: ${response.body}');
         return false;
       }
     } catch (e) {
@@ -221,40 +226,18 @@ class NotificationService {
       return false;
     }
   }
-
-  // Send notification to multiple devices
-  Future<bool> sendNotificationToMultiple({
-    required List<String> targetTokens,
-    required String title,
-    required String body,
-  }) async {
-    try {
-      // For multiple tokens, you might want to modify your Firebase function
-      // to accept a list of tokens, or send them one by one
-      bool allSuccess = true;
-
-      for (String token in targetTokens) {
-        bool success = await sendNotification(
-          targetToken: token,
-          title: title,
-          body: body,
-        );
-        if (!success) {
-          allSuccess = false;
-        }
-      }
-
-      return allSuccess;
-    } catch (e) {
-      print('Error sending notifications to multiple devices: $e');
-      return false;
-    }
-  }
 }
 
-// Background message handler
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  print('Handling a background message: ${message.messageId}');
-  // You can perform background tasks here
+  await AwesomeNotifications().createNotification(
+    content: NotificationContent(
+      id: message.hashCode,
+      channelKey: 'pivot_notifications',
+      title: message.notification?.title ?? 'Notification',
+      body: message.notification?.body ?? 'New message arrived.',
+      notificationLayout: NotificationLayout.Default,
+      payload: Map<String, String>.from(message.data),
+    ),
+  );
 }

@@ -122,9 +122,8 @@ class UserProfileProvider with ChangeNotifier {
 
       // Step 2: Fetch from server in the background
       final snapshot = await _firestore.collection('users').get();
-      final serverUsers = snapshot.docs
-          .map((doc) => UserProfile.fromJson(doc.data()))
-          .toList();
+      final serverUsers =
+          snapshot.docs.map((doc) => UserProfile.fromJson(doc.data())).toList();
 
       // Step 3: Update UI and cache if new data is available
       if (serverUsers.length != cachedUsers.length) {
@@ -253,22 +252,37 @@ class UserProfileProvider with ChangeNotifier {
     try {
       final user = _auth.currentUser;
       if (user == null) {
+        debugPrint('[UserProfileProvider] No current user found');
         clearProfile();
         return false;
       }
+
+      debugPrint('[UserProfileProvider] Loading profile for user: ${user.uid}');
       final doc = await _firestore.collection('users').doc(user.uid).get();
+
       if (doc.exists) {
+        debugPrint(
+          '[UserProfileProvider] Profile document exists, parsing data',
+        );
         _loggedInUserProfile = UserProfile.fromJson(doc.data()!);
         _userProfile =
             _loggedInUserProfile; // Also set the default viewed profile
+        debugPrint(
+          '[UserProfileProvider] Profile loaded successfully: ${_loggedInUserProfile?.name}',
+        );
         return true;
       } else {
+        debugPrint(
+          '[UserProfileProvider] Profile document does not exist for user: ${user.uid}',
+        );
         // User authenticated but no profile in Firestore
         clearProfile();
         return false;
       }
     } catch (e) {
-      print('Failed to load logged-in user profile: $e');
+      debugPrint(
+        '[UserProfileProvider] Failed to load logged-in user profile: $e',
+      );
       clearProfile();
       return false;
     } finally {

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:pivot/services/notification_service.dart';
+import 'package:pivot/services/notification_test_service.dart';
 import 'package:pivot/responsive.dart';
 
 class NotificationTestWidget extends StatefulWidget {
+  static const String id = 'notification_test_widget';
   const NotificationTestWidget({super.key});
 
   @override
@@ -10,151 +11,228 @@ class NotificationTestWidget extends StatefulWidget {
 }
 
 class _NotificationTestWidgetState extends State<NotificationTestWidget> {
-  final TextEditingController _titleController = TextEditingController();
-  final TextEditingController _bodyController = TextEditingController();
-  final TextEditingController _tokenController = TextEditingController();
-  String? _currentToken;
-  bool _isLoading = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadCurrentToken();
-  }
-
-  Future<void> _loadCurrentToken() async {
-    final token = await NotificationService().getToken();
-    setState(() {
-      _currentToken = token;
-    });
-  }
-
-  Future<void> _sendNotification() async {
-    if (_tokenController.text.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Please enter a token')));
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      final success = await NotificationService().sendNotification(
-        targetToken: _tokenController.text,
-        title:
-            _titleController.text.isNotEmpty
-                ? _titleController.text
-                : 'Test Title',
-        body:
-            _bodyController.text.isNotEmpty
-                ? _bodyController.text
-                : 'Test Body',
-      );
-
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Notification sent successfully!')),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to send notification')),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
+  final NotificationTestService _testService = NotificationTestService();
+  Map<String, dynamic>? _testResults;
+  Map<String, dynamic>? _healthStatus;
+  bool _isRunningTests = false;
+  bool _isCheckingHealth = false;
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Notification Test')),
+      appBar: AppBar(
+        title: const Text('Notification System Test'),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Health Status Card
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Current Device Token:',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                    Row(
+                      children: [
+                        const Icon(Icons.health_and_safety, size: 24),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'System Health',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const Spacer(),
+                        if (_healthStatus != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _getStatusColor(
+                                _healthStatus!['overall_status'],
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              _healthStatus!['overall_status']
+                                  .toString()
+                                  .toUpperCase(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
-                    SizedBox(height: Responsive.space(context, size: Space.small)),
-                    Text(
-                      _currentToken ?? 'Loading...',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    SizedBox(height: Responsive.space(context, size: Space.small)),
-                    ElevatedButton(
-                      onPressed: _loadCurrentToken,
-                      child: const Text('Refresh Token'),
+                    const SizedBox(height: 16),
+                    if (_healthStatus != null) ...[
+                      ..._healthStatus!['components'].entries.map((entry) {
+                        final component = entry.value as Map<String, dynamic>;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8.0),
+                          child: Row(
+                            children: [
+                              Icon(
+                                component['status'] == 'healthy'
+                                    ? Icons.check_circle
+                                    : Icons.error,
+                                color:
+                                    component['status'] == 'healthy'
+                                        ? Colors.green
+                                        : Colors.red,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  '${entry.key}: ${component['details']}',
+                                  style: const TextStyle(fontSize: 14),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ] else
+                      const Text('No health data available'),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _isCheckingHealth ? null : _checkHealth,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                        ),
+                        child:
+                            _isCheckingHealth
+                                ? const CircularProgressIndicator(
+                                  color: Colors.white,
+                                )
+                                : const Text('Check System Health'),
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
-            SizedBox(height: Responsive.space(context, size: Space.medium)),
-            TextField(
-              controller: _tokenController,
-              decoration: const InputDecoration(
-                labelText: 'Target FCM Token',
-                border: OutlineInputBorder(),
-                hintText: 'Enter the FCM token of the target device',
+            const SizedBox(height: 16),
+
+            // Test Results Card
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.science, size: 24),
+                        SizedBox(width: 8),
+                        Text(
+                          'Test Results',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    if (_testResults != null) ...[
+                      ..._testResults!['tests'].entries.map((entry) {
+                        final test = entry.value as Map<String, dynamic>;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8.0),
+                          child: Row(
+                            children: [
+                              Icon(
+                                test['success'] == true
+                                    ? Icons.check_circle
+                                    : Icons.error,
+                                color:
+                                    test['success'] == true
+                                        ? Colors.green
+                                        : Colors.red,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      entry.key,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    if (test['error'] != null)
+                                      Text(
+                                        test['error'],
+                                        style: const TextStyle(
+                                          color: Colors.red,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    if (test['message'] != null)
+                                      Text(
+                                        test['message'],
+                                        style: const TextStyle(
+                                          color: Colors.grey,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ] else
+                      const Text('No test results available'),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: _isRunningTests ? null : _runFullTest,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              foregroundColor: Colors.white,
+                            ),
+                            child:
+                                _isRunningTests
+                                    ? const CircularProgressIndicator(
+                                      color: Colors.white,
+                                    )
+                                    : const Text('Run Full Test'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: _sendTestNotification,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.orange,
+                            foregroundColor: Colors.white,
+                          ),
+                          child: const Text('Send Test Notification'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-            SizedBox(height: Responsive.space(context, size: Space.medium)),
-            TextField(
-              controller: _titleController,
-              decoration: const InputDecoration(
-                labelText: 'Notification Title',
-                border: OutlineInputBorder(),
-                hintText: 'Enter notification title',
-              ),
-            ),
-            SizedBox(height: Responsive.space(context, size: Space.medium)),
-            TextField(
-              controller: _bodyController,
-              decoration: const InputDecoration(
-                labelText: 'Notification Body',
-                border: OutlineInputBorder(),
-                hintText: 'Enter notification body',
-              ),
-              maxLines: 3,
-            ),
-            SizedBox(height: Responsive.space(context, size: Space.large)),
-            ElevatedButton(
-              onPressed: _isLoading ? null : _sendNotification,
-              child:
-                  _isLoading
-                      ? const CircularProgressIndicator()
-                      : const Text('Send Notification'),
-            ),
-            SizedBox(height: Responsive.space(context, size: Space.medium)),
-            const Text(
-              'Instructions:',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            SizedBox(height: Responsive.space(context, size: Space.small)),
-            const Text(
-              '1. Copy the current device token above\n'
-              '2. Paste it in the "Target FCM Token" field\n'
-              '3. Enter a title and body for the notification\n'
-              '4. Press "Send Notification" to test',
-              style: TextStyle(fontSize: 14),
             ),
           ],
         ),
@@ -162,11 +240,104 @@ class _NotificationTestWidgetState extends State<NotificationTestWidget> {
     );
   }
 
-  @override
-  void dispose() {
-    _titleController.dispose();
-    _bodyController.dispose();
-    _tokenController.dispose();
-    super.dispose();
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'healthy':
+        return Colors.green;
+      case 'degraded':
+        return Colors.orange;
+      case 'unhealthy':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  Future<void> _checkHealth() async {
+    setState(() {
+      _isCheckingHealth = true;
+    });
+
+    try {
+      final health = await _testService.checkSystemHealth();
+      setState(() {
+        _healthStatus = health;
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error checking health: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isCheckingHealth = false;
+      });
+    }
+  }
+
+  Future<void> _runFullTest() async {
+    setState(() {
+      _isRunningTests = true;
+    });
+
+    try {
+      final results = await _testService.runFullNotificationTest();
+      setState(() {
+        _testResults = results;
+      });
+
+      // Show summary
+      final successfulTests =
+          results['tests'].entries
+              .where((entry) => entry.value['success'] == true)
+              .length;
+      final totalTests = results['tests'].length;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Tests completed: $successfulTests/$totalTests successful',
+          ),
+          backgroundColor:
+              successfulTests == totalTests ? Colors.green : Colors.orange,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error running tests: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isRunningTests = false;
+      });
+    }
+  }
+
+  Future<void> _sendTestNotification() async {
+    try {
+      final success = await _testService.sendTestNotification();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            success
+                ? 'Test notification sent successfully!'
+                : 'Failed to send test notification',
+          ),
+          backgroundColor: success ? Colors.green : Colors.red,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error sending test notification: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 }

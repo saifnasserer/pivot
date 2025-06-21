@@ -20,11 +20,11 @@ class _SectionManagementScreenState extends State<SectionManagementScreen> {
   bool _isInitialized = false;
 
   final Map<String, String> _departmentDisplayNames = const {
-    'CS': 'علوم الحاسوب',
-    'IS': 'نظم المعلومات',
-    'AI': 'الذكاء الاصطناعي',
-    'SC': 'علوم الحاسوب',
-    'General': 'عام',
+    'CS': 'CS',
+    'IS': 'IS',
+    'AI': 'AI',
+    'SC': 'SC',
+    'General': 'General',
   };
 
   final Map<String, Color> _departmentColors = const {
@@ -197,73 +197,7 @@ class _SectionManagementScreenState extends State<SectionManagementScreen> {
               key: _formKey,
               child: Column(
                 children: [
-                  // Statistics Section
-                  Container(
-                    padding: Responsive.padding(context, size: Space.large),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[50],
-                      border: Border(
-                        bottom: BorderSide(color: Colors.grey[200]!),
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'إحصائيات السكاشن',
-                          style: TextStyle(
-                            fontSize: Responsive.text(
-                              context,
-                              size: TextSize.heading,
-                            ),
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        SizedBox(
-                          height: Responsive.space(context, size: Space.medium),
-                        ),
-                        Row(
-                          children: [
-                            _buildStatTile(
-                              context,
-                              Icons.school,
-                              'إجمالي السكاشن',
-                              _getTotalSections().toString(),
-                              Colors.blue,
-                            ),
-                            SizedBox(
-                              width: Responsive.space(
-                                context,
-                                size: Space.medium,
-                              ),
-                            ),
-                            _buildStatTile(
-                              context,
-                              Icons.analytics,
-                              'المتوسط',
-                              _getAverageSections().toString(),
-                              Colors.green,
-                            ),
-                            SizedBox(
-                              width: Responsive.space(
-                                context,
-                                size: Space.medium,
-                              ),
-                            ),
-                            _buildStatTile(
-                              context,
-                              Icons.category,
-                              'الأقسام',
-                              _departmentDisplayNames.length.toString(),
-                              Colors.orange,
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-
+                
                   // Departments List
                   Expanded(
                     child: ListView(

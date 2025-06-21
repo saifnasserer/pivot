@@ -518,69 +518,6 @@ class _GlobalSubjectManagementScreenState
 
           return Column(
             children: [
-              // Statistics Section
-              Container(
-                padding: Responsive.padding(context, size: Space.large),
-                decoration: BoxDecoration(
-                  color: Colors.grey[50],
-                  border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'إحصائيات المواد',
-                      style: TextStyle(
-                        fontSize: Responsive.text(
-                          context,
-                          size: TextSize.heading,
-                        ),
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    SizedBox(
-                      height: Responsive.space(context, size: Space.medium),
-                    ),
-                    Row(
-                      children: [
-                        _buildStatTile(
-                          context,
-                          Icons.menu_book,
-                          'إجمالي المواد',
-                          subjectProvider.allSubjects.length.toString(),
-                          Colors.blue,
-                        ),
-                        SizedBox(
-                          width: Responsive.space(context, size: Space.medium),
-                        ),
-                        _buildStatTile(
-                          context,
-                          Icons.category,
-                          'الترميات',
-                          sortedYears.length.toString(),
-                          Colors.green,
-                        ),
-                        SizedBox(
-                          width: Responsive.space(context, size: Space.medium),
-                        ),
-                        _buildStatTile(
-                          context,
-                          Icons.school,
-                          'الأقسام',
-                          subjectProvider.allSubjects
-                              .map((s) => s.department)
-                              .toSet()
-                              .length
-                              .toString(),
-                          Colors.orange,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
               // Subjects List
               Expanded(
                 child: ListView.builder(

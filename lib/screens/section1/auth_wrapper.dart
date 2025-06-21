@@ -32,17 +32,39 @@ class _AuthWrapperState extends State<AuthWrapper> {
   void initState() {
     super.initState();
     _initializeAuth();
+
+    // Add a timeout to prevent infinite loading (reduced from 30s to 10s)
+    Timer(const Duration(seconds: 10), () {
+      if (mounted && _status == AuthStatus.checking && _isInitialized) {
+        debugPrint(
+          '[AuthWrapper] Initialization timeout reached, showing error',
+        );
+        setState(() {
+          _status = AuthStatus.error;
+          _errorMessage = 'انتهت مهلة التحميل. يرجى إعادة تشغيل التطبيق.';
+        });
+      }
+    });
   }
 
   Future<void> _initializeAuth() async {
     try {
-      // Add a small delay to ensure Firebase is fully initialized
-      await Future.delayed(const Duration(milliseconds: 500));
-
+      // Remove the unnecessary delay - Firebase is already initialized in main()
       if (!mounted) return;
 
+      // Add timeout for auth subscription (reduced timeout)
       _authSubscription = _authService.authStateChanges.listen(
         _handleAuthState,
+        onError: (error) {
+          debugPrint('[AuthWrapper] Auth stream error: $error');
+          if (mounted) {
+            setState(() {
+              _status = AuthStatus.error;
+              _errorMessage =
+                  'فشل في الاتصال بخدمة المصادقة. يرجى إعادة تشغيل التطبيق.';
+            });
+          }
+        },
       );
       setState(() => _isInitialized = true);
     } catch (e) {
@@ -97,13 +119,12 @@ class _AuthWrapperState extends State<AuthWrapper> {
         return;
       }
 
-      // If not loaded, fetch it (for fresh logins)
+      // If not loaded, fetch it (for fresh logins) - reduced timeout to 5s
       debugPrint('[AuthWrapper] Profile not loaded. Loading profile...');
-      // Add a timeout (e.g., 15 seconds)
       final bool profileLoaded = await provider
           .loadLoggedInUserProfile()
           .timeout(
-            const Duration(seconds: 15),
+            const Duration(seconds: 5), // Reduced from 15s to 5s
             onTimeout: () {
               debugPrint('[AuthWrapper] Profile loading timed out');
               return false;
@@ -123,7 +144,11 @@ class _AuthWrapperState extends State<AuthWrapper> {
         debugPrint(
           '[AuthWrapper] Profile loading failed or timed out. Signing out.',
         );
-        await _authService.signOut();
+        try {
+          await _authService.signOut();
+        } catch (signOutError) {
+          debugPrint('[AuthWrapper] Error signing out: $signOutError');
+        }
         if (mounted) {
           setState(() {
             _status = AuthStatus.error;

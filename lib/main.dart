@@ -48,36 +48,107 @@ import 'package:pivot/services/notification_trigger_service.dart';
 import 'dart:async';
 import 'package:pivot/screens/section2/adminstration/add_user_screen.dart';
 import 'package:pivot/screens/section3/feedback_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:pivot/screens/models/notification_test_widget.dart';
+import 'package:pivot/screens/section2/adminstration/feedback_management_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]);
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  await CacheService.instance.init(); // Initialize cache service
-  await RemoteConfigService.instance.initialize(); // Initialize Remote Config
 
-  // Initialize notification service
-  await NotificationService().initialize();
+  // Essential initializations only - these are required for app to function
+  try {
+    await SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
 
-  // Run auto notifications on app start
-  await NotificationTriggerService().runAllAutoNotifications();
+    // Initialize Firebase (essential)
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
 
+    // Initialize Arabic date formatting (essential for UI)
+    await initializeDateFormatting('ar');
+
+    // Create the provider (don't load data yet)
+    final userProfileProvider = UserProfileProvider();
+
+    // Start the app immediately
+    runApp(PivotWithNotifications(userProfileProvider: userProfileProvider));
+
+    // Run non-critical initializations in background
+    _initializeBackgroundServices(userProfileProvider);
+  } catch (e) {
+    debugPrint('Critical error during app initialization: $e');
+    // Run app with minimal configuration
+    final userProfileProvider = UserProfileProvider();
+    runApp(PivotWithNotifications(userProfileProvider: userProfileProvider));
+  }
+}
+
+// Background initialization function
+void _initializeBackgroundServices(
+  UserProfileProvider userProfileProvider,
+) async {
+  try {
+    // Initialize cache service
+    await CacheService.instance.init();
+    debugPrint('Cache service initialized successfully');
+  } catch (e) {
+    debugPrint('Cache service initialization failed: $e');
+  }
+
+  try {
+    // Initialize Remote Config
+    await RemoteConfigService.instance.initialize();
+    debugPrint('Remote config initialized successfully');
+  } catch (e) {
+    debugPrint('Remote config initialization failed: $e');
+  }
+
+  try {
+    // Initialize notification service
+    await NotificationService().initialize();
+    debugPrint('Notification service initialized successfully');
+  } catch (e) {
+    debugPrint('Notification service initialization failed: $e');
+  }
+
+  try {
+    // Load user profile if logged in
+    if (FirebaseAuth.instance.currentUser != null) {
+      await userProfileProvider.loadLoggedInUserProfile().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          debugPrint('User profile loading timed out in background');
+          return false;
+        },
+      );
+      debugPrint('User profile loaded successfully');
+    }
+  } catch (e) {
+    debugPrint('User profile loading failed: $e');
+  }
+
+  // Set Firebase Auth persistence for web (non-blocking)
   if (kIsWeb) {
-    // Only set persistence for web
-    await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
-  }
-  await initializeDateFormatting('ar'); // Initialize Arabic date formatting
-
-  // Create the provider and load data BEFORE running the app
-  final userProfileProvider = UserProfileProvider();
-  if (FirebaseAuth.instance.currentUser != null) {
-    await userProfileProvider.loadLoggedInUserProfile();
+    try {
+      FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
+      debugPrint('Firebase Auth persistence set for web');
+    } catch (e) {
+      debugPrint('Firebase Auth persistence failed: $e');
+    }
   }
 
-  runApp(PivotWithNotifications(userProfileProvider: userProfileProvider));
+  // Run auto notifications after a delay to avoid blocking startup
+  Future.delayed(const Duration(seconds: 5), () {
+    try {
+      NotificationTriggerService().runAllAutoNotifications();
+      debugPrint('Auto notifications triggered successfully');
+    } catch (e) {
+      debugPrint('Auto notifications failed: $e');
+    }
+  });
 }
 
 class Pivot extends StatelessWidget {
@@ -142,6 +213,19 @@ class Pivot extends StatelessWidget {
           // Or return null to trigger onUnknownRoute if defined
           return null;
         },
+        onUnknownRoute: (settings) {
+          // Fallback for unknown routes
+          debugPrint('Unknown route: ${settings.name}');
+          return MaterialPageRoute(
+            builder:
+                (context) => Scaffold(
+                  appBar: AppBar(title: const Text('Page Not Found')),
+                  body: const Center(
+                    child: Text('The requested page was not found.'),
+                  ),
+                ),
+          );
+        },
         initialRoute: AuthWrapper.id, // Set the initial route
         routes: {
           AuthWrapper.id: (context) => const AuthWrapper(),
@@ -164,6 +248,10 @@ class Pivot extends StatelessWidget {
           AnalyticsScreen.id: (context) => const AnalyticsScreen(),
           AddUserScreen.id: (context) => const AddUserScreen(),
           FeedbackScreen.id: (context) => const FeedbackScreen(),
+          FeedbackManagementScreen.id:
+              (context) => const FeedbackManagementScreen(),
+          NotificationTestWidget.id:
+              (context) => const NotificationTestWidget(),
         },
         theme: ThemeData(
           colorScheme: ColorScheme.fromSwatch().copyWith(
@@ -191,6 +279,13 @@ class Pivot extends StatelessWidget {
         ),
         debugShowCheckedModeBanner: false,
         home: const AuthWrapper(), // Ensure AuthWrapper is the home
+        builder: (context, child) {
+          // Add error boundary
+          return MediaQuery(
+            data: MediaQuery.of(context).copyWith(textScaleFactor: 1.0),
+            child: child!,
+          );
+        },
       ),
     );
   }
@@ -218,7 +313,11 @@ class _PivotWithNotificationsState extends State<PivotWithNotifications> {
   void _startPeriodicNotifications() {
     // Run notifications every 15 minutes
     _notificationTimer = Timer.periodic(const Duration(minutes: 15), (timer) {
-      NotificationTriggerService().checkAndSendPeriodicNotifications();
+      try {
+        NotificationTriggerService().checkAndSendPeriodicNotifications();
+      } catch (e) {
+        debugPrint('Error in periodic notifications: $e');
+      }
     });
   }
 
@@ -230,6 +329,91 @@ class _PivotWithNotificationsState extends State<PivotWithNotifications> {
 
   @override
   Widget build(BuildContext context) {
-    return Pivot(userProfileProvider: widget.userProfileProvider);
+    return ErrorBoundary(
+      child: Pivot(userProfileProvider: widget.userProfileProvider),
+    );
+  }
+}
+
+// Error boundary widget to catch unhandled errors
+class ErrorBoundary extends StatefulWidget {
+  final Widget child;
+
+  const ErrorBoundary({super.key, required this.child});
+
+  @override
+  State<ErrorBoundary> createState() => _ErrorBoundaryState();
+}
+
+class _ErrorBoundaryState extends State<ErrorBoundary> {
+  String? _error;
+
+  @override
+  Widget build(BuildContext context) {
+    if (_error != null) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                const SizedBox(height: 16),
+                Text(
+                  'حدث خطأ في التطبيق: $_error',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: Colors.black87,
+                    fontFamily: 'NotoSansArabic',
+                  ),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      _error = null;
+                    });
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 32,
+                      vertical: 12,
+                    ),
+                  ),
+                  child: const Text(
+                    'إعادة المحاولة',
+                    style: TextStyle(fontFamily: 'NotoSansArabic'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return widget.child;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Set up error handling
+    FlutterError.onError = (FlutterErrorDetails details) {
+      debugPrint('Flutter error caught: ${details.exception}');
+      // Schedule the state update for after the current build frame completes
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {
+            _error = details.exception.toString();
+          });
+        }
+      });
+    };
   }
 }

@@ -16,13 +16,14 @@ class AnnouncementDataAdapter extends TypeAdapter<AnnouncementData> {
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return AnnouncementData(
+    return AnnouncementData._hive(
       id: fields[0] as String?,
       title: fields[1] as String,
       date: fields[2] as String,
-      color: Color(fields[3] as int),
+      colorValue: fields[3] as int,
       description: fields[4] as String,
       tags: (fields[5] as List).cast<String>(),
+      timestampMillis: fields[6] as int,
       imageUrls: (fields[7] as List).cast<String>(),
       links:
           (fields[8] as List)
@@ -30,6 +31,8 @@ class AnnouncementDataAdapter extends TypeAdapter<AnnouncementData> {
               .toList(),
       pinned: fields[9] as bool,
       draft: fields[10] as bool,
+      publishAtMillis: fields[11] as int?,
+      expireAtMillis: fields[12] as int?,
     );
   }
 
@@ -44,7 +47,7 @@ class AnnouncementDataAdapter extends TypeAdapter<AnnouncementData> {
       ..writeByte(2)
       ..write(obj.date)
       ..writeByte(3)
-      ..write(obj.color.value)
+      ..write(obj.colorValue)
       ..writeByte(4)
       ..write(obj.description)
       ..writeByte(5)

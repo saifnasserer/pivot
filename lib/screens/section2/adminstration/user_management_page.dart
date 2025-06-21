@@ -20,6 +20,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
   final Set<String> _selectedUsers = {};
   bool _isLoading = true;
   String _selectedRoleFilter = 'الكل';
+  bool showSearchBar = false;
 
   @override
   void initState() {
@@ -451,55 +452,36 @@ class _UserManagementPageState extends State<UserManagementPage> {
           child: Column(
             children: [
               // Search and Filter Section
-              Container(
-                padding: Responsive.padding(context, size: Space.large),
-                decoration: BoxDecoration(
-                  color: Colors.grey[50],
-                  border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
-                ),
-                child: Column(
-                  children: [
-                    TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        labelText: 'ابحث بالاسم أو البريد الإلكتروني',
-                        prefixIcon: const Icon(Icons.search),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        filled: true,
-                        fillColor: Colors.white,
-                      ),
-                    ),
-                    SizedBox(
-                      height: Responsive.space(context, size: Space.medium),
-                    ),
-                    DropdownButtonFormField<String>(
-                      value: _selectedRoleFilter,
-                      decoration: InputDecoration(
-                        labelText: 'تصفية حسب الدور',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        filled: true,
-                        fillColor: Colors.white,
-                      ),
-                      items:
-                          roles
-                              .map(
-                                (role) => DropdownMenuItem(
-                                  value: role,
-                                  child: Text(role),
-                                ),
-                              )
-                              .toList(),
-                      onChanged: _onRoleFilterChanged,
-                    ),
-                  ],
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  IconButton(
+                    icon: Icon(showSearchBar ? Icons.close : Icons.search),
+                    onPressed: () {
+                      setState(() {
+                        showSearchBar = !showSearchBar;
+                        if (!showSearchBar) _searchController.clear();
+                      });
+                    },
+                  ),
+                ],
               ),
+              if (showSearchBar) ...[
+                TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    labelText: 'ابحث بالاسم أو البريد الإلكتروني',
+                    prefixIcon: const Icon(Icons.search),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                  ),
+                ),
+                SizedBox(height: Responsive.space(context, size: Space.medium)),
+              ],
 
-    
               // Users List
               Expanded(
                 child:

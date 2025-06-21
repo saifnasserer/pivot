@@ -22,18 +22,8 @@
       }
     }
   },
-  "functions": [
-    {
-      "source": "functions",
-      "codebase": "default",
-      "ignore": [
-        "venv",
-        ".git",
-        "firebase-debug.log",
-        "firebase-debug.*.log",
-        "*.local"
-      ],
-      "runtime": "python313"
-    }
-  ]
+  "functions": {
+    "source": "functions",
+    "runtime": "python313"
+  }
 }
