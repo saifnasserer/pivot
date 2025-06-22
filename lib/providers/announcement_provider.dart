@@ -101,9 +101,10 @@ class AnnouncementProvider with ChangeNotifier {
         for (String tag in announcement.tags) {
           if (tag.startsWith('اخبار قسم ')) {
             final department = tag.replaceFirst('اخبار قسم ', '');
-            await NotificationTriggerService().sendNewAnnouncementNotification(
-              announcement.title,
+            await NotificationTriggerService().sendDepartmentNotification(
               department,
+              announcement.title,
+              announcement.description,
             );
             break; // Send to first department found
           }

@@ -11,21 +11,24 @@ class BookmarksScreen extends StatelessWidget {
 
   // Fetches announcements and re-orders them to match the bookmarking order.
   Future<List<AnnouncementData>> _fetchBookmarkedAnnouncements(
-      List<String> ids) async {
+    List<String> ids,
+  ) async {
     if (ids.isEmpty) {
       return [];
     }
 
-    final announcementsRef =
-        FirebaseFirestore.instance.collection('announcements');
+    final announcementsRef = FirebaseFirestore.instance.collection(
+      'announcements',
+    );
     final List<AnnouncementData> fetchedAnnouncements = [];
 
     // Chunk the IDs into lists of 10 to respect Firestore's 'whereIn' limit.
     for (var i = 0; i < ids.length; i += 10) {
       final chunk = ids.sublist(i, i + 10 > ids.length ? ids.length : i + 10);
-      final querySnapshot = await announcementsRef
-          .where(FieldPath.documentId, whereIn: chunk)
-          .get();
+      final querySnapshot =
+          await announcementsRef
+              .where(FieldPath.documentId, whereIn: chunk)
+              .get();
       for (var doc in querySnapshot.docs) {
         fetchedAnnouncements.add(AnnouncementData.fromFirestore(doc));
       }
@@ -33,13 +36,15 @@ class BookmarksScreen extends StatelessWidget {
 
     // Re-order the fetched announcements to match the order of the bookmark IDs.
     final announcementsMap = {
-      for (var announcement in fetchedAnnouncements) announcement.id: announcement
+      for (var announcement in fetchedAnnouncements)
+        announcement.id: announcement,
     };
-    final sortedAnnouncements = ids
-        .map((id) => announcementsMap[id])
-        .where((announcement) => announcement != null)
-        .cast<AnnouncementData>()
-        .toList();
+    final sortedAnnouncements =
+        ids
+            .map((id) => announcementsMap[id])
+            .where((announcement) => announcement != null)
+            .cast<AnnouncementData>()
+            .toList();
 
     return sortedAnnouncements;
   }
@@ -105,7 +110,14 @@ class BookmarksScreen extends StatelessWidget {
               itemCount: bookmarkedItems.length,
               itemBuilder: (context, index) {
                 final bookmark = bookmarkedItems[index];
-                return BookmarkCard(bookmark: bookmark);
+                return BookmarkCard(
+                  bookmark: bookmark,
+                  onRemove: () {
+                    if (bookmark.id != null) {
+                      bookmarksProvider.toggleBookmark(bookmark.id!);
+                    }
+                  },
+                );
               },
             );
           },
@@ -114,4 +126,3 @@ class BookmarksScreen extends StatelessWidget {
     );
   }
 }
-

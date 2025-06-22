@@ -42,10 +42,18 @@ class _FirstLandingScreenState extends State<FirstLandingScreen> {
       try {
         UserProfile? userProfile = await _authService.getUserProfile(user.uid);
         if (mounted && userProfile != null) {
-          Provider.of<UserProfileProvider>(context, listen: false)
-              .setUserProfile(userProfile);
-          Navigator.pushReplacementNamed(context, Landing.id);
-          return; // Exit after navigation
+          Provider.of<UserProfileProvider>(
+            context,
+            listen: false,
+          ).setUserProfile(userProfile);
+
+          // Add a small delay to ensure AuthWrapper can detect the profile
+          await Future.delayed(const Duration(milliseconds: 100));
+
+          // Don't navigate directly to Landing - let AuthWrapper handle it
+          // The AuthWrapper will detect the authenticated state and navigate automatically
+          // This prevents conflicts between direct navigation and AuthWrapper's auth state handling
+          return; // Exit after setting profile
         }
       } catch (e) {
         // Handle error fetching profile, sign out to be safe
@@ -83,27 +91,35 @@ class _FirstLandingScreenState extends State<FirstLandingScreen> {
         );
 
         if (isAuthenticated) {
-          final email = await _storage.read(key: 'email');
-          final password = await _storage.read(key: 'password');
+          final email = await _storage.read(key: 'biometric_email');
+          final password = await _storage.read(key: 'biometric_password');
 
           if (email != null && password != null) {
-            UserProfile? userProfile =
-                await _authService.signInWithEmailAndPassword(email, password);
+            UserProfile? userProfile = await _authService
+                .signInWithEmailAndPassword(email, password);
 
             if (mounted && userProfile != null) {
-              final provider =
-                  Provider.of<UserProfileProvider>(context, listen: false);
+              final provider = Provider.of<UserProfileProvider>(
+                context,
+                listen: false,
+              );
               provider.setLoggedInUserProfile(userProfile);
               provider.setUserProfile(userProfile);
 
-              Navigator.pushNamedAndRemoveUntil(
-                  context, Landing.id, (route) => false);
+              // Add a small delay to ensure AuthWrapper can detect the profile
+              await Future.delayed(const Duration(milliseconds: 100));
+
+              // Don't navigate directly to Landing - let AuthWrapper handle it
+              // The AuthWrapper will detect the authenticated state and navigate automatically
+              // This prevents conflicts between direct navigation and AuthWrapper's auth state handling
               return; // Exit after successful login
             } else if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                    content: Text(
-                        'فشل تسجيل الدخول بالبصمة. الرجاء تسجيل الدخول يدويًا.')),
+                  content: Text(
+                    'فشل تسجيل الدخول بالبصمة. الرجاء تسجيل الدخول يدويًا.',
+                  ),
+                ),
               );
             }
           }
@@ -116,9 +132,9 @@ class _FirstLandingScreenState extends State<FirstLandingScreen> {
     } catch (e) {
       debugPrint('Biometric login error: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('خطأ في المصادقة: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('خطأ في المصادقة: $e')));
         Navigator.pushReplacementNamed(context, Login.id);
       }
     } finally {
@@ -179,8 +195,11 @@ class _FirstLandingScreenState extends State<FirstLandingScreen> {
                           style: TextStyle(
                             color: Colors.white,
                             fontSize:
-                                Responsive.text(context, size: TextSize.heading) *
-                                    1.5,
+                                Responsive.text(
+                                  context,
+                                  size: TextSize.heading,
+                                ) *
+                                1.5,
                           ),
                         ),
                         Text(
@@ -189,8 +208,11 @@ class _FirstLandingScreenState extends State<FirstLandingScreen> {
                           style: TextStyle(
                             color: Colors.white,
                             fontSize:
-                                Responsive.text(context, size: TextSize.heading) *
-                                    2.5,
+                                Responsive.text(
+                                  context,
+                                  size: TextSize.heading,
+                                ) *
+                                2.5,
                           ),
                         ),
                       ],
@@ -212,9 +234,14 @@ class _FirstLandingScreenState extends State<FirstLandingScreen> {
                           ),
                         ),
                         padding: EdgeInsets.symmetric(
-                          horizontal:
-                              Responsive.space(context, size: Space.large),
-                          vertical: Responsive.space(context, size: Space.small),
+                          horizontal: Responsive.space(
+                            context,
+                            size: Space.large,
+                          ),
+                          vertical: Responsive.space(
+                            context,
+                            size: Space.small,
+                          ),
                         ),
                       ),
                       onPressed: () {
@@ -225,14 +252,19 @@ class _FirstLandingScreenState extends State<FirstLandingScreen> {
                           Icon(
                             Icons.arrow_back,
                             color: Colors.black,
-                            size: Responsive.text(context, size: TextSize.medium),
+                            size: Responsive.text(
+                              context,
+                              size: TextSize.medium,
+                            ),
                           ),
                           Text(
                             ' حساب جديد',
                             style: TextStyle(
                               color: Colors.black,
-                              fontSize:
-                                  Responsive.text(context, size: TextSize.medium),
+                              fontSize: Responsive.text(
+                                context,
+                                size: TextSize.medium,
+                              ),
                             ),
                           ),
                         ],
@@ -243,34 +275,40 @@ class _FirstLandingScreenState extends State<FirstLandingScreen> {
                     ),
                     TextButton(
                       onPressed: _isLoggingIn ? null : _handleLogin,
-                      child: _isLoggingIn
-                          ? const SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor:
-                                    AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            )
-                          : Row(
-                              children: [
-                                Icon(
-                                  Icons.arrow_forward,
-                                  color: Colors.white,
-                                  size: Responsive.text(context,
-                                      size: TextSize.medium),
-                                ),
-                                Text(
-                                  ' تسجيل الدخول',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: Responsive.text(context,
-                                        size: TextSize.medium),
+                      child:
+                          _isLoggingIn
+                              ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
                                   ),
                                 ),
-                              ],
-                            ),
+                              )
+                              : Row(
+                                children: [
+                                  Icon(
+                                    Icons.arrow_forward,
+                                    color: Colors.white,
+                                    size: Responsive.text(
+                                      context,
+                                      size: TextSize.medium,
+                                    ),
+                                  ),
+                                  Text(
+                                    ' تسجيل الدخول',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: Responsive.text(
+                                        context,
+                                        size: TextSize.medium,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                     ),
                   ],
                 ),

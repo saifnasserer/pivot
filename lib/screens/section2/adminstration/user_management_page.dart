@@ -412,24 +412,65 @@ class _UserManagementPageState extends State<UserManagementPage> {
       child: Scaffold(
         backgroundColor: Colors.white,
         appBar: AppBar(
-          title: Text(
-            'إدارة أدوار المستخدمين',
-            style: TextStyle(
-              fontSize: Responsive.text(context, size: TextSize.heading),
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          title:
+              showSearchBar
+                  ? TextField(
+                    controller: _searchController,
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      hintText: 'ابحث بالاسم أو البريد الإلكتروني',
+                      border: InputBorder.none,
+                      hintStyle: TextStyle(
+                        color: Colors.grey[400],
+                        fontSize: Responsive.text(
+                          context,
+                          size: TextSize.medium,
+                        ),
+                      ),
+                    ),
+                    style: TextStyle(
+                      fontSize: Responsive.text(context, size: TextSize.medium),
+                      color: Colors.black87,
+                    ),
+                    onChanged: (value) {
+                      setState(() {
+                        _filterUsers();
+                      });
+                    },
+                  )
+                  : Text(
+                    'إدارة أدوار المستخدمين',
+                    style: TextStyle(
+                      fontSize: Responsive.text(
+                        context,
+                        size: TextSize.heading,
+                      ),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
           backgroundColor: Colors.white,
           elevation: 0,
           iconTheme: const IconThemeData(color: Colors.black),
           actions: [
+            IconButton(
+              icon: Icon(showSearchBar ? Icons.close : Icons.search),
+              onPressed: () {
+                setState(() {
+                  showSearchBar = !showSearchBar;
+                  if (!showSearchBar) {
+                    _searchController.clear();
+                    _filterUsers();
+                  }
+                });
+              },
+            ),
             if (_selectedUsers.isNotEmpty)
               Container(
                 margin: EdgeInsets.only(
                   right: Responsive.space(context, size: Space.medium),
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.blue,
+                  color: Colors.black,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: TextButton.icon(
@@ -452,35 +493,6 @@ class _UserManagementPageState extends State<UserManagementPage> {
           child: Column(
             children: [
               // Search and Filter Section
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  IconButton(
-                    icon: Icon(showSearchBar ? Icons.close : Icons.search),
-                    onPressed: () {
-                      setState(() {
-                        showSearchBar = !showSearchBar;
-                        if (!showSearchBar) _searchController.clear();
-                      });
-                    },
-                  ),
-                ],
-              ),
-              if (showSearchBar) ...[
-                TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    labelText: 'ابحث بالاسم أو البريد الإلكتروني',
-                    prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                  ),
-                ),
-                SizedBox(height: Responsive.space(context, size: Space.medium)),
-              ],
 
               // Users List
               Expanded(

@@ -27,14 +27,6 @@ class _SectionManagementScreenState extends State<SectionManagementScreen> {
     'General': 'General',
   };
 
-  final Map<String, Color> _departmentColors = const {
-    'CS': Colors.blue,
-    'IS': Colors.green,
-    'AI': Colors.purple,
-    'SC': Colors.orange,
-    'General': Colors.grey,
-  };
-
   @override
   void initState() {
     super.initState();
@@ -57,22 +49,6 @@ class _SectionManagementScreenState extends State<SectionManagementScreen> {
       controller.dispose();
     }
     super.dispose();
-  }
-
-  IconData _getDeptIcon(String deptKey) {
-    switch (deptKey) {
-      case 'CS':
-        return Icons.computer;
-      case 'IS':
-        return Icons.info_outline;
-      case 'AI':
-        return Icons.psychology;
-      case 'SC':
-        return Icons.science_outlined;
-      case 'General':
-      default:
-        return Icons.school;
-    }
   }
 
   Future<void> _saveSettings() async {
@@ -197,7 +173,6 @@ class _SectionManagementScreenState extends State<SectionManagementScreen> {
               key: _formKey,
               child: Column(
                 children: [
-                
                   // Departments List
                   Expanded(
                     child: ListView(
@@ -206,8 +181,6 @@ class _SectionManagementScreenState extends State<SectionManagementScreen> {
                           _departmentDisplayNames.entries.map((entry) {
                             final deptKey = entry.key;
                             final deptName = entry.value;
-                            final deptColor =
-                                _departmentColors[deptKey] ?? Colors.grey;
 
                             return Container(
                               margin: EdgeInsets.only(
@@ -238,61 +211,29 @@ class _SectionManagementScreenState extends State<SectionManagementScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     // Department Header
-                                    Row(
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
-                                        Container(
-                                          padding: Responsive.padding(
-                                            context,
-                                            size: Space.small,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: deptColor.withOpacity(0.1),
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                          ),
-                                          child: Icon(
-                                            _getDeptIcon(deptKey),
-                                            size: Responsive.text(
+                                        Text(
+                                          'قسم $deptName',
+                                          style: TextStyle(
+                                            fontSize: Responsive.text(
                                               context,
-                                              size: TextSize.heading,
+                                              size: TextSize.medium,
                                             ),
-                                            color: deptColor,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.black87,
                                           ),
                                         ),
-                                        SizedBox(
-                                          width: Responsive.space(
-                                            context,
-                                            size: Space.medium,
-                                          ),
-                                        ),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                'قسم $deptName',
-                                                style: TextStyle(
-                                                  fontSize: Responsive.text(
-                                                    context,
-                                                    size: TextSize.medium,
-                                                  ),
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Colors.black87,
-                                                ),
-                                              ),
-                                              Text(
-                                                'عدد السكاشن المطلوبة',
-                                                style: TextStyle(
-                                                  fontSize: Responsive.text(
-                                                    context,
-                                                    size: TextSize.small,
-                                                  ),
-                                                  color: Colors.grey[600],
-                                                ),
-                                              ),
-                                            ],
+                                        Text(
+                                          'عدد السكاشن المطلوبة',
+                                          style: TextStyle(
+                                            fontSize: Responsive.text(
+                                              context,
+                                              size: TextSize.small,
+                                            ),
+                                            color: Colors.grey[600],
                                           ),
                                         ),
                                       ],
@@ -322,7 +263,7 @@ class _SectionManagementScreenState extends State<SectionManagementScreen> {
                                         fillColor: Colors.grey[50],
                                         prefixIcon: Icon(
                                           Icons.numbers,
-                                          color: deptColor,
+                                          color: Colors.black87,
                                         ),
                                         suffixText: 'سكاشن',
                                       ),

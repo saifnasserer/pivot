@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/models/custom_text_field.dart';
+import 'package:pivot/screens/models/circular_button.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
@@ -19,13 +20,13 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
   final _formKey = GlobalKey<FormState>();
   final _feedbackController = TextEditingController();
   final _suggestionController = TextEditingController();
-  String _selectedCategory = 'تعليق عام';
+  String _selectedCategory = 'فيدباك عام';
   bool _isSubmitting = false;
   bool _isFeedbackValid = false;
   bool _isSuggestionValid = false;
 
   final List<String> _categories = [
-    'تعليق عام',
+    'فيدباك عام',
     'مشكلة تقنية',
     'اقتراح تحسين',
     'شكوى',
@@ -112,7 +113,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
       _feedbackController.clear();
       _suggestionController.clear();
       setState(() {
-        _selectedCategory = 'تعليق عام';
+        _selectedCategory = 'فيدباك عام';
         _isFeedbackValid = false;
         _isSuggestionValid = false;
       });
@@ -146,7 +147,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
         backgroundColor: Colors.white,
         appBar: AppBar(
           title: Text(
-            'إرسال ملاحظات',
+            'ابعت فيدباك',
             style: TextStyle(
               fontSize: Responsive.text(context, size: TextSize.heading),
               fontWeight: FontWeight.bold,
@@ -166,29 +167,29 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                 Container(
                   padding: Responsive.padding(context, size: Space.large),
                   decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.grey[200]!),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.1),
+                        spreadRadius: 1,
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
                   child: Column(
                     children: [
-                      Icon(
-                        Icons.feedback_outlined,
-                        size: 48,
-                        color: Colors.blue,
-                      ),
-                      SizedBox(
-                        height: Responsive.space(context, size: Space.medium),
-                      ),
                       Text(
-                        'نحن نريد سماع رأيك!',
+                        'عايزين نسمع رأيك!',
                         style: TextStyle(
                           fontSize: Responsive.text(
                             context,
                             size: TextSize.heading,
                           ),
                           fontWeight: FontWeight.bold,
-                          color: Colors.blue,
+                          color: Colors.black87,
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -213,7 +214,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                 SizedBox(height: Responsive.space(context, size: Space.large)),
 
                 Text(
-                  'نوع الملاحظة',
+                  'نوع الفيدباك',
                   style: TextStyle(
                     fontSize: Responsive.text(context, size: TextSize.medium),
                     fontWeight: FontWeight.bold,
@@ -224,7 +225,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.grey[50],
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: Colors.grey[200]!),
                   ),
                   child: DropdownButtonFormField<String>(
@@ -235,7 +236,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                         context,
                         size: Space.medium,
                       ),
-                      prefixIcon: Icon(Icons.category, color: Colors.blue),
+                      prefixIcon: Icon(Icons.category, color: Colors.black87),
                     ),
                     items:
                         _categories
@@ -259,7 +260,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                 SizedBox(height: Responsive.space(context, size: Space.large)),
 
                 Text(
-                  'التعليق (اختياري)',
+                  'رأيك (اختياري)',
                   style: TextStyle(
                     fontSize: Responsive.text(context, size: TextSize.medium),
                     fontWeight: FontWeight.bold,
@@ -302,93 +303,42 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                   },
                 ),
 
-                SizedBox(height: Responsive.space(context, size: Space.large)),
+                SizedBox(height: Responsive.space(context, size: Space.xlarge)),
 
-                Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: Colors.blue,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: TextButton.icon(
-                    onPressed: _isSubmitting ? null : _submitFeedback,
-                    icon:
-                        _isSubmitting
-                            ? SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
+                // Circular Send Button
+                Center(
+                  child:
+                      _isSubmitting
+                          ? Container(
+                            width:
+                                Responsive.space(context, size: Space.xlarge) *
+                                4,
+                            height:
+                                Responsive.space(context, size: Space.xlarge) *
+                                4,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[200],
+                              shape: BoxShape.circle,
+                            ),
+                            child: Center(
+                              child: SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  color: Colors.black87,
+                                  strokeWidth: 2,
+                                ),
                               ),
-                            )
-                            : Icon(Icons.send, color: Colors.white),
-                    label: Text(
-                      _isSubmitting ? 'جاري الإرسال...' : 'إرسال الملاحظات',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: Responsive.text(
-                          context,
-                          size: TextSize.medium,
-                        ),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    style: TextButton.styleFrom(
-                      padding: EdgeInsets.symmetric(
-                        vertical: Responsive.space(context, size: Space.medium),
-                      ),
-                    ),
-                  ),
+                            ),
+                          )
+                          : CircularButton(
+                            onPressed: _submitFeedback,
+                            icon: Icons.send,
+                            backgroundColor: Colors.black,
+                            iconColor: Colors.white,
+                          ),
                 ),
 
-                SizedBox(height: Responsive.space(context, size: Space.large)),
-
-                Container(
-                  padding: Responsive.padding(context, size: Space.medium),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[50],
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey[200]!),
-                  ),
-                  child: Column(
-                    children: [
-                      Icon(
-                        Icons.info_outline,
-                        color: Colors.grey[600],
-                        size: 24,
-                      ),
-                      SizedBox(
-                        height: Responsive.space(context, size: Space.small),
-                      ),
-                      Text(
-                        'ملاحظات مهمة',
-                        style: TextStyle(
-                          fontSize: Responsive.text(
-                            context,
-                            size: TextSize.medium,
-                          ),
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      SizedBox(
-                        height: Responsive.space(context, size: Space.small),
-                      ),
-                      Text(
-                        '• سيتم مراجعة ملاحظاتك من قبل فريق التطوير\n• قد نتواصل معك عبر البريد الإلكتروني للمزيد من التفاصيل\n• شكراً لك على مساعدتنا في تحسين التطبيق',
-                        style: TextStyle(
-                          fontSize: Responsive.text(
-                            context,
-                            size: TextSize.small,
-                          ),
-                          color: Colors.grey[600],
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                ),
               ],
             ),
           ),

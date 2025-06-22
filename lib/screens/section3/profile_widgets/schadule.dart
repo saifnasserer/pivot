@@ -13,6 +13,7 @@ List<Widget> buildCalendar({
   required List<ScheduleItem> dayScheduleItems,
   required Function(int) onDaySelected,
   required Function(String itemId) handleDelete,
+  Function(String itemId)? onNotificationToggle,
 }) {
   if (days.isEmpty) {
     return [
@@ -77,6 +78,10 @@ List<Widget> buildCalendar({
               return SchaduleCard(
                 item: item,
                 handleDelete: () => handleDelete(item.id), // Pass the item's ID
+                onNotificationToggle:
+                    onNotificationToggle != null
+                        ? () => onNotificationToggle!(item.id)
+                        : null,
               );
             },
             childCount: dayScheduleItems.length, // Use item list length

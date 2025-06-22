@@ -32,11 +32,11 @@ class CacheService {
     if (!Hive.isAdapterRegistered(SubjectAdapter().typeId)) {
       Hive.registerAdapter(SubjectAdapter());
     }
-    if (!Hive.isAdapterRegistered(ScheduleItemTypeAdapter().typeId)) {
-      Hive.registerAdapter(ScheduleItemTypeAdapter());
+    if (!Hive.isAdapterRegistered(ScheduleItemTypeCustomAdapter().typeId)) {
+      Hive.registerAdapter(ScheduleItemTypeCustomAdapter());
     }
-    if (!Hive.isAdapterRegistered(ScheduleItemAdapter().typeId)) {
-      Hive.registerAdapter(ScheduleItemAdapter());
+    if (!Hive.isAdapterRegistered(ScheduleItemCustomAdapter().typeId)) {
+      Hive.registerAdapter(ScheduleItemCustomAdapter());
     }
     if (!Hive.isAdapterRegistered(AnnouncementDataAdapter().typeId)) {
       Hive.registerAdapter(AnnouncementDataAdapter());

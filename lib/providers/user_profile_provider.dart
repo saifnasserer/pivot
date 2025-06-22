@@ -31,6 +31,9 @@ class UserProfileProvider with ChangeNotifier {
   // Sets the profile for the currently authenticated user
   void setLoggedInUserProfile(UserProfile profile) {
     _loggedInUserProfile = profile;
+    debugPrint(
+      '[UserProfileProvider] Set logged in user profile: ${profile.name} (${profile.id})',
+    );
     notifyListeners();
   }
 

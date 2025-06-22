@@ -90,6 +90,21 @@ class _AddUserScreenState extends State<AddUserScreen> {
 
   Future<void> _addUser() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // Additional validation for Student and Admin roles
+    if ((_selectedRole == 'Student' || _selectedRole == 'Admin') &&
+        (_selectedYear == null ||
+            _selectedDepartment == null ||
+            _selectedSection == null)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('يرجى ملء جميع حقول الكلية'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
     try {
       final authService = AuthService();
@@ -207,66 +222,105 @@ class _AddUserScreenState extends State<AddUserScreen> {
                       },
                       isValid: true,
                     ),
-                  ],
-                ),
-                SizedBox(height: Responsive.space(context, size: Space.large)),
-                _buildCard(
-                  title: 'الكلية',
-                  icon: Icons.school_outlined,
-                  children: [
-                    CustomDropdown(
-                      value: _selectedYear,
-                      items: FormOptions.academicYears,
-                      hint: 'اختر الفرقة',
-                      onChanged: (String? newValue) {
-                        setState(() {
-                          _selectedYear = newValue;
-                          _selectedDepartment = null;
-                          _selectedSection = null;
-                          _availableDepartments =
-                              FormOptions.getDepartmentsForYear(newValue);
-                          _availableSections = [];
-                        });
-                      },
-                      isValid: _selectedYear != null,
-                    ),
                     SizedBox(
                       height: Responsive.space(context, size: Space.medium),
                     ),
                     CustomDropdown(
-                      value: _selectedDepartment,
-                      items: _availableDepartments,
-                      hint: 'اختر القسم',
+                      hint: 'الدور',
+                      value: _selectedRole,
+                      items: ['Student', 'Admin', 'miniProfessor', 'Professor'],
                       onChanged: (String? newValue) {
                         setState(() {
-                          _selectedDepartment = newValue;
-                          _selectedSection = null;
-                          _availableSections = FormOptions.getSectionsForYear(
-                            _selectedYear,
-                            newValue,
-                          );
+                          _selectedRole = newValue!;
+                          // Reset college fields when role changes
+                          if (newValue != 'Student' && newValue != 'Admin') {
+                            _selectedYear = null;
+                            _selectedDepartment = null;
+                            _selectedSection = null;
+                            _availableDepartments = [];
+                            _availableSections = [];
+                          }
                         });
                       },
-                      isValid: _selectedDepartment != null,
-                    ),
-                    SizedBox(
-                      height: Responsive.space(context, size: Space.medium),
-                    ),
-                    CustomDropdown(
-                      value: _selectedSection,
-                      items: _availableSections,
-                      hint: 'اختر السكشن',
-                      onChanged: (String? newValue) {
-                        setState(() {
-                          _selectedSection = newValue;
-                        });
-                      },
-                      isValid: _selectedSection != null,
+                      isValid: true,
                     ),
                   ],
                 ),
                 SizedBox(height: Responsive.space(context, size: Space.large)),
-                if (_selectedYear == 'الفرقة الأولى')
+                if (_selectedRole == 'Student' || _selectedRole == 'Admin')
+                  _buildCard(
+                    title: 'الكلية',
+                    icon: Icons.school_outlined,
+                    children: [
+                      CustomDropdown(
+                        value: _selectedYear,
+                        items: FormOptions.academicYears,
+                        hint: 'اختر الفرقة',
+                        onChanged: (String? newValue) {
+                          setState(() {
+                            _selectedYear = newValue;
+                            _selectedDepartment = null;
+                            _selectedSection = null;
+                            _availableDepartments =
+                                FormOptions.getDepartmentsForYear(newValue);
+                            _availableSections = [];
+                          });
+                        },
+                        isValid:
+                            (_selectedRole == 'Student' ||
+                                    _selectedRole == 'Admin')
+                                ? _selectedYear != null
+                                : true,
+                      ),
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.medium),
+                      ),
+                      CustomDropdown(
+                        value: _selectedDepartment,
+                        items: _availableDepartments,
+                        hint: 'اختر القسم',
+                        onChanged: (String? newValue) {
+                          setState(() {
+                            _selectedDepartment = newValue;
+                            _selectedSection = null;
+                            _availableSections = FormOptions.getSectionsForYear(
+                              _selectedYear,
+                              newValue,
+                            );
+                          });
+                        },
+                        isValid:
+                            (_selectedRole == 'Student' ||
+                                    _selectedRole == 'Admin')
+                                ? _selectedDepartment != null
+                                : true,
+                      ),
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.medium),
+                      ),
+                      CustomDropdown(
+                        value: _selectedSection,
+                        items: _availableSections,
+                        hint: 'اختر السكشن',
+                        onChanged: (String? newValue) {
+                          setState(() {
+                            _selectedSection = newValue;
+                          });
+                        },
+                        isValid:
+                            (_selectedRole == 'Student' ||
+                                    _selectedRole == 'Admin')
+                                ? _selectedSection != null
+                                : true,
+                      ),
+                    ],
+                  ),
+                if (_selectedRole == 'Student' || _selectedRole == 'Admin')
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.large),
+                  ),
+                if (_selectedYear == 'الفرقة الأولى' &&
+                    (_selectedRole == 'Student' || _selectedRole == 'Admin'))
                   CustomTextField(
                     controller: _studentIdController,
                     hint: 'رقم الطالب',
@@ -278,7 +332,11 @@ class _AddUserScreenState extends State<AddUserScreen> {
                       return null;
                     },
                   ),
-                SizedBox(height: Responsive.space(context, size: Space.large)),
+                if (_selectedYear == 'الفرقة الأولى' &&
+                    (_selectedRole == 'Student' || _selectedRole == 'Admin'))
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.large),
+                  ),
                 Container(
                   width: double.infinity,
                   height: 56,

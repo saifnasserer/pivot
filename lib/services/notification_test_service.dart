@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+
 import 'package:pivot/services/notification_service.dart';
 import 'package:pivot/services/notification_trigger_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -195,7 +195,7 @@ class NotificationTestService {
   Future<Map<String, dynamic>> _testNotificationTriggers() async {
     try {
       // Test running auto notifications
-      await _triggerService.runAllAutoNotifications();
+      await _triggerService.sendTaskReminders();
 
       return {
         'success': true,
@@ -292,3 +292,4 @@ class NotificationTestService {
     return health;
   }
 }
+ 

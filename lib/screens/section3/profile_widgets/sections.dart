@@ -153,6 +153,236 @@ class SectionListItem extends StatelessWidget {
     );
   }
 
+  void _showSectionDetails(
+    BuildContext context,
+    Subject subject,
+    Section section,
+    List<UserProfile> assistants,
+  ) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => Directionality(
+            textDirection: TextDirection.rtl,
+            child: AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              title: Text(
+                subject.name,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: Responsive.text(context, size: TextSize.heading),
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Section details
+                  Container(
+                    padding: Responsive.padding(context, size: Space.medium),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey[200]!),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildDetailRow('السكاشن', section.name, Icons.class_),
+                        SizedBox(
+                          height: Responsive.space(context, size: Space.small),
+                        ),
+                        _buildDetailRow(
+                          'المكان',
+                          section.location,
+                          Icons.location_on_outlined,
+                        ),
+                        SizedBox(
+                          height: Responsive.space(context, size: Space.small),
+                        ),
+                        _buildDetailRow(
+                          'الأيام',
+                          section.days,
+                          Icons.calendar_today,
+                        ),
+                        SizedBox(
+                          height: Responsive.space(context, size: Space.small),
+                        ),
+                        _buildDetailRow(
+                          'الوقت',
+                          section.time,
+                          Icons.access_time,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  if (assistants.isNotEmpty) ...[
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.medium),
+                    ),
+                    Text(
+                      'المعيدين',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: Responsive.text(
+                          context,
+                          size: TextSize.medium,
+                        ),
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.small),
+                    ),
+                    Container(
+                      padding: Responsive.padding(context, size: Space.medium),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[50],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey[200]!),
+                      ),
+                      child: Column(
+                        children:
+                            assistants
+                                .map(
+                                  (assistant) => InkWell(
+                                    onTap: () {
+                                      Navigator.of(context).pop();
+                                      Navigator.pushNamed(
+                                        context,
+                                        AssistantProfile.id,
+                                        arguments: assistant,
+                                      );
+                                    },
+                                    child: Padding(
+                                      padding: Responsive.padding(
+                                        context,
+                                        size: Space.small,
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            Icons.person_outline,
+                                            color: Colors.black87,
+                                            size: 20,
+                                          ),
+                                          SizedBox(
+                                            width: Responsive.space(
+                                              context,
+                                              size: Space.small,
+                                            ),
+                                          ),
+                                          Expanded(
+                                            child: Text(
+                                              assistant.name,
+                                              style: TextStyle(
+                                                fontSize: Responsive.text(
+                                                  context,
+                                                  size: TextSize.small,
+                                                ),
+                                                color: Colors.black87,
+                                              ),
+                                            ),
+                                          ),
+                                          Icon(
+                                            Icons.arrow_forward_ios,
+                                            color: Colors.grey[400],
+                                            size: 14,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                      ),
+                    ),
+                  ] else ...[
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.medium),
+                    ),
+                    Container(
+                      padding: Responsive.padding(context, size: Space.medium),
+                      decoration: BoxDecoration(
+                        color: Colors.orange[50],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.orange[200]!),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            color: Colors.orange[700],
+                            size: 20,
+                          ),
+                          SizedBox(
+                            width: Responsive.space(context, size: Space.small),
+                          ),
+                          Expanded(
+                            child: Text(
+                              'لا يوجد معيدين مسجلين لهذه المادة بعد',
+                              style: TextStyle(
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.small,
+                                ),
+                                color: Colors.orange[700],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              actions: [
+                Center(
+                  child: IconButton(
+                    icon: Icon(Icons.close),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, color: Colors.black87, size: 18),
+        SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final instructors =
@@ -176,148 +406,55 @@ class SectionListItem extends StatelessWidget {
         ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
+          borderRadius: BorderRadius.circular(16),
           onTap: () {
-            if (assistants.isEmpty) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('لا يوجد معيدين مسجلين لهذه المادة بعد'),
-                  backgroundColor: Colors.orange.shade800,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  margin: Responsive.padding(context, size: Space.small),
-                ),
-              );
-            } else if (assistants.length == 1) {
-              Navigator.pushNamed(
-                context,
-                AssistantProfile.id,
-                arguments: assistants.first,
-              );
-            } else {
-              _showAssistantSelectionDialog(context, assistants);
-            }
+            // Show more details in a dialog or navigate to details page
+            _showSectionDetails(context, subject, section, assistants);
           },
-          child: Container(
-            decoration: BoxDecoration(
-              border: Border(
-                right: BorderSide(color: Colors.teal.shade400, width: 5.0),
-              ),
-            ),
-            child: Padding(
-              padding: Responsive.padding(context, size: Space.medium),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Icon(
-                        Icons.chevron_left,
-                        color: Colors.grey.shade500,
-                        size: 20,
-                      ),
-                      Expanded(
-                        child: Text(
-                          subject.name,
-                          textAlign: TextAlign.right,
-                          style: TextStyle(
-                            fontSize: Responsive.text(
-                              context,
-                              size: TextSize.medium,
-                            ),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(
-                    height: Responsive.space(context, size: Space.small),
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
+          child: Padding(
+            padding: Responsive.padding(context, size: Space.medium),
+            child: Row(
+              children: [
+                Icon(Icons.arrow_back_ios, color: Colors.grey[400], size: 16),
+                // Section info
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        '${section.name} - المكان: ${section.location}',
-                        textAlign: TextAlign.right,
+                        subject.name,
                         style: TextStyle(
-                          color: Colors.grey.shade700,
-                          fontSize:
-                              Responsive.text(context, size: TextSize.small) *
-                              1.2,
-                        ),
-                      ),
-                      SizedBox(
-                        width: Responsive.space(context, size: Space.small),
-                      ),
-                      Icon(
-                        Icons.location_on_outlined,
-                        size: 16,
-                        color: Colors.grey.shade600,
-                      ),
-                    ],
-                  ),
-                  SizedBox(
-                    height: Responsive.space(context, size: Space.small),
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Text(
-                        '${section.days} - ${section.time}',
-                        textAlign: TextAlign.right,
-                        style: TextStyle(
-                          color: Colors.grey.shade700,
-                          fontSize:
-                              Responsive.text(context, size: TextSize.small) *
-                              1.2,
-                        ),
-                      ),
-                      SizedBox(
-                        width: Responsive.space(context, size: Space.small),
-                      ),
-                      Icon(
-                        Icons.access_time,
-                        size: 16,
-                        color: Colors.grey.shade600,
-                      ),
-                    ],
-                  ),
-                  if (assistants.isNotEmpty) ...[
-                    SizedBox(
-                      height: Responsive.space(context, size: Space.small),
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Text(
-                          assistants.length == 1
-                              ? assistants.first.name
-                              : '${assistants.length} معيد',
-                          textAlign: TextAlign.right,
-                          style: TextStyle(
-                            color: Colors.teal.shade700,
-                            fontWeight: FontWeight.w500,
-                            fontSize:
-                                Responsive.text(context, size: TextSize.small) *
-                                1.2,
+                          fontSize: Responsive.text(
+                            context,
+                            size: TextSize.medium,
                           ),
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
                         ),
-                        SizedBox(
-                          width: Responsive.space(context, size: Space.small),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.small),
+                      ),
+                      Text(
+                        section.name,
+                        style: TextStyle(
+                          fontSize: Responsive.text(
+                            context,
+                            size: TextSize.small,
+                          ),
+                          color: Colors.grey[600],
                         ),
-                        Icon(
-                          Icons.person_outline,
-                          size: 16,
-                          color: Colors.teal.shade700,
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
-              ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Arrow icon
+              ],
             ),
           ),
         ),

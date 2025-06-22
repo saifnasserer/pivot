@@ -140,7 +140,9 @@ class _Signup_2State extends State<Signup_2> {
           backgroundColor: Colors.green,
         ),
       );
-      Navigator.pushReplacementNamed(context, Landing.id);
+      // Don't navigate directly to Landing - let AuthWrapper handle it
+      // The AuthWrapper will detect the authenticated state and navigate automatically
+      // This prevents conflicts between direct navigation and AuthWrapper's auth state handling
     }
   }
 
@@ -373,23 +375,18 @@ class _Signup_2State extends State<Signup_2> {
           // Request notification permission after successful signup
           await _requestNotificationPermission();
 
+          // Add a small delay to ensure AuthWrapper can detect the profile
+          await Future.delayed(const Duration(milliseconds: 100));
+
           // Ask to enable biometrics before navigating
           await _promptEnableBiometrics(
             userProfile.id,
             widget.email,
             widget.password,
           );
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('تم التسجيل بنجاح.'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          Navigator.pushNamedAndRemoveUntil(
-            context,
-            Landing.id,
-            (route) => false,
-          );
+          // Don't navigate directly to Landing - let AuthWrapper handle it
+          // The AuthWrapper will detect the authenticated state and navigate automatically
+          // This prevents conflicts between direct navigation and AuthWrapper's auth state handling
         }
       } on FirebaseAuthException catch (e) {
         String errorMessage;

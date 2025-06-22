@@ -6,6 +6,8 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:pivot/models/user_notification.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -18,19 +20,20 @@ class NotificationService {
       'https://us-central1-pivot-28563.cloudfunctions.net/send_notification';
 
   Future<void> initialize() async {
-    await AwesomeNotifications().initialize('resource://drawable/app_icon', [
-      NotificationChannel(
-        channelKey: 'pivot_notifications',
-        channelName: 'Pivot Notifications',
-        channelDescription: 'Notifications from Pivot app',
-        defaultColor: Colors.black,
-        ledColor: Colors.white,
-        importance: NotificationImportance.High,
-        channelShowBadge: true,
-        enableVibration: true,
-        playSound: true,
-      ),
-    ], debug: true);
+    await AwesomeNotifications()
+        .initialize('resource://drawable/ic_notification', [
+          NotificationChannel(
+            channelKey: 'pivot_notifications',
+            channelName: 'Pivot Notifications',
+            channelDescription: 'Notifications from Pivot app',
+            defaultColor: Colors.black,
+            ledColor: Colors.white,
+            importance: NotificationImportance.High,
+            channelShowBadge: true,
+            enableVibration: true,
+            playSound: true,
+          ),
+        ], debug: true);
 
     await _requestPermissions();
     await _configureFCMListeners();
@@ -61,6 +64,7 @@ class NotificationService {
         "NotificationService: Title: ${message.notification?.title}, Body: ${message.notification?.body}",
       );
       _showAwesomeNotification(message);
+      _saveNotificationToHistory(message);
     });
 
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
@@ -94,6 +98,30 @@ class NotificationService {
       print("NotificationService: createNotification call succeeded.");
     } catch (e) {
       print("NotificationService: ERROR creating notification: $e");
+    }
+  }
+
+  Future<void> _saveNotificationToHistory(RemoteMessage message) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || message.notification == null) return;
+
+    final notification = UserNotification(
+      id: message.messageId ?? DateTime.now().toIso8601String(),
+      title: message.notification!.title ?? 'No Title',
+      body: message.notification!.body ?? 'No Body',
+      createdAt: message.sentTime ?? DateTime.now(),
+      data: message.data,
+    );
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('notifications')
+          .add(notification.toJson());
+      print("Notification saved to history for user ${user.uid}");
+    } catch (e) {
+      print("Error saving notification to history: $e");
     }
   }
 
@@ -191,6 +219,8 @@ class NotificationService {
     required String targetToken,
     required String title,
     required String body,
+    String? userId,
+    Map<String, String>? data,
     String? icon,
     String? color,
     String? sound,
@@ -201,8 +231,12 @@ class NotificationService {
         'token': targetToken,
         'title': title,
         'body': body,
+        'data': data ?? {},
       };
 
+      if (userId != null) {
+        payload['data']['userId'] = userId;
+      }
       if (icon != null) payload['icon'] = icon;
       if (color != null) payload['color'] = color;
       if (sound != null) payload['sound'] = sound;
@@ -230,6 +264,10 @@ class NotificationService {
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(); // Required for background isolate
+  print("Handling a background message: ${message.messageId}");
+
+  // Show the notification
   await AwesomeNotifications().createNotification(
     content: NotificationContent(
       id: message.hashCode,
@@ -240,4 +278,32 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       payload: Map<String, String>.from(message.data),
     ),
   );
+
+  // Save to history
+  final userId = message.data['userId'];
+  final notification = message.notification;
+
+  if (userId != null && notification != null) {
+    final userNotification = UserNotification(
+      id: message.messageId ?? DateTime.now().toIso8601String(),
+      title: notification.title ?? 'No Title',
+      body: notification.body ?? 'No Body',
+      createdAt: message.sentTime ?? DateTime.now(),
+      data: message.data,
+    );
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .collection('notifications')
+          .add(userNotification.toJson());
+      print("Background notification saved to history for user $userId");
+    } catch (e) {
+      print("Error saving background notification to history: $e");
+    }
+  } else {
+    print(
+      "Could not save background notification to history: userId or notification part is null.",
+    );
+  }
 }

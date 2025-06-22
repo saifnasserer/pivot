@@ -120,12 +120,16 @@ class _LoginState extends State<Login> {
         _password,
       );
       if (mounted && userProfile != null) {
+        debugPrint('[Login] User profile received: ${userProfile.id}');
         final provider = Provider.of<UserProfileProvider>(
           context,
           listen: false,
         );
+        debugPrint('[Login] Setting logged in user profile...');
         provider.setLoggedInUserProfile(userProfile);
+        debugPrint('[Login] Setting user profile...');
         provider.setUserProfile(userProfile);
+        debugPrint('[Login] Profile set successfully');
 
         // Request notification permission after successful login
         await _requestNotificationPermission();
@@ -136,11 +140,44 @@ class _LoginState extends State<Login> {
           _password,
         );
 
-        Navigator.pushNamedAndRemoveUntil(
-          context,
-          Landing.id,
-          (route) => false,
+        // Add a small delay to ensure AuthWrapper can detect the profile
+        debugPrint('[Login] Waiting for AuthWrapper to detect profile...');
+        await Future.delayed(const Duration(milliseconds: 100));
+        debugPrint(
+          '[Login] Login process completed, waiting for navigation...',
         );
+
+        // Force AuthWrapper to check current user state
+        final authService = AuthService();
+        final currentUser = authService.getCurrentUser();
+        if (currentUser != null) {
+          debugPrint('[Login] Current user confirmed: ${currentUser.uid}');
+
+          // Add a short delay then navigate directly
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted) {
+              debugPrint('[Login] Navigating to Landing screen');
+              Navigator.pushReplacementNamed(context, Landing.id);
+            }
+          });
+        }
+
+        // Don't navigate directly to Landing - let AuthWrapper handle it
+        // The AuthWrapper will detect the authenticated state and navigate automatically
+        // This prevents conflicts between direct navigation and AuthWrapper's auth state handling
+      } else {
+        // Handle case where login succeeded but no profile was returned
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'فشل في تحميل الملف الشخصي. يرجى المحاولة مرة أخرى.',
+                textAlign: TextAlign.center,
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
@@ -181,8 +218,8 @@ class _LoginState extends State<Login> {
     try {
       final isSupported = await _localAuthService.isBiometricSupported();
       if (isSupported) {
-        await _storage.write(key: 'email', value: email);
-        await _storage.write(key: 'password', value: password);
+        await _storage.write(key: 'biometric_email', value: email);
+        await _storage.write(key: 'biometric_password', value: password);
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool('isBiometricEnabled', true);
         debugPrint('Biometrics enabled automatically.');

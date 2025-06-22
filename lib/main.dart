@@ -35,11 +35,14 @@ import 'package:pivot/providers/doctor_subject_provider.dart';
 
 import 'package:pivot/providers/section_provider.dart'; // Import SectionProvider
 import 'package:pivot/providers/bookmarks.dart'; // Import Bookmarks provider
+import 'package:pivot/providers/scheduled_notification_provider.dart'; // Import ScheduledNotificationProvider
+import 'package:pivot/providers/user_notification_provider.dart';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:pivot/screens/section2/super_admin_panel/analytics_screen.dart';
 import 'package:pivot/services/cache_service.dart';
@@ -48,9 +51,9 @@ import 'package:pivot/services/notification_trigger_service.dart';
 import 'dart:async';
 import 'package:pivot/screens/section2/adminstration/add_user_screen.dart';
 import 'package:pivot/screens/section3/feedback_screen.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pivot/screens/models/notification_test_widget.dart';
 import 'package:pivot/screens/section2/adminstration/feedback_management_screen.dart';
+import 'package:pivot/screens/section2/super_admin_panel/upcoming_notifications_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -65,6 +68,13 @@ void main() async {
     // Initialize Firebase (essential)
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
+    );
+
+    // Initialize Firebase App Check (essential for security)
+    await FirebaseAppCheck.instance.activate(
+      webProvider: ReCaptchaV3Provider('your-recaptcha-site-key'),
+      androidProvider: AndroidProvider.debug,
+      appleProvider: AppleProvider.appAttest,
     );
 
     // Initialize Arabic date formatting (essential for UI)
@@ -143,8 +153,8 @@ void _initializeBackgroundServices(
   // Run auto notifications after a delay to avoid blocking startup
   Future.delayed(const Duration(seconds: 5), () {
     try {
-      NotificationTriggerService().runAllAutoNotifications();
-      debugPrint('Auto notifications triggered successfully');
+      // Automatic notifications are now initialized in _startPeriodicNotifications
+      debugPrint('Auto notifications system ready');
     } catch (e) {
       debugPrint('Auto notifications failed: $e');
     }
@@ -172,6 +182,8 @@ class Pivot extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
         ChangeNotifierProvider(create: (_) => SuperAdminProvider()),
         ChangeNotifierProvider(create: (_) => GuideProvider()),
+        ChangeNotifierProvider(create: (_) => ScheduledNotificationProvider()),
+        ChangeNotifierProvider(create: (_) => UserNotificationProvider()),
         Provider<RemoteConfigService>(
           create: (_) => RemoteConfigService.instance,
         ),
@@ -252,6 +264,9 @@ class Pivot extends StatelessWidget {
               (context) => const FeedbackManagementScreen(),
           NotificationTestWidget.id:
               (context) => const NotificationTestWidget(),
+          UpcomingNotificationsScreen.id:
+              (context) => const UpcomingNotificationsScreen(),
+          // NotificationsScreen.id: (context) => const NotificationsScreen(),
         },
         theme: ThemeData(
           colorScheme: ColorScheme.fromSwatch().copyWith(
@@ -311,13 +326,38 @@ class _PivotWithNotificationsState extends State<PivotWithNotifications> {
   }
 
   void _startPeriodicNotifications() {
+    // Initialize automatic notifications on app start
+    NotificationTriggerService().initializeAutomaticNotifications();
+
     // Run notifications every 15 minutes
     _notificationTimer = Timer.periodic(const Duration(minutes: 15), (timer) {
       try {
         NotificationTriggerService().checkAndSendPeriodicNotifications();
+        NotificationTriggerService().processScheduledNotifications();
       } catch (e) {
         debugPrint('Error in periodic notifications: $e');
       }
+    });
+
+    // Clean up old notifications daily
+    Timer.periodic(const Duration(days: 1), (timer) {
+      try {
+        NotificationTriggerService().cleanupOldNotifications();
+      } catch (e) {
+        debugPrint('Error cleaning up old notifications: $e');
+      }
+    });
+
+    // Test function - remove this in production
+    _testAutomaticNotifications();
+  }
+
+  // Test function to manually trigger automatic notifications
+  void _testAutomaticNotifications() {
+    // Run after 10 seconds to allow app to fully initialize
+    Timer(const Duration(seconds: 10), () {
+      debugPrint('Testing automatic notification system...');
+      NotificationTriggerService().initializeAutomaticNotifications();
     });
   }
 

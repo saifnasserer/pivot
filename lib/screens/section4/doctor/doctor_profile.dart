@@ -395,7 +395,9 @@ class _DoctorProfileState extends State<DoctorProfile> {
     return Scaffold(
       backgroundColor: Colors.white,
       floatingActionButton:
-          isOwnProfile && _currentCategory == 'المواد'
+          loggedInUser?.role != 'Student' &&
+                  loggedInUser?.role != 'miniProfessor' &&
+                  _currentCategory == 'المواد'
               ? FloatingActionButton(
                 onPressed: _showAddLectureDialog,
                 child: const Icon(Icons.add),

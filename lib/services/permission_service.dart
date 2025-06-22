@@ -91,6 +91,48 @@ class PermissionService {
     return status.isGranted;
   }
 
+  static Future<bool> requestNotificationPermission() async {
+    if (kIsWeb) return true;
+    var status = await Permission.notification.status;
+    if (status.isDenied || status.isRestricted) {
+      status = await Permission.notification.request();
+    }
+    return status.isGranted;
+  }
+
+  static Future<bool> requestNotificationPermissionWithRationale(
+    BuildContext context,
+  ) async {
+    if (kIsWeb) return true;
+    var status = await Permission.notification.status;
+    if (status.isDenied) {
+      status = await Permission.notification.request();
+    }
+    if (status.isPermanentlyDenied) {
+      await _showSettingsDialog(
+        context,
+        'يرجى منح صلاحية الإشعارات من إعدادات التطبيق لتلقي تذكيرات المحاضرات والمهام.',
+      );
+      return false;
+    }
+    return status.isGranted;
+  }
+
+  static Future<bool> checkNotificationPermission() async {
+    if (kIsWeb) return true;
+    final status = await Permission.notification.status;
+    return status.isGranted;
+  }
+
+  static Future<void> showNotificationPermissionDialog(
+    BuildContext context,
+  ) async {
+    final hasPermission = await checkNotificationPermission();
+    if (!hasPermission) {
+      await requestNotificationPermissionWithRationale(context);
+    }
+  }
+
   static Future<void> _showSettingsDialog(
     BuildContext context,
     String message,

@@ -21,15 +21,23 @@ class _FeedbackManagementScreenState extends State<FeedbackManagementScreen> {
       );
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Feedback marked as $status.'),
+          content: Text('تم تحديث حالة الملاحظة إلى $status'),
           backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error updating status: $e'),
+          content: Text('خطأ في تحديث الحالة: $e'),
           backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
       );
     }
@@ -41,52 +49,185 @@ class _FeedbackManagementScreenState extends State<FeedbackManagementScreen> {
       builder:
           (context) => AlertDialog(
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(15),
+              borderRadius: BorderRadius.circular(20),
             ),
             title: Text(
-              feedback['type']?.toString().toUpperCase() ?? 'FEEDBACK',
+              feedback['category']?.toString().toUpperCase() ?? 'ملاحظة',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: Responsive.text(context, size: TextSize.medium),
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
             ),
             content: SingleChildScrollView(
-              child: ListBody(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    'User: ${feedback['userName'] ?? 'Unknown'} (${feedback['userEmail'] ?? 'No email'})',
+                  Container(
+                    padding: Responsive.padding(context, size: Space.medium),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey[200]!),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          'معلومات المستخدم',
+                          style: TextStyle(
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.small,
+                            ),
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        SizedBox(
+                          height: Responsive.space(context, size: Space.small),
+                        ),
+                        Text(
+                          'الاسم: ${feedback['userName'] ?? 'غير معروف'}',
+                          style: TextStyle(
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.small,
+                            ),
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                        Text(
+                          'البريد الإلكتروني ${feedback['userEmail'] ?? 'غير متوفر'}',
+                          textAlign: TextAlign.end,
+                          style: TextStyle(
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.small,
+                            ),
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                        Text(
+                          '${feedback['userRole'] ?? 'غير محدد'} الدور',
+                          textAlign: TextAlign.end,
+                          style: TextStyle(
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.small,
+                            ),
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 8),
-                  Text('Role: ${feedback['userRole'] ?? 'N/A'}'),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Feedback:',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.medium),
                   ),
-                  Text(feedback['feedback'] ?? 'No feedback content.'),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Suggestion:',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  Text(feedback['suggestion'] ?? 'No suggestion content.'),
+                  if (feedback['feedback'] != null &&
+                      feedback['feedback'].toString().isNotEmpty) ...[
+                    Text(
+                      'التعليق',
+                      style: TextStyle(
+                        fontSize: Responsive.text(
+                          context,
+                          size: TextSize.small,
+                        ),
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.small),
+                    ),
+                    Container(
+                      padding: Responsive.padding(context, size: Space.medium),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[50],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey[200]!),
+                      ),
+                      child: Text(
+                        feedback['feedback'] ?? 'لا يوجد تعليق',
+                        textAlign: TextAlign.end,
+                        style: TextStyle(
+                          fontSize: Responsive.text(
+                            context,
+                            size: TextSize.small,
+                          ),
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.medium),
+                    ),
+                  ],
+                  if (feedback['suggestion'] != null &&
+                      feedback['suggestion'].toString().isNotEmpty) ...[
+                    Text(
+                      'الاقتراح',
+                      textAlign: TextAlign.end,
+                      style: TextStyle(
+                        fontSize: Responsive.text(
+                          context,
+                          size: TextSize.small,
+                        ),
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.small),
+                    ),
+                    Container(
+                      padding: Responsive.padding(context, size: Space.medium),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[50],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey[200]!),
+                      ),
+                      child: Text(
+                        feedback['suggestion'] ?? 'لا يوجد اقتراح',
+                        textAlign: TextAlign.end,
+                        style: TextStyle(
+                          fontSize: Responsive.text(
+                            context,
+                            size: TextSize.small,
+                          ),
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
             actions: [
-              TextButton(
-                child: const Text('Mark as Read'),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  _updateFeedbackStatus(docId, 'Read');
-                },
-              ),
-              TextButton(
-                child: const Text('Archive'),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  _updateFeedbackStatus(docId, 'Archived');
-                },
-              ),
-              TextButton(
-                child: const Text('Close'),
-                onPressed: () => Navigator.of(context).pop(),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  IconButton(
+                    icon: Icon(Icons.archive_outlined, color: Colors.red),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      _updateFeedbackStatus(docId, 'archived');
+                    },
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      Icons.check_circle_outline_rounded,
+                      color: Colors.green,
+                    ),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      _updateFeedbackStatus(docId, 'read');
+                    },
+                  ),
+                ],
               ),
             ],
           ),
@@ -96,10 +237,18 @@ class _FeedbackManagementScreenState extends State<FeedbackManagementScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Feedback Management'),
+        title: Text(
+          'إدارة الملاحظات',
+          style: TextStyle(
+            fontSize: Responsive.text(context, size: TextSize.heading),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         backgroundColor: Colors.white,
-        elevation: 1,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.black),
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream:
@@ -109,18 +258,67 @@ class _FeedbackManagementScreenState extends State<FeedbackManagementScreen> {
                 .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const CircularProgressIndicator(color: Colors.black),
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.medium),
+                  ),
+                  Text(
+                    'جاري تحميل الملاحظات...',
+                    style: TextStyle(
+                      fontSize: Responsive.text(context, size: TextSize.medium),
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            );
           }
           if (snapshot.hasError) {
             return Center(
-              child: Text('Something went wrong: ${snapshot.error}'),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.medium),
+                  ),
+                  Text(
+                    'حدث خطأ: ${snapshot.error}',
+                    style: TextStyle(
+                      fontSize: Responsive.text(context, size: TextSize.medium),
+                      color: Colors.grey[600],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             );
           }
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(
-              child: Text(
-                'No feedback has been submitted yet.',
-                style: TextStyle(fontSize: 16, color: Colors.grey),
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.feedback_outlined,
+                    size: 64,
+                    color: Colors.grey[400],
+                  ),
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.medium),
+                  ),
+                  Text(
+                    'لا توجد ملاحظات حتى الآن',
+                    style: TextStyle(
+                      fontSize: Responsive.text(context, size: TextSize.medium),
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
               ),
             );
           }
@@ -128,9 +326,7 @@ class _FeedbackManagementScreenState extends State<FeedbackManagementScreen> {
           final feedbackDocs = snapshot.data!.docs;
 
           return ListView.builder(
-            padding: EdgeInsets.all(
-              Responsive.space(context, size: Space.medium),
-            ),
+            padding: Responsive.padding(context, size: Space.large),
             itemCount: feedbackDocs.length,
             itemBuilder: (context, index) {
               final feedback =
@@ -141,54 +337,134 @@ class _FeedbackManagementScreenState extends State<FeedbackManagementScreen> {
                       ? DateFormat(
                         'MMM d, yyyy – hh:mm a',
                       ).format(timestamp.toDate())
-                      : 'Date not available';
+                      : 'التاريخ غير متوفر';
 
-              return Card(
-                margin: const EdgeInsets.symmetric(vertical: 8.0),
-                elevation: 2.0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+              return Container(
+                margin: EdgeInsets.only(
+                  bottom: Responsive.space(context, size: Space.medium),
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        feedback['type']?.toString().toUpperCase() ??
-                            'FEEDBACK',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).primaryColor,
-                          letterSpacing: 0.8,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey[200]!),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.1),
+                      spreadRadius: 1,
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap:
+                      () => _showFeedbackDetails(
+                        feedback,
+                        feedbackDocs[index].id,
+                      ),
+                  child: Padding(
+                    padding: Responsive.padding(context, size: Space.large),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.arrow_back_ios_new_rounded,
+                              color: Colors.grey[400],
+                              size: 16,
+                            ),
+                            Spacer(),
+                            Column(
+                              children: [
+                                Text(
+                                  feedback['category']
+                                          ?.toString()
+                                          .toUpperCase() ??
+                                      'ملاحظة',
+                                  style: TextStyle(
+                                    fontSize: Responsive.text(
+                                      context,
+                                      size: TextSize.medium,
+                                    ),
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                                Text(
+                                  'من: ${feedback['userName'] ?? 'غير معروف'}',
+                                  style: TextStyle(
+                                    fontSize: Responsive.text(
+                                      context,
+                                      size: TextSize.small,
+                                    ),
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                      ),
-                      const Divider(height: 20),
-                      Text(
-                        feedback['feedback'] ?? 'No content provided.',
-                        style: const TextStyle(fontSize: 16, height: 1.4),
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'User ID: ${feedback['userId'] ?? 'Anonymous'}',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey,
+                        SizedBox(
+                          height: Responsive.space(context, size: Space.medium),
+                        ),
+                        Text(
+                          feedback['feedback'] ?? 'لا يوجد محتوى',
+                          style: TextStyle(
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.small,
                             ),
+                            color: Colors.grey[700],
                           ),
-                          Text(
-                            formattedDate,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        SizedBox(
+                          height: Responsive.space(context, size: Space.medium),
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: Responsive.space(
+                                  context,
+                                  size: Space.small,
+                                ),
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[100],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                feedback['status'] ?? 'pending',
+                                style: TextStyle(
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.small,
+                                  ),
+                                  color: Colors.grey[700],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ],
+                            Text(
+                              formattedDate,
+                              style: TextStyle(
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.small,
+                                ),
+                                color: Colors.grey[500],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               );

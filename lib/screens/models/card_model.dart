@@ -2,13 +2,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:pivot/providers/bookmarks.dart';
 import 'package:pivot/responsive.dart';
-import 'package:pivot/models/user_profile.dart';
-
 import 'package:provider/provider.dart';
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class CardModel extends StatefulWidget {
   final String? id;
@@ -432,14 +429,7 @@ class _CardModelState extends State<CardModel> {
                       children: [
                         IconButton(
                           onPressed: () {
-                            final user = FirebaseAuth.instance.currentUser;
-                            final userName = user?.displayName ?? 'مستخدم';
-
-                            String shareText =
-                                '$userName شارك معاك الخبر ده من ابلكيشن pivot';
-                            shareText +=
-                                '\n------------------------------------';
-
+                            String shareText = '';
                             shareText += '\n\n${widget.title}';
 
                             if (widget.description.isNotEmpty) {

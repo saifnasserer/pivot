@@ -60,8 +60,7 @@ class TaskProvider with ChangeNotifier {
     try {
       await _tasksCollection.doc(task.id).set(task.toMap());
       // Send auto notifications for new tasks
-      await NotificationTriggerService().sendTaskDueTodayNotifications();
-      await NotificationTriggerService().sendEarlyTaskReminders();
+      await NotificationTriggerService().sendTaskReminders();
     } catch (e) {
       // Re-throw the exception to be handled by the UI
       throw Exception('Failed to add task: $e');
@@ -102,7 +101,7 @@ class TaskProvider with ChangeNotifier {
       }
 
       // Send overdue task notifications after status change
-      await NotificationTriggerService().sendOverdueTaskNotifications();
+      await NotificationTriggerService().sendTaskReminders();
     } catch (e) {
       throw Exception('Failed to toggle task status: $e');
     }

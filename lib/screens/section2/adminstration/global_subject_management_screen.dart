@@ -35,50 +35,7 @@ class _GlobalSubjectManagementScreenState
     }
   }
 
-  Color _getYearColor(int year) {
-    final colors = [
-      Colors.blue,
-      Colors.green,
-      Colors.orange,
-      Colors.purple,
-      Colors.teal,
-    ];
-    return colors[year % colors.length];
-  }
-
-  IconData _getDepartmentIcon(String department) {
-    switch (department.toUpperCase()) {
-      case 'CS':
-        return Icons.computer;
-      case 'IS':
-        return Icons.info_outline;
-      case 'AI':
-        return Icons.psychology;
-      case 'SC':
-        return Icons.science_outlined;
-      default:
-        return Icons.school;
-    }
-  }
-
-  Color _getDepartmentColor(String department) {
-    switch (department.toUpperCase()) {
-      case 'CS':
-        return Colors.blue;
-      case 'IS':
-        return Colors.green;
-      case 'AI':
-        return Colors.purple;
-      case 'SC':
-        return Colors.orange;
-      default:
-        return Colors.grey;
-    }
-  }
-
   Widget _buildSubjectCard(Subject subject) {
-    final deptColor = _getDepartmentColor(subject.department);
-
     return Container(
       margin: EdgeInsets.only(
         bottom: Responsive.space(context, size: Space.medium),
@@ -104,19 +61,6 @@ class _GlobalSubjectManagementScreenState
             // Subject Header
             Row(
               children: [
-                Container(
-                  padding: Responsive.padding(context, size: Space.small),
-                  decoration: BoxDecoration(
-                    color: deptColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    _getDepartmentIcon(subject.department),
-                    color: deptColor,
-                    size: 24,
-                  ),
-                ),
-                SizedBox(width: Responsive.space(context, size: Space.medium)),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -148,16 +92,13 @@ class _GlobalSubjectManagementScreenState
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: deptColor.withOpacity(0.1),
+                              color: Colors.grey[200],
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: deptColor.withOpacity(0.3),
-                              ),
                             ),
                             child: Text(
                               subject.department,
                               style: TextStyle(
-                                color: deptColor,
+                                color: Colors.black87,
                                 fontWeight: FontWeight.bold,
                                 fontSize: Responsive.text(
                                   context,
@@ -178,14 +119,11 @@ class _GlobalSubjectManagementScreenState
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.grey.withOpacity(0.1),
+                              color: Colors.grey[200],
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: Colors.grey.withOpacity(0.3),
-                              ),
                             ),
                             child: Text(
-                              'كود: ${subject.code}',
+                              'ساعات: ${subject.code}',
                               style: TextStyle(
                                 color: Colors.grey[700],
                                 fontWeight: FontWeight.w500,
@@ -203,32 +141,28 @@ class _GlobalSubjectManagementScreenState
                 ),
 
                 // Action Buttons
-                Column(
+                Row(
                   children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.blue,
-                        borderRadius: BorderRadius.circular(8),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.edit,
+                        color: Colors.black87,
+                        size: 20,
                       ),
-                      child: IconButton(
-                        icon: Icon(Icons.edit, color: Colors.white, size: 20),
-                        onPressed: () => _editSubject(subject),
-                        tooltip: 'تعديل المادة',
-                      ),
+                      onPressed: () => _editSubject(subject),
+                      tooltip: 'تعديل المادة',
                     ),
                     SizedBox(
                       height: Responsive.space(context, size: Space.small),
                     ),
-                    Container(
-                      decoration: BoxDecoration(
+                    IconButton(
+                      icon: const Icon(
+                        Icons.delete,
                         color: Colors.red,
-                        borderRadius: BorderRadius.circular(8),
+                        size: 20,
                       ),
-                      child: IconButton(
-                        icon: Icon(Icons.delete, color: Colors.white, size: 20),
-                        onPressed: () => _deleteSubject(subject),
-                        tooltip: 'حذف المادة',
-                      ),
+                      onPressed: () => _deleteSubject(subject),
+                      tooltip: 'حذف المادة',
                     ),
                   ],
                 ),
@@ -529,7 +463,6 @@ class _GlobalSubjectManagementScreenState
                     subjectsInYear.sort((a, b) => a.name.compareTo(b.name));
 
                     final isExpanded = _expandedState[year] ?? false;
-                    final yearColor = _getYearColor(year);
 
                     return Container(
                       margin: EdgeInsets.only(
@@ -541,11 +474,9 @@ class _GlobalSubjectManagementScreenState
                           // Year Header
                           Container(
                             decoration: BoxDecoration(
-                              color: yearColor.withOpacity(0.1),
+                              color: Colors.grey[100],
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: yearColor.withOpacity(0.3),
-                              ),
+                              border: Border.all(color: Colors.grey[200]!),
                             ),
                             child: Material(
                               color: Colors.transparent,
@@ -569,14 +500,14 @@ class _GlobalSubjectManagementScreenState
                                           size: Space.small,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: yearColor.withOpacity(0.2),
+                                          color: Colors.black.withOpacity(0.05),
                                           borderRadius: BorderRadius.circular(
                                             8,
                                           ),
                                         ),
-                                        child: Icon(
+                                        child: const Icon(
                                           Icons.grade,
-                                          color: yearColor,
+                                          color: Colors.black87,
                                           size: 20,
                                         ),
                                       ),
@@ -599,7 +530,7 @@ class _GlobalSubjectManagementScreenState
                                                   size: TextSize.medium,
                                                 ),
                                                 fontWeight: FontWeight.bold,
-                                                color: yearColor,
+                                                color: Colors.black87,
                                               ),
                                             ),
                                             Text(
@@ -619,7 +550,7 @@ class _GlobalSubjectManagementScreenState
                                         isExpanded
                                             ? Icons.expand_less
                                             : Icons.expand_more,
-                                        color: yearColor,
+                                        color: Colors.black87,
                                       ),
                                     ],
                                   ),
@@ -777,12 +708,12 @@ class _GlobalSubjectManagementScreenState
                             size: Space.small,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.red.withOpacity(0.1),
+                            color: Colors.grey[100],
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Icon(
+                          child: const Icon(
                             Icons.picture_as_pdf,
-                            color: Colors.red,
+                            color: Colors.black87,
                             size: 24,
                           ),
                         ),
@@ -862,12 +793,12 @@ class _GlobalSubjectManagementScreenState
                                   size: Space.small,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: Colors.red.withOpacity(0.1),
+                                  color: Colors.grey[100],
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: Icon(
+                                child: const Icon(
                                   Icons.picture_as_pdf,
-                                  color: Colors.red,
+                                  color: Colors.black87,
                                   size: 20,
                                 ),
                               ),
@@ -884,13 +815,13 @@ class _GlobalSubjectManagementScreenState
                               ),
                               trailing: Container(
                                 decoration: BoxDecoration(
-                                  color: Colors.red,
+                                  color: Colors.red[100],
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: IconButton(
-                                  icon: Icon(
+                                  icon: const Icon(
                                     Icons.delete,
-                                    color: Colors.white,
+                                    color: Colors.red,
                                     size: 18,
                                   ),
                                   onPressed:
@@ -921,11 +852,14 @@ class _GlobalSubjectManagementScreenState
                       child: Container(
                         width: double.infinity,
                         decoration: BoxDecoration(
-                          color: Colors.blue,
+                          color: Colors.black,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: TextButton.icon(
-                          icon: Icon(Icons.upload_file, color: Colors.white),
+                          icon: const Icon(
+                            Icons.upload_file,
+                            color: Colors.white,
+                          ),
                           label: Text(
                             'إضافة دليل جديد (PDF)',
                             style: TextStyle(

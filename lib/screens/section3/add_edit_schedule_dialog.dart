@@ -23,6 +23,7 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
   String _time = '';
   final _timeController = TextEditingController();
   ScheduleItemType _selectedType = ScheduleItemType.lecture; // Default type
+  bool _notificationEnabled = true; // Default to enabled
 
   bool get _isEditing => widget.itemToEdit != null;
 
@@ -36,6 +37,7 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
       _time = item.time;
       _timeController.text = item.time;
       _selectedType = item.type;
+      _notificationEnabled = item.notificationEnabled;
     }
   }
 
@@ -58,8 +60,9 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
           location: _location,
           time: _time,
           type: _selectedType,
+          notificationEnabled: _notificationEnabled,
         );
-        print('TODO: Implement updateScheduleItem: $updatedItem');
+        scheduleProvider.updateScheduleItem(updatedItem);
       } else {
         scheduleProvider.addScheduleItem(
           day: widget.day,
@@ -67,6 +70,7 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
           location: _location,
           time: _time,
           type: _selectedType,
+          notificationEnabled: _notificationEnabled,
         );
       }
       Navigator.of(context).pop();
@@ -177,6 +181,59 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
                   }
                   return null;
                 },
+              ),
+              SizedBox(height: Responsive.space(context)),
+
+              // Notification toggle
+              Container(
+                padding: EdgeInsets.all(
+                  Responsive.space(context, size: Space.small),
+                ),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          _notificationEnabled
+                              ? Icons.notifications_active
+                              : Icons.notifications_off,
+                          color:
+                              _notificationEnabled
+                                  ? Colors.green.shade600
+                                  : Colors.grey.shade500,
+                          size: 20,
+                        ),
+                        SizedBox(
+                          width: Responsive.space(context, size: Space.small),
+                        ),
+                        Text(
+                          'تفعيل الإشعارات',
+                          style: TextStyle(
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.medium,
+                            ),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Switch(
+                      value: _notificationEnabled,
+                      onChanged: (value) {
+                        setState(() {
+                          _notificationEnabled = value;
+                        });
+                      },
+                      activeColor: Colors.green.shade600,
+                    ),
+                  ],
+                ),
               ),
               SizedBox(height: Responsive.space(context)),
             ],

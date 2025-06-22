@@ -122,11 +122,7 @@ class _ProfileState extends State<Profile> {
   List<Widget> _getCategoryContentSlivers() {
     switch (_currentCategory) {
       case 'تاسكات الاسبوع':
-        return [
-          const SliverFillRemaining(
-            child: WeekTasks(),
-          ),
-        ];
+        return [const SliverFillRemaining(child: WeekTasks())];
 
       case 'الجدول':
         final scheduleProvider = Provider.of<ScheduleProvider>(context);
@@ -164,6 +160,9 @@ class _ProfileState extends State<Profile> {
           handleDelete: (String itemId) {
             scheduleProvider.removeScheduleItem(currentDay, itemId);
           },
+          onNotificationToggle: (String itemId) {
+            scheduleProvider.toggleNotificationForItem(currentDay, itemId);
+          },
         );
 
       case 'مواد الترم':
@@ -182,7 +181,11 @@ class _ProfileState extends State<Profile> {
             ),
           ];
         }
-        return buildSubjectsSlivers(context, subjectProvider.filteredSubjects, subjectProvider.instructorsBySubject);
+        return buildSubjectsSlivers(
+          context,
+          subjectProvider.filteredSubjects,
+          subjectProvider.instructorsBySubject,
+        );
 
       case 'السكاشن':
         final sectionProvider = Provider.of<SectionProvider>(context);

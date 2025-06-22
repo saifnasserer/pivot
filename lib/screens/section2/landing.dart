@@ -33,7 +33,7 @@ class LandingState extends State<Landing> {
         context,
         listen: false,
       );
-      _userDepartment = userProfileProvider.userProfile?.department;
+      _userDepartment = userProfileProvider.loggedInUserProfile?.department;
 
       final announcementProvider = Provider.of<AnnouncementProvider>(
         context,
@@ -108,21 +108,23 @@ class LandingState extends State<Landing> {
 
                     Consumer<UserProfileProvider>(
                       builder: (context, userProfileProvider, child) {
-                        final userRole = userProfileProvider.userProfile?.role;
-                        if (userRole != null && userRole == 'Super Admin') {
-                          return IconButton(
-                            icon: const Icon(
-                              Icons.notifications_active_outlined,
-                            ),
-                            tooltip: 'Test Notifications',
-                            onPressed: () {
-                              Navigator.pushNamed(
-                                context,
-                                NotificationTestWidget.id,
-                              );
-                            },
-                          );
-                        } else if (userRole != null && userRole != 'Student') {
+                        final userRole =
+                            userProfileProvider.loggedInUserProfile?.role;
+                        // if (userRole != null && userRole == 'Super Admin') {
+                        //   return IconButton(
+                        //     icon: const Icon(
+                        //       Icons.notifications_active_outlined,
+                        //     ),
+                        //     tooltip: 'Test Notifications',
+                        //     onPressed: () {
+                        //       Navigator.pushNamed(
+                        //         context,
+                        //         NotificationTestWidget.id,
+                        //       );
+                        //     },
+                        //   );
+                        // }
+                        if (userRole != null && userRole != 'Student') {
                           return IconButton(
                             icon: const Icon(Icons.add_circle_outline_rounded),
                             onPressed: () {
@@ -132,6 +134,13 @@ class LandingState extends State<Landing> {
                         } else {
                           return const SizedBox.shrink();
                         }
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.notifications_outlined),
+                      tooltip: 'الإشعارات',
+                      onPressed: () {
+                        Navigator.pushNamed(context, '/notifications');
                       },
                     ),
                     IconButton(
@@ -145,7 +154,7 @@ class LandingState extends State<Landing> {
                         return IconButton(
                           icon: const Icon(Icons.person_outline_rounded),
                           onPressed: () {
-                            if (userProfileProvider.userProfile?.role ==
+                            if (userProfileProvider.loggedInUserProfile?.role ==
                                 'Super Admin') {
                               Navigator.pushNamed(
                                 context,

@@ -27,6 +27,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
   StreamSubscription<User?>? _authSubscription;
   String? _errorMessage;
   bool _isInitialized = false;
+  Timer? _periodicCheckTimer;
 
   @override
   void initState() {
@@ -45,12 +46,39 @@ class _AuthWrapperState extends State<AuthWrapper> {
         });
       }
     });
+
+    // Add periodic check for auth state (every 2 seconds)
+    _periodicCheckTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
+      if (mounted && _isInitialized) {
+        final currentUser = _authService.getCurrentUser();
+        if (currentUser != null && _status == AuthStatus.unauthenticated) {
+          debugPrint(
+            '[AuthWrapper] Periodic check found authenticated user: ${currentUser.uid}',
+          );
+          _handleAuthState(currentUser);
+        } else if (currentUser == null && _status == AuthStatus.authenticated) {
+          debugPrint(
+            '[AuthWrapper] Periodic check found no user, setting unauthenticated',
+          );
+          _handleAuthState(null);
+        }
+      }
+    });
   }
 
   Future<void> _initializeAuth() async {
     try {
       // Remove the unnecessary delay - Firebase is already initialized in main()
       if (!mounted) return;
+
+      // Check current user immediately
+      final currentUser = _authService.getCurrentUser();
+      if (currentUser != null) {
+        debugPrint(
+          '[AuthWrapper] Current user found during initialization: ${currentUser.uid}',
+        );
+        await _handleAuthState(currentUser);
+      }
 
       // Add timeout for auth subscription (reduced timeout)
       _authSubscription = _authService.authStateChanges.listen(
@@ -81,6 +109,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
   @override
   void dispose() {
     _authSubscription?.cancel();
+    _periodicCheckTimer?.cancel();
     super.dispose();
   }
 
@@ -105,9 +134,19 @@ class _AuthWrapperState extends State<AuthWrapper> {
       return;
     }
 
-    // Check if profile is already loaded (from main.dart)
+    debugPrint('[AuthWrapper] User is authenticated: ${user.uid}');
+
+    // Check if profile is already loaded (from login/signup flow)
     try {
       final provider = Provider.of<UserProfileProvider>(context, listen: false);
+
+      debugPrint('[AuthWrapper] Checking if profile is already loaded...');
+      debugPrint(
+        '[AuthWrapper] Current profile: ${provider.loggedInUserProfile?.id}',
+      );
+      debugPrint('[AuthWrapper] Expected profile: ${user.uid}');
+
+      // First check if profile is already loaded and matches current user
       if (provider.loggedInUserProfile != null &&
           provider.loggedInUserProfile!.id == user.uid) {
         debugPrint(
@@ -119,12 +158,37 @@ class _AuthWrapperState extends State<AuthWrapper> {
         return;
       }
 
-      // If not loaded, fetch it (for fresh logins) - reduced timeout to 5s
-      debugPrint('[AuthWrapper] Profile not loaded. Loading profile...');
+      debugPrint('[AuthWrapper] Profile not found immediately, waiting...');
+
+      // Add a small delay to allow for profile to be set by login/signup flow
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      debugPrint('[AuthWrapper] After delay - checking profile again...');
+      debugPrint(
+        '[AuthWrapper] Current profile: ${provider.loggedInUserProfile?.id}',
+      );
+
+      // Check again after delay (in case profile was set during login)
+      if (provider.loggedInUserProfile != null &&
+          provider.loggedInUserProfile!.id == user.uid) {
+        debugPrint(
+          '[AuthWrapper] Profile found after delay. Setting state to authenticated.',
+        );
+        if (mounted) {
+          setState(() => _status = AuthStatus.authenticated);
+        }
+        return;
+      }
+
+      debugPrint(
+        '[AuthWrapper] Profile still not found, trying to load from Firestore...',
+      );
+
+      // Only try to load from Firestore if no profile is set (for app startup)
       final bool profileLoaded = await provider
           .loadLoggedInUserProfile()
           .timeout(
-            const Duration(seconds: 5), // Reduced from 15s to 5s
+            const Duration(seconds: 3),
             onTimeout: () {
               debugPrint('[AuthWrapper] Profile loading timed out');
               return false;
@@ -135,37 +199,25 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
       if (profileLoaded) {
         debugPrint(
-          '[AuthWrapper] Profile loaded successfully. Setting state to authenticated.',
+          '[AuthWrapper] Profile loaded successfully from Firestore. Setting state to authenticated.',
         );
         if (mounted) {
           setState(() => _status = AuthStatus.authenticated);
         }
       } else {
         debugPrint(
-          '[AuthWrapper] Profile loading failed or timed out. Signing out.',
+          '[AuthWrapper] Profile loading failed. User may not have a profile yet.',
         );
-        try {
-          await _authService.signOut();
-        } catch (signOutError) {
-          debugPrint('[AuthWrapper] Error signing out: $signOutError');
-        }
+        // Don't sign out immediately, just show error state
         if (mounted) {
           setState(() {
             _status = AuthStatus.error;
-            _errorMessage =
-                'فشل تحميل الملف الشخصي أو انتهت المهلة. تحقق من اتصالك بالإنترنت أو حاول مرة أخرى.';
+            _errorMessage = 'فشل تحميل الملف الشخصي. تأكد من وجود حساب صحيح.';
           });
         }
       }
     } catch (e) {
-      debugPrint(
-        '[AuthWrapper] Error during profile loading: $e. Signing out.',
-      );
-      try {
-        await _authService.signOut();
-      } catch (signOutError) {
-        debugPrint('[AuthWrapper] Error signing out: $signOutError');
-      }
+      debugPrint('[AuthWrapper] Error during profile loading: $e');
       if (mounted) {
         setState(() {
           _status = AuthStatus.error;
@@ -212,34 +264,62 @@ class _AuthWrapperState extends State<AuthWrapper> {
       );
     }
 
-    switch (_status) {
-      case AuthStatus.checking:
-        return Scaffold(
-          backgroundColor: Colors.white,
-          body: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CircularProgressIndicator(color: Colors.black),
-                SizedBox(height: Responsive.space(context, size: Space.medium)),
-                Text(
-                  'جاري التحقق من الحساب...',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.black87,
-                    fontFamily: 'NotoSansArabic',
-                  ),
-                ),
-              ],
-            ),
-          ),
+    // Use Consumer to listen to UserProfileProvider changes
+    return Consumer<UserProfileProvider>(
+      builder: (context, userProfileProvider, child) {
+        debugPrint(
+          '[AuthWrapper] Consumer called - Status: $_status, Profile: ${userProfileProvider.loggedInUserProfile?.id}',
         );
 
-      case AuthStatus.authenticated:
-        // Use a Consumer to ensure the Landing screen is only built after
-        // the UserProfileProvider has been updated and has a valid profile.
-        return Consumer<UserProfileProvider>(
-          builder: (context, userProfileProvider, child) {
+        // Check if we have a logged-in user but are still in checking state
+        if (_status == AuthStatus.checking &&
+            userProfileProvider.loggedInUserProfile != null) {
+          final currentUser = _authService.getCurrentUser();
+          debugPrint(
+            '[AuthWrapper] Checking profile match - Current user: ${currentUser?.uid}, Profile: ${userProfileProvider.loggedInUserProfile!.id}',
+          );
+          if (currentUser != null &&
+              currentUser.uid == userProfileProvider.loggedInUserProfile!.id) {
+            debugPrint(
+              '[AuthWrapper] Consumer detected profile change, setting authenticated state',
+            );
+            // Use a post-frame callback to avoid setState during build
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                setState(() => _status = AuthStatus.authenticated);
+              }
+            });
+          }
+        }
+
+        switch (_status) {
+          case AuthStatus.checking:
+            return Scaffold(
+              backgroundColor: Colors.white,
+              body: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(color: Colors.black),
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.medium),
+                    ),
+                    Text(
+                      'جاري التحقق من الحساب...',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.black87,
+                        fontFamily: 'NotoSansArabic',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+
+          case AuthStatus.authenticated:
+            // Use a Consumer to ensure the Landing screen is only built after
+            // the UserProfileProvider has been updated and has a valid profile.
             if (userProfileProvider.loggedInUserProfile == null) {
               // This state should be brief, show a loading indicator.
               return Scaffold(
@@ -266,51 +346,52 @@ class _AuthWrapperState extends State<AuthWrapper> {
               );
             }
             return const Landing();
-          },
-        );
-      case AuthStatus.unauthenticated:
-        return const FirstLandingScreen();
-      case AuthStatus.error:
-        return Scaffold(
-          backgroundColor: Colors.white,
-          body: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error_outline, color: Colors.red, size: 48),
-                  const SizedBox(height: 16),
-                  Text(
-                    _errorMessage ?? 'حدث خطأ غير متوقع.',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      color: Colors.black87,
-                      fontFamily: 'NotoSansArabic',
-                    ),
+
+          case AuthStatus.unauthenticated:
+            return const FirstLandingScreen();
+
+          case AuthStatus.error:
+            return Scaffold(
+              backgroundColor: Colors.white,
+              body: Center(
+                child: Padding(
+                  padding: Responsive.paddingHorizontal(
+                    context,
+                    size: Space.large,
                   ),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: _retryAuth,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 32,
-                        vertical: 12,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.error_outline, size: 64, color: Colors.red),
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.medium),
                       ),
-                    ),
-                    child: const Text(
-                      'إعادة المحاولة',
-                      style: TextStyle(fontFamily: 'NotoSansArabic'),
-                    ),
+                      Text(
+                        _errorMessage ?? 'حدث خطأ غير متوقع',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.black87,
+                          fontFamily: 'NotoSansArabic',
+                        ),
+                      ),
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.large),
+                      ),
+                      ElevatedButton(
+                        onPressed: _retryAuth,
+                        child: Text(
+                          'إعادة المحاولة',
+                          style: TextStyle(fontFamily: 'NotoSansArabic'),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
-          ),
-        );
-    }
+            );
+        }
+      },
+    );
   }
 }

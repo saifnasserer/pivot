@@ -7,8 +7,9 @@ import 'package:url_launcher/url_launcher.dart';
 
 class BookmarkCard extends StatelessWidget {
   final AnnouncementData bookmark;
+  final VoidCallback? onRemove;
 
-  const BookmarkCard({super.key, required this.bookmark});
+  const BookmarkCard({super.key, required this.bookmark, this.onRemove});
 
   void _showBookmarkBadge(BuildContext context) {
     showDialog(
@@ -54,18 +55,22 @@ class BookmarkCard extends StatelessWidget {
                       ),
                       child: Row(
                         children: [
-                          Material(
-                            color: Colors.transparent,
-                            child: IconButton(
-                              icon: Icon(
-                                Icons.bookmark_remove,
-                                color: Colors.redAccent,
-                                size: 26,
+                          if (onRemove != null)
+                            Material(
+                              color: Colors.transparent,
+                              child: IconButton(
+                                icon: Icon(
+                                  Icons.bookmark_remove,
+                                  color: Colors.redAccent,
+                                  size: 26,
+                                ),
+                                tooltip: 'إزالة من المحفظات',
+                                onPressed: () {
+                                  onRemove!();
+                                  Navigator.of(context).pop();
+                                },
                               ),
-                              tooltip: 'إزالة من المحفظات',
-                              onPressed: () {}, // TODO: implement remove logic
                             ),
-                          ),
                           SizedBox(
                             width: Responsive.space(context, size: Space.small),
                           ),
@@ -594,125 +599,145 @@ class BookmarkDetailsDialog extends StatelessWidget {
                     ],
                   ),
                 ),
-                Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: Responsive.space(context, size: Space.large),
-                    vertical: Responsive.space(context, size: Space.medium),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          Icon(
-                            Icons.calendar_today,
-                            size: 18,
-                            color: Colors.grey[600],
-                          ),
-                          SizedBox(
-                            width: Responsive.space(context, size: Space.tiny),
-                          ),
-                          Text(
-                            date,
-                            style: TextStyle(
-                              fontSize: Responsive.text(
+                // Scrollable content area
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: Responsive.space(context, size: Space.large),
+                      vertical: Responsive.space(context, size: Space.medium),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Icon(
+                              Icons.calendar_today,
+                              size: 18,
+                              color: Colors.grey[600],
+                            ),
+                            SizedBox(
+                              width: Responsive.space(
                                 context,
-                                size: TextSize.small,
+                                size: Space.tiny,
                               ),
-                              color: Colors.grey[700],
-                              fontWeight: FontWeight.w500,
+                            ),
+                            Text(
+                              date,
+                              style: TextStyle(
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.small,
+                                ),
+                                color: Colors.grey[700],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(
+                          height: Responsive.space(context, size: Space.small),
+                        ),
+                        Divider(thickness: 1, color: Colors.grey[200]),
+                        SizedBox(
+                          height: Responsive.space(context, size: Space.small),
+                        ),
+                        Text(
+                          description,
+                          style: TextStyle(
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.medium,
+                            ),
+                            color: Colors.black.withOpacity(0.85),
+                          ),
+                          textAlign: TextAlign.right,
+                        ),
+                        if (imageUrls.isNotEmpty) ...[
+                          SizedBox(
+                            height: Responsive.space(
+                              context,
+                              size: Space.medium,
                             ),
                           ),
+                          // You can reuse _buildImageGallery logic here if needed
                         ],
-                      ),
-                      SizedBox(
-                        height: Responsive.space(context, size: Space.small),
-                      ),
-                      Divider(thickness: 1, color: Colors.grey[200]),
-                      SizedBox(
-                        height: Responsive.space(context, size: Space.small),
-                      ),
-                      Text(
-                        description,
-                        style: TextStyle(
-                          fontSize: Responsive.text(
-                            context,
-                            size: TextSize.medium,
+                        if (links.isNotEmpty) ...[
+                          SizedBox(
+                            height: Responsive.space(
+                              context,
+                              size: Space.medium,
+                            ),
                           ),
-                          color: Colors.black.withOpacity(0.85),
-                        ),
-                        textAlign: TextAlign.right,
-                      ),
-                      if (imageUrls.isNotEmpty) ...[
-                        SizedBox(
-                          height: Responsive.space(context, size: Space.medium),
-                        ),
-                        // You can reuse _buildImageGallery logic here if needed
-                      ],
-                      if (links.isNotEmpty) ...[
-                        SizedBox(
-                          height: Responsive.space(context, size: Space.medium),
-                        ),
-                        // You can reuse _buildLinksList logic here if needed
-                      ],
-                      if (tags.isNotEmpty) ...[
-                        SizedBox(
-                          height: Responsive.space(context, size: Space.medium),
-                        ),
-                        Wrap(
-                          spacing: Responsive.space(context, size: Space.small),
-                          runSpacing: Responsive.space(
-                            context,
-                            size: Space.small,
+                          // You can reuse _buildLinksList logic here if needed
+                        ],
+                        if (tags.isNotEmpty) ...[
+                          SizedBox(
+                            height: Responsive.space(
+                              context,
+                              size: Space.medium,
+                            ),
                           ),
-                          alignment: WrapAlignment.end,
-                          children:
-                              tags.map((tag) {
-                                return Container(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal:
-                                        Responsive.space(
-                                          context,
-                                          size: Space.small,
-                                        ) *
-                                        1.5,
-                                    vertical:
-                                        Responsive.space(
-                                          context,
-                                          size: Space.small,
-                                        ) *
-                                        0.5,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: color.withOpacity(0.08),
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(
-                                      color: color.withOpacity(0.3),
-                                      width: 1,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    tag,
-                                    style: TextStyle(
-                                      fontSize:
-                                          Responsive.text(
+                          Wrap(
+                            spacing: Responsive.space(
+                              context,
+                              size: Space.small,
+                            ),
+                            runSpacing: Responsive.space(
+                              context,
+                              size: Space.small,
+                            ),
+                            alignment: WrapAlignment.end,
+                            children:
+                                tags.map((tag) {
+                                  return Container(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal:
+                                          Responsive.space(
                                             context,
-                                            size: TextSize.small,
+                                            size: Space.small,
                                           ) *
-                                          0.95,
-                                      fontWeight: FontWeight.w500,
-                                      color: Colors.black.withOpacity(0.8),
+                                          1.5,
+                                      vertical:
+                                          Responsive.space(
+                                            context,
+                                            size: Space.small,
+                                          ) *
+                                          0.5,
                                     ),
-                                  ),
-                                );
-                              }).toList(),
+                                    decoration: BoxDecoration(
+                                      color: color.withOpacity(0.08),
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: color.withOpacity(0.3),
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      tag,
+                                      style: TextStyle(
+                                        fontSize:
+                                            Responsive.text(
+                                              context,
+                                              size: TextSize.small,
+                                            ) *
+                                            0.95,
+                                        fontWeight: FontWeight.w500,
+                                        color: Colors.black.withOpacity(0.8),
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                          ),
+                        ],
+                        SizedBox(
+                          height: Responsive.space(context, size: Space.small),
                         ),
                       ],
-                    ],
+                    ),
                   ),
                 ),
-                SizedBox(height: Responsive.space(context, size: Space.small)),
               ],
             ),
           ),

@@ -29,7 +29,7 @@
     <application
         android:label="pivot"
         android:name="${applicationName}"
-        android:icon="@mipmap/launcher_icon"
+        android:icon="@drawable/app_icon"
         android:networkSecurityConfig="@xml/network_security_config"
         android:usesCleartextTraffic="false">
         <service
@@ -71,7 +71,7 @@
             android:value="pivot_notifications" />
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
-            android:resource="@drawable/app_icon" />
+            android:resource="@drawable/ic_notification" />
 
     </application>
 </manifest>

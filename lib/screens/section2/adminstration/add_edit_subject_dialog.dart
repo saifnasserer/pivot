@@ -185,7 +185,7 @@ class _AddEditSubjectDialogState extends State<AddEditSubjectDialog> {
                         _selectedDepartments,
                       );
                       return StatefulBuilder(
-                        builder: (context, setState) {
+                        builder: (context, setDialogState) {
                           return AlertDialog(
                             title: const Text('اختر الأقسام'),
                             content: SizedBox(
@@ -198,7 +198,7 @@ class _AddEditSubjectDialogState extends State<AddEditSubjectDialog> {
                                         value: tempSelected.contains(dep),
                                         title: Text(dep),
                                         onChanged: (checked) {
-                                          setState(() {
+                                          setDialogState(() {
                                             if (checked == true) {
                                               tempSelected.add(dep);
                                             } else {
@@ -212,11 +212,7 @@ class _AddEditSubjectDialogState extends State<AddEditSubjectDialog> {
                             ),
                             actions: [
                               TextButton(
-                                onPressed:
-                                    () => Navigator.pop(
-                                      context,
-                                      _selectedDepartments,
-                                    ),
+                                onPressed: () => Navigator.pop(context, null),
                                 child: const Text('إلغاء'),
                               ),
                               ElevatedButton(
@@ -249,16 +245,23 @@ class _AddEditSubjectDialogState extends State<AddEditSubjectDialog> {
                     ),
                     border: Border.all(color: Colors.grey.shade300),
                   ),
-                  child: Text(
-                    _selectedDepartments.isEmpty
-                        ? 'اختر الأقسام'
-                        : _selectedDepartments.join(', '),
-                    style: TextStyle(
-                      color:
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
                           _selectedDepartments.isEmpty
-                              ? Colors.grey
-                              : Colors.black,
-                    ),
+                              ? 'اختر الأقسام'
+                              : _selectedDepartments.join(', '),
+                          style: TextStyle(
+                            color:
+                                _selectedDepartments.isEmpty
+                                    ? Colors.grey
+                                    : Colors.black,
+                          ),
+                        ),
+                      ),
+                      Icon(Icons.arrow_drop_down, color: Colors.grey[600]),
+                    ],
                   ),
                 ),
               ),

@@ -11,6 +11,7 @@ import 'package:pivot/screens/section1/auth_wrapper.dart';
 import 'package:pivot/services/remote_config_service.dart';
 import 'package:pivot/screens/section2/super_admin_panel/analytics_screen.dart';
 import 'package:pivot/screens/section2/adminstration/feedback_management_screen.dart';
+import 'package:pivot/screens/section2/super_admin_panel/upcoming_notifications_screen.dart';
 
 class SuperAdminPanelScreen extends StatefulWidget {
   const SuperAdminPanelScreen({super.key});
@@ -295,6 +296,16 @@ class _SuperAdminPanelScreenState extends State<SuperAdminPanelScreen> {
               Navigator.pushNamed(context, FeedbackManagementScreen.id);
             },
           ),
+          _buildDivider(),
+          _buildManagementTile(
+            context,
+            Icons.schedule,
+            'الإشعارات المجدولة',
+            'إدارة الإشعارات المجدولة والقادمة',
+            () {
+              Navigator.pushNamed(context, UpcomingNotificationsScreen.id);
+            },
+          ),
         ],
       ),
     );
@@ -434,18 +445,11 @@ class _SuperAdminPanelScreenState extends State<SuperAdminPanelScreen> {
               borderRadius: BorderRadius.circular(16),
             ),
             title: Text(
-              'تسجيل الخروج',
+              'تسجيل الخروج؟',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: Responsive.text(context, size: TextSize.heading),
                 fontWeight: FontWeight.bold,
-              ),
-            ),
-            content: Text(
-              'هل أنت متأكد من تسجيل الخروج؟',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: Responsive.text(context, size: TextSize.medium),
               ),
             ),
             actions: [
@@ -455,7 +459,9 @@ class _SuperAdminPanelScreenState extends State<SuperAdminPanelScreen> {
                   Container(
                     decoration: BoxDecoration(
                       color: Colors.red,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(
+                        Responsive.space(context, size: Space.large),
+                      ),
                     ),
                     child: TextButton(
                       child: Text(
@@ -482,27 +488,21 @@ class _SuperAdminPanelScreenState extends State<SuperAdminPanelScreen> {
                   SizedBox(
                     width: Responsive.space(context, size: Space.medium),
                   ),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.grey[200],
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: TextButton(
-                      child: Text(
-                        'إلغاء',
-                        style: TextStyle(
-                          color: Colors.black87,
-                          fontSize: Responsive.text(
-                            context,
-                            size: TextSize.medium,
-                          ),
-                          fontWeight: FontWeight.bold,
+                  TextButton(
+                    child: Text(
+                      'إلغاء',
+                      style: TextStyle(
+                        color: Colors.black87,
+                        fontSize: Responsive.text(
+                          context,
+                          size: TextSize.medium,
                         ),
+                        fontWeight: FontWeight.bold,
                       ),
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                      },
                     ),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
                   ),
                 ],
               ),

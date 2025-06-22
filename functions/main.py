@@ -49,6 +49,13 @@ def send_notification(req: https_fn.Request) -> https_fn.Response:
         icon = data.get("icon", "ic_launcher")  # Default to app icon
         color = data.get("color", "#000000")    # Default to black
         sound = data.get("sound", "default")    # Default sound
+        
+        # Extract custom data payload, ensuring all values are strings
+        custom_data = data.get("data", {})
+        if not isinstance(custom_data, dict):
+            custom_data = {}
+
+        string_custom_data = {k: str(v) for k, v in custom_data.items()}
 
         if not token:
             return https_fn.Response(
@@ -80,6 +87,7 @@ def send_notification(req: https_fn.Request) -> https_fn.Response:
             notification=notification,
             android=android_config,
             token=token,
+            data=string_custom_data,
         )
 
         response = messaging.send(message)

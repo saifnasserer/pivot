@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
+import 'package:pivot/screens/section1/auth_wrapper.dart';
 import 'package:pivot/screens/section1/first_landing.dart';
 import 'package:pivot/screens/section2/adminstration/user_management_page.dart';
 import 'package:pivot/screens/section2/adminstration/global_subject_management_screen.dart';
@@ -33,12 +34,26 @@ Future<void> profile_options(BuildContext context) async {
     ),
 
     PopupMenuItem<String>(
+      value: 'notification_settings',
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Row(
+          children: [
+            Icon(Icons.notifications_outlined, color: Colors.white),
+            SizedBox(width: Responsive.space(context, size: Space.small)),
+            Text('إعدادات الإشعارات', style: TextStyle(color: Colors.white)),
+          ],
+        ),
+      ),
+    ),
+
+    PopupMenuItem<String>(
       value: 'feedback',
       child: Directionality(
         textDirection: TextDirection.rtl,
         child: Row(
           children: [
-            Icon(Icons.feedback_outlined, color: Colors.white),
+            Icon(Icons.mic, color: Colors.white),
             SizedBox(width: Responsive.space(context, size: Space.small)),
             Text('إرسال ملاحظات', style: TextStyle(color: Colors.white)),
           ],
@@ -166,12 +181,15 @@ Future<void> profile_options(BuildContext context) async {
         Navigator.pushNamed(context, EditProfile.id, arguments: userProfile);
       }
       break;
+    case 'notification_settings':
+      await _showNotificationSettingsDialog(context);
+      break;
     case 'feedback':
       Navigator.pushNamed(context, FeedbackScreen.id);
       break;
-    case 'notification_permissions':
-      await _handleNotificationPermissions(context);
-      break;
+    // case 'notification_permissions':
+    //   await _handleNotificationPermissions(context);
+    //   break;
     case 'select_subjects':
       await Navigator.push(
         context,
@@ -209,42 +227,53 @@ Future<void> _showLogoutConfirmationDialog(BuildContext context) async {
         textDirection: TextDirection.rtl,
         child: AlertDialog(
           title: const Text('تسجيل الخروج؟', textAlign: TextAlign.center),
-          content: const SingleChildScrollView(
-            // child: ListBody(
-            //   children: <Widget>[
-            //     Text('هل أنت متأكد أنك تريد تسجيل الخروج؟'),
-            //   ],
-            // ),
-          ),
+
           actions: <Widget>[
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                TextButton(
-                  style: ButtonStyle(
-                    backgroundColor: WidgetStatePropertyAll(Colors.red),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.circular(
+                      Responsive.space(context, size: Space.large),
+                    ),
                   ),
-                  onPressed: () {
-                    Navigator.of(dialogContext).pop();
-                  },
-                  child: const Text(
-                    'إلغاء',
-                    style: TextStyle(color: Colors.white),
+                  child: TextButton(
+                    onPressed: () async {
+                      await FirebaseAuth.instance.signOut();
+                      if (!context.mounted) return;
+                      Navigator.of(context).pushNamedAndRemoveUntil(
+                        AuthWrapper.id,
+                        (Route<dynamic> route) => false,
+                      );
+                    },
+                    child: Text(
+                      'تأكيد',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: Responsive.text(
+                          context,
+                          size: TextSize.medium,
+                        ),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
-                SizedBox(width: Responsive.space(context, size: Space.large)),
+                SizedBox(width: Responsive.space(context, size: Space.medium)),
                 TextButton(
-                  style: ButtonStyle(
-                    backgroundColor: WidgetStatePropertyAll(Colors.green),
+                  child: Text(
+                    'إلغاء',
+                    style: TextStyle(
+                      color: Colors.black87,
+                      fontSize: Responsive.text(context, size: TextSize.medium),
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                  onPressed: () async {
-                    Navigator.of(dialogContext).pop();
-                    await _performLogout(context);
+                  onPressed: () {
+                    Navigator.of(context).pop();
                   },
-                  child: const Text(
-                    'تأكيد',
-                    style: TextStyle(color: Colors.white),
-                  ),
                 ),
               ],
             ),
@@ -255,47 +284,191 @@ Future<void> _showLogoutConfirmationDialog(BuildContext context) async {
   );
 }
 
-// Perform logout
-Future<void> _performLogout(BuildContext context) async {
-  final storage = const FlutterSecureStorage();
-  await storage.deleteAll();
-  await FirebaseAuth.instance.signOut();
+Future<void> _showNotificationSettingsDialog(BuildContext context) async {
+  bool classNotifications = true;
+  bool taskNotifications = true;
+  bool announcementNotifications = true;
 
-  if (context.mounted) {
-    Provider.of<UserProfileProvider>(context, listen: false).clearProfile();
+  return showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: Text(
+              'إعدادات الإشعارات',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: Responsive.text(context, size: TextSize.heading),
+              ),
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Permission check
+                  FutureBuilder<bool>(
+                    future: PermissionService.checkNotificationPermission(),
+                    builder: (context, snapshot) {
+                      final hasPermission = snapshot.data ?? false;
+                      return Container(
+                        padding: EdgeInsets.all(
+                          Responsive.space(context, size: Space.small),
+                        ),
+                        decoration: BoxDecoration(
+                          color:
+                              hasPermission
+                                  ? Colors.green.shade50
+                                  : Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color:
+                                hasPermission
+                                    ? Colors.green.shade200
+                                    : Colors.red.shade200,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              hasPermission ? Icons.check_circle : Icons.error,
+                              color: hasPermission ? Colors.green : Colors.red,
+                              size: 20,
+                            ),
+                            SizedBox(
+                              width: Responsive.space(
+                                context,
+                                size: Space.small,
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                hasPermission
+                                    ? 'صلاحية الإشعارات مفعلة'
+                                    : 'صلاحية الإشعارات مطلوبة',
+                                style: TextStyle(
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.small,
+                                  ),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                            if (!hasPermission)
+                              TextButton(
+                                onPressed: () async {
+                                  await PermissionService.showNotificationPermissionDialog(
+                                    context,
+                                  );
+                                  setState(() {}); // Refresh the dialog
+                                },
+                                child: Text('تفعيل'),
+                              ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.medium),
+                  ),
 
-    Navigator.pushNamedAndRemoveUntil(
-      context,
-      FirstLandingScreen.id,
-      (Route<dynamic> route) => false,
-    );
-  }
+                  // Notification types
+                  Text(
+                    'أنواع الإشعارات',
+                    style: TextStyle(
+                      fontSize: Responsive.text(context, size: TextSize.medium),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.small),
+                  ),
+
+                  // Class notifications
+                  SwitchListTile(
+                    title: Text('تذكيرات المحاضرات'),
+                    subtitle: Text('إشعارات قبل 15 دقيقة من المحاضرة'),
+                    value: classNotifications,
+                    onChanged: (value) {
+                      setState(() {
+                        classNotifications = value;
+                      });
+                    },
+                    secondary: Icon(Icons.school),
+                  ),
+
+                  // Task notifications
+                  SwitchListTile(
+                    title: Text('تذكيرات المهام'),
+                    subtitle: Text('إشعارات للمهام المستحقة والمتأخرة'),
+                    value: taskNotifications,
+                    onChanged: (value) {
+                      setState(() {
+                        taskNotifications = value;
+                      });
+                    },
+                    secondary: Icon(Icons.assignment),
+                  ),
+
+                  // Announcement notifications
+                  SwitchListTile(
+                    title: Text('إشعارات الإعلانات'),
+                    subtitle: Text('إشعارات الإعلانات الجديدة'),
+                    value: announcementNotifications,
+                    onChanged: (value) {
+                      setState(() {
+                        announcementNotifications = value;
+                      });
+                    },
+                    secondary: Icon(Icons.announcement),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text('إلغاء'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  // Save notification preferences
+                  _saveNotificationPreferences(
+                    classNotifications: classNotifications,
+                    taskNotifications: taskNotifications,
+                    announcementNotifications: announcementNotifications,
+                  );
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('تم حفظ إعدادات الإشعارات'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                },
+                child: Text('حفظ'),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
 }
 
-// Handle notification permissions
-Future<void> _handleNotificationPermissions(BuildContext context) async {
-  if (kIsWeb) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('الإشعارات غير متوفرة على المتصفح'),
-        backgroundColor: Colors.orange,
-      ),
-    );
-    return;
-  }
-
-  // Use existing static method from PermissionService
-  bool granted = await PermissionService.requestStoragePermission();
-
-  if (!granted) {
-    // Show dialog to open settings if permission denied
-    await PermissionService.requestStoragePermissionWithRationale(context);
-  } else {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('تم تفعيل الإشعارات بنجاح'),
-        backgroundColor: Colors.green,
-      ),
-    );
-  }
+void _saveNotificationPreferences({
+  required bool classNotifications,
+  required bool taskNotifications,
+  required bool announcementNotifications,
+}) {
+  // Save to SharedPreferences or other storage
+  // This is a placeholder - implement actual storage logic
+  print('Saving notification preferences:');
+  print('Class notifications: $classNotifications');
+  print('Task notifications: $taskNotifications');
+  print('Announcement notifications: $announcementNotifications');
 }
