@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 part 'user_profile.g.dart';
 
 @HiveType(typeId: 0)
@@ -48,6 +47,9 @@ class UserProfile extends HiveObject {
   @HiveField(13)
   DateTime? lastTokenUpdate;
 
+  @HiveField(14)
+  NotificationPreferences notificationPreferences;
+
   UserProfile({
     required this.id,
     required this.name,
@@ -63,6 +65,7 @@ class UserProfile extends HiveObject {
     this.gender = 'ذكر',
     this.fcmToken,
     this.lastTokenUpdate,
+    this.notificationPreferences = const NotificationPreferences(),
   });
 
   // Optional: copyWith method for easier updates
@@ -81,6 +84,7 @@ class UserProfile extends HiveObject {
     String? gender,
     String? fcmToken,
     DateTime? lastTokenUpdate,
+    NotificationPreferences? notificationPreferences,
   }) {
     return UserProfile(
       id: id ?? this.id,
@@ -97,6 +101,8 @@ class UserProfile extends HiveObject {
       gender: gender ?? this.gender,
       fcmToken: fcmToken ?? this.fcmToken,
       lastTokenUpdate: lastTokenUpdate ?? this.lastTokenUpdate,
+      notificationPreferences:
+          notificationPreferences ?? this.notificationPreferences,
     );
   }
 
@@ -130,6 +136,9 @@ class UserProfile extends HiveObject {
       gender: json['gender'] as String? ?? 'ذكر',
       fcmToken: json['fcmToken'] as String?,
       lastTokenUpdate: parseLastTokenUpdate(json['lastTokenUpdate']),
+      notificationPreferences: NotificationPreferences.fromJson(
+        json['notificationPreferences'] ?? {},
+      ),
     );
   }
 
@@ -150,6 +159,7 @@ class UserProfile extends HiveObject {
       'gender': gender,
       'fcmToken': fcmToken,
       'lastTokenUpdate': lastTokenUpdate?.millisecondsSinceEpoch,
+      'notificationPreferences': notificationPreferences.toJson(),
     };
   }
 
@@ -171,7 +181,8 @@ class UserProfile extends HiveObject {
         other.aboutMe == aboutMe &&
         other.gender == gender &&
         other.fcmToken == fcmToken &&
-        other.lastTokenUpdate == lastTokenUpdate;
+        other.lastTokenUpdate == lastTokenUpdate &&
+        other.notificationPreferences == notificationPreferences;
   }
 
   @override
@@ -191,6 +202,49 @@ class UserProfile extends HiveObject {
       gender,
       fcmToken,
       lastTokenUpdate,
+      notificationPreferences.hashCode,
+    );
+  }
+}
+
+class NotificationPreferences {
+  final bool taskReminders;
+  final bool classReminders;
+  final bool announcements;
+  final bool departmentNotifications;
+  final bool levelNotifications;
+  final int maxNotificationsPerHour;
+  final bool welcomeNotification;
+
+  const NotificationPreferences({
+    this.taskReminders = true,
+    this.classReminders = true,
+    this.announcements = true,
+    this.departmentNotifications = true,
+    this.levelNotifications = true,
+    this.maxNotificationsPerHour = 10,
+    this.welcomeNotification = true,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'taskReminders': taskReminders,
+    'classReminders': classReminders,
+    'announcements': announcements,
+    'departmentNotifications': departmentNotifications,
+    'levelNotifications': levelNotifications,
+    'maxNotificationsPerHour': maxNotificationsPerHour,
+    'welcomeNotification': welcomeNotification,
+  };
+
+  factory NotificationPreferences.fromJson(Map<String, dynamic> json) {
+    return NotificationPreferences(
+      taskReminders: json['taskReminders'] ?? true,
+      classReminders: json['classReminders'] ?? true,
+      announcements: json['announcements'] ?? true,
+      departmentNotifications: json['departmentNotifications'] ?? true,
+      levelNotifications: json['levelNotifications'] ?? true,
+      maxNotificationsPerHour: json['maxNotificationsPerHour'] ?? 10,
+      welcomeNotification: json['welcomeNotification'] ?? true,
     );
   }
 }

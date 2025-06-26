@@ -1,6 +1,7 @@
 import 'package:hive/hive.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+part 'announcement_data.g.dart';
 
 /// Data class for announcements, compatible with Firestore
 @HiveType(typeId: 5)
@@ -36,7 +37,7 @@ class AnnouncementData extends HiveObject {
     this.id,
     required this.title,
     required this.date,
-    required Color color,
+    Color? color,
     required this.description,
     required this.tags,
     DateTime? timestamp,
@@ -46,7 +47,7 @@ class AnnouncementData extends HiveObject {
     this.draft = false,
     DateTime? publishAt,
     DateTime? expireAt,
-  }) : colorValue = color.value,
+  }) : colorValue = color?.value ?? 0xFFFFFFFF,
        timestampMillis = (timestamp ?? DateTime.now()).millisecondsSinceEpoch,
        publishAtMillis = publishAt?.millisecondsSinceEpoch,
        expireAtMillis = expireAt?.millisecondsSinceEpoch;
@@ -134,6 +135,17 @@ class AnnouncementData extends HiveObject {
   // Create an AnnouncementData object from a Firestore document
   factory AnnouncementData.fromFirestore(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+
+    DateTime parseDate(dynamic value) {
+      if (value is Timestamp) {
+        return value.toDate();
+      } else if (value is int) {
+        return DateTime.fromMillisecondsSinceEpoch(value);
+      } else {
+        return DateTime.now();
+      }
+    }
+
     return AnnouncementData(
       id: doc.id,
       title: data['title'] ?? '',
@@ -141,7 +153,7 @@ class AnnouncementData extends HiveObject {
       color: Color(data['color'] ?? 0xFFFFFFFF),
       description: data['description'] ?? '',
       tags: List<String>.from(data['tags'] ?? []),
-      timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      timestamp: parseDate(data['timestamp']),
       imageUrls: List<String>.from(data['imageUrls'] ?? []),
       links: List<Map<String, String>>.from(
         (data['links'] ?? []).map((item) => Map<String, String>.from(item)),
@@ -149,77 +161,8 @@ class AnnouncementData extends HiveObject {
       pinned: data['pinned'] ?? false,
       draft: data['draft'] ?? false,
       publishAt:
-          data['publishAt'] != null
-              ? (data['publishAt'] as Timestamp).toDate()
-              : null,
-      expireAt:
-          data['expireAt'] != null
-              ? (data['expireAt'] as Timestamp).toDate()
-              : null,
+          data['publishAt'] != null ? parseDate(data['publishAt']) : null,
+      expireAt: data['expireAt'] != null ? parseDate(data['expireAt']) : null,
     );
-  }
-}
-
-// Custom Hive adapter to handle null safety properly
-class AnnouncementDataAdapter extends TypeAdapter<AnnouncementData> {
-  @override
-  final int typeId = 5;
-
-  @override
-  AnnouncementData read(BinaryReader reader) {
-    final numOfFields = reader.readByte();
-    final fields = <int, dynamic>{
-      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
-    };
-    return AnnouncementData.fromHive(
-      id: fields[0] as String?,
-      title: fields[1] as String,
-      date: fields[2] as String,
-      colorValue: fields[3] as int,
-      description: fields[4] as String,
-      tags: (fields[5] as List).cast<String>(),
-      timestampMillis: fields[6] as int,
-      imageUrls: (fields[7] as List).cast<String>(),
-      links:
-          (fields[8] as List)
-              .map((dynamic e) => (e as Map).cast<String, String>())
-              .toList(),
-      pinned: fields[9] as bool? ?? false,
-      draft: fields[10] as bool? ?? false,
-      publishAtMillis: fields[11] as int?,
-      expireAtMillis: fields[12] as int?,
-    );
-  }
-
-  @override
-  void write(BinaryWriter writer, AnnouncementData obj) {
-    writer
-      ..writeByte(13)
-      ..writeByte(0)
-      ..write(obj.id)
-      ..writeByte(1)
-      ..write(obj.title)
-      ..writeByte(2)
-      ..write(obj.date)
-      ..writeByte(3)
-      ..write(obj.colorValue)
-      ..writeByte(4)
-      ..write(obj.description)
-      ..writeByte(5)
-      ..write(obj.tags)
-      ..writeByte(6)
-      ..write(obj.timestampMillis)
-      ..writeByte(7)
-      ..write(obj.imageUrls)
-      ..writeByte(8)
-      ..write(obj.links)
-      ..writeByte(9)
-      ..write(obj.pinned)
-      ..writeByte(10)
-      ..write(obj.draft)
-      ..writeByte(11)
-      ..write(obj.publishAtMillis)
-      ..writeByte(12)
-      ..write(obj.expireAtMillis);
   }
 }

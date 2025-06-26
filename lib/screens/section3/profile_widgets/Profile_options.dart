@@ -1,17 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/screens/section1/auth_wrapper.dart';
-import 'package:pivot/screens/section1/first_landing.dart';
 import 'package:pivot/screens/section2/adminstration/user_management_page.dart';
 import 'package:pivot/screens/section2/adminstration/global_subject_management_screen.dart';
 import 'package:pivot/screens/section3/edit_profile.dart' show EditProfile;
 import 'package:pivot/screens/section3/subject_selection_screen.dart';
 import 'package:pivot/screens/section3/feedback_screen.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pivot/services/permission_service.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:pivot/responsive.dart';
 
 Future<void> profile_options(BuildContext context) async {

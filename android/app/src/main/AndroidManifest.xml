@@ -31,7 +31,8 @@
         android:name="${applicationName}"
         android:icon="@drawable/app_icon"
         android:networkSecurityConfig="@xml/network_security_config"
-        android:usesCleartextTraffic="false">
+        android:usesCleartextTraffic="false"
+        android:enableOnBackInvokedCallback="true">
         <service
             android:name="me.carda.awesome_notifications.services.AwesomeNotificationForegroundService"
             android:exported="false" />

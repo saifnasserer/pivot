@@ -6,6 +6,8 @@ import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/providers/settings_provider.dart';
 import 'package:pivot/providers/super_admin_provider.dart';
 import 'package:pivot/providers/guide_provider.dart';
+import 'package:pivot/screens/section2/team_formation_screen.dart';
+import 'package:pivot/screens/section2/teams.dart';
 import 'package:pivot/screens/section3/edit_profile.dart';
 import 'package:pivot/services/remote_config_service.dart';
 import 'package:pivot/responsive.dart';
@@ -54,9 +56,26 @@ import 'package:pivot/screens/section3/feedback_screen.dart';
 import 'package:pivot/screens/models/notification_test_widget.dart';
 import 'package:pivot/screens/section2/adminstration/feedback_management_screen.dart';
 import 'package:pivot/screens/section2/super_admin_panel/upcoming_notifications_screen.dart';
+import 'package:pivot/providers/team_provider.dart';
+import 'package:pivot/providers/teams_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+
+  // Initialize notification services
+  final notificationTrigger = NotificationTriggerService();
+  notificationTrigger.startBatchProcessing();
+
+  // Start periodic notification checks
+  Timer.periodic(const Duration(minutes: 15), (_) {
+    notificationTrigger.checkAndSendPeriodicNotifications();
+  });
+
+  // Clean up old notifications daily
+  Timer.periodic(const Duration(days: 1), (_) {
+    notificationTrigger.cleanupOldNotifications();
+  });
 
   // Essential initializations only - these are required for app to function
   try {
@@ -64,18 +83,6 @@ void main() async {
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
     ]);
-
-    // Initialize Firebase (essential)
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-
-    // Initialize Firebase App Check (essential for security)
-    await FirebaseAppCheck.instance.activate(
-      webProvider: ReCaptchaV3Provider('your-recaptcha-site-key'),
-      androidProvider: AndroidProvider.debug,
-      appleProvider: AppleProvider.appAttest,
-    );
 
     // Initialize Arabic date formatting (essential for UI)
     await initializeDateFormatting('ar');
@@ -187,6 +194,8 @@ class Pivot extends StatelessWidget {
         Provider<RemoteConfigService>(
           create: (_) => RemoteConfigService.instance,
         ),
+        ChangeNotifierProvider(create: (_) => TeamProvider()),
+        ChangeNotifierProvider(create: (_) => TeamsProvider()),
       ],
       child: MaterialApp(
         onGenerateRoute: (settings) {
@@ -253,6 +262,8 @@ class Pivot extends StatelessWidget {
           '/section-management': (context) => const SectionManagementScreen(),
           '/super-admin-panel': (context) => const SuperAdminPanelScreen(),
           '/send-notifications': (context) => const SendNotificationScreen(),
+          TeamFormationScreen.id: (context) => const TeamFormationScreen(),
+          TeamsScreen.id: (context) => const TeamsScreen(),
           GlobalSubjectManagementScreen.id:
               (context) => const GlobalSubjectManagementScreen(),
           AssistantProfile.id: (context) => const AssistantProfile(),
@@ -291,13 +302,33 @@ class Pivot extends StatelessWidget {
               fontWeight: FontWeight.bold,
             ),
           ),
+          dropdownMenuTheme: DropdownMenuThemeData(
+            menuStyle: MenuStyle(
+              shape: WidgetStatePropertyAll(
+                RoundedRectangleBorder(
+                  borderRadius: BorderRadius.all(
+                    Radius.circular(
+                      Responsive.space(context, size: Space.large),
+                    ),
+                  ),
+                ),
+              ),
+              alignment: AlignmentDirectional.centerEnd,
+            ),
+            textStyle: TextStyle(
+              fontFamily: 'NotoSansArabic',
+              fontSize: Responsive.text(context, size: TextSize.medium),
+              color: Colors.black,
+              locale: Locale('ar'),
+            ),
+          ),
         ),
         debugShowCheckedModeBanner: false,
         home: const AuthWrapper(), // Ensure AuthWrapper is the home
         builder: (context, child) {
           // Add error boundary
           return MediaQuery(
-            data: MediaQuery.of(context).copyWith(textScaleFactor: 1.0),
+            data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(1.0)),
             child: child!,
           );
         },
@@ -369,8 +400,11 @@ class _PivotWithNotificationsState extends State<PivotWithNotifications> {
 
   @override
   Widget build(BuildContext context) {
-    return ErrorBoundary(
-      child: Pivot(userProfileProvider: widget.userProfileProvider),
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: ErrorBoundary(
+        child: Pivot(userProfileProvider: widget.userProfileProvider),
+      ),
     );
   }
 }

@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:pivot/models/section_model.dart';
 import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/providers/section_provider.dart';
-import 'package:pivot/responsive.dart';
 
 class AddEditSectionDialog extends StatefulWidget {
   final List<Subject> subjects;

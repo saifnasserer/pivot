@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/models/task.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:pivot/screens/models/card_model.dart';
 
 class TaskDetailsDialog extends StatelessWidget {

@@ -14,13 +14,44 @@ class UserProfileProvider with ChangeNotifier {
   List<UserProfile> _allUsers = [];
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-
+  final Map<String, UserProfile> _userProfilesCache = {};
   bool _isLoading = false;
+  String? _error;
 
   UserProfile? get userProfile => _userProfile;
   UserProfile? get loggedInUserProfile => _loggedInUserProfile;
   List<UserProfile> get allUsers => _allUsers;
   bool get isLoading => _isLoading;
+  String? get error => _error;
+
+  // Add cache getter
+  Map<String, UserProfile> get userProfilesCache => _userProfilesCache;
+
+  // Add method to get user profile by ID
+  Future<UserProfile?> getUserProfileById(String userId) async {
+    if (_userProfilesCache.containsKey(userId)) {
+      return _userProfilesCache[userId];
+    }
+
+    try {
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userId)
+              .get();
+
+      if (!doc.exists) {
+        return null;
+      }
+
+      final profile = UserProfile.fromJson(doc.data()!);
+      _userProfilesCache[userId] = profile;
+      return profile;
+    } catch (e) {
+      debugPrint('Error fetching user profile: $e');
+      return null;
+    }
+  }
 
   // Sets the profile to be viewed on a screen
   void setUserProfile(UserProfile profile) {

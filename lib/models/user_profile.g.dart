@@ -31,13 +31,14 @@ class UserProfileAdapter extends TypeAdapter<UserProfile> {
       gender: fields[11] as String,
       fcmToken: fields[12] as String?,
       lastTokenUpdate: fields[13] as DateTime?,
+      notificationPreferences: fields[14] as NotificationPreferences,
     );
   }
 
   @override
   void write(BinaryWriter writer, UserProfile obj) {
     writer
-      ..writeByte(14)
+      ..writeByte(15)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -65,7 +66,9 @@ class UserProfileAdapter extends TypeAdapter<UserProfile> {
       ..writeByte(12)
       ..write(obj.fcmToken)
       ..writeByte(13)
-      ..write(obj.lastTokenUpdate);
+      ..write(obj.lastTokenUpdate)
+      ..writeByte(14)
+      ..write(obj.notificationPreferences);
   }
 
   @override

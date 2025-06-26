@@ -26,6 +26,7 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
   final Map<int, bool> _expandedState = {};
   late Set<String> _selectedSubjectIds;
   bool _showEnglish = false; // Language toggle
+  static const int maxHours = 18; // Maximum allowed hours
 
   @override
   void initState() {
@@ -34,6 +35,58 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<SubjectProvider>(context, listen: false).fetchAllSubjects();
       Provider.of<GuideProvider>(context, listen: false).fetchGuideContent();
+    });
+  }
+
+  int _calculateTotalHours() {
+    final subjectProvider = Provider.of<SubjectProvider>(
+      context,
+      listen: false,
+    );
+    int totalHours = 0;
+    for (final subjectId in _selectedSubjectIds) {
+      final subject = subjectProvider.allSubjects.firstWhere(
+        (s) => s.id == subjectId,
+        orElse:
+            () => Subject(
+              id: '',
+              name: '',
+              hours: 0,
+              year: 1,
+              departments: [],
+              englishName: '',
+            ),
+      );
+      totalHours += subject.hours;
+    }
+    return totalHours;
+  }
+
+  bool _canAddSubject(Subject subject) {
+    if (_selectedSubjectIds.contains(subject.id)) return true;
+    final currentHours = _calculateTotalHours();
+    return (currentHours + subject.hours) <= maxHours;
+  }
+
+  void _toggleSubjectSelection(Subject subject) {
+    setState(() {
+      if (_selectedSubjectIds.contains(subject.id)) {
+        _selectedSubjectIds.remove(subject.id);
+      } else {
+        if (_canAddSubject(subject)) {
+          _selectedSubjectIds.add(subject.id);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'لا يمكن إضافة هذه المادة. الحد الأقصى للساعات هو $maxHours ساعة',
+              ),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
     });
   }
 
@@ -60,15 +113,7 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
         ],
       ),
       child: InkWell(
-        onTap: () {
-          setState(() {
-            if (_selectedSubjectIds.contains(subject.id)) {
-              _selectedSubjectIds.remove(subject.id);
-            } else {
-              _selectedSubjectIds.add(subject.id);
-            }
-          });
-        },
+        onTap: () => _toggleSubjectSelection(subject),
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: Responsive.padding(context, size: Space.large),
@@ -107,7 +152,7 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            'القسم: ${subject.department}',
+                            'القسم: ${subject.departments.join(', ')}',
                             style: TextStyle(
                               color: Colors.black87,
                               fontWeight: FontWeight.w500,
@@ -134,7 +179,7 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            'ساعات: ${subject.code}',
+                            'ساعات: ${subject.hours}',
                             style: TextStyle(
                               color: Colors.grey[700],
                               fontWeight: FontWeight.w500,
@@ -537,6 +582,43 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
           backgroundColor: Colors.white,
           elevation: 0,
           iconTheme: const IconThemeData(color: Colors.black),
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(40),
+            child: Consumer<SubjectProvider>(
+              builder: (context, subjectProvider, child) {
+                final totalHours = _calculateTotalHours();
+                final isOverLimit = totalHours > maxHours;
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.access_time,
+                        size: 16,
+                        color: isOverLimit ? Colors.red : Colors.grey[600],
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'الساعات المختارة: $totalHours / $maxHours',
+                        style: TextStyle(
+                          fontSize: Responsive.text(
+                            context,
+                            size: TextSize.small,
+                          ),
+                          fontWeight: FontWeight.w500,
+                          color: isOverLimit ? Colors.red : Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
           actions: [
             IconButton(
               icon: Icon(_showEnglish ? Icons.language : Icons.translate),
@@ -582,7 +664,12 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
         body: _buildSubjectsList(),
         floatingActionButton: Container(
           decoration: BoxDecoration(
-            color: _saveSuccess ? Colors.green : Colors.black,
+            color:
+                _saveSuccess
+                    ? Colors.green
+                    : _calculateTotalHours() > maxHours
+                    ? Colors.red
+                    : Colors.black,
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
@@ -595,7 +682,7 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
           ),
           child: FloatingActionButton(
             onPressed:
-                _isSaving
+                _isSaving || _calculateTotalHours() > maxHours
                     ? null
                     : () async {
                       setState(() {
@@ -681,7 +768,7 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
             backgroundColor: Colors.transparent,
             elevation: 0,
             child:
-                _isSaving
+                _isSaving || _calculateTotalHours() > maxHours
                     ? const SizedBox(
                       width: 24,
                       height: 24,

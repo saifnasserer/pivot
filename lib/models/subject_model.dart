@@ -8,13 +8,13 @@ class Subject extends HiveObject {
   @HiveField(1)
   final String name;
   @HiveField(2)
-  final String code;
+  final int hours;
   @HiveField(3)
   final int year;
   @HiveField(4)
   final String? doctorId;
   @HiveField(5)
-  final String department;
+  final List<String> departments;
   @HiveField(6)
   final String? description;
   @HiveField(7)
@@ -25,10 +25,10 @@ class Subject extends HiveObject {
   Subject({
     required this.id,
     required this.name,
-    required this.code,
+    required this.hours,
     required this.year,
     this.doctorId,
-    required this.department,
+    required this.departments,
     this.description,
     this.enrolledStudents = const [],
     required this.englishName,
@@ -37,10 +37,10 @@ class Subject extends HiveObject {
   Subject copyWith({
     String? id,
     String? name,
-    String? code,
+    int? hours,
     int? year,
     String? doctorId,
-    String? department,
+    List<String>? departments,
     String? description,
     List<String>? enrolledStudents,
     String? englishName,
@@ -48,10 +48,10 @@ class Subject extends HiveObject {
     return Subject(
       id: id ?? this.id,
       name: name ?? this.name,
-      code: code ?? this.code,
+      hours: hours ?? this.hours,
       year: year ?? this.year,
       doctorId: doctorId ?? this.doctorId,
-      department: department ?? this.department,
+      departments: departments ?? this.departments,
       description: description ?? this.description,
       enrolledStudents: enrolledStudents ?? this.enrolledStudents,
       englishName: englishName ?? this.englishName,
@@ -59,13 +59,25 @@ class Subject extends HiveObject {
   }
 
   factory Subject.fromJson(Map<String, dynamic> json, String id) {
+    final dynamic rawHours = json['hours'] ?? json['code'] ?? 0;
+    int hours;
+    if (rawHours is int) {
+      hours = rawHours;
+    } else if (rawHours is String) {
+      hours = int.tryParse(rawHours) ?? 0;
+    } else {
+      hours = 0;
+    }
     return Subject(
       id: id,
       name: json['name'] as String,
-      code: json['code'] as String,
+      hours: hours,
       year: json['year'] as int,
       doctorId: json['doctorId'] as String?,
-      department: json['department'] as String,
+      departments: List<String>.from(
+        json['departments'] ??
+            (json['department'] != null ? [json['department']] : []),
+      ),
       description: json['description'] as String?,
       enrolledStudents: List<String>.from(json['enrolledStudents'] ?? []),
       englishName: json['englishName'] as String? ?? '',
@@ -75,10 +87,10 @@ class Subject extends HiveObject {
   Map<String, dynamic> toJson() {
     return {
       'name': name,
-      'code': code,
+      'hours': hours,
       'year': year,
       'doctorId': doctorId,
-      'department': department,
+      'departments': departments,
       'description': description,
       'enrolledStudents': enrolledStudents,
       'englishName': englishName,

@@ -83,33 +83,33 @@ class _GlobalSubjectManagementScreenState
                       ),
                       Row(
                         children: [
-                          Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: Responsive.space(
-                                context,
-                                size: Space.small,
-                              ),
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.grey[200],
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              subject.department,
-                              style: TextStyle(
-                                color: Colors.black87,
-                                fontWeight: FontWeight.bold,
-                                fontSize: Responsive.text(
+                          ...subject.departments.map(
+                            (dep) => Container(
+                              margin: EdgeInsets.only(right: 4),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: Responsive.space(
                                   context,
-                                  size: TextSize.small,
+                                  size: Space.small,
+                                ),
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[200],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                dep,
+                                style: TextStyle(
+                                  color: Colors.black87,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.small,
+                                  ),
                                 ),
                               ),
                             ),
                           ),
-                          SizedBox(
-                            width: Responsive.space(context, size: Space.small),
-                          ),
                           Container(
                             padding: EdgeInsets.symmetric(
                               horizontal: Responsive.space(
@@ -123,7 +123,7 @@ class _GlobalSubjectManagementScreenState
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
-                              'ساعات: ${subject.code}',
+                              'ساعات: ${subject.hours}',
                               style: TextStyle(
                                 color: Colors.grey[700],
                                 fontWeight: FontWeight.w500,

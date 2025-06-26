@@ -19,10 +19,10 @@ class SubjectAdapter extends TypeAdapter<Subject> {
     return Subject(
       id: fields[0] as String,
       name: fields[1] as String,
-      code: fields[2] as String,
+      hours: fields[2] as int,
       year: fields[3] as int,
       doctorId: fields[4] as String?,
-      department: fields[5] as String,
+      departments: (fields[5] as List).cast<String>(),
       description: fields[6] as String?,
       enrolledStudents: (fields[7] as List).cast<String>(),
       englishName: fields[8] as String,
@@ -38,13 +38,13 @@ class SubjectAdapter extends TypeAdapter<Subject> {
       ..writeByte(1)
       ..write(obj.name)
       ..writeByte(2)
-      ..write(obj.code)
+      ..write(obj.hours)
       ..writeByte(3)
       ..write(obj.year)
       ..writeByte(4)
       ..write(obj.doctorId)
       ..writeByte(5)
-      ..write(obj.department)
+      ..write(obj.departments)
       ..writeByte(6)
       ..write(obj.description)
       ..writeByte(7)

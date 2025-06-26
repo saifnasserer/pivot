@@ -7,7 +7,6 @@ import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/screens/section1/login/login.dart';
 import 'package:pivot/screens/section1/signup/signup_page1.dart';
-import 'package:pivot/screens/section2/landing.dart';
 import 'package:pivot/services/auth_service.dart';
 import 'package:pivot/services/local_auth_service.dart';
 import 'package:provider/provider.dart';

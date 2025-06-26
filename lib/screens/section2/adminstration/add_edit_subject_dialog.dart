@@ -27,7 +27,7 @@ class AddEditSubjectDialog extends StatefulWidget {
 class _AddEditSubjectDialogState extends State<AddEditSubjectDialog> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameController;
-  late TextEditingController _codeController;
+  late TextEditingController _hoursController;
   late TextEditingController _englishNameController;
 
   final List<String> _departments = ['CS', 'IS', 'AI', 'SC', 'General'];
@@ -42,7 +42,9 @@ class _AddEditSubjectDialogState extends State<AddEditSubjectDialog> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.subject?.name ?? '');
-    _codeController = TextEditingController(text: widget.subject?.code ?? '');
+    _hoursController = TextEditingController(
+      text: widget.subject?.hours.toString() ?? '',
+    );
     _englishNameController = TextEditingController(
       text: widget.subject?.englishName ?? '',
     );
@@ -50,9 +52,9 @@ class _AddEditSubjectDialogState extends State<AddEditSubjectDialog> {
     if (_isEditing) {
       _selectedYear = widget.subject!.year;
       _selectedDepartments =
-          _departments.contains(widget.subject!.department)
-              ? [widget.subject!.department]
-              : [];
+          widget.subject!.departments
+              .where((d) => _departments.contains(d))
+              .toList();
     } else {
       _selectedYear = _years.first;
       _selectedDepartments = [];
@@ -62,7 +64,7 @@ class _AddEditSubjectDialogState extends State<AddEditSubjectDialog> {
   @override
   void dispose() {
     _nameController.dispose();
-    _codeController.dispose();
+    _hoursController.dispose();
     _englishNameController.dispose();
     super.dispose();
   }
@@ -75,12 +77,19 @@ class _AddEditSubjectDialogState extends State<AddEditSubjectDialog> {
         );
         return;
       }
+      final hours = int.tryParse(_hoursController.text);
+      if (hours == null || hours <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('الرجاء إدخال عدد ساعات صحيح')),
+        );
+        return;
+      }
       final newSubject = Subject(
         id: widget.subject?.id ?? '',
         name: _nameController.text,
-        code: _codeController.text,
+        hours: hours,
         year: _selectedYear!,
-        department: _selectedDepartments.first,
+        departments: List<String>.from(_selectedDepartments),
         englishName: _englishNameController.text,
         description: widget.subject?.description,
         enrolledStudents: widget.subject?.enrolledStudents ?? [],
@@ -155,11 +164,15 @@ class _AddEditSubjectDialogState extends State<AddEditSubjectDialog> {
               ),
               SizedBox(height: Responsive.space(context)),
               CustomTextField(
-                controller: _codeController,
+                controller: _hoursController,
                 hint: 'عدد الساعات',
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'الرجاء إدخال عدد الساعات';
+                  }
+                  final hours = int.tryParse(value);
+                  if (hours == null || hours <= 0) {
+                    return 'الرجاء إدخال عدد ساعات صحيح';
                   }
                   return null;
                 },
@@ -185,7 +198,7 @@ class _AddEditSubjectDialogState extends State<AddEditSubjectDialog> {
                         _selectedDepartments,
                       );
                       return StatefulBuilder(
-                        builder: (context, setDialogState) {
+                        builder: (context, setState) {
                           return AlertDialog(
                             title: const Text('اختر الأقسام'),
                             content: SizedBox(
@@ -198,7 +211,7 @@ class _AddEditSubjectDialogState extends State<AddEditSubjectDialog> {
                                         value: tempSelected.contains(dep),
                                         title: Text(dep),
                                         onChanged: (checked) {
-                                          setDialogState(() {
+                                          setState(() {
                                             if (checked == true) {
                                               tempSelected.add(dep);
                                             } else {
@@ -212,7 +225,11 @@ class _AddEditSubjectDialogState extends State<AddEditSubjectDialog> {
                             ),
                             actions: [
                               TextButton(
-                                onPressed: () => Navigator.pop(context, null),
+                                onPressed:
+                                    () => Navigator.pop(
+                                      context,
+                                      _selectedDepartments,
+                                    ),
                                 child: const Text('إلغاء'),
                               ),
                               ElevatedButton(
@@ -245,23 +262,16 @@ class _AddEditSubjectDialogState extends State<AddEditSubjectDialog> {
                     ),
                     border: Border.all(color: Colors.grey.shade300),
                   ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
+                  child: Text(
+                    _selectedDepartments.isEmpty
+                        ? 'اختر الأقسام'
+                        : _selectedDepartments.join(', '),
+                    style: TextStyle(
+                      color:
                           _selectedDepartments.isEmpty
-                              ? 'اختر الأقسام'
-                              : _selectedDepartments.join(', '),
-                          style: TextStyle(
-                            color:
-                                _selectedDepartments.isEmpty
-                                    ? Colors.grey
-                                    : Colors.black,
-                          ),
-                        ),
-                      ),
-                      Icon(Icons.arrow_drop_down, color: Colors.grey[600]),
-                    ],
+                              ? Colors.grey
+                              : Colors.black,
+                    ),
                   ),
                 ),
               ),

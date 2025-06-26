@@ -61,6 +61,12 @@ class TaskProvider with ChangeNotifier {
       await _tasksCollection.doc(task.id).set(task.toMap());
       // Send auto notifications for new tasks
       await NotificationTriggerService().sendTaskReminders();
+      await NotificationTriggerService().sendAnnouncement(
+        task.title,
+        task.description,
+      );
+      await NotificationTriggerService().sendClassReminders();
+      await NotificationTriggerService().sendClassReminders();
     } catch (e) {
       // Re-throw the exception to be handled by the UI
       throw Exception('Failed to add task: $e');

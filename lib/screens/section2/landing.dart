@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:pivot/providers/announcement_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/section2/admin_control.dart';
 import 'package:pivot/screens/section2/category_section.dart';
+import 'package:pivot/screens/section2/teams.dart';
 import 'package:pivot/screens/section3/profile.dart';
 import 'package:provider/provider.dart';
 import 'package:pivot/screens/models/card_model.dart';
 import 'package:pivot/screens/models/search_card.dart';
-import 'package:pivot/screens/models/notification_test_widget.dart';
 
 class Landing extends StatefulWidget {
   const Landing({super.key});
@@ -105,7 +106,12 @@ class LandingState extends State<Landing> {
                         },
                       ),
                     ),
-
+                    IconButton(
+                      onPressed: () {
+                        Navigator.pushNamed(context, TeamsScreen.id);
+                      },
+                      icon: const Icon(FontAwesomeIcons.magnet),
+                    ),
                     Consumer<UserProfileProvider>(
                       builder: (context, userProfileProvider, child) {
                         final userRole =
@@ -134,13 +140,6 @@ class LandingState extends State<Landing> {
                         } else {
                           return const SizedBox.shrink();
                         }
-                      },
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.notifications_outlined),
-                      tooltip: 'الإشعارات',
-                      onPressed: () {
-                        Navigator.pushNamed(context, '/notifications');
                       },
                     ),
                     IconButton(

@@ -406,10 +406,11 @@ class _AddEditTaskDialogContentState extends State<_AddEditTaskDialogContent> {
                                       );
                                     }).toList(),
                                 onChanged: (TaskImportance? newValue) {
-                                  if (newValue != null)
+                                  if (newValue != null) {
                                     setState(
                                       () => _selectedImportance = newValue,
                                     );
+                                  }
                                 },
                                 isExpanded: true,
                               ),

@@ -231,7 +231,7 @@ class _UserSearchModalContentState extends State<_UserSearchModalContent> {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           // Search Field - Always visible at top
-          Container(
+          SizedBox(
             height: 60,
             child: TextField(
               controller: _searchController,

@@ -80,7 +80,7 @@ List<Widget> buildCalendar({
                 handleDelete: () => handleDelete(item.id), // Pass the item's ID
                 onNotificationToggle:
                     onNotificationToggle != null
-                        ? () => onNotificationToggle!(item.id)
+                        ? () => onNotificationToggle(item.id)
                         : null,
               );
             },

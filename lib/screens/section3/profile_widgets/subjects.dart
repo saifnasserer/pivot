@@ -105,7 +105,7 @@ class SubjectListItem extends StatelessWidget {
                       children: [
                         _buildDetailRow(
                           'القسم',
-                          subject.department,
+                          subject.departments.join(', '),
                           Icons.business,
                         ),
                         SizedBox(
@@ -119,7 +119,11 @@ class SubjectListItem extends StatelessWidget {
                         SizedBox(
                           height: Responsive.space(context, size: Space.small),
                         ),
-                        _buildDetailRow('الساعات', subject.code, Icons.tag),
+                        _buildDetailRow(
+                          'الساعات',
+                          subject.hours.toString(),
+                          Icons.tag,
+                        ),
                       ],
                     ),
                   ),

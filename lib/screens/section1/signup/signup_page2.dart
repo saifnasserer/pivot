@@ -46,6 +46,7 @@ class _Signup_2State extends State<Signup_2> {
   bool _isDepartmentValid = false;
   bool _isSectionValid = false;
   bool _isLoading = false;
+  final bool _isInitialized = false;
 
   String? selectedYear;
   String? selectedDepartment;
@@ -63,6 +64,13 @@ class _Signup_2State extends State<Signup_2> {
   void initState() {
     super.initState();
     _availableDepartments = FormOptions.getDepartmentsForYear(null);
+    // Fetch section counts after the first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<SettingsProvider>(
+        context,
+        listen: false,
+      ).fetchSectionCounts();
+    });
   }
 
   Future<void> _promptEnableBiometrics(
@@ -173,11 +181,16 @@ class _Signup_2State extends State<Signup_2> {
 
   @override
   Widget build(BuildContext context) {
-    final settingsProvider = Provider.of<SettingsProvider>(
-      context,
-      listen: false,
-    );
-    final sectionCounts = settingsProvider.sectionCounts;
+    final settingsProvider = Provider.of<SettingsProvider>(context);
+
+    // Show loading indicator if section counts are still loading
+    if (settingsProvider.isLoading) {
+      return const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return GestureDetector(
       onTap: () {
         FocusScope.of(context).unfocus();
@@ -254,23 +267,24 @@ class _Signup_2State extends State<Signup_2> {
                             setState(() {
                               selectedDepartment = newValue;
                               _isDepartmentValid = true;
+                              selectedSection = null;
+                              _isSectionValid = false;
 
+                              // Get section count from settings provider
                               if (selectedDepartment != null &&
-                                  sectionCounts.containsKey(
+                                  settingsProvider.sectionCounts.containsKey(
                                     selectedDepartment,
                                   )) {
+                                final sectionCount =
+                                    settingsProvider
+                                        .sectionCounts[selectedDepartment] ??
+                                    0;
                                 _availableSections = List<String>.generate(
-                                  sectionCounts[selectedDepartment]!,
+                                  sectionCount,
                                   (i) => '${i + 1}',
                                 );
                               } else {
                                 _availableSections = [];
-                              }
-                              if (!_availableSections.contains(
-                                selectedSection,
-                              )) {
-                                selectedSection = null;
-                                _isSectionValid = false;
                               }
                             });
                             WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -291,8 +305,7 @@ class _Signup_2State extends State<Signup_2> {
                           onChanged: (String? newValue) {
                             setState(() {
                               selectedSection = newValue;
-                              _isSectionValid =
-                                  newValue != null && newValue.isNotEmpty;
+                              _isSectionValid = newValue != null;
                             });
                             FocusScope.of(context).unfocus();
                           },

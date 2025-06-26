@@ -8,7 +8,13 @@ class FormOptions {
     'الفرقة الرابعة',
   ];
 
-  static const List<String> allDepartments = ['CS', 'IS', 'AI', 'SC', 'General'];
+  static const List<String> allDepartments = [
+    'CS',
+    'IS',
+    'AI',
+    'SC',
+    'General',
+  ];
 
   static List<String> getDepartmentsForYear(String? year) {
     if (year == 'الفرقة الأولى') {

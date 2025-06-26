@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pivot/services/notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pivot/models/scheduled_notification.dart';
+import 'package:pivot/models/user_profile.dart';
 
 class NotificationTriggerService {
   static final NotificationTriggerService _instance =
@@ -10,6 +11,336 @@ class NotificationTriggerService {
   NotificationTriggerService._internal();
 
   final NotificationService _notificationService = NotificationService();
+
+  // Rate limiting cache
+  final Map<String, List<DateTime>> _userNotificationTimes = {};
+
+  // Egypt timezone offset (UTC+2)
+  static const int egyptTimeZoneOffset = 2;
+
+  // Analytics data structure
+  final Map<String, Map<String, int>> _notificationAnalytics = {
+    'sent': {
+      'task_reminder': 0,
+      'class_reminder': 0,
+      'announcement': 0,
+      'department': 0,
+      'level': 0,
+      'welcome': 0,
+      'unknown': 0,
+    },
+    'opened': {
+      'task_reminder': 0,
+      'class_reminder': 0,
+      'announcement': 0,
+      'department': 0,
+      'level': 0,
+      'welcome': 0,
+      'unknown': 0,
+    },
+    'failed': {
+      'task_reminder': 0,
+      'class_reminder': 0,
+      'announcement': 0,
+      'department': 0,
+      'level': 0,
+      'welcome': 0,
+      'unknown': 0,
+    },
+  };
+
+  // Batch notification queue
+  final Map<String, List<ScheduledNotification>> _batchQueue = {};
+  static const int _batchSize = 10;
+  static const Duration _batchInterval = Duration(minutes: 5);
+
+  // Maximum retry attempts
+  static const int _maxRetryAttempts = 3;
+  static const Duration _retryDelay = Duration(minutes: 5);
+
+  // Check rate limit for a user
+  bool _checkRateLimit(String userId, UserProfile userProfile) {
+    final now = DateTime.now();
+    final hourAgo = now.subtract(const Duration(hours: 1));
+
+    // Initialize or clean old notifications
+    _userNotificationTimes[userId] =
+        _userNotificationTimes[userId]
+            ?.where((time) => time.isAfter(hourAgo))
+            .toList() ??
+        [];
+
+    // Check against user's preferences
+    final maxPerHour =
+        userProfile.notificationPreferences.maxNotificationsPerHour;
+    if (_userNotificationTimes[userId]!.length >= maxPerHour) {
+      return false;
+    }
+
+    _userNotificationTimes[userId]!.add(now);
+    return true;
+  }
+
+  // Add notification to batch queue
+  void _addToBatchQueue(ScheduledNotification notification) {
+    final userId = notification.targetUserIds.first;
+    _batchQueue[userId] = _batchQueue[userId] ?? [];
+    _batchQueue[userId]!.add(notification);
+
+    // Process batch if size threshold reached
+    if (_batchQueue[userId]!.length >= _batchSize) {
+      _processBatch(userId);
+    }
+  }
+
+  // Process batch of notifications
+  Future<void> _processBatch(String userId) async {
+    if (_batchQueue[userId] == null || _batchQueue[userId]!.isEmpty) return;
+
+    final batch = _batchQueue[userId]!;
+    _batchQueue[userId] = [];
+
+    try {
+      final token = await _notificationService.getUserFCMToken(userId);
+      if (token != null) {
+        // Combine similar notifications
+        final combinedNotifications = _combineSimilarNotifications(batch);
+
+        for (var notification in combinedNotifications) {
+          await _sendWithRetry(notification, token, userId);
+        }
+      }
+    } catch (e) {
+      print('Error processing batch for user $userId: $e');
+    }
+  }
+
+  // Combine similar notifications
+  List<ScheduledNotification> _combineSimilarNotifications(
+    List<ScheduledNotification> notifications,
+  ) {
+    final Map<String, List<ScheduledNotification>> groupedByType = {};
+
+    for (var notification in notifications) {
+      final type = notification.additionalData?['type'] as String? ?? 'unknown';
+      groupedByType[type] = groupedByType[type] ?? [];
+      groupedByType[type]!.add(notification);
+    }
+
+    final List<ScheduledNotification> combined = [];
+
+    groupedByType.forEach((type, typeNotifications) {
+      if (typeNotifications.length == 1) {
+        combined.add(typeNotifications.first);
+      } else {
+        // Combine similar notifications
+        combined.add(
+          ScheduledNotification(
+            title: 'Multiple ${type.replaceAll('_', ' ')} Notifications',
+            body:
+                'You have ${typeNotifications.length} ${type.replaceAll('_', ' ')} notifications',
+            scheduledTime: typeNotifications.first.scheduledTime,
+            createdAt: DateTime.now(),
+            createdBy: 'system',
+            createdByName: 'النظام التلقائي',
+            targetUserIds: typeNotifications.first.targetUserIds,
+            sendToAllUsers: false,
+            status: 'pending',
+            additionalData: {
+              'type': type,
+              'count': typeNotifications.length,
+              'combined': true,
+            },
+          ),
+        );
+      }
+    });
+
+    return combined;
+  }
+
+  // Send notification with retry mechanism
+  Future<bool> _sendWithRetry(
+    ScheduledNotification notification,
+    String token,
+    String userId, {
+    int attempt = 1,
+  }) async {
+    try {
+      final success = await _notificationService.sendNotification(
+        targetToken: token,
+        userId: userId,
+        title: notification.title,
+        body: notification.body,
+      );
+
+      if (success) {
+        _updateAnalytics(
+          'sent',
+          notification.additionalData?['type'] ?? 'unknown',
+        );
+        return true;
+      }
+
+      if (attempt < _maxRetryAttempts) {
+        await Future.delayed(_retryDelay * attempt);
+        return _sendWithRetry(
+          notification,
+          token,
+          userId,
+          attempt: attempt + 1,
+        );
+      }
+
+      _updateAnalytics(
+        'failed',
+        notification.additionalData?['type'] ?? 'unknown',
+      );
+      return false;
+    } catch (e) {
+      print('Error sending notification (attempt $attempt): $e');
+      if (attempt < _maxRetryAttempts) {
+        await Future.delayed(_retryDelay * attempt);
+        return _sendWithRetry(
+          notification,
+          token,
+          userId,
+          attempt: attempt + 1,
+        );
+      }
+      _updateAnalytics(
+        'failed',
+        notification.additionalData?['type'] ?? 'unknown',
+      );
+      return false;
+    }
+  }
+
+  // Update analytics
+  void _updateAnalytics(String metric, String type) {
+    _notificationAnalytics[metric]![type] =
+        (_notificationAnalytics[metric]![type] ?? 0) + 1;
+  }
+
+  // Get analytics data
+  Map<String, Map<String, int>> getAnalytics() {
+    return Map.from(_notificationAnalytics);
+  }
+
+  // Record notification opened
+  Future<void> recordNotificationOpened(String type) async {
+    _updateAnalytics('opened', type);
+  }
+
+  // Convert to Egypt time
+  DateTime _toEgyptTime(DateTime dateTime) {
+    final utc = dateTime.toUtc();
+    return utc.add(const Duration(hours: egyptTimeZoneOffset));
+  }
+
+  // Override the existing sendScheduledNotification method
+  @override
+  Future<void> sendScheduledNotification(
+    ScheduledNotification notification,
+  ) async {
+    try {
+      if (notification.sendToAllUsers) {
+        final tokens = await _notificationService.getAllUserFCMTokens();
+        for (final token in tokens) {
+          await _sendWithRetry(notification, token, 'all_users');
+        }
+      } else {
+        for (final userId in notification.targetUserIds) {
+          // Get user profile to check preferences
+          final userDoc =
+              await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(userId)
+                  .get();
+
+          if (!userDoc.exists) continue;
+
+          final userProfile = UserProfile.fromJson(userDoc.data()!);
+
+          // Check user preferences
+          final type =
+              notification.additionalData?['type'] as String? ?? 'unknown';
+          if (!_shouldSendNotification(
+            type,
+            userProfile.notificationPreferences,
+          )) {
+            continue;
+          }
+
+          // Check rate limit
+          if (!_checkRateLimit(userId, userProfile)) {
+            print('Rate limit reached for user $userId');
+            continue;
+          }
+
+          // Add to batch queue
+          _addToBatchQueue(notification);
+        }
+      }
+    } catch (e) {
+      print('Error sending scheduled notification: $e');
+      await _updateNotificationStatus(
+        notification.id!,
+        'failed',
+        errorMessage: e.toString(),
+      );
+    }
+  }
+
+  // Helper to check if notification should be sent based on user preferences
+  bool _shouldSendNotification(String type, NotificationPreferences prefs) {
+    switch (type) {
+      case 'task_reminder':
+        return prefs.taskReminders;
+      case 'class_reminder':
+        return prefs.classReminders;
+      case 'announcement':
+        return prefs.announcements;
+      case 'department':
+        return prefs.departmentNotifications;
+      case 'level':
+        return prefs.levelNotifications;
+      case 'welcome':
+        return prefs.welcomeNotification;
+      default:
+        return true;
+    }
+  }
+
+  // Update notification status in Firestore
+  Future<void> _updateNotificationStatus(
+    String notificationId,
+    String status, {
+    String? errorMessage,
+  }) async {
+    await FirebaseFirestore.instance
+        .collection('scheduledNotifications')
+        .doc(notificationId)
+        .update({
+          'status': status,
+          'errorMessage': errorMessage,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+  }
+
+  // Process batch queue periodically
+  Future<void> processBatchQueue() async {
+    _batchQueue.keys.toList().forEach(_processBatch);
+  }
+
+  // Start periodic batch processing
+  void startBatchProcessing() {
+    Future.doWhile(() async {
+      await processBatchQueue();
+      await Future.delayed(_batchInterval);
+      return true;
+    });
+  }
 
   // Send task reminder notifications
   Future<void> sendTaskReminders() async {
@@ -710,65 +1041,6 @@ class NotificationTriggerService {
       }
     } catch (e) {
       print('Error processing scheduled notifications: $e');
-    }
-  }
-
-  // Send a scheduled notification
-  Future<void> sendScheduledNotification(
-    ScheduledNotification notification,
-  ) async {
-    try {
-      if (notification.sendToAllUsers) {
-        final tokens = await _notificationService.getAllUserFCMTokens();
-        for (final token in tokens) {
-          await _notificationService.sendNotification(
-            targetToken: token,
-            title: notification.title,
-            body: notification.body,
-          );
-        }
-        // Cannot save to individual history for "all users" notifications from here.
-        // This would require a different architecture, like the app pulling general announcements.
-      } else {
-        int successCount = 0;
-        for (final userId in notification.targetUserIds) {
-          final token = await _notificationService.getUserFCMToken(userId);
-          if (token != null) {
-            final success = await _notificationService.sendNotification(
-              targetToken: token,
-              userId: userId,
-              title: notification.title,
-              body: notification.body,
-            );
-            if (success) successCount++;
-          }
-        }
-        // Update notification status
-        final newStatus = successCount > 0 ? 'sent' : 'failed';
-        final errorMessage =
-            successCount == 0 ? 'فشل في إرسال جميع الإشعارات' : null;
-
-        await FirebaseFirestore.instance
-            .collection('scheduledNotifications')
-            .doc(notification.id)
-            .update({
-              'status': newStatus,
-              'sentCount': successCount,
-              'totalCount': notification.targetUserIds.length,
-              'errorMessage': errorMessage,
-              'sentAt': FieldValue.serverTimestamp(),
-            });
-      }
-    } catch (e) {
-      // Update status to failed
-      await FirebaseFirestore.instance
-          .collection('scheduledNotifications')
-          .doc(notification.id)
-          .update({
-            'status': 'failed',
-            'errorMessage': 'خطأ في إرسال الإشعار: $e',
-            'sentAt': FieldValue.serverTimestamp(),
-          });
     }
   }
 

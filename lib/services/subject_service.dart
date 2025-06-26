@@ -9,7 +9,8 @@ class SubjectService {
     _subjectsCollection = _firestore
         .collection('subjects')
         .withConverter<Subject>(
-          fromFirestore: (snapshot, _) => Subject.fromJson(snapshot.data()!, snapshot.id),
+          fromFirestore:
+              (snapshot, _) => Subject.fromJson(snapshot.data()!, snapshot.id),
           toFirestore: (subject, _) => subject.toJson(),
         );
   }

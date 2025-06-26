@@ -1,4 +1,5 @@
 import 'package:hive/hive.dart';
+part 'schedule_item.g.dart';
 
 @HiveType(typeId: 3)
 enum ScheduleItemType {

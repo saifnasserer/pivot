@@ -34,16 +34,6 @@ class _AdminControlState extends State<AdminControl> {
     'CS',
     'IS',
   ];
-  final List<String> _dateOptions = [
-    '', // All
-    'today',
-    'week',
-  ];
-  final List<String> _pinnedOptions = [
-    '', // All
-    'pinned',
-    'not_pinned',
-  ];
 
   @override
   void initState() {
@@ -658,65 +648,55 @@ class _AdminControlState extends State<AdminControl> {
                               ),
                             ),
                           if (filteredAnnouncements.isEmpty)
-                            Expanded(
-                              child: Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Lottie.asset(
-                                      'assets/animation/update.json',
-                                      width:
-                                          Responsive.space(
-                                            context,
-                                            size: Space.xlarge,
-                                          ) *
-                                          2.2,
-                                      height:
-                                          Responsive.space(
-                                            context,
-                                            size: Space.xlarge,
-                                          ) *
-                                          2.2,
-                                      repeat: true,
-                                    ),
-                                    SizedBox(
-                                      height: Responsive.space(
+                            Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Lottie.asset(
+                                  'assets/animation/empty.json',
+                                  width:
+                                      Responsive.space(
                                         context,
-                                        size: Space.large,
-                                      ),
-                                    ),
-                                    Text(
-                                      'لا يوجد إعلانات لعرضها حالياً',
-                                      style: TextStyle(
-                                        fontSize: Responsive.text(
-                                          context,
-                                          size: TextSize.heading,
-                                        ),
-                                        color: Colors.grey,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                    SizedBox(
-                                      height: Responsive.space(
+                                        size: Space.xlarge,
+                                      ) *
+                                      10,
+                                  height:
+                                      Responsive.space(
                                         context,
-                                        size: Space.small,
-                                      ),
-                                    ),
-                                    Text(
-                                      'ابدأ بإضافة إعلان جديد أو جرب تغيير الفلاتر',
-                                      style: TextStyle(
-                                        fontSize: Responsive.text(
-                                          context,
-                                          size: TextSize.medium,
-                                        ),
-                                        color: Colors.grey[500],
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ],
+                                        size: Space.xlarge,
+                                      ) *
+                                      10,
+                                  repeat: true,
                                 ),
-                              ),
+                                Text(
+                                  'لا يوجد إعلانات لعرضها حالياً',
+                                  style: TextStyle(
+                                    fontSize: Responsive.text(
+                                      context,
+                                      size: TextSize.heading,
+                                    ),
+                                    color: Colors.grey,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                SizedBox(
+                                  height: Responsive.space(
+                                    context,
+                                    size: Space.small,
+                                  ),
+                                ),
+                                Text(
+                                  'ابدأ بإضافة إعلان جديد أو جرب تغيير الفلاتر',
+                                  style: TextStyle(
+                                    fontSize: Responsive.text(
+                                      context,
+                                      size: TextSize.medium,
+                                    ),
+                                    color: Colors.grey[500],
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
                             )
                           else
                             Expanded(

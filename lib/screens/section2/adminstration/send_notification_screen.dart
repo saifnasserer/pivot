@@ -28,7 +28,7 @@ class _SendNotificationScreenState extends State<SendNotificationScreen> {
   bool _sendToAllUsers = true;
   bool _isScheduled = false;
   DateTime _scheduledDateTime = DateTime.now().add(const Duration(hours: 1));
-  List<String> _selectedUserIds = [];
+  final List<String> _selectedUserIds = [];
   List<Map<String, dynamic>> _users = [];
 
   @override
