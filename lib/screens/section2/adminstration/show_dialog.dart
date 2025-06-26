@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show ui;
 import 'package:pivot/responsive.dart';
 import 'package:intl/intl.dart';
 import 'dart:io';
@@ -13,6 +14,7 @@ import 'package:pivot/providers/announcement_provider.dart';
 import 'package:pivot/services/permission_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:permission_handler/permission_handler.dart' as ph;
 
 // Available colors for selection
 final List<Color> availableColors = [
@@ -145,63 +147,146 @@ void showAddAnnouncementDialog({
                         icon: const Icon(Icons.attach_file),
                         label: const Text('ملف (PDF)'),
                         onPressed: () async {
-                          final hasPermission =
-                              await PermissionService.requestStoragePermissionWithRationale(
-                                context,
-                              );
-                          if (!hasPermission) return;
-                          FilePickerResult? result = await FilePicker.platform
-                              .pickFiles(
-                                type: FileType.custom,
-                                allowedExtensions: ['pdf'],
-                              );
-                          if (result != null &&
-                              result.files.single.path != null) {
-                            final file = File(result.files.single.path!);
-                            final fileName = result.files.single.name;
-                            // Upload to Firebase Storage
-                            final storageRef = FirebaseStorage.instance.ref().child(
-                              'announcements/attachments/${DateTime.now().millisecondsSinceEpoch}_$fileName',
-                            );
-                            final uploadTask = storageRef.putFile(file);
-                            final snapshot = await uploadTask.whenComplete(
-                              () {},
-                            );
-                            final downloadUrl =
-                                await snapshot.ref.getDownloadURL();
-                            // Ask user for a title or use file name
-                            String? linkTitle = await showDialog<String>(
-                              context: context,
-                              builder: (context) {
-                                String tempTitle = fileName;
-                                return AlertDialog(
-                                  title: const Text('عنوان الملف'),
-                                  content: TextField(
-                                    decoration: const InputDecoration(
-                                      hintText: 'أدخل عنوان الرابط',
-                                    ),
-                                    controller: TextEditingController(
-                                      text: fileName,
-                                    ),
-                                    onChanged: (v) => tempTitle = v,
-                                  ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed:
-                                          () =>
-                                              Navigator.pop(context, tempTitle),
-                                      child: const Text('موافق'),
-                                    ),
-                                  ],
+                          try {
+                            debugPrint('Opening file picker...');
+                            FilePickerResult? result = await FilePicker.platform
+                                .pickFiles(
+                                  type: FileType.custom,
+                                  allowedExtensions: ['pdf'],
                                 );
-                              },
+                            debugPrint(
+                              'File picker result: ${result?.files.length}',
                             );
-                            setState(() {
-                              links.add({
-                                'title': linkTitle ?? fileName,
-                                'url': downloadUrl,
-                              });
-                            });
+                            if (result != null &&
+                                result.files.single.path != null) {
+                              debugPrint(
+                                'File selected: ${result.files.single.name}',
+                              );
+                              // Show loading dialog
+                              showDialog(
+                                context: context,
+                                barrierDismissible: false,
+                                builder:
+                                    (context) => AlertDialog(
+                                      content: Row(
+                                        children: [
+                                          CircularProgressIndicator(),
+                                          SizedBox(
+                                            width: Responsive.space(
+                                              context,
+                                              size: Space.medium,
+                                            ),
+                                          ),
+                                          Text('جاري رفع الملف...'),
+                                        ],
+                                      ),
+                                    ),
+                              );
+
+                              final file = File(result.files.single.path!);
+                              final fileName = result.files.single.name;
+
+                              // Validate file size (10MB limit)
+                              final fileSize = await file.length();
+                              debugPrint('File size: $fileSize bytes');
+                              if (fileSize > 10 * 1024 * 1024) {
+                                Navigator.of(
+                                  context,
+                                ).pop(); // Dismiss loading dialog
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'حجم الملف أكبر من 10 ميجابايت',
+                                    ),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                                return;
+                              }
+
+                              debugPrint('Starting upload...');
+                              // Upload to Firebase Storage
+                              final storageRef = FirebaseStorage.instance
+                                  .ref()
+                                  .child(
+                                    'announcements/attachments/${DateTime.now().millisecondsSinceEpoch}_$fileName',
+                                  );
+                              final uploadTask = storageRef.putFile(file);
+                              final snapshot = await uploadTask.whenComplete(
+                                () {},
+                              );
+                              final downloadUrl =
+                                  await snapshot.ref.getDownloadURL();
+                              debugPrint('Upload completed: $downloadUrl');
+
+                              Navigator.of(
+                                context,
+                              ).pop(); // Dismiss loading dialog
+
+                              // Ask user for a title or use file name
+                              String? linkTitle = await showDialog<String>(
+                                context: context,
+                                builder: (context) {
+                                  String tempTitle = fileName;
+                                  return AlertDialog(
+                                    title: const Text('عنوان الملف'),
+                                    content: TextField(
+                                      decoration: const InputDecoration(
+                                        hintText: 'أدخل عنوان الرابط',
+                                      ),
+                                      controller: TextEditingController(
+                                        text: fileName,
+                                      ),
+                                      textAlign: TextAlign.right,
+                                      onChanged: (v) => tempTitle = v,
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed:
+                                            () => Navigator.pop(
+                                              context,
+                                              tempTitle,
+                                            ),
+                                        child: const Text('موافق'),
+                                      ),
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context),
+                                        child: const Text('إلغاء'),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
+
+                              if (linkTitle != null) {
+                                setState(() {
+                                  links.add({
+                                    'title': linkTitle,
+                                    'url': downloadUrl,
+                                  });
+                                });
+
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('تم رفع الملف بنجاح'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              }
+                            }
+                          } catch (e) {
+                            debugPrint('Error in PDF upload: $e');
+                            // Dismiss loading dialog if it's still showing
+                            if (Navigator.canPop(context)) {
+                              Navigator.of(context).pop();
+                            }
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('فشل في رفع الملف: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
                           }
                         },
                       ),
@@ -640,23 +725,55 @@ void showAddAnnouncementDialog({
 
                                 // Upload images and collect URLs
                                 for (XFile image in pickedImages) {
-                                  final String? imageUrl =
-                                      await announcementProvider.uploadImage(
-                                        image,
+                                  try {
+                                    // Defensive checks
+                                    if (image.path.isEmpty) {
+                                      throw Exception('مسار الصورة غير صالح');
+                                    }
+                                    final file = File(image.path);
+                                    if (!await file.exists()) {
+                                      throw Exception(
+                                        'الملف غير موجود: ${image.path}',
                                       );
-                                  if (imageUrl != null) {
-                                    imageUrls.add(imageUrl);
-                                  } else {
-                                    // Handle upload failure
+                                    }
+                                    final fileSize = await file.length();
+                                    if (fileSize > 10 * 1024 * 1024) {
+                                      // 10MB limit
+                                      throw Exception(
+                                        'حجم الصورة أكبر من 10 ميجابايت',
+                                      );
+                                    }
+                                    final allowedExtensions = [
+                                      'jpg',
+                                      'jpeg',
+                                      'png',
+                                    ];
+                                    final ext =
+                                        image.path
+                                            .split('.')
+                                            .last
+                                            .toLowerCase();
+                                    if (!allowedExtensions.contains(ext)) {
+                                      throw Exception(
+                                        'نوع الصورة غير مدعوم: $ext',
+                                      );
+                                    }
+                                    final String? imageUrl =
+                                        await announcementProvider.uploadImage(
+                                          image,
+                                        );
+                                    if (imageUrl != null) {
+                                      imageUrls.add(imageUrl);
+                                    } else {
+                                      throw Exception('فشل رفع الصورة');
+                                    }
+                                  } catch (e) {
                                     Navigator.of(
                                       context,
                                     ).pop(); // Dismiss loading dialog
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'فشل رفع الصورة، الرجاء المحاولة مرة أخرى',
-                                          textAlign: TextAlign.right,
-                                        ),
+                                      SnackBar(
+                                        content: Text('خطأ في رفع الصورة: $e'),
                                         backgroundColor: Colors.red,
                                       ),
                                     );

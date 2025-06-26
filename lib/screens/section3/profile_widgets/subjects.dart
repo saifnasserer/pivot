@@ -4,6 +4,9 @@ import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/screens/section4/doctor/doctor_profile.dart';
 
 import 'package:pivot/models/user_profile.dart';
+import 'package:pivot/providers/user_profile_provider.dart';
+import 'package:pivot/providers/subject_provider.dart';
+import 'package:provider/provider.dart';
 
 List<Widget> buildSubjectsSlivers(
   BuildContext context,
@@ -161,11 +164,28 @@ class SubjectListItem extends StatelessWidget {
                                   (professor) => InkWell(
                                     onTap: () {
                                       Navigator.of(context).pop();
+                                      final rootContext =
+                                          Navigator.of(
+                                            context,
+                                            rootNavigator: true,
+                                          ).context;
                                       Navigator.pushNamed(
                                         context,
                                         DoctorProfile.id,
                                         arguments: professor,
-                                      );
+                                      ).then((_) {
+                                        final userProfile =
+                                            Provider.of<UserProfileProvider>(
+                                              rootContext,
+                                              listen: false,
+                                            ).userProfile;
+                                        if (userProfile != null) {
+                                          Provider.of<SubjectProvider>(
+                                            rootContext,
+                                            listen: false,
+                                          ).fetchAndFilterSubjects(userProfile);
+                                        }
+                                      });
                                     },
                                     child: Padding(
                                       padding: Responsive.padding(

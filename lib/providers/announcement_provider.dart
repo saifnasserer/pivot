@@ -7,6 +7,7 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'dart:io';
 import 'package:pivot/services/cache_service.dart';
 import 'package:pivot/services/notification_trigger_service.dart';
+import 'package:image_picker/image_picker.dart';
 
 class AnnouncementProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -149,8 +150,9 @@ class AnnouncementProvider with ChangeNotifier {
         minHeight: 600,
         format: CompressFormat.jpeg,
       );
-      final fileToUpload = compressedFile ?? File(image.path);
-      final bytes = await (fileToUpload as File).readAsBytes();
+      final File fileToUpload =
+          compressedFile != null ? File(compressedFile.path) : File(image.path);
+      final bytes = await fileToUpload.readAsBytes();
       final String fileName = '${const Uuid().v4()}.jpg';
       final Reference storageRef = FirebaseStorage.instance.ref().child(
         'announcements/$fileName',
