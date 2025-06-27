@@ -282,29 +282,6 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
 
                 SizedBox(height: Responsive.space(context, size: Space.large)),
 
-                Text(
-                  'الاقتراح (اختياري)',
-                  style: TextStyle(
-                    fontSize: Responsive.text(context, size: TextSize.medium),
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-                SizedBox(height: Responsive.space(context, size: Space.small)),
-                CustomTextField(
-                  controller: _suggestionController,
-                  hint: 'اكتب اقتراحك هنا...',
-                  maxLines: 4,
-                  isValid: _isSuggestionValid,
-                  onChanged: (value) {
-                    setState(() {
-                      _isSuggestionValid = _validateSuggestion(value) == null;
-                    });
-                  },
-                ),
-
-                SizedBox(height: Responsive.space(context, size: Space.xlarge)),
-
                 // Circular Send Button
                 Center(
                   child:

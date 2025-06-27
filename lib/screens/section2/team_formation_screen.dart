@@ -213,7 +213,7 @@ class _TeamFormationScreenState extends State<TeamFormationScreen> {
                                     vertical: 8,
                                   ),
                                 ),
-                                
+
                                 onFieldSubmitted: (v) {
                                   final formKey = Form.of(context);
                                   if (formKey.validate() &&
@@ -565,6 +565,7 @@ class _TeamFormationScreenState extends State<TeamFormationScreen> {
                     whatsappNumber: member.whatsappNumber,
                     linkedinProfile: member.linkedinProfile,
                     profilePicUrl: snapshot.data?.profileImageUrl,
+                    department: snapshot.data?.department ?? '',
                     showDelete: isCurrentUserCard,
                     onDelete:
                         isCurrentUserCard

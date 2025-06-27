@@ -166,44 +166,9 @@ class _FeedbackManagementScreenState extends State<FeedbackManagementScreen> {
                       height: Responsive.space(context, size: Space.medium),
                     ),
                   ],
-                  if (feedback['suggestion'] != null &&
-                      feedback['suggestion'].toString().isNotEmpty) ...[
-                    Text(
-                      'الاقتراح',
-                      textAlign: TextAlign.end,
-                      style: TextStyle(
-                        fontSize: Responsive.text(
-                          context,
-                          size: TextSize.small,
-                        ),
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    SizedBox(
-                      height: Responsive.space(context, size: Space.small),
-                    ),
-                    Container(
-                      padding: Responsive.padding(context, size: Space.medium),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[50],
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey[200]!),
-                      ),
-                      child: Text(
-                        feedback['suggestion'] ?? 'لا يوجد اقتراح',
-                        textAlign: TextAlign.end,
-                        style: TextStyle(
-                          fontSize: Responsive.text(
-                            context,
-                            size: TextSize.small,
-                          ),
-                          color: Colors.grey[700],
-                        ),
-                      ),
-                    ),
+                 
                   ],
-                ],
+                
               ),
             ),
             actions: [

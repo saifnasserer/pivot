@@ -14,6 +14,7 @@ class TeamFindCard extends StatefulWidget {
   final String? profilePicUrl;
   final bool showDelete;
   final VoidCallback? onDelete;
+  final String? department;
 
   const TeamFindCard({
     super.key,
@@ -25,6 +26,7 @@ class TeamFindCard extends StatefulWidget {
     this.profilePicUrl,
     this.showDelete = false,
     this.onDelete,
+    this.department,
   });
 
   @override
@@ -118,19 +120,44 @@ class _TeamFindCardState extends State<TeamFindCard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      widget.name,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: Responsive.text(
-                          context,
-                          size: TextSize.medium,
+                    Row(
+                      children: [
+                        Text(
+                          widget.name,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.medium,
+                            ),
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    SizedBox(
-                      height: Responsive.space(context, size: Space.tiny),
+                        if (widget.department != null &&
+                            widget.department!.isNotEmpty &&
+                            widget.department != 'عام' &&
+                            widget.department!.toLowerCase() != 'general')
+                          Padding(
+                            padding: EdgeInsets.only(
+                              right: Responsive.space(
+                                context,
+                                size: Space.small,
+                              ),
+                            ),
+                            child: Text(
+                              '(${widget.department!})',
+                              style: TextStyle(
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.small,
+                                ),
+                                color: Colors.black,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                      ],
                     ),
                     if (widget.skills.isNotEmpty)
                       SingleChildScrollView(
