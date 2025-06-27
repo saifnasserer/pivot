@@ -225,6 +225,15 @@ class UserProfileProvider with ChangeNotifier {
     XFile? imageFile,
   }) async {
     try {
+      // Handle password update if present
+      if (data.containsKey('password')) {
+        final newPassword = data['password'] as String;
+        data.remove('password');
+        final user = _auth.currentUser;
+        if (user != null) {
+          await user.updatePassword(newPassword);
+        }
+      }
       String? imageUrl;
       if (imageFile != null) {
         // Upload image to Firebase Storage

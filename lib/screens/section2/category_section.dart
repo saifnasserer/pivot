@@ -15,7 +15,7 @@ class _CategorySectionState extends State<CategorySection> {
 
   final List<String> categories = [
     'اخبار النهاردة',
-    'اخبار الاسبوع',
+    'عام',
     'اخبار قسم SC',
     'اخبار قسم AI',
     'اخبار قسم CS',

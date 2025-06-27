@@ -281,175 +281,363 @@ Future<void> _showLogoutConfirmationDialog(BuildContext context) async {
   );
 }
 
+class NotificationPreferencesModel {
+  bool classNotifications;
+  bool taskNotifications;
+  bool announcementNotifications;
+
+  NotificationPreferencesModel({
+    this.classNotifications = true,
+    this.taskNotifications = true,
+    this.announcementNotifications = true,
+  });
+}
+
+class NotificationSwitch extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final bool value;
+  final IconData icon;
+  final ValueChanged<bool> onChanged;
+
+  const NotificationSwitch({
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.icon,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SwitchListTile(
+      contentPadding: EdgeInsets.zero,
+      title: Text(
+        title,
+        style: TextStyle(
+          fontSize: Responsive.text(context, size: TextSize.medium),
+          color: Colors.black,
+        ),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: TextStyle(
+          fontSize: Responsive.text(context, size: TextSize.small),
+          color: Colors.grey.shade600,
+        ),
+      ),
+      value: value,
+      onChanged: onChanged,
+      secondary: Icon(
+        icon,
+        color: Colors.black,
+        size: Responsive.text(context, size: TextSize.medium),
+      ),
+    );
+  }
+}
+
 Future<void> _showNotificationSettingsDialog(BuildContext context) async {
-  bool classNotifications = true;
-  bool taskNotifications = true;
-  bool announcementNotifications = true;
+  NotificationPreferencesModel prefs = NotificationPreferencesModel();
 
   return showDialog(
     context: context,
+    barrierDismissible: true,
     builder: (BuildContext context) {
       return StatefulBuilder(
         builder: (context, setState) {
-          return AlertDialog(
-            title: Text(
-              'إعدادات الإشعارات',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: Responsive.text(context, size: TextSize.heading),
+          return Directionality(
+            textDirection: TextDirection.rtl,
+            child: AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(
+                  Responsive.space(context, size: Space.large),
+                ),
               ),
-            ),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Permission check
-                  FutureBuilder<bool>(
-                    future: PermissionService.checkNotificationPermission(),
-                    builder: (context, snapshot) {
-                      final hasPermission = snapshot.data ?? false;
-                      return Container(
-                        padding: EdgeInsets.all(
-                          Responsive.space(context, size: Space.small),
-                        ),
-                        decoration: BoxDecoration(
-                          color:
-                              hasPermission
-                                  ? Colors.green.shade50
-                                  : Colors.red.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color:
-                                hasPermission
-                                    ? Colors.green.shade200
-                                    : Colors.red.shade200,
+              title: Text(
+                'إعدادات الإشعارات',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: Responsive.text(context, size: TextSize.heading),
+                  color: Colors.black,
+                ),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    FutureBuilder<bool>(
+                      future: PermissionService.checkNotificationPermission(),
+                      builder: (context, snapshot) {
+                        final hasPermission = snapshot.data ?? false;
+                        return Container(
+                          padding: EdgeInsets.all(
+                            Responsive.space(context, size: Space.small),
                           ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              hasPermission ? Icons.check_circle : Icons.error,
-                              color: hasPermission ? Colors.green : Colors.red,
-                              size: 20,
-                            ),
-                            SizedBox(
-                              width: Responsive.space(
-                                context,
-                                size: Space.small,
-                              ),
-                            ),
-                            Expanded(
-                              child: Text(
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.grey.shade200),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
                                 hasPermission
-                                    ? 'صلاحية الإشعارات مفعلة'
-                                    : 'صلاحية الإشعارات مطلوبة',
-                                style: TextStyle(
-                                  fontSize: Responsive.text(
-                                    context,
-                                    size: TextSize.small,
-                                  ),
-                                  fontWeight: FontWeight.w500,
+                                    ? Icons.check_circle
+                                    : Icons.error_outline,
+                                color: Colors.black,
+                                size: Responsive.text(
+                                  context,
+                                  size: TextSize.medium,
                                 ),
                               ),
-                            ),
-                            if (!hasPermission)
-                              TextButton(
-                                onPressed: () async {
-                                  await PermissionService.showNotificationPermissionDialog(
-                                    context,
-                                  );
-                                  setState(() {}); // Refresh the dialog
-                                },
-                                child: Text('تفعيل'),
+                              SizedBox(
+                                width: Responsive.space(
+                                  context,
+                                  size: Space.small,
+                                ),
                               ),
-                          ],
+                              Expanded(
+                                child: Text(
+                                  hasPermission
+                                      ? 'صلاحية الإشعارات مفعلة'
+                                      : 'صلاحية الإشعارات مطلوبة',
+                                  style: TextStyle(
+                                    fontSize: Responsive.text(
+                                      context,
+                                      size: TextSize.small,
+                                    ),
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                              ),
+                              if (!hasPermission)
+                                TextButton(
+                                  onPressed: () async {
+                                    await PermissionService.showNotificationPermissionDialog(
+                                      context,
+                                    );
+                                    setState(() {});
+                                  },
+                                  child: Text(
+                                    'تفعيل',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.medium),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        // محاضرات
+                        Expanded(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.school,
+                                color: Colors.black,
+                                size: Responsive.text(
+                                  context,
+                                  size: TextSize.heading,
+                                ),
+                              ),
+                              SizedBox(
+                                height: Responsive.space(
+                                  context,
+                                  size: Space.small,
+                                ),
+                              ),
+                              Text(
+                                'محاضرات',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.medium,
+                                  ),
+                                  color: Colors.black,
+                                ),
+                              ),
+                              SizedBox(
+                                height: Responsive.space(
+                                  context,
+                                  size: Space.small,
+                                ),
+                              ),
+                              Switch(
+                                value: prefs.classNotifications,
+                                onChanged:
+                                    (value) => setState(
+                                      () => prefs.classNotifications = value,
+                                    ),
+                                activeColor: Colors.green,
+                              ),
+                            ],
+                          ),
                         ),
-                      );
-                    },
-                  ),
-                  SizedBox(
-                    height: Responsive.space(context, size: Space.medium),
-                  ),
-
-                  // Notification types
-                  Text(
-                    'أنواع الإشعارات',
-                    style: TextStyle(
-                      fontSize: Responsive.text(context, size: TextSize.medium),
+                        // تاسكات
+                        Expanded(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.assignment,
+                                color: Colors.black,
+                                size: Responsive.text(
+                                  context,
+                                  size: TextSize.heading,
+                                ),
+                              ),
+                              SizedBox(
+                                height: Responsive.space(
+                                  context,
+                                  size: Space.small,
+                                ),
+                              ),
+                              Text(
+                                'تاسكات',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.medium,
+                                  ),
+                                  color: Colors.black,
+                                ),
+                              ),
+                              SizedBox(
+                                height: Responsive.space(
+                                  context,
+                                  size: Space.small,
+                                ),
+                              ),
+                              Switch(
+                                value: prefs.taskNotifications,
+                                onChanged:
+                                    (value) => setState(
+                                      () => prefs.taskNotifications = value,
+                                    ),
+                                activeColor: Colors.green,
+                              ),
+                            ],
+                          ),
+                        ),
+                        // اخبار
+                        Expanded(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.announcement,
+                                color: Colors.black,
+                                size: Responsive.text(
+                                  context,
+                                  size: TextSize.heading,
+                                ),
+                              ),
+                              SizedBox(
+                                height: Responsive.space(
+                                  context,
+                                  size: Space.small,
+                                ),
+                              ),
+                              Text(
+                                'اخبار',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.medium,
+                                  ),
+                                  color: Colors.black,
+                                ),
+                              ),
+                              SizedBox(
+                                height: Responsive.space(
+                                  context,
+                                  size: Space.small,
+                                ),
+                              ),
+                              Switch(
+                                value: prefs.announcementNotifications,
+                                onChanged:
+                                    (value) => setState(
+                                      () =>
+                                          prefs.announcementNotifications =
+                                              value,
+                                    ),
+                                activeColor: Colors.green,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              actionsAlignment: MainAxisAlignment.center,
+              actions: [
+                ElevatedButton(
+                  onPressed: () {
+                    _saveNotificationPreferences(
+                      classNotifications: prefs.classNotifications,
+                      taskNotifications: prefs.taskNotifications,
+                      announcementNotifications:
+                          prefs.announcementNotifications,
+                    );
+                    Navigator.of(context).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('تم حفظ إعدادات الإشعارات'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(
+                        Responsive.space(context, size: Space.large),
+                      ),
+                    ),
+                    padding: EdgeInsets.symmetric(
+                      vertical: Responsive.space(context, size: Space.small),
+                    ),
+                    textStyle: TextStyle(
                       fontWeight: FontWeight.bold,
+                      fontSize: Responsive.text(context, size: TextSize.medium),
                     ),
                   ),
-                  SizedBox(
-                    height: Responsive.space(context, size: Space.small),
+                  child: Text('حفظ'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(
+                    'إلغاء',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
                   ),
-
-                  // Class notifications
-                  SwitchListTile(
-                    title: Text('تذكيرات المحاضرات'),
-                    subtitle: Text('إشعارات قبل 15 دقيقة من المحاضرة'),
-                    value: classNotifications,
-                    onChanged: (value) {
-                      setState(() {
-                        classNotifications = value;
-                      });
-                    },
-                    secondary: Icon(Icons.school),
-                  ),
-
-                  // Task notifications
-                  SwitchListTile(
-                    title: Text('تذكيرات المهام'),
-                    subtitle: Text('إشعارات للمهام المستحقة والمتأخرة'),
-                    value: taskNotifications,
-                    onChanged: (value) {
-                      setState(() {
-                        taskNotifications = value;
-                      });
-                    },
-                    secondary: Icon(Icons.assignment),
-                  ),
-
-                  // Announcement notifications
-                  SwitchListTile(
-                    title: Text('إشعارات الإعلانات'),
-                    subtitle: Text('إشعارات الإعلانات الجديدة'),
-                    value: announcementNotifications,
-                    onChanged: (value) {
-                      setState(() {
-                        announcementNotifications = value;
-                      });
-                    },
-                    secondary: Icon(Icons.announcement),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text('إلغاء'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  // Save notification preferences
-                  _saveNotificationPreferences(
-                    classNotifications: classNotifications,
-                    taskNotifications: taskNotifications,
-                    announcementNotifications: announcementNotifications,
-                  );
-                  Navigator.of(context).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('تم حفظ إعدادات الإشعارات'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                },
-                child: Text('حفظ'),
-              ),
-            ],
           );
         },
       );
@@ -464,8 +652,4 @@ void _saveNotificationPreferences({
 }) {
   // Save to SharedPreferences or other storage
   // This is a placeholder - implement actual storage logic
-  print('Saving notification preferences:');
-  print('Class notifications: $classNotifications');
-  print('Task notifications: $taskNotifications');
-  print('Announcement notifications: $announcementNotifications');
 }

@@ -22,7 +22,6 @@ class _AdminControlState extends State<AdminControl> {
   String _departmentFilter = '';
   String _dateFilter = '';
   String _pinnedFilter = '';
-  bool _showAnalytics = false;
   bool _showSearch = false;
   bool _showFilters = false;
   final TextEditingController _searchController = TextEditingController();
@@ -43,7 +42,7 @@ class _AdminControlState extends State<AdminControl> {
       Provider.of<AnnouncementProvider>(
         context,
         listen: false,
-      ).fetchAnnouncements();
+      ).fetchAnnouncements(includeScheduledAndExpired: true);
     });
   }
 
@@ -62,10 +61,19 @@ class _AdminControlState extends State<AdminControl> {
           a.title.toLowerCase().contains(searchLower) ||
           a.description.toLowerCase().contains(searchLower) ||
           a.tags.any((tag) => tag.toLowerCase().contains(searchLower));
+
       // Department
       final matchesDepartment =
           _departmentFilter.isEmpty ||
-          a.tags.contains('اخبار قسم $_departmentFilter');
+          a.tags.any((tag) {
+            // Handle both old and new format
+            String cleanTag = tag;
+            if (tag.startsWith('اخبار قسم ')) {
+              cleanTag = tag.replaceFirst('اخبار قسم ', '');
+            }
+            return cleanTag == _departmentFilter;
+          });
+
       // Date
       final now = DateTime.now();
       bool matchesDate = true;
@@ -74,10 +82,17 @@ class _AdminControlState extends State<AdminControl> {
             a.timestamp.year == now.year &&
             a.timestamp.month == now.month &&
             a.timestamp.day == now.day;
-      } else if (_dateFilter == 'week') {
-        final weekAgo = now.subtract(const Duration(days: 7));
-        matchesDate = a.timestamp.isAfter(weekAgo);
+      } else if (_dateFilter == 'general') {
+        matchesDate = a.tags.any((tag) {
+          // Handle both old and new format
+          String cleanTag = tag;
+          if (tag.startsWith('اخبار قسم ')) {
+            cleanTag = tag.replaceFirst('اخبار قسم ', '');
+          }
+          return cleanTag == 'عام';
+        });
       }
+
       // Pinned
       bool matchesPinned = true;
       if (_pinnedFilter == 'pinned') {
@@ -85,6 +100,7 @@ class _AdminControlState extends State<AdminControl> {
       } else if (_pinnedFilter == 'not_pinned') {
         matchesPinned = !a.pinned;
       }
+
       return matchesSearch && matchesDepartment && matchesDate && matchesPinned;
     }).toList();
   }
@@ -111,20 +127,26 @@ class _AdminControlState extends State<AdminControl> {
                       fontSize: Responsive.text(context, size: TextSize.small),
                       color: Colors.grey[500],
                     ),
-                    prefixIcon: Icon(
+                    suffixIcon: Icon(
                       Icons.search,
                       size: Responsive.text(context, size: TextSize.medium),
                     ),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(
+                        Responsive.space(context, size: Space.large),
+                      ),
                       borderSide: BorderSide(color: Colors.grey[300]!),
                     ),
                     enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(
+                        Responsive.space(context, size: Space.large),
+                      ),
                       borderSide: BorderSide(color: Colors.grey[300]!),
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(
+                        Responsive.space(context, size: Space.large),
+                      ),
                       borderSide: BorderSide(color: Colors.black, width: 2),
                     ),
                     isDense: true,
@@ -132,7 +154,7 @@ class _AdminControlState extends State<AdminControl> {
                       horizontal: Responsive.space(context, size: Space.medium),
                       vertical: Responsive.space(context, size: Space.small),
                     ),
-                    suffixIcon: IconButton(
+                    prefixIcon: IconButton(
                       icon: Icon(
                         Icons.close,
                         size: Responsive.text(context, size: TextSize.medium),
@@ -229,7 +251,7 @@ class _AdminControlState extends State<AdminControl> {
                 // Date chips
                 ...[
                   {'label': 'اليوم', 'value': 'today'},
-                  {'label': 'هذا الأسبوع', 'value': 'week'},
+                  {'label': 'عام', 'value': 'general'},
                 ].map(
                   (d) => Padding(
                     padding: EdgeInsets.symmetric(
@@ -352,7 +374,6 @@ class _AdminControlState extends State<AdminControl> {
   }
 
   Widget _buildAnalyticsBar(List<AnnouncementData> announcements) {
-    if (!_showAnalytics) return const SizedBox.shrink();
     final total = announcements.length;
     final pinned = announcements.where((a) => a.pinned).length;
     final now = DateTime.now();
@@ -362,7 +383,16 @@ class _AdminControlState extends State<AdminControl> {
     final Map<String, int> deptCounts = {'SC': 0, 'AI': 0, 'CS': 0, 'IS': 0};
     for (final a in announcements) {
       for (final d in deptCounts.keys) {
-        if (a.tags.contains('اخبار قسم $d')) deptCounts[d] = deptCounts[d]! + 1;
+        if (a.tags.any((tag) {
+          // Handle both old and new format
+          String cleanTag = tag;
+          if (tag.startsWith('اخبار قسم ')) {
+            cleanTag = tag.replaceFirst('اخبار قسم ', '');
+          }
+          return cleanTag == d;
+        })) {
+          deptCounts[d] = deptCounts[d]! + 1;
+        }
       }
     }
     final stats = [
@@ -426,7 +456,9 @@ class _AdminControlState extends State<AdminControl> {
             height: cardHeight,
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(
+                Responsive.space(context, size: Space.large),
+              ),
               border: Border.all(color: Colors.grey[200]!),
             ),
             child: Padding(
@@ -488,112 +520,214 @@ class _AdminControlState extends State<AdminControl> {
               ),
             ),
             actions: [
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.more_horiz, color: Colors.black),
-                tooltip: 'خيارات',
-                offset: const Offset(0, 48),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                color: Colors.white,
-                itemBuilder: (context) {
-                  final List<PopupMenuEntry<String>> items = [
-                    PopupMenuItem(
-                      value: 'search',
-                      child: Directionality(
-                        textDirection: TextDirection.rtl,
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 4,
-                            vertical: 2,
+              Directionality(
+                textDirection: TextDirection.rtl,
+                child: Container(
+                  margin: EdgeInsets.only(
+                    right: Responsive.space(context, size: Space.small),
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(
+                      Responsive.space(context, size: Space.large),
+                    ),
+                  ),
+                  child: PopupMenuButton<String>(
+                    icon: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.tune,
+                          color: Colors.black87,
+                          size: Responsive.space(context, size: Space.medium),
+                        ),
+                      ],
+                    ),
+                    tooltip: 'خيارات',
+                    offset: Offset(
+                      0,
+                      Responsive.space(context, size: Space.large) * 2,
+                    ),
+                    elevation: 8,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(
+                        Responsive.space(context, size: Space.large),
+                      ),
+                    ),
+                    color: Colors.white,
+                    itemBuilder: (context) {
+                      final List<PopupMenuEntry<String>> items = [
+                        PopupMenuItem(
+                          value: 'search',
+                          child: Container(
+                            padding: EdgeInsets.symmetric(
+                              vertical: Responsive.space(
+                                context,
+                                size: Space.small,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text(
+                                        _showSearch ? 'إغلاق البحث' : 'البحث',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                      Text(
+                                        _showSearch
+                                            ? 'إخفاء شريط البحث'
+                                            : 'البحث في الإعلانات',
+                                        style: TextStyle(
+                                          fontSize: Responsive.text(
+                                            context,
+                                            size: TextSize.small,
+                                          ),
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: Responsive.space(
+                                    context,
+                                    size: Space.small,
+                                  ),
+                                ),
+                                Container(
+                                  padding: EdgeInsets.all(
+                                    Responsive.space(
+                                      context,
+                                      size: Space.small,
+                                    ),
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        _showSearch
+                                            ? Colors.blue[100]
+                                            : Colors.grey[100],
+                                    borderRadius: BorderRadius.circular(
+                                      Responsive.space(
+                                        context,
+                                        size: Space.large,
+                                      ),
+                                    ),
+                                  ),
+                                  child: Icon(
+                                    _showSearch ? Icons.close : Icons.search,
+                                    size: Responsive.space(
+                                      context,
+                                      size: Space.medium,
+                                    ),
+                                    color:
+                                        _showSearch
+                                            ? Colors.blue[700]
+                                            : Colors.grey[700],
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                          leading: Icon(
-                            _showSearch ? Icons.close : Icons.search,
-                            size: 26,
-                            color: Colors.black,
-                          ),
+                        ),
+                        PopupMenuItem(
+                          value: 'filters',
+                          child: Container(
+                            padding: EdgeInsets.symmetric(vertical: 8),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text(
+                                        _showFilters
+                                            ? 'إغلاق الفلاتر'
+                                            : 'الفلاتر',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                      Text(
+                                        _showFilters
+                                            ? 'إخفاء خيارات التصفية'
+                                            : 'تصفية الإعلانات',
+                                        style: TextStyle(
+                                          fontSize: Responsive.text(
+                                            context,
+                                            size: TextSize.small,
+                                          ),
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: Responsive.space(
+                                    context,
+                                    size: Space.small,
+                                  ),
+                                ),
+                                Container(
+                                  padding: EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        _showFilters
+                                            ? Colors.green[100]
+                                            : Colors.grey[100],
+                                    borderRadius: BorderRadius.circular(
+                                      Responsive.space(
+                                        context,
+                                        size: Space.large,
+                                      ),
+                                    ),
+                                  ),
 
-                          horizontalTitleGap: 0,
-                          dense: true,
-                          minLeadingWidth: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                                  child: Icon(
+                                    _showFilters
+                                        ? Icons.filter_alt
+                                        : Icons.filter_alt_outlined,
+                                    size: Responsive.space(
+                                      context,
+                                      size: Space.medium,
+                                    ),
+                                    color:
+                                        _showFilters
+                                            ? Colors.green[700]
+                                            : Colors.grey[700],
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'filters',
-                      child: Directionality(
-                        textDirection: TextDirection.rtl,
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 4,
-                            vertical: 2,
-                          ),
-                          leading: Icon(
-                            _showFilters
-                                ? Icons.filter_alt
-                                : Icons.filter_alt_outlined,
-                            size: 26,
-                            color: Colors.black,
-                          ),
-                          horizontalTitleGap: 0,
-                          dense: true,
-                          minLeadingWidth: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'analytics',
-                      child: Directionality(
-                        textDirection: TextDirection.rtl,
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 4,
-                            vertical: 2,
-                          ),
-                          leading: Icon(
-                            _showAnalytics
-                                ? Icons.bar_chart
-                                : Icons.bar_chart_outlined,
-                            size: 26,
-                            color: Colors.black,
-                          ),
-                          horizontalTitleGap: 0,
-                          dense: true,
-                          minLeadingWidth: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ];
-                  return items;
-                },
-                onSelected: (value) {
-                  if (value == 'search') {
-                    setState(() {
-                      if (_showSearch) {
-                        _showSearch = false;
-                        _search = '';
-                        _searchController.clear();
-                      } else {
-                        _showSearch = true;
+                      ];
+                      return items;
+                    },
+                    onSelected: (value) {
+                      if (value == 'search') {
+                        setState(() {
+                          if (_showSearch) {
+                            _showSearch = false;
+                            _search = '';
+                            _searchController.clear();
+                          } else {
+                            _showSearch = true;
+                          }
+                        });
+                      } else if (value == 'filters') {
+                        setState(() => _showFilters = !_showFilters);
                       }
-                    });
-                  } else if (value == 'filters') {
-                    setState(() => _showFilters = !_showFilters);
-                  } else if (value == 'analytics') {
-                    setState(() => _showAnalytics = !_showAnalytics);
-                  } else if (value == 'settings') {
-                    Navigator.pushNamed(context, '/super-admin-panel');
-                  }
-                },
+                    },
+                  ),
+                ),
               ),
             ],
             surfaceTintColor: Colors.white,
@@ -635,18 +769,6 @@ class _AdminControlState extends State<AdminControl> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          if (_showAnalytics)
-                            Padding(
-                              padding: EdgeInsets.only(
-                                bottom: Responsive.space(
-                                  context,
-                                  size: Space.medium,
-                                ),
-                              ),
-                              child: _buildAnalyticsBar(
-                                announcementProvider.announcements,
-                              ),
-                            ),
                           if (filteredAnnouncements.isEmpty)
                             Column(
                               mainAxisAlignment: MainAxisAlignment.center,
@@ -705,26 +827,15 @@ class _AdminControlState extends State<AdminControl> {
                                 itemBuilder: (context, index) {
                                   final announcement =
                                       filteredAnnouncements[index];
-                                  return Padding(
-                                    padding: EdgeInsets.symmetric(
-                                      vertical: Responsive.space(
-                                        context,
-                                        size: Space.small,
-                                      ),
-                                    ),
-                                    child: AnnouncementCard(
-                                      announcement: announcement,
-                                      onEdit:
-                                          () => _editAnnouncement(announcement),
-                                      onDelete:
-                                          () =>
-                                              _deleteAnnouncement(announcement),
-                                      onPin:
-                                          () => _pinAnnouncement(announcement),
-                                      onUnpin:
-                                          () =>
-                                              _unpinAnnouncement(announcement),
-                                    ),
+                                  return AnnouncementCard(
+                                    announcement: announcement,
+                                    onEdit:
+                                        () => _editAnnouncement(announcement),
+                                    onDelete:
+                                        () => _deleteAnnouncement(announcement),
+                                    onPin: () => _pinAnnouncement(announcement),
+                                    onUnpin:
+                                        () => _unpinAnnouncement(announcement),
                                   );
                                 },
                               ),

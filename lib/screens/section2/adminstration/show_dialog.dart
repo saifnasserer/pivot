@@ -1,7 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show ui;
+import 'package:flutter/services.dart';
 import 'package:pivot/responsive.dart';
 import 'package:intl/intl.dart';
 import 'dart:io';
@@ -24,12 +24,7 @@ final List<Color> availableColors = [
 ];
 
 // Available tags (categories) for selection
-final List<String> availableTags = [
-  'اخبار قسم SC',
-  'اخبار قسم AI',
-  'اخبار قسم CS',
-  'اخبار قسم IS',
-];
+final List<String> availableTags = ['عام', 'SC', 'AI', 'CS', 'IS'];
 
 // Show dialog to add or edit an announcement
 void showAddAnnouncementDialog({
@@ -54,12 +49,21 @@ void showAddAnnouncementDialog({
   final ImagePicker picker = ImagePicker();
 
   // State for draft, publishAt, expireAt
-  bool isDraft = announcement?.draft ?? false;
   DateTime? publishAt = announcement?.publishAt;
   DateTime? expireAt = announcement?.expireAt;
 
   // Form key for validation
   final formKey = GlobalKey<FormState>();
+
+  // Helper to check if the form is valid (must be inside to access local vars)
+  bool isFormValid() {
+    return title.trim().isNotEmpty &&
+        description.trim().isNotEmpty &&
+        selectedTags.isNotEmpty &&
+        (publishAt == null ||
+            expireAt == null ||
+            expireAt!.isAfter(publishAt!));
+  }
 
   showDialog(
     context: context,
@@ -137,173 +141,304 @@ void showAddAnnouncementDialog({
                       ),
 
                       // Links Section
-                      _buildLinksSection(context, setState, links),
-                      SizedBox(
-                        height: Responsive.space(context, size: Space.medium),
-                      ),
-
-                      // File Picker Section (for PDFs and other files)
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.attach_file),
-                        label: const Text('ملف (PDF)'),
-                        onPressed: () async {
-                          try {
-                            debugPrint('Opening file picker...');
-                            FilePickerResult? result = await FilePicker.platform
-                                .pickFiles(
-                                  type: FileType.custom,
-                                  allowedExtensions: ['pdf'],
-                                );
-                            debugPrint(
-                              'File picker result: ${result?.files.length}',
-                            );
-                            if (result != null &&
-                                result.files.single.path != null) {
-                              debugPrint(
-                                'File selected: ${result.files.single.name}',
-                              );
-                              // Show loading dialog
-                              showDialog(
-                                context: context,
-                                barrierDismissible: false,
-                                builder:
-                                    (context) => AlertDialog(
-                                      content: Row(
-                                        children: [
-                                          CircularProgressIndicator(),
-                                          SizedBox(
-                                            width: Responsive.space(
-                                              context,
-                                              size: Space.medium,
-                                            ),
-                                          ),
-                                          Text('جاري رفع الملف...'),
-                                        ],
-                                      ),
-                                    ),
-                              );
-
-                              final file = File(result.files.single.path!);
-                              final fileName = result.files.single.name;
-
-                              // Validate file size (10MB limit)
-                              final fileSize = await file.length();
-                              debugPrint('File size: $fileSize bytes');
-                              if (fileSize > 10 * 1024 * 1024) {
-                                Navigator.of(
-                                  context,
-                                ).pop(); // Dismiss loading dialog
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'حجم الملف أكبر من 10 ميجابايت',
-                                    ),
-                                    backgroundColor: Colors.red,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Column(
+                            children: [
+                              Tooltip(
+                                message: 'إرفاق صورة',
+                                child: IconButton(
+                                  icon: Icon(
+                                    Icons.image,
+                                    color: Colors.green,
+                                    size: 30,
                                   ),
-                                );
-                                return;
-                              }
-
-                              debugPrint('Starting upload...');
-                              // Upload to Firebase Storage
-                              final storageRef = FirebaseStorage.instance
-                                  .ref()
-                                  .child(
-                                    'announcements/attachments/${DateTime.now().millisecondsSinceEpoch}_$fileName',
-                                  );
-                              final uploadTask = storageRef.putFile(file);
-                              final snapshot = await uploadTask.whenComplete(
-                                () {},
-                              );
-                              final downloadUrl =
-                                  await snapshot.ref.getDownloadURL();
-                              debugPrint('Upload completed: $downloadUrl');
-
-                              Navigator.of(
-                                context,
-                              ).pop(); // Dismiss loading dialog
-
-                              // Ask user for a title or use file name
-                              String? linkTitle = await showDialog<String>(
-                                context: context,
-                                builder: (context) {
-                                  String tempTitle = fileName;
-                                  return AlertDialog(
-                                    title: const Text('عنوان الملف'),
-                                    content: TextField(
-                                      decoration: const InputDecoration(
-                                        hintText: 'أدخل عنوان الرابط',
-                                      ),
-                                      controller: TextEditingController(
-                                        text: fileName,
-                                      ),
-                                      textAlign: TextAlign.right,
-                                      onChanged: (v) => tempTitle = v,
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed:
-                                            () => Navigator.pop(
-                                              context,
-                                              tempTitle,
-                                            ),
-                                        child: const Text('موافق'),
-                                      ),
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(context),
-                                        child: const Text('إلغاء'),
-                                      ),
-                                    ],
-                                  );
-                                },
-                              );
-
-                              if (linkTitle != null) {
-                                setState(() {
-                                  links.add({
-                                    'title': linkTitle,
-                                    'url': downloadUrl,
-                                  });
-                                });
-
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('تم رفع الملف بنجاح'),
-                                    backgroundColor: Colors.green,
-                                  ),
-                                );
-                              }
-                            }
-                          } catch (e) {
-                            debugPrint('Error in PDF upload: $e');
-                            // Dismiss loading dialog if it's still showing
-                            if (Navigator.canPop(context)) {
-                              Navigator.of(context).pop();
-                            }
-
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('فشل في رفع الملف: $e'),
-                                backgroundColor: Colors.red,
+                                  onPressed: () async {
+                                    final hasPermission =
+                                        await PermissionService.requestPhotosPermissionWithRationale(
+                                          context,
+                                        );
+                                    if (!hasPermission) return;
+                                    final List<XFile> images =
+                                        await picker.pickMultiImage();
+                                    if (images.isNotEmpty) {
+                                      setState(() {
+                                        for (var img in images) {
+                                          if (!pickedImages.any(
+                                            (i) => i.path == img.path,
+                                          )) {
+                                            pickedImages.add(img);
+                                          }
+                                        }
+                                      });
+                                    }
+                                  },
+                                ),
                               ),
-                            );
-                          }
-                        },
+                              Text('صورة', style: TextStyle(fontSize: 12)),
+                            ],
+                          ),
+                          SizedBox(width: 24),
+                          Column(
+                            children: [
+                              Tooltip(
+                                message: 'إرفاق ملف PDF',
+                                child: IconButton(
+                                  icon: Icon(
+                                    Icons.attach_file,
+                                    color: Colors.orange,
+                                    size: 30,
+                                  ),
+                                  onPressed: () async {
+                                    try {
+                                      FilePickerResult? result =
+                                          await FilePicker.platform.pickFiles(
+                                            type: FileType.custom,
+                                            allowedExtensions: ['pdf'],
+                                          );
+                                      if (result != null &&
+                                          result.files.single.path != null) {
+                                        showDialog(
+                                          context: context,
+                                          barrierDismissible: false,
+                                          builder:
+                                              (context) => AlertDialog(
+                                                content: Row(
+                                                  children: [
+                                                    CircularProgressIndicator(),
+                                                    SizedBox(
+                                                      width: Responsive.space(
+                                                        context,
+                                                        size: Space.medium,
+                                                      ),
+                                                    ),
+                                                    Text('جاري رفع الملف...'),
+                                                  ],
+                                                ),
+                                              ),
+                                        );
+                                        final file = File(
+                                          result.files.single.path!,
+                                        );
+                                        final fileName =
+                                            result.files.single.name;
+                                        final fileSize = await file.length();
+                                        if (fileSize > 10 * 1024 * 1024) {
+                                          Navigator.of(context).pop();
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                'حجم الملف أكبر من 10 ميجابايت',
+                                              ),
+                                              backgroundColor: Colors.red,
+                                            ),
+                                          );
+                                          return;
+                                        }
+                                        final storageRef = FirebaseStorage
+                                            .instance
+                                            .ref()
+                                            .child(
+                                              'announcements/attachments/${DateTime.now().millisecondsSinceEpoch}_$fileName',
+                                            );
+                                        final uploadTask = storageRef.putFile(
+                                          file,
+                                        );
+                                        final snapshot = await uploadTask
+                                            .whenComplete(() {});
+                                        final downloadUrl =
+                                            await snapshot.ref.getDownloadURL();
+                                        Navigator.of(context).pop();
+                                        String?
+                                        linkTitle = await showDialog<String>(
+                                          context: context,
+                                          builder: (context) {
+                                            String tempTitle = fileName;
+                                            return AlertDialog(
+                                              title: const Text('عنوان الملف'),
+                                              content: TextField(
+                                                decoration:
+                                                    const InputDecoration(
+                                                      hintText:
+                                                          'أدخل عنوان الرابط',
+                                                    ),
+                                                controller:
+                                                    TextEditingController(
+                                                      text: fileName,
+                                                    ),
+                                                textAlign: TextAlign.right,
+                                                onChanged: (v) => tempTitle = v,
+                                              ),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed:
+                                                      () => Navigator.pop(
+                                                        context,
+                                                        tempTitle,
+                                                      ),
+                                                  child: const Text('موافق'),
+                                                ),
+                                                TextButton(
+                                                  onPressed:
+                                                      () => Navigator.pop(
+                                                        context,
+                                                      ),
+                                                  child: const Text('إلغاء'),
+                                                ),
+                                              ],
+                                            );
+                                          },
+                                        );
+                                        if (linkTitle != null) {
+                                          setState(() {
+                                            if (!links.any(
+                                              (l) => l['url'] == downloadUrl,
+                                            )) {
+                                              links.add({
+                                                'title': linkTitle,
+                                                'url': downloadUrl,
+                                              });
+                                            }
+                                          });
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                'تم رفع الملف بنجاح',
+                                              ),
+                                              backgroundColor: Colors.green,
+                                            ),
+                                          );
+                                        }
+                                      }
+                                    } catch (e) {
+                                      if (Navigator.canPop(context))
+                                        Navigator.of(context).pop();
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text('فشل في رفع الملف: $e'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
+                                  },
+                                ),
+                              ),
+                              Text('ملف', style: TextStyle(fontSize: 12)),
+                            ],
+                          ),
+                          SizedBox(width: 24),
+                          Column(
+                            children: [
+                              Tooltip(
+                                message: 'إضافة رابط',
+                                child: IconButton(
+                                  icon: Icon(
+                                    Icons.add_link,
+                                    color: Colors.blue,
+                                    size: 30,
+                                  ),
+                                  onPressed: () {
+                                    _showAddLinkDialog(context, (newLink) {
+                                      setState(() {
+                                        if (!links.any(
+                                          (l) => l['url'] == newLink['url'],
+                                        )) {
+                                          links.add(newLink);
+                                        }
+                                      });
+                                    });
+                                  },
+                                ),
+                              ),
+                              Text('رابط', style: TextStyle(fontSize: 12)),
+                            ],
+                          ),
+                        ],
                       ),
                       SizedBox(
                         height: Responsive.space(context, size: Space.medium),
                       ),
 
                       // Image Picker Section
-                      _buildImagePickerSection(
-                        context,
-                        setState,
-                        pickedImages,
-                        picker,
-                      ),
-                      SizedBox(
-                        height: Responsive.space(context, size: Space.medium),
-                      ),
+                      if (links.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          child: Wrap(
+                            spacing: 8.0,
+                            runSpacing: 4.0,
+                            alignment: WrapAlignment.end,
+                            children:
+                                links.map((link) {
+                                  return Chip(
+                                    label: Text(link['title'] ?? 'Link'),
+                                    onDeleted: () {
+                                      setState(() {
+                                        links.remove(link);
+                                      });
+                                    },
+                                  );
+                                }).toList(),
+                          ),
+                        ),
+                      if (pickedImages.isNotEmpty)
+                        Container(
+                          height: 100,
+                          margin: EdgeInsets.only(
+                            top: Responsive.space(context, size: Space.small),
+                          ),
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: pickedImages.length,
+                            itemBuilder: (context, index) {
+                              return Stack(
+                                alignment: Alignment.topLeft,
+                                children: [
+                                  Container(
+                                    margin: EdgeInsets.only(right: 8),
+                                    width: 100,
+                                    height: 100,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(8),
+                                      image: DecorationImage(
+                                        image:
+                                            (kIsWeb
+                                                    ? CachedNetworkImageProvider(
+                                                      pickedImages[index].path,
+                                                    )
+                                                    : FileImage(
+                                                      File(
+                                                        pickedImages[index]
+                                                            .path,
+                                                      ),
+                                                    ))
+                                                as ImageProvider,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: Icon(
+                                      Icons.remove_circle,
+                                      color: Colors.red,
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        pickedImages.removeAt(index);
+                                      });
+                                    },
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                        ),
 
                       // Color selection
                       // Align(
@@ -516,34 +651,30 @@ void showAddAnnouncementDialog({
                         // ),
                       ),
                       SizedBox(
-                        height:
-                            Responsive.space(context, size: Space.small) * 0.5,
+                        height: Responsive.space(context, size: Space.small),
                       ),
 
-                      Container(
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade300),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        padding: EdgeInsets.all(12),
-                        child: Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          alignment: WrapAlignment.end,
+                      // Simple horizontal scrollable tags
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        reverse: true,
+                        child: Row(
                           children:
                               availableTags.map((tag) {
                                 final isSelected = selectedTags.contains(tag);
                                 return Container(
-                                  margin: EdgeInsets.only(
-                                    bottom:
-                                        Responsive.space(
-                                          context,
-                                          size: Space.small,
-                                        ) *
-                                        .1,
-                                  ),
+                                  margin: EdgeInsets.only(left: 8),
                                   child: FilterChip(
-                                    label: Text(tag),
+                                    label: Text(
+                                      tag,
+                                      style: TextStyle(
+                                        color:
+                                            isSelected
+                                                ? Colors.white
+                                                : Colors.black87,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
                                     selected: isSelected,
                                     onSelected: (selected) {
                                       setState(() {
@@ -554,265 +685,416 @@ void showAddAnnouncementDialog({
                                         }
                                       });
                                     },
-                                    selectedColor: selectedColor.withOpacity(
-                                      0.3,
-                                    ),
-                                    checkmarkColor: Colors.black,
-                                    labelStyle: TextStyle(
-                                      color: Colors.black,
-                                      fontWeight:
-                                          isSelected
-                                              ? FontWeight.bold
-                                              : FontWeight.normal,
-                                    ),
+                                    selectedColor: selectedColor,
+                                    backgroundColor: Colors.grey[200],
+                                    checkmarkColor: Colors.white,
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(20),
                                     ),
                                     padding: EdgeInsets.symmetric(
-                                      horizontal: Responsive.space(context),
-                                      vertical: Responsive.space(context) * .5,
+                                      horizontal: 16,
+                                      vertical: 8,
                                     ),
                                   ),
                                 );
                               }).toList(),
                         ),
                       ),
+
+                      // Scheduled publish date
+                      // Row(
+                      //   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      //   children: [
+                      //     Column(
+                      //       children: [
+                      //         Row(
+                      //           mainAxisAlignment: MainAxisAlignment.center,
+                      //           children: [
+                      //             IconButton(
+                      //               icon: Icon(
+                      //                 publishAt != null
+                      //                     ? Icons.schedule
+                      //                     : Icons.schedule_outlined,
+                      //                 color:
+                      //                     publishAt != null
+                      //                         ? Colors.blue[600]
+                      //                         : Colors.grey[600],
+                      //                 size:
+                      //                     Responsive.space(
+                      //                       context,
+                      //                       size: Space.medium,
+                      //                     ) *
+                      //                     1.5,
+                      //               ),
+                      //               onPressed: () async {
+                      //                 final picked = await showDatePicker(
+                      //                   context: context,
+                      //                   initialDate:
+                      //                       publishAt ?? DateTime.now(),
+                      //                   firstDate: DateTime.now(),
+                      //                   lastDate: DateTime.now().add(
+                      //                     const Duration(days: 365),
+                      //                   ),
+                      //                 );
+                      //                 if (picked != null) {
+                      //                   final time = await showTimePicker(
+                      //                     context: context,
+                      //                     initialTime: TimeOfDay.fromDateTime(
+                      //                       (publishAt ?? DateTime.now()),
+                      //                     ),
+                      //                   );
+                      //                   if (time != null) {
+                      //                     setState(() {
+                      //                       publishAt = DateTime(
+                      //                         picked.year,
+                      //                         picked.month,
+                      //                         picked.day,
+                      //                         time.hour,
+                      //                         time.minute,
+                      //                       );
+                      //                     });
+                      //                   }
+                      //                 }
+                      //               },
+                      //             ),
+                      //             if (publishAt != null) ...[
+                      //               SizedBox(width: 8),
+                      //               IconButton(
+                      //                 icon: Icon(
+                      //                   Icons.clear,
+                      //                   size: 20,
+                      //                   color: Colors.red[400],
+                      //                 ),
+                      //                 onPressed:
+                      //                     () =>
+                      //                         setState(() => publishAt = null),
+                      //               ),
+                      //             ],
+                      //           ],
+                      //         ),
+                      //         Text(
+                      //           'جدول النشر',
+                      //           style: TextStyle(
+                      //             fontSize:
+                      //                 Responsive.text(
+                      //                   context,
+                      //                   size: TextSize.small,
+                      //                 ) *
+                      //                 1.1,
+                      //             color: Colors.grey[600],
+                      //             fontWeight: FontWeight.w500,
+                      //           ),
+                      //         ),
+                      //         Text(
+                      //           publishAt != null
+                      //               ? DateFormat(
+                      //                 'yyyy/MM/dd HH:mm',
+                      //               ).format(publishAt!)
+                      //               : 'غير محدد',
+                      //           style: TextStyle(
+                      //             fontSize: Responsive.text(
+                      //               context,
+                      //               size: TextSize.small,
+                      //             ),
+                      //             color:
+                      //                 publishAt != null
+                      //                     ? Colors.blue[600]
+                      //                     : Colors.grey[500],
+                      //             fontWeight: FontWeight.w600,
+                      //           ),
+                      //         ),
+                      //       ],
+                      //     ),
+
+                      //     // Expiry date
+                      //     Column(
+                      //       children: [
+                      //         Row(
+                      //           mainAxisAlignment: MainAxisAlignment.center,
+                      //           children: [
+                      //             IconButton(
+                      //               icon: Icon(
+                      //                 expireAt != null
+                      //                     ? Icons.event
+                      //                     : Icons.event_outlined,
+                      //                 color:
+                      //                     expireAt != null
+                      //                         ? Colors.red[600]
+                      //                         : Colors.grey[600],
+                      //                 size:
+                      //                     Responsive.space(
+                      //                       context,
+                      //                       size: Space.medium,
+                      //                     ) *
+                      //                     1.5,
+                      //               ),
+                      //               onPressed: () async {
+                      //                 final picked = await showDatePicker(
+                      //                   context: context,
+                      //                   initialDate: expireAt ?? DateTime.now(),
+                      //                   firstDate: DateTime.now(),
+                      //                   lastDate: DateTime.now().add(
+                      //                     const Duration(days: 365),
+                      //                   ),
+                      //                 );
+                      //                 if (picked != null) {
+                      //                   final time = await showTimePicker(
+                      //                     context: context,
+                      //                     initialTime: TimeOfDay.fromDateTime(
+                      //                       (expireAt ?? DateTime.now()),
+                      //                     ),
+                      //                   );
+                      //                   if (time != null) {
+                      //                     setState(() {
+                      //                       expireAt = DateTime(
+                      //                         picked.year,
+                      //                         picked.month,
+                      //                         picked.day,
+                      //                         time.hour,
+                      //                         time.minute,
+                      //                       );
+                      //                     });
+                      //                   }
+                      //                 }
+                      //               },
+                      //             ),
+                      //             if (expireAt != null) ...[
+                      //               SizedBox(width: 8),
+                      //               IconButton(
+                      //                 icon: Icon(
+                      //                   Icons.clear,
+                      //                   size: 20,
+                      //                   color: Colors.red[400],
+                      //                 ),
+                      //                 onPressed:
+                      //                     () => setState(() => expireAt = null),
+                      //               ),
+                      //             ],
+                      //           ],
+                      //         ),
+                      //         Text(
+                      //           'تاريخ الانتهاء',
+                      //           style: TextStyle(
+                      //             fontSize:
+                      //                 Responsive.text(
+                      //                   context,
+                      //                   size: TextSize.small,
+                      //                 ) *
+                      //                 1.1,
+                      //             color: Colors.grey[600],
+                      //             fontWeight: FontWeight.w500,
+                      //           ),
+                      //         ),
+                      //         Text(
+                      //           expireAt != null
+                      //               ? DateFormat(
+                      //                 'yyyy/MM/dd HH:mm',
+                      //               ).format(expireAt!)
+                      //               : 'غير محدد',
+                      //           style: TextStyle(
+                      //             fontSize: 14,
+                      //             color:
+                      //                 expireAt != null
+                      //                     ? Colors.red[600]
+                      //                     : Colors.grey[500],
+                      //             fontWeight: FontWeight.w600,
+                      //           ),
+                      //         ),
+                      //       ],
+                      //     ),
+                      //   ],
+                      // ),
                       SizedBox(
                         height: Responsive.space(context, size: Space.medium),
                       ),
-
-                      // Draft checkbox
-                      CheckboxListTile(
-                        value: isDraft,
-                        onChanged: (v) => setState(() => isDraft = v ?? false),
-                        title: const Text('حفظ كمسودة'),
-                        controlAffinity: ListTileControlAffinity.leading,
-                      ),
-                      // Scheduled publish date
-                      ListTile(
-                        title: const Text('تاريخ النشر (اختياري)'),
-                        subtitle: Text(
-                          publishAt != null
-                              ? DateFormat(
-                                'yyyy/MM/dd HH:mm',
-                              ).format(publishAt!)
-                              : 'غير محدد',
-                        ),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.calendar_today),
-                          onPressed: () async {
-                            final picked = await showDatePicker(
-                              context: context,
-                              initialDate: publishAt ?? DateTime.now(),
-                              firstDate: DateTime.now(),
-                              lastDate: DateTime.now().add(
-                                const Duration(days: 365),
-                              ),
-                            );
-                            if (picked != null) {
-                              final time = await showTimePicker(
-                                context: context,
-                                initialTime: TimeOfDay.fromDateTime(
-                                  (publishAt ?? DateTime.now()),
-                                ),
-                              );
-                              if (time != null) {
-                                setState(() {
-                                  publishAt = DateTime(
-                                    picked.year,
-                                    picked.month,
-                                    picked.day,
-                                    time.hour,
-                                    time.minute,
-                                  );
-                                });
-                              }
-                            }
-                          },
-                        ),
-                        onLongPress: () => setState(() => publishAt = null),
-                      ),
-                      // Expiry date
-                      ListTile(
-                        title: const Text('تاريخ الانتهاء (اختياري)'),
-                        subtitle: Text(
-                          expireAt != null
-                              ? DateFormat('yyyy/MM/dd HH:mm').format(expireAt!)
-                              : 'غير محدد',
-                        ),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.calendar_today),
-                          onPressed: () async {
-                            final picked = await showDatePicker(
-                              context: context,
-                              initialDate: expireAt ?? DateTime.now(),
-                              firstDate: DateTime.now(),
-                              lastDate: DateTime.now().add(
-                                const Duration(days: 365),
-                              ),
-                            );
-                            if (picked != null) {
-                              final time = await showTimePicker(
-                                context: context,
-                                initialTime: TimeOfDay.fromDateTime(
-                                  (expireAt ?? DateTime.now()),
-                                ),
-                              );
-                              if (time != null) {
-                                setState(() {
-                                  expireAt = DateTime(
-                                    picked.year,
-                                    picked.month,
-                                    picked.day,
-                                    time.hour,
-                                    time.minute,
-                                  );
-                                });
-                              }
-                            }
-                          },
-                        ),
-                        onLongPress: () => setState(() => expireAt = null),
-                      ),
-
                       // Action buttons
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          ElevatedButton(
-                            onPressed: () async {
-                              if (formKey.currentState!.validate()) {
-                                if (selectedTags.isEmpty) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'الرجاء اختيار قسم واحد على الأقل',
-                                        textAlign: TextAlign.right,
-                                      ),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
-                                  return;
-                                }
-
-                                // Show loading indicator
-                                showDialog(
-                                  context: context,
-                                  barrierDismissible: false,
-                                  builder: (BuildContext context) {
-                                    return const Dialog(
-                                      child: Padding(
-                                        padding: EdgeInsets.all(20.0),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            CircularProgressIndicator(),
-                                            SizedBox(width: 20),
-                                            Text("جاري رفع الصور..."),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                );
-
-                                final announcementProvider =
-                                    Provider.of<AnnouncementProvider>(
-                                      context,
-                                      listen: false,
-                                    );
-                                List<String> imageUrls = [];
-
-                                // Upload images and collect URLs
-                                for (XFile image in pickedImages) {
-                                  try {
-                                    // Defensive checks
-                                    if (image.path.isEmpty) {
-                                      throw Exception('مسار الصورة غير صالح');
-                                    }
-                                    final file = File(image.path);
-                                    if (!await file.exists()) {
-                                      throw Exception(
-                                        'الملف غير موجود: ${image.path}',
-                                      );
-                                    }
-                                    final fileSize = await file.length();
-                                    if (fileSize > 10 * 1024 * 1024) {
-                                      // 10MB limit
-                                      throw Exception(
-                                        'حجم الصورة أكبر من 10 ميجابايت',
-                                      );
-                                    }
-                                    final allowedExtensions = [
-                                      'jpg',
-                                      'jpeg',
-                                      'png',
-                                    ];
-                                    final ext =
-                                        image.path
-                                            .split('.')
-                                            .last
-                                            .toLowerCase();
-                                    if (!allowedExtensions.contains(ext)) {
-                                      throw Exception(
-                                        'نوع الصورة غير مدعوم: $ext',
-                                      );
-                                    }
-                                    final String? imageUrl =
-                                        await announcementProvider.uploadImage(
-                                          image,
-                                        );
-                                    if (imageUrl != null) {
-                                      imageUrls.add(imageUrl);
-                                    } else {
-                                      throw Exception('فشل رفع الصورة');
-                                    }
-                                  } catch (e) {
-                                    Navigator.of(
-                                      context,
-                                    ).pop(); // Dismiss loading dialog
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text('خطأ في رفع الصورة: $e'),
-                                        backgroundColor: Colors.red,
-                                      ),
-                                    );
-                                    return;
-                                  }
-                                }
-
-                                // Add existing URLs if editing
-                                if (announcement?.imageUrls != null) {
-                                  imageUrls.addAll(announcement!.imageUrls);
-                                }
-
-                                final newAnnouncement = AnnouncementData(
-                                  id: announcement?.id,
-                                  title: title,
-                                  date: DateFormat(
-                                    'yyyy-MM-dd',
-                                  ).format(DateTime.now()),
-                                  color: selectedColor,
-                                  description: description,
-                                  tags: selectedTags,
-                                  imageUrls: imageUrls,
-                                  links: links,
-                                  timestamp: DateTime.now(),
-                                  draft: isDraft,
-                                  publishAt: publishAt,
-                                  expireAt: expireAt,
-                                );
-
-                                // Hide loading indicator
-                                Navigator.of(context).pop();
-
-                                // Call the onSave callback
-                                onSave(newAnnouncement);
-
-                                // Close the dialog
-                                Navigator.of(context).pop();
-                              }
+                          TextButton(
+                            onPressed: () {
+                              Navigator.of(context).pop();
                             },
+                            style: TextButton.styleFrom(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 32,
+                                vertical: 12,
+                              ),
+                            ),
+                            child: const Text(
+                              'إلغاء',
+                              style: TextStyle(fontSize: 16),
+                            ),
+                          ),
+                          ElevatedButton(
+                            onPressed:
+                                isFormValid()
+                                    ? () async {
+                                      if (!isFormValid()) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'يرجى ملء جميع الحقول المطلوبة بشكل صحيح',
+                                            ),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                        return;
+                                      }
+                                      if (publishAt != null &&
+                                          expireAt != null &&
+                                          !expireAt!.isAfter(publishAt!)) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'تاريخ الانتهاء يجب أن يكون بعد تاريخ النشر',
+                                            ),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                        return;
+                                      }
+                                      // Show loading indicator
+                                      showDialog(
+                                        context: context,
+                                        barrierDismissible: false,
+                                        builder: (BuildContext context) {
+                                          return const Dialog(
+                                            child: Padding(
+                                              padding: EdgeInsets.all(20.0),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  CircularProgressIndicator(),
+                                                  SizedBox(width: 20),
+                                                  Text("جاري رفع الصور..."),
+                                                ],
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      );
+
+                                      final announcementProvider =
+                                          Provider.of<AnnouncementProvider>(
+                                            context,
+                                            listen: false,
+                                          );
+                                      List<String> imageUrls = [];
+
+                                      // Upload images and collect URLs
+                                      for (XFile image in pickedImages) {
+                                        try {
+                                          // Defensive checks
+                                          if (image.path.isEmpty) {
+                                            throw Exception(
+                                              'مسار الصورة غير صالح',
+                                            );
+                                          }
+                                          final file = File(image.path);
+                                          if (!await file.exists()) {
+                                            throw Exception(
+                                              'الملف غير موجود: ${image.path}',
+                                            );
+                                          }
+                                          final fileSize = await file.length();
+                                          if (fileSize > 10 * 1024 * 1024) {
+                                            // 10MB limit
+                                            throw Exception(
+                                              'حجم الصورة أكبر من 10 ميجابايت',
+                                            );
+                                          }
+                                          final allowedExtensions = [
+                                            'jpg',
+                                            'jpeg',
+                                            'png',
+                                          ];
+                                          final ext =
+                                              image.path
+                                                  .split('.')
+                                                  .last
+                                                  .toLowerCase();
+                                          if (!allowedExtensions.contains(
+                                            ext,
+                                          )) {
+                                            throw Exception(
+                                              'نوع الصورة غير مدعوم: $ext',
+                                            );
+                                          }
+                                          final String? imageUrl =
+                                              await announcementProvider
+                                                  .uploadImage(image);
+                                          if (imageUrl != null) {
+                                            if (!imageUrls.contains(imageUrl))
+                                              imageUrls.add(imageUrl);
+                                          } else {
+                                            if (Navigator.canPop(context))
+                                              Navigator.of(context).pop();
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: Text('فشل رفع الصورة'),
+                                                backgroundColor: Colors.red,
+                                              ),
+                                            );
+                                            return;
+                                          }
+                                        } catch (e) {
+                                          if (Navigator.canPop(context))
+                                            Navigator.of(context).pop();
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                'خطأ في رفع الصورة: $e',
+                                              ),
+                                              backgroundColor: Colors.red,
+                                            ),
+                                          );
+                                          return;
+                                        }
+                                      }
+
+                                      // Prevent duplicate links
+                                      final uniqueLinks =
+                                          <String, Map<String, String>>{};
+                                      for (var link in links) {
+                                        uniqueLinks[link['url'] ?? ''] = link;
+                                      }
+
+                                      final newAnnouncement = AnnouncementData(
+                                        id: announcement?.id,
+                                        title: title,
+                                        date: DateFormat(
+                                          'yyyy-MM-dd',
+                                        ).format(DateTime.now()),
+                                        color: selectedColor,
+                                        description: description,
+                                        tags: selectedTags,
+                                        imageUrls: imageUrls,
+                                        links: uniqueLinks.values.toList(),
+                                        timestamp: DateTime.now(),
+                                        draft: false,
+                                        publishAt: publishAt,
+                                        expireAt: expireAt,
+                                      );
+
+                                      // Hide loading indicator
+                                      Navigator.of(context).pop();
+
+                                      // Call the onSave callback
+                                      onSave(newAnnouncement);
+
+                                      // Close the dialog
+                                      Navigator.of(context).pop();
+                                    }
+                                    : null,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: selectedColor.withOpacity(.3),
                               elevation: 0,
@@ -839,21 +1121,6 @@ void showAddAnnouncementDialog({
                               ),
                             ),
                           ),
-                          TextButton(
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                            },
-                            style: TextButton.styleFrom(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 32,
-                                vertical: 12,
-                              ),
-                            ),
-                            child: const Text(
-                              'إلغاء',
-                              style: TextStyle(fontSize: 16),
-                            ),
-                          ),
                         ],
                       ),
                     ],
@@ -865,154 +1132,6 @@ void showAddAnnouncementDialog({
         },
       );
     },
-  );
-}
-
-// Helper method to build the image picker UI
-Widget _buildImagePickerSection(
-  BuildContext context,
-  void Function(void Function()) setState,
-  List<XFile> pickedImages,
-  ImagePicker picker,
-) {
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      Text(
-        'الصور',
-        style: TextStyle(
-          fontSize: Responsive.text(context, size: TextSize.medium),
-          fontWeight: FontWeight.bold,
-        ),
-        textAlign: TextAlign.right,
-      ),
-      SizedBox(height: Responsive.space(context, size: Space.small)),
-      OutlinedButton.icon(
-        icon: Icon(Icons.image),
-        label: Text('إرفاق صورة'),
-        onPressed: () async {
-          final hasPermission =
-              await PermissionService.requestPhotosPermissionWithRationale(
-                context,
-              );
-          if (!hasPermission) return;
-          final List<XFile> images = await picker.pickMultiImage();
-          if (images.isNotEmpty) {
-            setState(() {
-              pickedImages.addAll(images);
-            });
-          }
-        },
-        style: OutlinedButton.styleFrom(
-          foregroundColor: Colors.black,
-          side: BorderSide(color: Colors.grey.shade400),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      ),
-      if (pickedImages.isNotEmpty)
-        Container(
-          height: 100,
-          margin: EdgeInsets.only(
-            top: Responsive.space(context, size: Space.small),
-          ),
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: pickedImages.length,
-            itemBuilder: (context, index) {
-              return Stack(
-                alignment: Alignment.topLeft,
-                children: [
-                  Container(
-                    margin: EdgeInsets.only(right: 8),
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      image: DecorationImage(
-                        image:
-                            (kIsWeb
-                                    ? CachedNetworkImageProvider(
-                                      pickedImages[index].path,
-                                    )
-                                    : FileImage(File(pickedImages[index].path)))
-                                as ImageProvider,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.remove_circle, color: Colors.red),
-                    onPressed: () {
-                      setState(() {
-                        pickedImages.removeAt(index);
-                      });
-                    },
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
-    ],
-  );
-}
-
-// Helper method to build the links UI
-Widget _buildLinksSection(
-  BuildContext context,
-  void Function(void Function()) setState,
-  List<Map<String, String>> links,
-) {
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      Text(
-        'الروابط',
-        style: TextStyle(
-          fontSize: Responsive.text(context, size: TextSize.medium),
-          fontWeight: FontWeight.bold,
-        ),
-        textAlign: TextAlign.right,
-      ),
-      SizedBox(height: Responsive.space(context, size: Space.small)),
-      OutlinedButton.icon(
-        icon: Icon(Icons.add_link),
-        label: Text('إضافة رابط'),
-        onPressed: () {
-          _showAddLinkDialog(context, (newLink) {
-            setState(() {
-              links.add(newLink);
-            });
-          });
-        },
-        style: OutlinedButton.styleFrom(
-          foregroundColor: Colors.black,
-          side: BorderSide(color: Colors.grey.shade400),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      ),
-      if (links.isNotEmpty)
-        Wrap(
-          spacing: 8.0,
-          runSpacing: 4.0,
-          alignment: WrapAlignment.end,
-          children:
-              links.map((link) {
-                return Chip(
-                  label: Text(link['title'] ?? 'Link'),
-                  onDeleted: () {
-                    setState(() {
-                      links.remove(link);
-                    });
-                  },
-                );
-              }).toList(),
-        ),
-    ],
   );
 }
 

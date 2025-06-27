@@ -19,6 +19,8 @@ class CardModel extends StatefulWidget {
   final bool isDoctorCard;
   final List<String> imageUrls;
   final List<Map<String, String>> links;
+  final DateTime? publishAt;
+  final DateTime? expireAt;
 
   const CardModel({
     super.key,
@@ -33,6 +35,8 @@ class CardModel extends StatefulWidget {
     this.isDoctorCard = false,
     this.imageUrls = const [],
     this.links = const [],
+    this.publishAt,
+    this.expireAt,
   });
 
   @override
@@ -194,18 +198,50 @@ class _CardModelState extends State<CardModel> {
   Widget build(BuildContext context) {
     final bookmarksProvider = Provider.of<Bookmarks>(context);
     final bool isBookmarked = bookmarksProvider.isBookmarked(widget.id!);
+    final now = DateTime.now();
+    final isScheduled =
+        widget.publishAt != null && widget.publishAt!.isAfter(now);
+    final isExpired = widget.expireAt != null && widget.expireAt!.isBefore(now);
 
     return Container(
       margin: EdgeInsets.all(Responsive.space(context, size: Space.small)),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        color: widget.color.withValues(alpha: 0.15),
+        color:
+            isExpired
+                ? Colors.grey.withOpacity(0.15)
+                : widget.color.withValues(alpha: 0.15),
       ),
       child: Padding(
         padding: EdgeInsets.all(Responsive.space(context, size: Space.large)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Visual indicator for scheduled/expired
+            if (isScheduled)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Icon(Icons.schedule, color: Colors.blue, size: 18),
+                  SizedBox(width: 4),
+                  Text(
+                    'مجدول',
+                    style: TextStyle(color: Colors.blue, fontSize: 11),
+                  ),
+                ],
+              ),
+            if (isExpired)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Icon(Icons.event_busy, color: Colors.grey, size: 18),
+                  SizedBox(width: 4),
+                  Text(
+                    'منتهي',
+                    style: TextStyle(color: Colors.grey, fontSize: 11),
+                  ),
+                ],
+              ),
             // Scrollable content area
             Expanded(
               child: SingleChildScrollView(

@@ -14,7 +14,7 @@ final List<Color> availableColors = [
 // Available tags (categories) for selection
 final List<String> availableTags = [
   'اخبار النهاردة',
-  'اخبار الاسبوع',
+  'عام',
   'اخبار قسم SC',
   'اخبار قسم AI',
   'اخبار قسم CS',

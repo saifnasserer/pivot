@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:pivot/screens/section2/adminstration/models/announcement_data.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
@@ -12,6 +13,7 @@ import 'package:image_picker/image_picker.dart';
 class AnnouncementProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final String _collectionPath = 'announcements';
+  static const String _announcementsBoxName = 'announcementsBox';
 
   List<AnnouncementData> _announcements = [];
   bool _isLoading = false;
@@ -25,6 +27,7 @@ class AnnouncementProvider with ChangeNotifier {
   Future<void> fetchAnnouncements({
     String? department,
     String? timeFilter,
+    bool includeScheduledAndExpired = false,
   }) async {
     _isLoading = true;
     _currentDepartmentFilter = department;
@@ -34,7 +37,7 @@ class AnnouncementProvider with ChangeNotifier {
     try {
       // Step 1: Load from cache first
       final cachedAnnouncements =
-          CacheService.instance.getCachedAnnouncements();
+          await CacheService.instance.getCachedAnnouncements();
       if (cachedAnnouncements.isNotEmpty) {
         _announcements = cachedAnnouncements;
         notifyListeners();
@@ -73,6 +76,27 @@ class AnnouncementProvider with ChangeNotifier {
         }
         return b.pinned ? 1 : -1;
       });
+      // Filter out scheduled (future) and expired announcements unless requested otherwise
+      if (!includeScheduledAndExpired) {
+        final now = DateTime.now();
+        // Remove expired announcements from Firestore
+        final expired =
+            _announcements
+                .where((a) => a.expireAt != null && a.expireAt!.isBefore(now))
+                .toList();
+        for (final a in expired) {
+          // Delete from Firestore
+          await _firestore.collection(_collectionPath).doc(a.id).delete();
+        }
+        _announcements =
+            _announcements.where((a) {
+              final publishAt = a.publishAt;
+              final expireAt = a.expireAt;
+              if (publishAt != null && publishAt.isAfter(now)) return false;
+              if (expireAt != null && expireAt.isBefore(now)) return false;
+              return true;
+            }).toList();
+      }
       await CacheService.instance.cacheAnnouncements(_announcements);
     } catch (e) {
       debugPrint('[FETCH] Error fetching announcements: $e');
@@ -236,5 +260,31 @@ class AnnouncementProvider with ChangeNotifier {
     } catch (e) {
       debugPrint('Error unpinning announcement: $e');
     }
+  }
+
+  // Announcement Caching
+  Future<void> cacheAnnouncements(List<AnnouncementData> announcements) async {
+    debugPrint('[AnnouncementProvider] cacheAnnouncements called');
+    if (!Hive.isBoxOpen(_announcementsBoxName)) {
+      throw Exception(
+        'Announcement box is not open! Make sure CacheService.init() is called before any provider access.',
+      );
+    }
+    final box = Hive.box<AnnouncementData>(_announcementsBoxName);
+    await box.clear();
+    for (var ann in announcements) {
+      await box.put(ann.id ?? ann.title, ann);
+    }
+  }
+
+  Future<List<AnnouncementData>> getCachedAnnouncements() async {
+    debugPrint('[AnnouncementProvider] getCachedAnnouncements called');
+    if (!Hive.isBoxOpen(_announcementsBoxName)) {
+      throw Exception(
+        'Announcement box is not open! Make sure CacheService.init() is called before any provider access.',
+      );
+    }
+    final box = Hive.box<AnnouncementData>(_announcementsBoxName);
+    return box.values.toList();
   }
 }

@@ -65,8 +65,9 @@ class UserProfile extends HiveObject {
     this.gender = 'ذكر',
     this.fcmToken,
     this.lastTokenUpdate,
-    this.notificationPreferences = const NotificationPreferences(),
-  });
+    NotificationPreferences? notificationPreferences,
+  }) : notificationPreferences =
+           notificationPreferences ?? NotificationPreferences();
 
   // Optional: copyWith method for easier updates
   UserProfile copyWith({
@@ -207,16 +208,24 @@ class UserProfile extends HiveObject {
   }
 }
 
+@HiveType(typeId: 1)
 class NotificationPreferences {
+  @HiveField(0)
   final bool taskReminders;
+  @HiveField(1)
   final bool classReminders;
+  @HiveField(2)
   final bool announcements;
+  @HiveField(3)
   final bool departmentNotifications;
+  @HiveField(4)
   final bool levelNotifications;
+  @HiveField(5)
   final int maxNotificationsPerHour;
+  @HiveField(6)
   final bool welcomeNotification;
 
-  const NotificationPreferences({
+  NotificationPreferences({
     this.taskReminders = true,
     this.classReminders = true,
     this.announcements = true,

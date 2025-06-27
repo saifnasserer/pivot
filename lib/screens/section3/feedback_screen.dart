@@ -43,26 +43,13 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
 
   String? _validateFeedback(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return 'الرجاء إدخال التعليق';
+      return 'الرجاء إدخال رأيك';
     }
     if (value.trim().length < 10) {
-      return 'يجب أن يكون التعليق أكثر من 10 أحرف';
+      return 'يجب أن يكون الرأي أكثر من 10 أحرف';
     }
     if (value.trim().length > 1000) {
-      return 'يجب أن يكون التعليق أقل من 1000 حرف';
-    }
-    return null;
-  }
-
-  String? _validateSuggestion(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'الرجاء إدخال الاقتراح';
-    }
-    if (value.trim().length < 10) {
-      return 'يجب أن يكون الاقتراح أكثر من 10 أحرف';
-    }
-    if (value.trim().length > 1000) {
-      return 'يجب أن يكون الاقتراح أقل من 1000 حرف';
+      return 'يجب أن يكون الرأي أقل من 1000 حرف';
     }
     return null;
   }
@@ -260,7 +247,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                 SizedBox(height: Responsive.space(context, size: Space.large)),
 
                 Text(
-                  'رأيك (اختياري)',
+                  'رأيك',
                   style: TextStyle(
                     fontSize: Responsive.text(context, size: TextSize.medium),
                     fontWeight: FontWeight.bold,
@@ -270,9 +257,9 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                 SizedBox(height: Responsive.space(context, size: Space.small)),
                 CustomTextField(
                   controller: _feedbackController,
-                  hint: 'اكتب تعليقك هنا...',
+                  hint: 'اكتب رأيك هنا...',
                   maxLines: 4,
-                  isValid: _isFeedbackValid,
+                  validator: _validateFeedback,
                   onChanged: (value) {
                     setState(() {
                       _isFeedbackValid = _validateFeedback(value) == null;
@@ -315,7 +302,6 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                             iconColor: Colors.white,
                           ),
                 ),
-
               ],
             ),
           ),

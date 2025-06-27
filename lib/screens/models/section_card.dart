@@ -209,24 +209,109 @@ class SectionCard extends StatelessWidget {
     showDialog(
       context: context,
       builder: (BuildContext context) {
+        final borderRadius = BorderRadius.circular(
+          Responsive.space(context, size: Space.large),
+        );
         return AlertDialog(
-          title: const Text('متأكد؟'),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(
-              Responsive.space(context, size: Space.medium),
+          shape: RoundedRectangleBorder(borderRadius: borderRadius),
+          elevation: 8,
+          backgroundColor: Colors.white,
+          titlePadding: EdgeInsets.only(
+            top: Responsive.space(context, size: Space.large),
+            left: Responsive.space(context, size: Space.large),
+            right: Responsive.space(context, size: Space.large),
+            bottom: Responsive.space(context, size: Space.small),
+          ),
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
+                'حذف السكشن',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  fontSize: Responsive.text(context, size: TextSize.heading),
+                ),
+              ),
+              SizedBox(height: Responsive.space(context, size: Space.small)),
+              Divider(
+                thickness: 1,
+                height: Responsive.space(context, size: Space.tiny),
+              ),
+            ],
+          ),
+          contentPadding: EdgeInsets.symmetric(
+            horizontal: Responsive.space(context, size: Space.medium),
+            vertical: Responsive.space(context, size: Space.small),
+          ),
+          content: Directionality(
+            textDirection: TextDirection.rtl,
+            child: Text(
+              'هل أنت متأكد من رغبتك في حذف هذا السكشن؟',
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontSize: Responsive.text(context, size: TextSize.medium),
+              ),
             ),
           ),
+          actionsPadding: EdgeInsets.only(
+            left: Responsive.space(context, size: Space.large),
+            right: Responsive.space(context, size: Space.large),
+            bottom: Responsive.space(context, size: Space.large),
+            top: Responsive.space(context, size: Space.small),
+          ),
+          actionsAlignment: MainAxisAlignment.center,
           actions: [
-            TextButton(
-              child: Text('لا', style: TextStyle(color: Colors.grey.shade700)),
-              onPressed: () => Navigator.of(context).pop(),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(
+                      Responsive.space(context, size: Space.medium),
+                    ),
+                  ),
+                  foregroundColor: Colors.grey.shade700,
+                  side: BorderSide(color: Colors.grey.shade300),
+                  padding: EdgeInsets.symmetric(
+                    vertical: Responsive.space(context, size: Space.small),
+                  ),
+                  textStyle: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: Responsive.text(context, size: TextSize.medium),
+                  ),
+                ),
+                child: const Text('لا'),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
             ),
-            TextButton(
-              child: const Text('متأكد', style: TextStyle(color: Colors.red)),
-              onPressed: () {
-                context.read<SectionProvider>().deleteSection(sectionId);
-                Navigator.of(context).pop();
-              },
+            SizedBox(height: Responsive.space(context, size: Space.small)),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(
+                      Responsive.space(context, size: Space.medium),
+                    ),
+                  ),
+                  backgroundColor: Colors.redAccent,
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(
+                    vertical: Responsive.space(context, size: Space.small),
+                  ),
+                  textStyle: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: Responsive.text(context, size: TextSize.medium),
+                  ),
+                  elevation: 0,
+                ),
+                child: const Text('متأكد'),
+                onPressed: () {
+                  context.read<SectionProvider>().deleteSection(sectionId);
+                  Navigator.of(context).pop();
+                },
+              ),
             ),
           ],
         );

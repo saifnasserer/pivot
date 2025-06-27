@@ -5,6 +5,7 @@ import 'package:pivot/models/section_model.dart';
 import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/screens/models/schedule_item.dart';
 import 'package:pivot/screens/section2/adminstration/models/announcement_data.dart';
+import 'package:flutter/foundation.dart';
 
 class CacheService {
   // Singleton instance
@@ -23,6 +24,9 @@ class CacheService {
     await Hive.initFlutter(appDocumentDir.path);
 
     // Register adapters
+    if (!Hive.isAdapterRegistered(NotificationPreferencesAdapter().typeId)) {
+      Hive.registerAdapter(NotificationPreferencesAdapter());
+    }
     if (!Hive.isAdapterRegistered(UserProfileAdapter().typeId)) {
       Hive.registerAdapter(UserProfileAdapter());
     }
@@ -48,6 +52,7 @@ class CacheService {
     await Hive.openBox<Subject>(_subjectsBoxName);
     await Hive.openBox<ScheduleItem>(_scheduleBoxName);
     await Hive.openBox<AnnouncementData>(_announcementsBoxName);
+    debugPrint('Announcements box opened!');
   }
 
   // User Caching

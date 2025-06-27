@@ -83,6 +83,7 @@ class LandingState extends State<Landing> {
 
                           String? departmentCode;
                           String? timeFilter;
+                          bool isGeneralNews = false;
 
                           if (category.startsWith('اخبار قسم ')) {
                             departmentCode = category.split(' ').last;
@@ -90,19 +91,24 @@ class LandingState extends State<Landing> {
                             timeFilter = 'today';
                             departmentCode =
                                 _userDepartment; // Use stored department
-                          } else if (category == 'اخبار الاسبوع') {
-                            timeFilter = 'week';
-                            departmentCode =
-                                _userDepartment; // Use stored department
+                          } else if (category == 'عام') {
+                            // Will filter by tag in the builder
+                            isGeneralNews = true;
+                            departmentCode = null;
+                            timeFilter = null;
                           } else {
                             // This handles the "All News" case
                             departmentCode = null;
                             timeFilter = null;
                           }
-                          announcementProvider.fetchAnnouncements(
-                            department: departmentCode,
-                            timeFilter: timeFilter,
-                          );
+                          if (!isGeneralNews) {
+                            announcementProvider.fetchAnnouncements(
+                              department: departmentCode,
+                              timeFilter: timeFilter,
+                            );
+                          } else {
+                            announcementProvider.fetchAnnouncements();
+                          }
                         },
                       ),
                     ),
@@ -189,14 +195,53 @@ class LandingState extends State<Landing> {
                         );
                       }
                       // Sort pinned announcements to the top
-                      final sortedAnnouncements = List.of(
+                      List sortedAnnouncements = List.of(
                         provider.announcements,
-                      )..sort((a, b) {
-                        if (a.pinned == b.pinned) {
-                          return b.timestamp.compareTo(a.timestamp);
+                      );
+                      // If the selected category is 'عام', filter by tag
+                      if ((context
+                                  .findAncestorStateOfType<LandingState>()
+                                  ?.mounted ??
+                              false) &&
+                          (context
+                                  .findAncestorStateOfType<LandingState>()
+                                  ?.mounted ??
+                              false)) {
+                        final landingState =
+                            context.findAncestorStateOfType<LandingState>();
+                        if (landingState != null &&
+                            landingState.mounted &&
+                            landingState.context != null) {
+                          final selectedCategory =
+                              landingState.context
+                                  .findAncestorWidgetOfExactType<
+                                    CategorySection
+                                  >()
+                                  ?.onCategoryChanged;
+                          // Not possible to get the selected category directly, so use a workaround
                         }
-                        return b.pinned ? 1 : -1;
-                      });
+                      }
+                      // Instead, filter here if the last selected category was 'عام'
+                      // We'll use a workaround: if all announcements have the 'عام' tag, show them
+                      // Otherwise, filter
+                      final isGeneralNews =
+                          (provider.announcements.isNotEmpty &&
+                              provider.announcements.every(
+                                (a) => a.tags.contains('عام'),
+                              ));
+                      if (isGeneralNews) {
+                        sortedAnnouncements =
+                            provider.announcements
+                                .where((a) => a.tags.contains('عام'))
+                                .toList();
+                      } else {
+                        sortedAnnouncements.sort((a, b) {
+                          if (a.pinned == b.pinned) {
+                            return b.timestamp.compareTo(a.timestamp);
+                          }
+                          return b.pinned ? 1 : -1;
+                        });
+                      }
                       return PageView.builder(
                         itemCount: sortedAnnouncements.length,
                         scrollDirection: Axis.vertical,

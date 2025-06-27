@@ -142,7 +142,9 @@ class PermissionService {
       builder:
           (ctx) => AlertDialog(
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(
+                Responsive.space(context, size: Space.large),
+              ),
             ),
             backgroundColor: Theme.of(context).cardColor,
             title: Center(
@@ -150,8 +152,7 @@ class PermissionService {
                 'الصلاحية مطلوبة',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize:
-                      Theme.of(context).textTheme.titleLarge?.fontSize ?? 20,
+                  fontSize: Responsive.text(context, size: TextSize.medium),
                   color: Colors.black87,
                 ),
                 textAlign: TextAlign.center,
@@ -170,45 +171,61 @@ class PermissionService {
             ),
             actionsAlignment: MainAxisAlignment.center,
             actions: [
-              ElevatedButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.grey.shade200,
-                  foregroundColor: Colors.black,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(
-                      Responsive.space(context, size: Space.large),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey.shade200,
+                      foregroundColor: Colors.black,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(
+                          Responsive.space(context, size: Space.large),
+                        ),
+                      ),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: Responsive.space(
+                          context,
+                          size: Space.medium,
+                        ),
+                        vertical: Responsive.space(context, size: Space.small),
+                      ),
+                    ),
+                    child: const Text('إلغاء', textAlign: TextAlign.center),
+                  ),
+                  SizedBox(
+                    width: Responsive.space(context, size: Space.medium),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      permission_handler.openAppSettings();
+                      Navigator.of(ctx).pop();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green.shade700,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(
+                          Responsive.space(context, size: Space.large),
+                        ),
+                      ),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: Responsive.space(
+                          context,
+                          size: Space.medium,
+                        ),
+                        vertical: Responsive.space(context, size: Space.small),
+                      ),
+                    ),
+                    child: const Text(
+                      'فتح الإعدادات',
+                      textAlign: TextAlign.center,
                     ),
                   ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 10,
-                  ),
-                ),
-                child: const Text('إلغاء', textAlign: TextAlign.center),
-              ),
-              SizedBox(width: Responsive.space(context, size: Space.small)),
-              ElevatedButton(
-                onPressed: () {
-                  permission_handler.openAppSettings();
-                  Navigator.of(ctx).pop();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(
-                      Responsive.space(context, size: Space.large),
-                    ),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 10,
-                  ),
-                ),
-                child: const Text('فتح الإعدادات', textAlign: TextAlign.center),
+                ],
               ),
             ],
           ),

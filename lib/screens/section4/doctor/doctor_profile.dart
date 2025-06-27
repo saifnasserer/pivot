@@ -214,7 +214,9 @@ class _DoctorProfileState extends State<DoctorProfile> {
               delegate: SliverChildBuilderDelegate(
                 (context, index) => SubjectModel(
                   lecture: lectures[index],
-                  canEdit: isOwnProfile,
+                  canEdit:
+                      loggedInUser?.role != 'Student' &&
+                      loggedInUser?.role != 'miniProfessor',
                 ),
                 childCount: lectures.length,
               ),
@@ -239,7 +241,7 @@ class _DoctorProfileState extends State<DoctorProfile> {
       default:
         return [
           const SliverFillRemaining(
-            child: Center(child: Text('Content not available.')),
+            child: Center(child: Text('لا يوجد محتوى متاح حالياً')),
           ),
         ];
     }
@@ -277,7 +279,7 @@ class _DoctorProfileState extends State<DoctorProfile> {
           Text(
             userProfile.aboutMe.isNotEmpty
                 ? userProfile.aboutMe
-                : 'Not provided yet.',
+                : 'لم يتم تقديمه بعد.',
           ),
         ],
       ),
@@ -286,6 +288,36 @@ class _DoctorProfileState extends State<DoctorProfile> {
 
   Widget _buildAboutMeEditor(BuildContext context, UserProfile userProfile) {
     final userProfileProvider = context.read<UserProfileProvider>();
+    final borderRadius = BorderRadius.circular(
+      Responsive.space(context, size: Space.large),
+    );
+    final commonDecoration = InputDecoration(
+      border: OutlineInputBorder(
+        borderRadius: borderRadius,
+        borderSide: BorderSide(color: Colors.grey.shade300),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: borderRadius,
+        borderSide: BorderSide(color: Colors.grey.shade400),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: borderRadius,
+        borderSide: const BorderSide(color: Colors.teal, width: 2),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: borderRadius,
+        borderSide: const BorderSide(color: Colors.red, width: 1.5),
+      ),
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 16.0,
+        vertical: 12.0,
+      ),
+      fillColor: Colors.grey.shade100,
+      filled: true,
+      labelStyle: TextStyle(color: Colors.grey.shade700),
+      hintStyle: TextStyle(color: Colors.grey.shade500),
+      alignLabelWithHint: true,
+    );
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -296,12 +328,16 @@ class _DoctorProfileState extends State<DoctorProfile> {
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
-          TextField(
-            controller: _aboutMeController,
-            maxLines: 5,
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
-              hintText: 'Tell us about yourself...',
+          Directionality(
+            textDirection: TextDirection.rtl,
+            child: TextField(
+              controller: _aboutMeController,
+              maxLines: 5,
+              decoration: commonDecoration.copyWith(
+                hintText: 'كلمنا عن نفسك !',
+                labelText: 'عن الدكتور',
+              ),
+              textAlign: TextAlign.right,
             ),
           ),
           const SizedBox(height: 16),
@@ -309,10 +345,10 @@ class _DoctorProfileState extends State<DoctorProfile> {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               TextButton(
-                child: const Text(
-                  'الغاء',
-                  style: TextStyle(color: Colors.black),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.grey.shade700,
                 ),
+                child: const Text('الغاء'),
                 onPressed: () {
                   setState(() {
                     _isEditingAboutMe = false;
@@ -321,7 +357,15 @@ class _DoctorProfileState extends State<DoctorProfile> {
                 },
               ),
               ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.black),
+                style: ElevatedButton.styleFrom(
+                  shape: RoundedRectangleBorder(borderRadius: borderRadius),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 10,
+                  ),
+                  backgroundColor: Theme.of(context).primaryColor,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                ),
                 child: const Text('حفظ', style: TextStyle(color: Colors.white)),
                 onPressed: () async {
                   try {
@@ -400,6 +444,7 @@ class _DoctorProfileState extends State<DoctorProfile> {
                   _currentCategory == 'المواد'
               ? FloatingActionButton(
                 onPressed: _showAddLectureDialog,
+                backgroundColor: Colors.black,
                 child: const Icon(Icons.add),
               )
               : null,

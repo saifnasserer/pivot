@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/models/subject_model.dart';
+import 'package:pivot/responsive.dart';
 
 class AddSubjectLinkDialog extends StatefulWidget {
   final List<Subject> subjects;
@@ -46,7 +47,9 @@ class _AddSubjectLinkDialogState extends State<AddSubjectLinkDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final borderRadius = BorderRadius.circular(20);
+    final borderRadius = BorderRadius.circular(
+      Responsive.space(context, size: Space.large),
+    );
     final commonDecoration = InputDecoration(
       border: OutlineInputBorder(
         borderRadius: borderRadius,
@@ -88,41 +91,79 @@ class _AddSubjectLinkDialogState extends State<AddSubjectLinkDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextFormField(
-              controller: _titleController,
-              decoration: commonDecoration.copyWith(labelText: 'العنوان'),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'يرجى إدخال العنوان';
-                }
-                return null;
-              },
+            Directionality(
+              textDirection: TextDirection.rtl,
+              child: TextFormField(
+                controller: _titleController,
+                decoration: commonDecoration.copyWith(
+                  labelText: 'العنوان',
+
+                  alignLabelWithHint: true,
+                ),
+                textAlign: TextAlign.right,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'يرجى إدخال العنوان';
+                  }
+                  return null;
+                },
+              ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: Responsive.space(context, size: Space.small)),
             if (widget.subjects.isEmpty)
               const Text('لا يوجد مواد متاحة للإضافة')
             else
-              DropdownButtonFormField<String>(
-                value: _selectedSubjectId,
-                decoration: commonDecoration.copyWith(labelText: 'المادة'),
-                items: widget.subjects.map((Subject subject) {
-                  return DropdownMenuItem<String>(
-                    value: subject.id,
-                    child: Text(subject.name),
-                  );
-                }).toList(),
-                onChanged: (String? newValue) {
-                  setState(() {
-                    _selectedSubjectId = newValue;
-                  });
-                },
-                validator: (value) =>
-                    value == null ? 'يرجى إختيار المادة' : null,
+              Directionality(
+                textDirection: TextDirection.rtl,
+                child: DropdownButtonFormField<String>(
+                  value: _selectedSubjectId,
+                  decoration: commonDecoration.copyWith(
+                    labelText: 'المادة',
+                    alignLabelWithHint: true,
+                  ),
+                  items:
+                      widget.subjects.map((Subject subject) {
+                        return DropdownMenuItem<String>(
+                          value: subject.id,
+                          child: Align(
+                            alignment: Alignment.centerRight,
+                            child: Text(
+                              subject.name,
+                              textAlign: TextAlign.right,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                  onChanged: (String? newValue) {
+                    setState(() {
+                      _selectedSubjectId = newValue;
+                    });
+                  },
+                  validator:
+                      (value) => value == null ? 'يرجى إختيار المادة' : null,
+                  borderRadius: BorderRadius.circular(
+                    Responsive.space(context, size: Space.large),
+                  ),
+                  selectedItemBuilder:
+                      (context) =>
+                          widget.subjects.map((subject) {
+                            return Align(
+                              alignment: Alignment.centerRight,
+                              child: Text(
+                                subject.name,
+                                textAlign: TextAlign.right,
+                              ),
+                            );
+                          }).toList(),
+                ),
               ),
           ],
         ),
       ),
-      actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      actionsPadding: EdgeInsets.symmetric(
+        horizontal: Responsive.space(context, size: Space.medium),
+        vertical: Responsive.space(context, size: Space.small),
+      ),
       actionsAlignment: MainAxisAlignment.spaceBetween,
       actions: <Widget>[
         TextButton(
@@ -135,7 +176,10 @@ class _AddSubjectLinkDialogState extends State<AddSubjectLinkDialog> {
         ElevatedButton(
           style: ElevatedButton.styleFrom(
             shape: RoundedRectangleBorder(borderRadius: borderRadius),
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            padding: EdgeInsets.symmetric(
+              horizontal: Responsive.space(context, size: Space.medium),
+              vertical: Responsive.space(context, size: Space.small),
+            ),
             backgroundColor: Theme.of(context).primaryColor,
             foregroundColor: Theme.of(context).colorScheme.onPrimary,
           ),

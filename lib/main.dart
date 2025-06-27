@@ -6,6 +6,7 @@ import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/providers/settings_provider.dart';
 import 'package:pivot/providers/super_admin_provider.dart';
 import 'package:pivot/providers/guide_provider.dart';
+import 'package:pivot/screens/section2/adminstration/models/announcement_data.dart';
 import 'package:pivot/screens/section2/team_formation_screen.dart';
 import 'package:pivot/screens/section2/teams.dart';
 import 'package:pivot/screens/section3/edit_profile.dart';
@@ -58,8 +59,10 @@ import 'package:pivot/screens/section2/adminstration/feedback_management_screen.
 import 'package:pivot/screens/section2/super_admin_panel/upcoming_notifications_screen.dart';
 import 'package:pivot/providers/team_provider.dart';
 import 'package:pivot/providers/teams_provider.dart';
+import 'package:path_provider/path_provider.dart';
 
 void main() async {
+  debugPrint('--- MAIN START ---');
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
 
@@ -87,10 +90,12 @@ void main() async {
     // Initialize Arabic date formatting (essential for UI)
     await initializeDateFormatting('ar');
 
+    // Initialize cache service BEFORE runApp
+    await CacheService.instance.init();
+    debugPrint('--- CacheService initialized, about to runApp ---');
+
     // Create the provider (don't load data yet)
     final userProfileProvider = UserProfileProvider();
-
-    // Start the app immediately
     runApp(PivotWithNotifications(userProfileProvider: userProfileProvider));
 
     // Run non-critical initializations in background
@@ -107,14 +112,6 @@ void main() async {
 void _initializeBackgroundServices(
   UserProfileProvider userProfileProvider,
 ) async {
-  try {
-    // Initialize cache service
-    await CacheService.instance.init();
-    debugPrint('Cache service initialized successfully');
-  } catch (e) {
-    debugPrint('Cache service initialization failed: $e');
-  }
-
   try {
     // Initialize Remote Config
     await RemoteConfigService.instance.initialize();
@@ -328,7 +325,9 @@ class Pivot extends StatelessWidget {
         builder: (context, child) {
           // Add error boundary
           return MediaQuery(
-            data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(1.0)),
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: TextScaler.linear(1.0)),
             child: child!,
           );
         },

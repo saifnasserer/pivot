@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/data/form_options.dart';
-import 'package:pivot/providers/team_provider.dart';
 import 'package:pivot/providers/teams_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
@@ -89,7 +88,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
           style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black),
         ),
         centerTitle: true,
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.grey[50],
         elevation: 0,
         actions: [
           if (_isAdmin()) ...[

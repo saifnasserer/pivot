@@ -385,7 +385,7 @@ class _EditProfileState extends State<EditProfile> {
                                     size: Space.small,
                                   ),
                                 ),
-                                Text('يتم رفع الصورة'),
+                                Text('يتم تحديث البيانات'),
                               ],
                             )
                             : Column(
@@ -412,6 +412,9 @@ class _EditProfileState extends State<EditProfile> {
                                         'department': _department,
                                         'section': _section,
                                       };
+                                      if (_password.isNotEmpty) {
+                                        updatedData['password'] = _password;
+                                      }
 
                                       try {
                                         await context
@@ -472,15 +475,8 @@ class _EditProfileState extends State<EditProfile> {
                                       );
                                     }
                                   },
-                                  icon: Icons.save,
+                                  icon: Icons.check,
                                 ),
-                                SizedBox(
-                                  height: Responsive.space(
-                                    context,
-                                    size: Space.small,
-                                  ),
-                                ),
-                                Text('حفظ'),
                               ],
                             ),
                       ],
@@ -491,13 +487,9 @@ class _EditProfileState extends State<EditProfile> {
                           onPressed: () {
                             Navigator.pop(context);
                           },
-                          icon: Icons.cancel,
+                          icon: Icons.close,
                           backgroundColor: Colors.red,
                         ),
-                        SizedBox(
-                          height: Responsive.space(context, size: Space.small),
-                        ),
-                        Text('إلغاء'),
                       ],
                     ),
                   ],
