@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pivot/responsive.dart';
 import 'package:pivot/services/notification_test_service.dart';
 
 class NotificationTestWidget extends StatefulWidget {
@@ -57,7 +58,9 @@ class _NotificationTestWidgetState extends State<NotificationTestWidget> {
                               color: _getStatusColor(
                                 _healthStatus!['overall_status'],
                               ),
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(
+                                Responsive.space(context, size: Space.large),
+                              ),
                             ),
                             child: Text(
                               _healthStatus!['overall_status']

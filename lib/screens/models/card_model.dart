@@ -74,7 +74,7 @@ class _CardModelState extends State<CardModel> {
               },
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(
-                  Responsive.space(context, size: Space.small),
+                  Responsive.space(context, size: Space.large),
                 ),
                 child: Hero(
                   tag: imageUrl,
@@ -153,7 +153,9 @@ class _CardModelState extends State<CardModel> {
                       );
                     }
                   },
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(
+                    Responsive.space(context, size: Space.large),
+                  ),
                   child: Container(
                     padding: EdgeInsets.symmetric(
                       horizontal:
@@ -163,7 +165,9 @@ class _CardModelState extends State<CardModel> {
                     ),
                     decoration: BoxDecoration(
                       color: widget.color.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(
+                        Responsive.space(context, size: Space.large),
+                      ),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -206,7 +210,9 @@ class _CardModelState extends State<CardModel> {
     return Container(
       margin: EdgeInsets.all(Responsive.space(context, size: Space.small)),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(
+          Responsive.space(context, size: Space.large),
+        ),
         color:
             isExpired
                 ? Colors.grey.withOpacity(0.15)
@@ -349,7 +355,7 @@ class _CardModelState extends State<CardModel> {
                       decoration: BoxDecoration(
                         color: Colors.black.withValues(alpha: 0.7),
                         borderRadius: BorderRadius.circular(
-                          Responsive.space(context, size: Space.medium),
+                          Responsive.space(context, size: Space.large),
                         ),
                       ),
                       child: Row(
@@ -450,7 +456,7 @@ class _CardModelState extends State<CardModel> {
                 Container(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(
-                      Responsive.space(context, size: Space.medium),
+                      Responsive.space(context, size: Space.large),
                     ),
                     color: Colors.white,
                     border: Border.all(color: Colors.black),

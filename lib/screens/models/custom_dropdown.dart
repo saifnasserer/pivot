@@ -42,7 +42,7 @@ class CustomDropdown extends StatelessWidget {
     return BoxDecoration(
       color: color,
       borderRadius: BorderRadius.circular(
-        Responsive.space(context, size: Space.medium),
+        Responsive.space(context, size: Space.large),
       ),
       border: Border.all(
         color: isValid ? Colors.green : Color(0xfff7f7f7),
@@ -71,7 +71,7 @@ class CustomDropdown extends StatelessWidget {
         isExpanded: true,
         dropdownColor: color,
         borderRadius: BorderRadius.circular(
-          Responsive.space(context, size: Space.medium),
+          Responsive.space(context, size: Space.large),
         ),
         hint: Container(
           alignment: Alignment.center,

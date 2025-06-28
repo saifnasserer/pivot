@@ -29,7 +29,9 @@ class _LectureCardModelState extends State<LectureCardModel> {
               widget.section
                   ? Colors.grey.withOpacity(0.2)
                   : Colors.red.withOpacity(0.2),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(
+            Responsive.space(context, size: Space.large),
+          ),
         ),
         child: Padding(
           padding: EdgeInsets.all(Responsive.space(context, size: Space.large)),

@@ -52,7 +52,9 @@ class TeamMembersScreen extends StatelessWidget {
           if (isMember) return const SizedBox.shrink();
           return FloatingActionButton.extended(
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(
+                Responsive.space(context, size: Space.large),
+              ),
             ),
             elevation: 0,
             onPressed: () => _showAddDialog(context),

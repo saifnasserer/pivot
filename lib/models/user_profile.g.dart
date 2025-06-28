@@ -85,7 +85,7 @@ class UserProfileAdapter extends TypeAdapter<UserProfile> {
 class NotificationPreferencesAdapter
     extends TypeAdapter<NotificationPreferences> {
   @override
-  final int typeId = 1;
+  final int typeId = 6;
 
   @override
   NotificationPreferences read(BinaryReader reader) {

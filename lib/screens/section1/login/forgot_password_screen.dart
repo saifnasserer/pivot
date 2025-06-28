@@ -131,7 +131,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                             vertical: Responsive.space(context, size: Space.small),
                           ),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(Responsive.space(context, size: Space.medium)),
+                            borderRadius: BorderRadius.circular(Responsive.space(context, size: Space.large)),
                           ),
                         ),
                         child: Text(

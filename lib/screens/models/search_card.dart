@@ -35,12 +35,16 @@ class UserSearchCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final gold = Colors.grey;
     return InkWell(
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(
+        Responsive.space(context, size: Space.large),
+      ),
       onTap: onTap ?? () => _defaultTap(context),
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(
+            Responsive.space(context, size: Space.large),
+          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black12,
@@ -110,8 +114,12 @@ void showUserSearchModal(BuildContext context) {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(
+        top: Radius.circular(
+          Responsive.space(context, size: Space.large),
+        ),
+      ),
     ),
     builder: (context) {
       return _UserSearchModalContent();
@@ -241,7 +249,9 @@ class _UserSearchModalContentState extends State<_UserSearchModalContent> {
                 hintText: 'ابحث عن دكتور أو مهندس',
                 suffixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(15),
+                  borderRadius: BorderRadius.circular(
+                    Responsive.space(context, size: Space.large),
+                  ),
                 ),
                 contentPadding: Responsive.padding(context, size: Space.small),
               ),

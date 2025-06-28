@@ -29,7 +29,9 @@ Future<void> showAddTeamMemberDialog(
           textDirection: TextDirection.rtl,
           child: AlertDialog(
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(
+                Responsive.space(context, size: Space.large),
+              ),
             ),
             title: Text(
               'ضيف نفسك',
@@ -117,7 +119,9 @@ Future<void> showAddTeamMemberDialog(
                               decoration: InputDecoration(
                                 hintText: 'أضف مهارة',
                                 border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(
+                                    Responsive.space(context, size: Space.large),
+                                  ),
                                   borderSide: BorderSide(
                                     color: Color(0xFFF7F7F7),
                                   ),
@@ -183,7 +187,9 @@ Future<void> showAddTeamMemberDialog(
                               decoration: InputDecoration(
                                 hintText: 'رابط مشروع سابق',
                                 border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(
+                                    Responsive.space(context, size: Space.large),
+                                  ),
                                   borderSide: BorderSide(
                                     color: Color(0xFFF7F7F7),
                                   ),

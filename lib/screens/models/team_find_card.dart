@@ -186,7 +186,10 @@ class _TeamFindCardState extends State<TeamFindCard> {
                                         backgroundColor: Colors.grey[100],
                                         shape: RoundedRectangleBorder(
                                           borderRadius: BorderRadius.circular(
-                                            20,
+                                            Responsive.space(
+                                              context,
+                                              size: Space.large,
+                                            ),
                                           ),
                                         ),
                                         padding: EdgeInsets.symmetric(

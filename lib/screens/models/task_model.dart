@@ -88,7 +88,9 @@ class TaskModel extends StatelessWidget {
           width: double.infinity,
           decoration: BoxDecoration(
             color: isOverdue ? Colors.red.withOpacity(0.05) : Colors.white,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(
+              Responsive.space(context, size: Space.large),
+            ),
             boxShadow: [
               BoxShadow(
                 color: Colors.grey.withOpacity(0.15),
@@ -171,7 +173,9 @@ class TaskModel extends StatelessWidget {
                       ),
                       decoration: BoxDecoration(
                         color: primaryColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(
+                          Responsive.space(context, size: Space.large),
+                        ),
                       ),
                       child: Text(
                         'اخر معاد للتسليم : $fullFormattedDate', // Use combined date and day

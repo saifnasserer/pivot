@@ -6,6 +6,8 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/user_profile.dart';
 import 'package:pivot/services/cache_service.dart';
+import 'package:pivot/services/session_management_service.dart';
+import 'package:flutter/material.dart';
 
 class UserProfileProvider with ChangeNotifier {
   UserProfile? _userProfile; // The profile being viewed on a profile screen
@@ -223,17 +225,60 @@ class UserProfileProvider with ChangeNotifier {
     String userId,
     Map<String, dynamic> data, {
     XFile? imageFile,
+    BuildContext? context,
   }) async {
     try {
       // Handle password update if present
       if (data.containsKey('password')) {
         final newPassword = data['password'] as String;
+        final currentPassword = data['currentPassword'] as String?;
         data.remove('password');
+        data.remove('currentPassword');
+
         final user = _auth.currentUser;
-        if (user != null) {
+        if (user != null &&
+            currentPassword != null &&
+            currentPassword.isNotEmpty) {
+          // Use session management service for password changes
+          if (context != null) {
+            final sessionService = SessionManagementService();
+            final validationResult = await sessionService
+                .validateSessionForSensitiveOperation(context, currentPassword);
+
+            if (!validationResult.isValid) {
+              // Handle different validation errors
+              switch (validationResult.error) {
+                case SessionValidationError.wrongPassword:
+                  throw Exception('wrong-password');
+                case SessionValidationError.sessionExpired:
+                  throw Exception('requires-recent-login');
+                case SessionValidationError.cancelled:
+                  throw Exception('operation-cancelled');
+                default:
+                  throw Exception('session-validation-failed');
+              }
+            }
+          } else {
+            // Fallback to direct re-authentication if no context provided
+            try {
+              final credential = EmailAuthProvider.credential(
+                email: user.email!,
+                password: currentPassword,
+              );
+              await user.reauthenticateWithCredential(credential);
+            } catch (e) {
+              if (e.toString().contains('wrong-password')) {
+                throw Exception('wrong-password');
+              }
+              rethrow;
+            }
+          }
+
+          // Update password
           await user.updatePassword(newPassword);
         }
       }
+
       String? imageUrl;
       if (imageFile != null) {
         // Upload image to Firebase Storage

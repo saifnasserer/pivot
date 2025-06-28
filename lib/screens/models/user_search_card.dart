@@ -20,7 +20,9 @@ class UserSearchCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(
+          Responsive.space(context, size: Space.large),
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black12,

@@ -29,7 +29,7 @@ class CategoryButton extends StatelessWidget {
           foregroundColor: selected ? Color(0xffD9D9D9) : Colors.black,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(
-              Responsive.space(context, size: Space.medium),
+              Responsive.space(context, size: Space.large),
             ),
           ),
         ),

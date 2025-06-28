@@ -7,6 +7,7 @@ import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/section4/assistants/add_edit_section_dialog.dart';
 import 'package:pivot/screens/section4/assistants/all_tasks.dart';
 import 'package:provider/provider.dart';
+import 'package:gradient_borders/gradient_borders.dart';
 
 class SectionCard extends StatelessWidget {
   final Section section;
@@ -20,29 +21,62 @@ class SectionCard extends StatelessWidget {
     this.isCurrentUserSection = false,
   });
 
-  Widget _buildDetailRow(
-    BuildContext context, {
+  Widget _buildInfoChip({
     required IconData icon,
     required String text,
+    required BuildContext context,
+    Color? backgroundColor,
+    Color? textColor,
   }) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        Text(
-          text,
-          style: TextStyle(
-            color: Colors.grey.shade600,
-            fontSize: Responsive.text(context, size: TextSize.small) * 1.1,
-            fontWeight: FontWeight.w500,
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: Responsive.space(context, size: Space.small),
+        vertical: Responsive.space(context, size: Space.tiny) * 1.2,
+      ),
+      decoration: BoxDecoration(
+        color:
+            backgroundColor ??
+            (isCurrentUserSection
+                ? const Color(0xFF4158D0).withOpacity(0.08)
+                : Colors.grey.shade50),
+        borderRadius: BorderRadius.circular(
+          Responsive.space(context, size: Space.large),
+        ),
+        border: Border.all(
+          color:
+              isCurrentUserSection
+                  ? const Color(0xFF4158D0).withOpacity(0.2)
+                  : Colors.grey.shade200,
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            color:
+                textColor ??
+                (isCurrentUserSection
+                    ? const Color(0xFF4158D0)
+                    : Colors.grey.shade600),
+            size: Responsive.text(context, size: TextSize.small) * 1.1,
           ),
-        ),
-        SizedBox(width: Responsive.space(context, size: Space.small)),
-        Icon(
-          icon,
-          color: Colors.grey.shade500,
-          size: Responsive.text(context, size: TextSize.small) * 1.2,
-        ),
-      ],
+          SizedBox(width: Responsive.space(context, size: Space.tiny)),
+          Text(
+            text,
+            style: TextStyle(
+              color:
+                  textColor ??
+                  (isCurrentUserSection
+                      ? const Color(0xFF4158D0)
+                      : Colors.grey.shade700),
+              fontSize: Responsive.text(context, size: TextSize.small) * 0.95,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -57,149 +91,227 @@ class SectionCard extends StatelessWidget {
         userProfile.role != 'Student' &&
         userProfile.role != 'Professor';
 
-    final accentColor =
-        isCurrentUserSection
-            ? Theme.of(context).primaryColor
-            : Colors.teal.shade400;
-
-    return Card(
+    return Container(
       margin: EdgeInsets.symmetric(
-        vertical: Responsive.space(context, size: Space.small),
+        vertical: Responsive.space(context, size: Space.small) * 0.6,
         horizontal: Responsive.space(context, size: Space.small),
       ),
-      elevation: 0.8,
-      shape: RoundedRectangleBorder(
+      decoration: BoxDecoration(
+        color: Colors.white,
         borderRadius: BorderRadius.circular(
-          Responsive.space(context, size: Space.medium),
+          Responsive.space(context, size: Space.large),
         ),
-        side: BorderSide(color: Colors.grey.shade200, width: 0.5),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () {
-          Navigator.pushNamed(context, TasksControl.id, arguments: section.id);
-        },
-        onLongPress: () {
-          showDialog(
-            context: context,
-            builder: (BuildContext context) {
-              return AddEditSectionDialog(
-                subjects: subjects,
-                sectionToEdit: section,
-                initialSubjectId: section.subjectId,
-              );
-            },
-          );
-        },
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topRight,
-              end: Alignment.bottomLeft,
-              colors: [Colors.white, Colors.grey.shade50],
-            ),
+        border:
+            isCurrentUserSection
+                ? const GradientBoxBorder(
+                  gradient: LinearGradient(
+                    begin: Alignment.topRight,
+                    end: Alignment.bottomLeft,
+                    colors: [Color(0xFF4158D0), Color(0xFFC850C0)],
+                  ),
+                  width: 2,
+                )
+                : Border.all(color: Colors.grey.shade200, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color:
+                isCurrentUserSection
+                    ? const Color(0xFF4158D0).withOpacity(0.08)
+                    : Colors.black.withOpacity(0.04),
+            blurRadius: isCurrentUserSection ? 12 : 8,
+            offset: const Offset(0, 3),
+            spreadRadius: isCurrentUserSection ? 1 : 0,
           ),
-          child: IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Chevron container
-                Container(
-                  color: Colors.transparent,
-                  padding: EdgeInsets.symmetric(
-                    horizontal: Responsive.space(context, size: Space.small),
-                  ),
-                  child: Center(
-                    child: Icon(
-                      Icons.arrow_back_ios_rounded,
-                      color: Colors.grey.shade400,
-                      size:
-                          Responsive.text(context, size: TextSize.small) * 0.8,
-                    ),
-                  ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(
+          Responsive.space(context, size: Space.large),
+        ),
+        child: Column(
+          children: [
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(
+                  Responsive.space(context, size: Space.large),
                 ),
-                // Main content
-                Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(
-                      vertical: Responsive.space(context, size: Space.medium),
-                      horizontal: Responsive.space(context, size: Space.medium),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (canDelete)
-                              IconButton(
-                                icon: Icon(
-                                  Icons.delete_outline,
-                                  color: Colors.red.shade300,
-                                  size: Responsive.text(
-                                    context,
-                                    size: TextSize.medium,
-                                  ),
+                onTap: () {
+                  Navigator.pushNamed(
+                    context,
+                    TasksControl.id,
+                    arguments: section.id,
+                  );
+                },
+                onLongPress: () {
+                  showDialog(
+                    context: context,
+                    builder: (BuildContext context) {
+                      return AddEditSectionDialog(
+                        subjects: subjects,
+                        sectionToEdit: section,
+                        initialSubjectId: section.subjectId,
+                      );
+                    },
+                  );
+                },
+                child: Padding(
+                  padding: EdgeInsets.all(
+                    Responsive.space(context, size: Space.medium) * 1.1,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      // Header with title and actions
+                      Row(
+                        children: [
+                          // Status indicator
+                          if (isCurrentUserSection) ...[
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Color(0xFF4158D0),
+                                    Color(0xFFC850C0),
+                                  ],
                                 ),
-                                onPressed:
-                                    () => _showDeleteConfirmation(
-                                      context,
-                                      section.id,
-                                    ),
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(),
-                                splashRadius: Responsive.space(
-                                  context,
-                                  size: Space.medium,
-                                ),
+                                shape: BoxShape.circle,
                               ),
-                            Expanded(
-                              child: Text(
-                                section.name,
-                                textAlign: TextAlign.right,
-                                style: TextStyle(
-                                  fontSize: Responsive.text(
-                                    context,
-                                    size: TextSize.medium,
+                            ),
+                            SizedBox(
+                              width: Responsive.space(
+                                context,
+                                size: Space.small,
+                              ),
+                            ),
+                          ],
+
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  section.name,
+                                  style: TextStyle(
+                                    fontSize:
+                                        Responsive.text(
+                                          context,
+                                          size: TextSize.medium,
+                                        ) *
+                                        1.15,
+                                    fontWeight: FontWeight.w700,
+                                    color:
+                                        isCurrentUserSection
+                                            ? const Color(0xFF2D3748)
+                                            : Colors.grey.shade800,
+                                    height: 1.2,
                                   ),
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
+                                ),
+                                if (isCurrentUserSection) ...[
+                                  SizedBox(
+                                    height:
+                                        Responsive.space(
+                                          context,
+                                          size: Space.tiny,
+                                        ) *
+                                        0.5,
+                                  ),
+                                  Text(
+                                    'سكشنك',
+                                    style: TextStyle(
+                                      fontSize:
+                                          Responsive.text(
+                                            context,
+                                            size: TextSize.small,
+                                          ) *
+                                          0.9,
+                                      fontWeight: FontWeight.w500,
+                                      color: const Color(0xFF4158D0),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+
+                          if (canDelete) ...[
+                            SizedBox(
+                              width: Responsive.space(
+                                context,
+                                size: Space.small,
+                              ),
+                            ),
+                            InkWell(
+                              borderRadius: BorderRadius.circular(
+                                Responsive.space(context, size: Space.large),
+                              ),
+                              onTap:
+                                  () => _showDeleteConfirmation(
+                                    context,
+                                    section.id,
+                                  ),
+                              child: Container(
+                                padding: EdgeInsets.all(
+                                  Responsive.space(context, size: Space.small) *
+                                      0.8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.shade50,
+                                  borderRadius: BorderRadius.circular(
+                                    Responsive.space(context, size: Space.large),
+                                  ),
+                                  border: Border.all(
+                                    color: Colors.red.shade100,
+                                    width: 0.5,
+                                  ),
+                                ),
+                                child: Icon(
+                                  Icons.delete_outline_rounded,
+                                  color: Colors.red.shade400,
+                                  size:
+                                      Responsive.text(
+                                        context,
+                                        size: TextSize.small,
+                                      ) *
+                                      1.3,
                                 ),
                               ),
                             ),
                           ],
-                        ),
+                        ],
+                      ),
 
-                        SizedBox(
-                          height:
-                              Responsive.space(context, size: Space.small) *
-                              1.2,
-                        ),
-                        _buildDetailRow(
-                          context,
-                          icon: Icons.access_time_rounded,
-                          text: '${section.days} - ${section.time}',
-                        ),
-                        SizedBox(
-                          height: Responsive.space(context, size: Space.small),
-                        ),
-                        _buildDetailRow(
-                          context,
-                          icon: Icons.location_on_rounded,
-                          text: section.location,
-                        ),
-                      ],
-                    ),
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.medium),
+                      ),
+
+                      // Info chips
+                      Wrap(
+                        spacing:
+                            Responsive.space(context, size: Space.small) * 0.8,
+                        runSpacing:
+                            Responsive.space(context, size: Space.small) * 0.6,
+                        children: [
+                          _buildInfoChip(
+                            icon: Icons.access_time_rounded,
+                            text: '${section.days} - ${section.time}',
+                            context: context,
+                          ),
+                          _buildInfoChip(
+                            icon: Icons.location_on_rounded,
+                            text: section.location,
+                            context: context,
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-                Container(
-                  width: Responsive.space(context, size: Space.small),
-                  color: accentColor,
-                ),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -208,112 +320,170 @@ class SectionCard extends StatelessWidget {
   void _showDeleteConfirmation(BuildContext context, String sectionId) {
     showDialog(
       context: context,
+      barrierDismissible: true,
       builder: (BuildContext context) {
-        final borderRadius = BorderRadius.circular(
-          Responsive.space(context, size: Space.large),
-        );
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: borderRadius),
-          elevation: 8,
-          backgroundColor: Colors.white,
-          titlePadding: EdgeInsets.only(
-            top: Responsive.space(context, size: Space.large),
-            left: Responsive.space(context, size: Space.large),
-            right: Responsive.space(context, size: Space.large),
-            bottom: Responsive.space(context, size: Space.small),
-          ),
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text(
-                'حذف السكشن',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  fontSize: Responsive.text(context, size: TextSize.heading),
-                ),
-              ),
-              SizedBox(height: Responsive.space(context, size: Space.small)),
-              Divider(
-                thickness: 1,
-                height: Responsive.space(context, size: Space.tiny),
-              ),
-            ],
-          ),
-          contentPadding: EdgeInsets.symmetric(
-            horizontal: Responsive.space(context, size: Space.medium),
-            vertical: Responsive.space(context, size: Space.small),
-          ),
-          content: Directionality(
-            textDirection: TextDirection.rtl,
-            child: Text(
-              'هل أنت متأكد من رغبتك في حذف هذا السكشن؟',
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                fontSize: Responsive.text(context, size: TextSize.medium),
-              ),
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(
+              Responsive.space(context, size: Space.large),
             ),
           ),
-          actionsPadding: EdgeInsets.only(
-            left: Responsive.space(context, size: Space.large),
-            right: Responsive.space(context, size: Space.large),
-            bottom: Responsive.space(context, size: Space.large),
-            top: Responsive.space(context, size: Space.small),
-          ),
-          actionsAlignment: MainAxisAlignment.center,
-          actions: [
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(
-                      Responsive.space(context, size: Space.medium),
+          elevation: 0,
+          backgroundColor: Colors.transparent,
+          child: Container(
+            padding: EdgeInsets.all(
+              Responsive.space(context, size: Space.large) * 1.2,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(
+                Responsive.space(context, size: Space.large),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.15),
+                  blurRadius: 30,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: Responsive.space(context, size: Space.large) * 1.2,
+                  height: Responsive.space(context, size: Space.large) * 1.2,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.red.shade50, Colors.red.shade100],
                     ),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.red.shade200, width: 2),
                   ),
-                  foregroundColor: Colors.grey.shade700,
-                  side: BorderSide(color: Colors.grey.shade300),
-                  padding: EdgeInsets.symmetric(
-                    vertical: Responsive.space(context, size: Space.small),
-                  ),
-                  textStyle: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: Responsive.text(context, size: TextSize.medium),
+                  child: Icon(
+                    Icons.delete_outline_rounded,
+                    color: Colors.red.shade500,
+                    size: Responsive.space(context, size: Space.large) * 1.2,
                   ),
                 ),
-                child: const Text('لا'),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ),
-            SizedBox(height: Responsive.space(context, size: Space.small)),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(
-                      Responsive.space(context, size: Space.medium),
+
+                SizedBox(
+                  height: Responsive.space(context, size: Space.medium) * 1.2,
+                ),
+
+                // Title
+                Text(
+                  'حذف السكشن',
+                  style: TextStyle(
+                    fontSize:
+                        Responsive.text(context, size: TextSize.heading) * 1.1,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.grey.shade800,
+                  ),
+                ),
+
+                SizedBox(
+                  height: Responsive.space(context, size: Space.small) * 1.2,
+                ),
+
+                // Content
+                Text(
+                  'هل إنت متأكد إنك عايز تمسح السكشن ده؟\nمش هتقدر ترجعه تاني',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: Responsive.text(context, size: TextSize.medium),
+                    color: Colors.grey.shade600,
+                    height: 1.4,
+                  ),
+                ),
+
+                SizedBox(
+                  height: Responsive.space(context, size: Space.large) * 1.2,
+                ),
+
+                // Actions
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              Responsive.space(context, size: Space.large),
+                            ),
+                          ),
+                          foregroundColor: Colors.grey.shade700,
+                          side: BorderSide(
+                            color: Colors.grey.shade300,
+                            width: 1.5,
+                          ),
+                          padding: EdgeInsets.symmetric(
+                            vertical:
+                                Responsive.space(context, size: Space.medium) *
+                                1.1,
+                          ),
+                        ),
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: Text(
+                          'لأ، إلغاء',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize:
+                                Responsive.text(
+                                  context,
+                                  size: TextSize.medium,
+                                ) *
+                                0.95,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                  backgroundColor: Colors.redAccent,
-                  foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(
-                    vertical: Responsive.space(context, size: Space.small),
-                  ),
-                  textStyle: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: Responsive.text(context, size: TextSize.medium),
-                  ),
-                  elevation: 0,
+                    SizedBox(
+                      width: Responsive.space(context, size: Space.small) * 1.2,
+                    ),
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              Responsive.space(context, size: Space.large),
+                            ),
+                          ),
+                          backgroundColor: Colors.red.shade500,
+                          foregroundColor: Colors.white,
+                          elevation: 2,
+                          shadowColor: Colors.red.shade200,
+                          padding: EdgeInsets.symmetric(
+                            vertical:
+                                Responsive.space(context, size: Space.medium) *
+                                1.1,
+                          ),
+                        ),
+                        onPressed: () {
+                          context.read<SectionProvider>().deleteSection(
+                            sectionId,
+                          );
+                          Navigator.of(context).pop();
+                        },
+                        child: Text(
+                          'امسح',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize:
+                                Responsive.text(
+                                  context,
+                                  size: TextSize.medium,
+                                ) *
+                                0.95,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                child: const Text('متأكد'),
-                onPressed: () {
-                  context.read<SectionProvider>().deleteSection(sectionId);
-                  Navigator.of(context).pop();
-                },
-              ),
+              ],
             ),
-          ],
+          ),
         );
       },
     );

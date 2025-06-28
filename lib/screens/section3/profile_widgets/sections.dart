@@ -109,7 +109,9 @@ class SectionListItem extends StatelessWidget {
       builder: (BuildContext context) {
         return AlertDialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(
+              Responsive.space(context, size: Space.large),
+            ),
           ),
           title: const Text('اختار المعيد', textAlign: TextAlign.center),
           content: SizedBox(
@@ -166,7 +168,9 @@ class SectionListItem extends StatelessWidget {
             textDirection: TextDirection.rtl,
             child: AlertDialog(
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(
+                  Responsive.space(context, size: Space.large),
+                ),
               ),
               title: Text(
                 subject.name,
@@ -186,7 +190,9 @@ class SectionListItem extends StatelessWidget {
                     padding: Responsive.padding(context, size: Space.medium),
                     decoration: BoxDecoration(
                       color: Colors.grey[50],
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(
+                        Responsive.space(context, size: Space.large),
+                      ),
                       border: Border.all(color: Colors.grey[200]!),
                     ),
                     child: Column(
@@ -244,7 +250,9 @@ class SectionListItem extends StatelessWidget {
                       padding: Responsive.padding(context, size: Space.medium),
                       decoration: BoxDecoration(
                         color: Colors.grey[50],
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(
+                          Responsive.space(context, size: Space.large),
+                        ),
                         border: Border.all(color: Colors.grey[200]!),
                       ),
                       child: Column(
@@ -311,7 +319,9 @@ class SectionListItem extends StatelessWidget {
                       padding: Responsive.padding(context, size: Space.medium),
                       decoration: BoxDecoration(
                         color: Colors.orange[50],
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(
+                          Responsive.space(context, size: Space.large),
+                        ),
                         border: Border.all(color: Colors.orange[200]!),
                       ),
                       child: Row(
@@ -401,12 +411,16 @@ class SectionListItem extends StatelessWidget {
       child: Card(
         elevation: 0.5,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16.0),
+          borderRadius: BorderRadius.circular(
+            Responsive.space(context, size: Space.large),
+          ),
           side: BorderSide(color: Colors.grey.shade200),
         ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(
+            Responsive.space(context, size: Space.large),
+          ),
           onTap: () {
             // Show more details in a dialog or navigate to details page
             _showSectionDetails(context, subject, section, assistants);

@@ -39,13 +39,13 @@ class CustomTextField extends StatelessWidget {
     return InputDecoration(
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(
-          Responsive.space(context, size: Space.medium),
+          Responsive.space(context, size: Space.large),
         ),
         borderSide: BorderSide(color: Color(0xFFF7F7F7)),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(
-          Responsive.space(context, size: Space.medium),
+          Responsive.space(context, size: Space.large),
         ),
         borderSide: BorderSide(
           color: isValid ? Colors.green : Color(0xFFF7F7F7),
@@ -54,7 +54,7 @@ class CustomTextField extends StatelessWidget {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(
-          Responsive.space(context, size: Space.medium),
+          Responsive.space(context, size: Space.large),
         ),
         borderSide: BorderSide(
           color: isValid ? Colors.green : Colors.black,
@@ -63,7 +63,7 @@ class CustomTextField extends StatelessWidget {
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(
-          Responsive.space(context, size: Space.medium),
+          Responsive.space(context, size: Space.large),
         ),
         borderSide: BorderSide(color: Colors.red),
       ),

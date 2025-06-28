@@ -34,7 +34,11 @@ class AnnouncementCard extends StatelessWidget {
       color: Colors.white,
       elevation: 2,
       shadowColor: Colors.black12,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(
+          Responsive.space(context, size: Space.large),
+        ),
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -43,9 +47,13 @@ class AnnouncementCard extends StatelessWidget {
             width: 5,
             decoration: BoxDecoration(
               color: accentColor,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(18),
-                bottomLeft: Radius.circular(18),
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(
+                  Responsive.space(context, size: Space.large),
+                ),
+                bottomLeft: Radius.circular(
+                  Responsive.space(context, size: Space.large),
+                ),
               ),
             ),
           ),
@@ -161,7 +169,9 @@ class AnnouncementCard extends StatelessWidget {
                                 ),
                                 decoration: BoxDecoration(
                                   color: Color(0xffF1F1F1),
-                                  borderRadius: BorderRadius.circular(16),
+                                  borderRadius: BorderRadius.circular(
+                                    Responsive.space(context, size: Space.large),
+                                  ),
                                 ),
                                 child: Text(
                                   tag,

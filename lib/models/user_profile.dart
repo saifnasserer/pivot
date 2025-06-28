@@ -208,7 +208,7 @@ class UserProfile extends HiveObject {
   }
 }
 
-@HiveType(typeId: 1)
+@HiveType(typeId: 6)
 class NotificationPreferences {
   @HiveField(0)
   final bool taskReminders;

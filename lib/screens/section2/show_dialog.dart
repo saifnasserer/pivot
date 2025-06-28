@@ -51,7 +51,9 @@ void showAddAnnouncementDialog({
               vertical: Responsive.space(context, size: Space.medium),
             ),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(
+                Responsive.space(context, size: Space.large),
+              ),
             ),
             child: Container(
               padding: Responsive.padding(context, size: Space.medium),
@@ -331,7 +333,9 @@ void showAddAnnouncementDialog({
                       Container(
                         decoration: BoxDecoration(
                           border: Border.all(color: Colors.grey.shade300),
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(
+                            Responsive.space(context, size: Space.large),
+                          ),
                         ),
                         padding: EdgeInsets.all(12),
                         child: Wrap(
@@ -373,7 +377,12 @@ void showAddAnnouncementDialog({
                                               : FontWeight.normal,
                                     ),
                                     shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(20),
+                                      borderRadius: BorderRadius.circular(
+                                        Responsive.space(
+                                          context,
+                                          size: Space.large,
+                                        ),
+                                      ),
                                     ),
                                     padding: EdgeInsets.symmetric(
                                       horizontal: Responsive.space(context),
@@ -441,7 +450,12 @@ void showAddAnnouncementDialog({
                                 ),
                               ),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
+                                borderRadius: BorderRadius.circular(
+                                  Responsive.space(
+                                    context,
+                                    size: Space.large,
+                                  ),
+                                ),
                               ),
                             ),
                             child: Text(

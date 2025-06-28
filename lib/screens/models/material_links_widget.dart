@@ -24,7 +24,7 @@ class SubjectModel extends StatelessWidget {
     final TextEditingController urlController = TextEditingController();
     final GlobalKey<FormState> formKey = GlobalKey<FormState>();
     final borderRadius = BorderRadius.circular(
-      Responsive.space(context, size: Space.xlarge),
+      Responsive.space(context, size: Space.large),
     );
     final commonDecoration = InputDecoration(
       border: OutlineInputBorder(
@@ -164,7 +164,7 @@ class SubjectModel extends StatelessWidget {
         return StatefulBuilder(
           builder: (context, setState) {
             final borderRadius = BorderRadius.circular(
-              Responsive.space(context, size: Space.xlarge),
+              Responsive.space(context, size: Space.large),
             );
             final cardRadius = BorderRadius.circular(
               Responsive.space(context, size: Space.large),
@@ -450,7 +450,11 @@ class SubjectModel extends StatelessWidget {
         backgroundColor: WidgetStateProperty.all(Colors.transparent),
         elevation: WidgetStateProperty.all(0),
         shape: WidgetStateProperty.all(
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(
+              Responsive.space(context, size: Space.large),
+            ),
+          ),
         ),
       ),
       onPressed: () {
@@ -468,7 +472,9 @@ class SubjectModel extends StatelessWidget {
                   showDialog(
                     context: context,
                     builder: (BuildContext context) {
-                      final borderRadius = BorderRadius.circular(16);
+                      final borderRadius = BorderRadius.circular(
+                        Responsive.space(context, size: Space.large),
+                      );
                       return AlertDialog(
                         shape: RoundedRectangleBorder(
                           borderRadius: borderRadius,

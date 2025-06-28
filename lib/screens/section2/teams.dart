@@ -178,16 +178,23 @@ class _TeamsScreenState extends State<TeamsScreen> {
           }
 
           return ListView.builder(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+            padding: EdgeInsets.symmetric(
+              horizontal: Responsive.space(context, size: Space.small),
+              vertical: Responsive.space(context, size: Space.small),
+            ),
             itemCount: filteredTeams.length,
             itemBuilder: (context, index) {
               final team = filteredTeams[index];
               return Container(
-                margin: EdgeInsets.only(bottom: 16),
+                margin: EdgeInsets.only(
+                  bottom: Responsive.space(context, size: Space.large),
+                ),
                 decoration: BoxDecoration(
                   gradient: null,
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(
+                    Responsive.space(context, size: Space.large),
+                  ),
                   border:
                       team.isPinned
                           ? GradientBoxBorder(
@@ -209,9 +216,13 @@ class _TeamsScreenState extends State<TeamsScreen> {
                 ),
                 child: Material(
                   color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(
+                    Responsive.space(context, size: Space.large),
+                  ),
                   child: InkWell(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(
+                      Responsive.space(context, size: Space.large),
+                    ),
                     onTap: () {
                       Navigator.push(
                         context,
@@ -225,7 +236,9 @@ class _TeamsScreenState extends State<TeamsScreen> {
                       );
                     },
                     child: Padding(
-                      padding: EdgeInsets.all(20),
+                      padding: EdgeInsets.all(
+                        Responsive.space(context, size: Space.medium),
+                      ),
                       child: Row(
                         children: [
                           if (_isAdmin()) ...[
@@ -234,7 +247,10 @@ class _TeamsScreenState extends State<TeamsScreen> {
                                 team.isPinned
                                     ? Icons.push_pin
                                     : Icons.push_pin_outlined,
-                                size: 20,
+                                size: Responsive.space(
+                                  context,
+                                  size: Space.medium,
+                                ),
                                 color:
                                     team.isPinned
                                         ? Color(0xFF4158D0)
@@ -259,7 +275,10 @@ class _TeamsScreenState extends State<TeamsScreen> {
                           ],
                           Icon(
                             Icons.arrow_back_ios,
-                            size: 16,
+                            size: Responsive.space(
+                              context,
+                              size: Space.medium,
+                            ),
                             color: Colors.grey[400],
                           ),
                           Spacer(),
@@ -270,7 +289,10 @@ class _TeamsScreenState extends State<TeamsScreen> {
                                 team.name,
                                 style: TextStyle(
                                   fontWeight: FontWeight.w600,
-                                  fontSize: 16,
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.medium,
+                                  ),
                                   color: Colors.black87,
                                 ),
                               ),
@@ -284,7 +306,10 @@ class _TeamsScreenState extends State<TeamsScreen> {
                                 team.year,
                                 style: TextStyle(
                                   color: Colors.grey[600],
-                                  fontSize: 14,
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.small,
+                                  ),
                                 ),
                               ),
                             ],
@@ -297,7 +322,9 @@ class _TeamsScreenState extends State<TeamsScreen> {
                             height: 50,
                             decoration: BoxDecoration(
                               color: Colors.grey[100],
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(
+                                Responsive.space(context, size: Space.large),
+                              ),
                             ),
                             child: Icon(
                               Icons.group_outlined,
@@ -305,7 +332,10 @@ class _TeamsScreenState extends State<TeamsScreen> {
                                   team.isPinned
                                       ? Color(0xFF4158D0)
                                       : Colors.black87,
-                              size: 24,
+                              size: Responsive.space(
+                                context,
+                                size: Space.medium,
+                              ),
                             ),
                           ),
                         ],
@@ -335,7 +365,12 @@ class _TeamsScreenState extends State<TeamsScreen> {
                                 textDirection: TextDirection.rtl,
                                 child: AlertDialog(
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20),
+                                    borderRadius: BorderRadius.circular(
+                                      Responsive.space(
+                                        context,
+                                        size: Space.large,
+                                      ),
+                                    ),
                                   ),
                                   title: const Text(
                                     'إضافة فريق جديد',
@@ -349,30 +384,49 @@ class _TeamsScreenState extends State<TeamsScreen> {
                                     children: [
                                       TextField(
                                         controller: controller,
-                                        decoration: const InputDecoration(
+                                        decoration:  InputDecoration(
                                           hintText: 'اسم الفريق',
                                           border: OutlineInputBorder(
                                             borderRadius: BorderRadius.all(
-                                              Radius.circular(12),
+                                              Radius.circular(
+                                                Responsive.space(
+                                                  context,
+                                                  size: Space.large,
+                                                ),
+                                              ),
                                             ),
                                           ),
                                         ),
                                         textDirection: TextDirection.rtl,
                                         textAlign: TextAlign.right,
                                       ),
-                                      const SizedBox(height: 16),
+                                      SizedBox(
+                                          height: Responsive.space(
+                                            context,
+                                            size: Space.large,
+                                          ),
+                                        ),
                                       DropdownButtonFormField<String>(
                                         decoration: InputDecoration(
                                           hintText: 'اختر الفرقة',
                                           border: OutlineInputBorder(
                                             borderRadius: BorderRadius.circular(
-                                              12,
+                                              Responsive.space(
+                                                context,
+                                                size: Space.large,
+                                              ),
                                             ),
                                           ),
                                           contentPadding:
-                                              const EdgeInsets.symmetric(
-                                                horizontal: 12,
-                                                vertical: 8,
+                                              EdgeInsets.symmetric(
+                                                horizontal: Responsive.space(
+                                                  context,
+                                                  size: Space.large,
+                                                ),
+                                                vertical: Responsive.space(
+                                                  context,
+                                                  size: Space.large,
+                                                ),
                                               ),
                                         ),
                                         value: selectedYear,
@@ -467,7 +521,9 @@ class _TeamsScreenState extends State<TeamsScreen> {
                   textDirection: TextDirection.rtl,
                   child: AlertDialog(
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(
+                        Responsive.space(context, size: Space.large),
+                      ),
                     ),
                     title: const Text(
                       'تعديل التيمات',
@@ -514,30 +570,56 @@ class _TeamsScreenState extends State<TeamsScreen> {
                             );
                           },
                         ),
-                        const SizedBox(height: 12),
+                        SizedBox(
+                          height: Responsive.space(
+                            context,
+                            size: Space.large,
+                          ),
+                        ),
                         TextField(
                           controller: controller,
-                          decoration: const InputDecoration(
+                          decoration:  InputDecoration(
                             hintText: 'أضف تيم',
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.all(
-                                Radius.circular(12),
+                                Radius.circular(
+                                  Responsive.space(
+                                    context,
+                                    size: Space.large,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
                           textDirection: TextDirection.rtl,
                           textAlign: TextAlign.right,
                         ),
-                        const SizedBox(height: 8),
+                        SizedBox(
+                          height: Responsive.space(
+                            context,
+                            size: Space.small,
+                          ),
+                        ),
                         DropdownButtonFormField<String>(
                           decoration: InputDecoration(
                             hintText: 'اختر الفرقة',
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(
+                                Responsive.space(
+                                  context,
+                                  size: Space.large,
+                                ),
+                              ),
                             ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: Responsive.space(
+                                context,
+                                size: Space.small,
+                              ),
+                              vertical: Responsive.space(
+                                context,
+                                size: Space.small,
+                              ),
                             ),
                           ),
                           value: selectedYear,
