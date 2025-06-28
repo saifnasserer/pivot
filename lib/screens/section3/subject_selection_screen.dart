@@ -601,7 +601,9 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
                         size: 16,
                         color: isOverLimit ? Colors.red : Colors.grey[600],
                       ),
-                      const SizedBox(width: 8),
+                      SizedBox(
+                        width: Responsive.space(context, size: Space.small),
+                      ),
                       Text(
                         'الساعات المختارة: $totalHours / $maxHours',
                         style: TextStyle(

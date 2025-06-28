@@ -83,7 +83,9 @@ class SubjectModel extends StatelessWidget {
                                 ? 'يرجى إدخال العنوان'
                                 : null,
                   ),
-                  SizedBox(height: 12),
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.medium),
+                  ),
                   TextFormField(
                     controller: urlController,
                     decoration: commonDecoration.copyWith(labelText: 'الرابط'),

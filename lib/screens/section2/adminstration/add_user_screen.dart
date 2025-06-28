@@ -360,7 +360,10 @@ class _AddUserScreenState extends State<AddUserScreen> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      padding: const EdgeInsets.symmetric(vertical: 0),
+                      padding: Responsive.paddingVertical(
+                        context,
+                        size: Space.tiny,
+                      ),
                     ),
                     child:
                         _isLoading
@@ -377,7 +380,10 @@ class _AddUserScreenState extends State<AddUserScreen> {
                             : Text(
                               'إضافة المستخدم',
                               style: TextStyle(
-                                fontSize: 18,
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.medium,
+                                ),
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
                               ),
@@ -400,7 +406,7 @@ class _AddUserScreenState extends State<AddUserScreen> {
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 24),
-      padding: EdgeInsets.all(20),
+      padding: Responsive.padding(context, size: Space.large),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -419,7 +425,7 @@ class _AddUserScreenState extends State<AddUserScreen> {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(10),
+                padding: Responsive.padding(context, size: Space.small),
                 decoration: BoxDecoration(
                   color: Colors.black.withOpacity(0.08),
                   borderRadius: BorderRadius.circular(14),
@@ -430,7 +436,7 @@ class _AddUserScreenState extends State<AddUserScreen> {
               Text(
                 title,
                 style: TextStyle(
-                  fontSize: 20,
+                  fontSize: Responsive.text(context, size: TextSize.heading),
                   fontWeight: FontWeight.bold,
                   color: Colors.black87,
                 ),

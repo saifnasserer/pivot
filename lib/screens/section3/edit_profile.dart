@@ -4,23 +4,18 @@ import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, compute;
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
-import 'package:pivot/screens/models/circular_button.dart';
 import 'package:pivot/screens/models/custom_dropdown.dart';
 import 'package:pivot/providers/settings_provider.dart';
 import 'package:pivot/data/form_options.dart';
 import 'package:pivot/screens/models/custom_text_field.dart';
 import 'package:provider/provider.dart';
 import 'package:pivot/services/permission_service.dart';
-import 'package:pivot/services/session_management_service.dart';
-import 'package:pivot/services/auth_service.dart';
-import 'package:pivot/services/cache_service.dart';
 
 class EditProfile extends StatefulWidget {
   static const String id = 'edit_profile';
@@ -308,7 +303,7 @@ class _EditProfileState extends State<EditProfile> {
           GestureDetector(
             onTap: _pickImage,
             child: Container(
-              padding: const EdgeInsets.all(8),
+              padding: Responsive.padding(context, size: Space.small),
               decoration: BoxDecoration(
                 color: Colors.white,
                 shape: BoxShape.circle,

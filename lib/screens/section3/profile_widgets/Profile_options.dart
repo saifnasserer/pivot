@@ -300,7 +300,7 @@ class NotificationSwitch extends StatelessWidget {
   final IconData icon;
   final ValueChanged<bool> onChanged;
 
-  const NotificationSwitch({
+  const NotificationSwitch({super.key, 
     required this.title,
     required this.subtitle,
     required this.value,

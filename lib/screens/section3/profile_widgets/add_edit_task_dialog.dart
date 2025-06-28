@@ -142,7 +142,10 @@ class _AddEditTaskDialogState extends State<AddEditTaskDialog> {
                 ),
                 SizedBox(height: Responsive.space(context, size: Space.medium)),
                 Container(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  padding: Responsive.paddingVertical(
+                    context,
+                    size: Space.small,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFF7F7F7),
                     borderRadius: BorderRadius.circular(12),
@@ -258,7 +261,7 @@ class _AddEditTaskDialogState extends State<AddEditTaskDialog> {
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('إلغاء'),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: Responsive.space(context, size: Space.small)),
           ElevatedButton(onPressed: _saveForm, child: const Text('حفظ')),
         ],
         actionsAlignment: MainAxisAlignment.end,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/section2/adminstration/show_dialog.dart';
 import 'package:provider/provider.dart';
 import 'package:pivot/providers/announcement_provider.dart';
@@ -41,8 +42,13 @@ class AnnouncementListWidget extends StatelessWidget {
         }
 
         if (announcements.isEmpty) {
-          return const Center(
-            child: Text('مفيش اخبار', style: TextStyle(fontSize: 16)),
+          return Center(
+            child: Text(
+              'مفيش اخبار',
+              style: TextStyle(
+                fontSize: Responsive.text(context, size: TextSize.medium),
+              ),
+            ),
           );
         }
 

@@ -47,7 +47,9 @@ List<Widget> buildDoctorSubjectsSlivers({
         ),
       ),
     ),
-    const SliverToBoxAdapter(child: SizedBox(height: 16)),
+    SliverToBoxAdapter(
+      child: SizedBox(height: Responsive.space(context, size: Space.medium)),
+    ),
     if (sectionProvider.isLoading)
       const SliverFillRemaining(
         child: Center(child: CircularProgressIndicator()),

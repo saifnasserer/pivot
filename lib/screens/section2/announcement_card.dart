@@ -23,9 +23,8 @@ class AnnouncementCard extends StatelessWidget {
     final hasExpiry = announcement.expireAt != null;
     final accentColor = isExpired ? Colors.grey[400] : Color(0xff1976d2);
     final preview =
-        (announcement.description != null &&
-                announcement.description!.trim().isNotEmpty)
-            ? announcement.description!.split('\n').first.trim()
+        (announcement.description.trim().isNotEmpty)
+            ? announcement.description.split('\n').first.trim()
             : null;
     return Card(
       margin: EdgeInsets.only(
@@ -84,7 +83,12 @@ class AnnouncementCard extends StatelessWidget {
                                 child: Row(
                                   children: [
                                     Icon(Icons.edit_outlined, size: 18),
-                                    SizedBox(width: 8),
+                                    SizedBox(
+                                      width: Responsive.space(
+                                        context,
+                                        size: Space.small,
+                                      ),
+                                    ),
                                     Text('تعديل'),
                                   ],
                                 ),
@@ -97,7 +101,12 @@ class AnnouncementCard extends StatelessWidget {
                                       Icons.delete_outline_rounded,
                                       size: 18,
                                     ),
-                                    SizedBox(width: 8),
+                                    SizedBox(
+                                      width: Responsive.space(
+                                        context,
+                                        size: Space.small,
+                                      ),
+                                    ),
                                     Text('حذف'),
                                   ],
                                 ),
@@ -170,7 +179,10 @@ class AnnouncementCard extends StatelessWidget {
                                 decoration: BoxDecoration(
                                   color: Color(0xffF1F1F1),
                                   borderRadius: BorderRadius.circular(
-                                    Responsive.space(context, size: Space.large),
+                                    Responsive.space(
+                                      context,
+                                      size: Space.large,
+                                    ),
                                   ),
                                 ),
                                 child: Text(
@@ -200,9 +212,14 @@ class AnnouncementCard extends StatelessWidget {
                             Icon(
                               Icons.event,
                               color: isExpired ? Colors.red : Colors.grey,
-                              size: 15,
+                              size: Responsive.space(context, size: Space.tiny),
                             ),
-                            SizedBox(width: 3),
+                            SizedBox(
+                              width: Responsive.space(
+                                context,
+                                size: Space.tiny,
+                              ),
+                            ),
                             // Text(
                             //   'ينتهي: ' +
                             //       (announcement.expireAt != null
@@ -219,7 +236,13 @@ class AnnouncementCard extends StatelessWidget {
                         ),
                       Text(
                         announcement.date,
-                        style: TextStyle(color: Colors.grey[600], fontSize: 11),
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: Responsive.text(
+                            context,
+                            size: TextSize.small,
+                          ),
+                        ),
                       ),
                     ],
                   ),

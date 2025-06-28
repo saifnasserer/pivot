@@ -349,7 +349,10 @@ class _LoginState extends State<Login> {
                               Responsive.space(context, size: Space.xlarge) * 2,
                         ),
                         Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          padding: Responsive.paddingVertical(
+                            context,
+                            size: Space.small,
+                          ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -366,7 +369,10 @@ class _LoginState extends State<Login> {
                           ),
                         ),
                         Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          padding: Responsive.paddingVertical(
+                            context,
+                            size: Space.small,
+                          ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -400,7 +406,10 @@ class _LoginState extends State<Login> {
                           ),
                         ),
                         Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          padding: Responsive.paddingVertical(
+                            context,
+                            size: Space.small,
+                          ),
                           child: TextButton(
                             onPressed: () {
                               Navigator.push(

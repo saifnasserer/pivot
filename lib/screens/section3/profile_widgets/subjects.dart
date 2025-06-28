@@ -107,6 +107,7 @@ class SubjectListItem extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _buildDetailRow(
+                          context,
                           'القسم',
                           subject.departments.join(', '),
                           Icons.business,
@@ -115,6 +116,7 @@ class SubjectListItem extends StatelessWidget {
                           height: Responsive.space(context, size: Space.small),
                         ),
                         _buildDetailRow(
+                          context,
                           'الترم',
                           subject.year.toString(),
                           Icons.school,
@@ -123,6 +125,7 @@ class SubjectListItem extends StatelessWidget {
                           height: Responsive.space(context, size: Space.small),
                         ),
                         _buildDetailRow(
+                          context,
                           'الساعات',
                           subject.hours.toString(),
                           Icons.tag,
@@ -282,23 +285,31 @@ class SubjectListItem extends StatelessWidget {
     );
   }
 
-  Widget _buildDetailRow(String label, String value, IconData icon) {
+  Widget _buildDetailRow(
+    BuildContext context,
+    String label,
+    String value,
+    IconData icon,
+  ) {
     return Row(
       children: [
         Icon(icon, color: Colors.black87, size: 18),
-        SizedBox(width: 8),
+        SizedBox(width: Responsive.space(context, size: Space.small)),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 label,
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                style: TextStyle(
+                  fontSize: Responsive.text(context, size: TextSize.small),
+                  color: Colors.grey[600],
+                ),
               ),
               Text(
                 value,
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: Responsive.text(context, size: TextSize.small),
                   fontWeight: FontWeight.w500,
                   color: Colors.black87,
                 ),

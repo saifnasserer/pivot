@@ -141,7 +141,9 @@ class _TeamsScreenState extends State<TeamsScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(Icons.error_outline, size: 48, color: Colors.red[300]),
-                  const SizedBox(height: 16),
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.medium),
+                  ),
                   Text(
                     provider.error!,
                     style: TextStyle(color: Colors.red[700]),
@@ -160,13 +162,15 @@ class _TeamsScreenState extends State<TeamsScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(Icons.group_outlined, size: 64, color: Colors.grey[400]),
-                  const SizedBox(height: 16),
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.medium),
+                  ),
                   Text(
                     _isAdmin()
                         ? 'لا توجد فرق${selectedYearFilter != null ? ' في السنة $selectedYearFilter' : ''}'
                         : 'لا توجد فرق متاحة لسنتك الدراسية',
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: Responsive.text(context, size: TextSize.medium),
                       color: Colors.grey[600],
                       fontWeight: FontWeight.w500,
                     ),
@@ -275,10 +279,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
                           ],
                           Icon(
                             Icons.arrow_back_ios,
-                            size: Responsive.space(
-                              context,
-                              size: Space.medium,
-                            ),
+                            size: Responsive.space(context, size: Space.medium),
                             color: Colors.grey[400],
                           ),
                           Spacer(),
@@ -384,7 +385,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
                                     children: [
                                       TextField(
                                         controller: controller,
-                                        decoration:  InputDecoration(
+                                        decoration: InputDecoration(
                                           hintText: 'اسم الفريق',
                                           border: OutlineInputBorder(
                                             borderRadius: BorderRadius.all(
@@ -401,11 +402,11 @@ class _TeamsScreenState extends State<TeamsScreen> {
                                         textAlign: TextAlign.right,
                                       ),
                                       SizedBox(
-                                          height: Responsive.space(
-                                            context,
-                                            size: Space.large,
-                                          ),
+                                        height: Responsive.space(
+                                          context,
+                                          size: Space.large,
                                         ),
+                                      ),
                                       DropdownButtonFormField<String>(
                                         decoration: InputDecoration(
                                           hintText: 'اختر الفرقة',
@@ -417,17 +418,16 @@ class _TeamsScreenState extends State<TeamsScreen> {
                                               ),
                                             ),
                                           ),
-                                          contentPadding:
-                                              EdgeInsets.symmetric(
-                                                horizontal: Responsive.space(
-                                                  context,
-                                                  size: Space.large,
-                                                ),
-                                                vertical: Responsive.space(
-                                                  context,
-                                                  size: Space.large,
-                                                ),
-                                              ),
+                                          contentPadding: EdgeInsets.symmetric(
+                                            horizontal: Responsive.space(
+                                              context,
+                                              size: Space.large,
+                                            ),
+                                            vertical: Responsive.space(
+                                              context,
+                                              size: Space.large,
+                                            ),
+                                          ),
                                         ),
                                         value: selectedYear,
                                         items:
@@ -571,22 +571,16 @@ class _TeamsScreenState extends State<TeamsScreen> {
                           },
                         ),
                         SizedBox(
-                          height: Responsive.space(
-                            context,
-                            size: Space.large,
-                          ),
+                          height: Responsive.space(context, size: Space.large),
                         ),
                         TextField(
                           controller: controller,
-                          decoration:  InputDecoration(
+                          decoration: InputDecoration(
                             hintText: 'أضف تيم',
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.all(
                                 Radius.circular(
-                                  Responsive.space(
-                                    context,
-                                    size: Space.large,
-                                  ),
+                                  Responsive.space(context, size: Space.large),
                                 ),
                               ),
                             ),
@@ -595,20 +589,14 @@ class _TeamsScreenState extends State<TeamsScreen> {
                           textAlign: TextAlign.right,
                         ),
                         SizedBox(
-                          height: Responsive.space(
-                            context,
-                            size: Space.small,
-                          ),
+                          height: Responsive.space(context, size: Space.small),
                         ),
                         DropdownButtonFormField<String>(
                           decoration: InputDecoration(
                             hintText: 'اختر الفرقة',
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(
-                                Responsive.space(
-                                  context,
-                                  size: Space.large,
-                                ),
+                                Responsive.space(context, size: Space.large),
                               ),
                             ),
                             contentPadding: EdgeInsets.symmetric(

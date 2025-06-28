@@ -134,7 +134,10 @@ class _TeamFormationScreenState extends State<TeamFormationScreen> {
                                   hintText: 'أضف مهارة',
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(
-                                      Responsive.space(context, size: Space.large),
+                                      Responsive.space(
+                                        context,
+                                        size: Space.large,
+                                      ),
                                     ),
                                     borderSide: BorderSide(
                                       color: Color(0xFFF7F7F7),
@@ -172,7 +175,9 @@ class _TeamFormationScreenState extends State<TeamFormationScreen> {
                           ],
                         ),
                       ),
-                      SizedBox(height: 8),
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.small),
+                      ),
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
@@ -208,7 +213,10 @@ class _TeamFormationScreenState extends State<TeamFormationScreen> {
                                   hintText: 'رابط مشروع سابق',
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(
-                                      Responsive.space(context, size: Space.large),
+                                      Responsive.space(
+                                        context,
+                                        size: Space.large,
+                                      ),
                                     ),
                                     borderSide: BorderSide(
                                       color: Color(0xFFF7F7F7),
@@ -248,7 +256,9 @@ class _TeamFormationScreenState extends State<TeamFormationScreen> {
                           ],
                         ),
                       ),
-                      SizedBox(height: 8),
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.small),
+                      ),
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
@@ -259,7 +269,12 @@ class _TeamFormationScreenState extends State<TeamFormationScreen> {
                                   (link) => Chip(
                                     label: Text(
                                       link,
-                                      style: TextStyle(fontSize: 12),
+                                      style: TextStyle(
+                                        fontSize: Responsive.text(
+                                          context,
+                                          size: TextSize.small,
+                                        ),
+                                      ),
                                     ),
                                     onDeleted:
                                         () => setState(
@@ -270,7 +285,9 @@ class _TeamFormationScreenState extends State<TeamFormationScreen> {
                                 )
                                 .toList(),
                       ),
-                      SizedBox(height: Responsive.space(context)),
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.medium),
+                      ),
                       // WhatsApp
                       CustomTextField(
                         hint: 'رقم واتساب',
@@ -293,7 +310,9 @@ class _TeamFormationScreenState extends State<TeamFormationScreen> {
                         },
                         keyboardType: TextInputType.phone,
                       ),
-                      SizedBox(height: Responsive.space(context)),
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.medium),
+                      ),
                       // LinkedIn (optional)
                       CustomTextField(
                         hint: 'رابط لينكدإن (اختياري)',
@@ -489,7 +508,9 @@ class _TeamFormationScreenState extends State<TeamFormationScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(Icons.error_outline, size: 48, color: Colors.red[300]),
-                  const SizedBox(height: 16),
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.medium),
+                  ),
                   Text(
                     provider.error!,
                     style: TextStyle(color: Colors.red[700]),
@@ -528,7 +549,9 @@ class _TeamFormationScreenState extends State<TeamFormationScreen> {
                     width: Responsive.space(context, size: Space.large) * 10,
                     height: Responsive.space(context, size: Space.large) * 10,
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.medium),
+                  ),
                   Text(
                     _searchQuery.isNotEmpty
                         ? 'لا توجد نتائج بحث عن "$_searchQuery" في الأسماء أو المهارات'

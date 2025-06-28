@@ -429,7 +429,7 @@ class _UpcomingNotificationsScreenState
               Row(
                 children: [
                   Icon(Icons.schedule, size: 16, color: Colors.grey[600]),
-                  SizedBox(width: 4),
+                  SizedBox(width: Responsive.space(context, size: Space.tiny)),
                   Text(
                     DateFormat(
                       'dd/MM/yyyy HH:mm',

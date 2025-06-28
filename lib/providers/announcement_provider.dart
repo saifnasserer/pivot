@@ -37,21 +37,27 @@ class AnnouncementProvider with ChangeNotifier {
     try {
       // Step 1: Load from cache first
       final cachedAnnouncements =
-          await CacheService.instance.getCachedAnnouncements();
+          CacheService.instance.getCachedAnnouncements();
       if (cachedAnnouncements.isNotEmpty) {
         _announcements = cachedAnnouncements;
         notifyListeners();
       }
 
       // Step 2: Fetch from server in the background
-      Query query = _firestore
+      List<AnnouncementData> timeFilteredAnnouncements = [];
+      List<AnnouncementData> pinnedAnnouncements = [];
+
+      // Fetch time-filtered announcements
+      Query timeQuery = _firestore
           .collection(_collectionPath)
           .orderBy('timestamp', descending: true);
+
       final String? departmentToFilter = department;
       if (departmentToFilter != null && departmentToFilter.isNotEmpty) {
         final departmentTag = 'اخبار قسم $departmentToFilter';
-        query = query.where('tags', arrayContains: departmentTag);
+        timeQuery = timeQuery.where('tags', arrayContains: departmentTag);
       }
+
       if (timeFilter != null && timeFilter.isNotEmpty) {
         final now = DateTime.now();
         DateTime? startDate;
@@ -62,20 +68,61 @@ class AnnouncementProvider with ChangeNotifier {
           startDate = DateTime(weekAgo.year, weekAgo.month, weekAgo.day);
         }
         if (startDate != null) {
-          query = query.where('timestamp', isGreaterThanOrEqualTo: startDate);
+          timeQuery = timeQuery.where(
+            'timestamp',
+            isGreaterThanOrEqualTo: startDate,
+          );
         }
       }
-      final snapshot = await query.get();
-      _announcements =
-          snapshot.docs
+
+      final timeSnapshot = await timeQuery.get();
+      timeFilteredAnnouncements =
+          timeSnapshot.docs
               .map((doc) => AnnouncementData.fromFirestore(doc))
               .toList();
+
+      // If filtering by 'today', also fetch all pinned announcements regardless of time
+      if (timeFilter == 'today') {
+        Query pinnedQuery = _firestore
+            .collection(_collectionPath)
+            .where('pinned', isEqualTo: true)
+            .orderBy('timestamp', descending: true);
+
+        if (departmentToFilter != null && departmentToFilter.isNotEmpty) {
+          final departmentTag = 'اخبار قسم $departmentToFilter';
+          pinnedQuery = pinnedQuery.where('tags', arrayContains: departmentTag);
+        }
+
+        final pinnedSnapshot = await pinnedQuery.get();
+        pinnedAnnouncements =
+            pinnedSnapshot.docs
+                .map((doc) => AnnouncementData.fromFirestore(doc))
+                .toList();
+      }
+
+      // Merge and deduplicate announcements
+      final Map<String, AnnouncementData> mergedAnnouncements = {};
+
+      // Add time-filtered announcements first
+      for (final announcement in timeFilteredAnnouncements) {
+        mergedAnnouncements[announcement.id ?? ''] = announcement;
+      }
+
+      // Add pinned announcements (they will override duplicates if any)
+      for (final announcement in pinnedAnnouncements) {
+        mergedAnnouncements[announcement.id ?? ''] = announcement;
+      }
+
+      _announcements = mergedAnnouncements.values.toList();
+
+      // Sort announcements: pinned first, then by timestamp
       _announcements.sort((a, b) {
         if (a.pinned == b.pinned) {
           return b.timestamp.compareTo(a.timestamp);
         }
         return b.pinned ? 1 : -1;
       });
+
       // Filter out scheduled (future) and expired announcements unless requested otherwise
       if (!includeScheduledAndExpired) {
         final now = DateTime.now();

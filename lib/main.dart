@@ -6,7 +6,6 @@ import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/providers/settings_provider.dart';
 import 'package:pivot/providers/super_admin_provider.dart';
 import 'package:pivot/providers/guide_provider.dart';
-import 'package:pivot/screens/section2/adminstration/models/announcement_data.dart';
 import 'package:pivot/screens/section2/team_formation_screen.dart';
 import 'package:pivot/screens/section2/teams.dart';
 import 'package:pivot/screens/section3/edit_profile.dart';
@@ -42,10 +41,8 @@ import 'package:pivot/providers/scheduled_notification_provider.dart'; // Import
 import 'package:pivot/providers/user_notification_provider.dart';
 
 import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:pivot/screens/section2/super_admin_panel/analytics_screen.dart';
 import 'package:pivot/services/cache_service.dart';
@@ -59,7 +56,6 @@ import 'package:pivot/screens/section2/adminstration/feedback_management_screen.
 import 'package:pivot/screens/section2/super_admin_panel/upcoming_notifications_screen.dart';
 import 'package:pivot/providers/team_provider.dart';
 import 'package:pivot/providers/teams_provider.dart';
-import 'package:path_provider/path_provider.dart';
 
 void main() async {
   debugPrint('--- MAIN START ---');
@@ -428,22 +424,22 @@ class _ErrorBoundaryState extends State<ErrorBoundary> {
         backgroundColor: Colors.white,
         body: Center(
           child: Padding(
-            padding: const EdgeInsets.all(24.0),
+            padding: Responsive.padding(context, size: Space.large),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Icon(Icons.error_outline, color: Colors.red, size: 48),
-                const SizedBox(height: 16),
+                SizedBox(height: Responsive.space(context, size: Space.medium)),
                 Text(
                   'حدث خطأ في التطبيق: $_error',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 16,
+                  style: TextStyle(
+                    fontSize: Responsive.text(context, size: TextSize.medium),
                     color: Colors.black87,
                     fontFamily: 'NotoSansArabic',
                   ),
                 ),
-                const SizedBox(height: 24),
+                SizedBox(height: Responsive.space(context, size: Space.large)),
                 ElevatedButton(
                   onPressed: () {
                     setState(() {

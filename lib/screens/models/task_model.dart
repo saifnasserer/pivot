@@ -118,7 +118,10 @@ class TaskModel extends StatelessWidget {
                     Expanded(
                       child: AutoSizeText(
                         task.title,
-                        minFontSize: 12,
+                        minFontSize: Responsive.text(
+                          context,
+                          size: TextSize.small,
+                        ),
                         textAlign: TextAlign.end,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,

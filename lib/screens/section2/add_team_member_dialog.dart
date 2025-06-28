@@ -100,7 +100,9 @@ Future<void> showAddTeamMemberDialog(
                         ),
                       ),
                     ),
-                    SizedBox(height: 8),
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.small),
+                    ),
                     // Skills
                     Container(
                       decoration: BoxDecoration(
@@ -120,7 +122,10 @@ Future<void> showAddTeamMemberDialog(
                                 hintText: 'أضف مهارة',
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(
-                                    Responsive.space(context, size: Space.large),
+                                    Responsive.space(
+                                      context,
+                                      size: Space.large,
+                                    ),
                                   ),
                                   borderSide: BorderSide(
                                     color: Color(0xFFF7F7F7),
@@ -154,7 +159,9 @@ Future<void> showAddTeamMemberDialog(
                         ],
                       ),
                     ),
-                    SizedBox(height: 8),
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.small),
+                    ),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
@@ -188,7 +195,10 @@ Future<void> showAddTeamMemberDialog(
                                 hintText: 'رابط مشروع سابق',
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(
-                                    Responsive.space(context, size: Space.large),
+                                    Responsive.space(
+                                      context,
+                                      size: Space.large,
+                                    ),
                                   ),
                                   borderSide: BorderSide(
                                     color: Color(0xFFF7F7F7),
@@ -222,7 +232,9 @@ Future<void> showAddTeamMemberDialog(
                         ],
                       ),
                     ),
-                    SizedBox(height: 8),
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.small),
+                    ),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
@@ -233,7 +245,12 @@ Future<void> showAddTeamMemberDialog(
                                 (link) => Chip(
                                   label: Text(
                                     link,
-                                    style: TextStyle(fontSize: 12),
+                                    style: TextStyle(
+                                      fontSize: Responsive.text(
+                                        context,
+                                        size: TextSize.small,
+                                      ),
+                                    ),
                                   ),
                                   onDeleted:
                                       () => newPreviousProjects.remove(link),

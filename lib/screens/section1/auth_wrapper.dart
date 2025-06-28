@@ -60,7 +60,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
                   Text(
                     'جاري تحميل التطبيق...',
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: Responsive.text(context, size: TextSize.medium),
                       color: Colors.black87,
                       fontFamily: 'NotoSansArabic',
                     ),
@@ -97,7 +97,10 @@ class _AuthWrapperState extends State<AuthWrapper> {
                     Text(
                       'جاري تحميل الملف الشخصي...',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: Responsive.text(
+                          context,
+                          size: TextSize.medium,
+                        ),
                         color: Colors.black87,
                         fontFamily: 'NotoSansArabic',
                       ),

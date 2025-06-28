@@ -75,7 +75,10 @@ List<Widget> buildSectionsSlivers(BuildContext context) {
 
   return [
     SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      padding: EdgeInsets.symmetric(
+        horizontal: Responsive.space(context, size: Space.medium),
+        vertical: Responsive.space(context, size: Space.small),
+      ),
       sliver: SliverList(
         delegate: SliverChildBuilderDelegate((context, index) {
           final section = relevantSections[index];
@@ -198,11 +201,17 @@ class SectionListItem extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildDetailRow('السكاشن', section.name, Icons.class_),
+                        _buildDetailRow(
+                          context,
+                          'السكاشن',
+                          section.name,
+                          Icons.class_,
+                        ),
                         SizedBox(
                           height: Responsive.space(context, size: Space.small),
                         ),
                         _buildDetailRow(
+                          context,
                           'المكان',
                           section.location,
                           Icons.location_on_outlined,
@@ -211,6 +220,7 @@ class SectionListItem extends StatelessWidget {
                           height: Responsive.space(context, size: Space.small),
                         ),
                         _buildDetailRow(
+                          context,
                           'الأيام',
                           section.days,
                           Icons.calendar_today,
@@ -219,6 +229,7 @@ class SectionListItem extends StatelessWidget {
                           height: Responsive.space(context, size: Space.small),
                         ),
                         _buildDetailRow(
+                          context,
                           'الوقت',
                           section.time,
                           Icons.access_time,
@@ -365,23 +376,31 @@ class SectionListItem extends StatelessWidget {
     );
   }
 
-  Widget _buildDetailRow(String label, String value, IconData icon) {
+  Widget _buildDetailRow(
+    BuildContext context,
+    String label,
+    String value,
+    IconData icon,
+  ) {
     return Row(
       children: [
         Icon(icon, color: Colors.black87, size: 18),
-        SizedBox(width: 8),
+        SizedBox(width: Responsive.space(context, size: Space.small)),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 label,
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                style: TextStyle(
+                  fontSize: Responsive.text(context, size: TextSize.small),
+                  color: Colors.grey[600],
+                ),
               ),
               Text(
                 value,
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: Responsive.text(context, size: TextSize.small),
                   fontWeight: FontWeight.w500,
                   color: Colors.black87,
                 ),

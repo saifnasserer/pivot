@@ -638,7 +638,10 @@ class _AdminControlState extends State<AdminControl> {
                         PopupMenuItem(
                           value: 'filters',
                           child: Container(
-                            padding: EdgeInsets.symmetric(vertical: 8),
+                            padding: Responsive.paddingVertical(
+                              context,
+                              size: Space.small,
+                            ),
                             child: Row(
                               children: [
                                 Expanded(
@@ -676,7 +679,10 @@ class _AdminControlState extends State<AdminControl> {
                                   ),
                                 ),
                                 Container(
-                                  padding: EdgeInsets.all(8),
+                                  padding: Responsive.padding(
+                                    context,
+                                    size: Space.small,
+                                  ),
                                   decoration: BoxDecoration(
                                     color:
                                         _showFilters

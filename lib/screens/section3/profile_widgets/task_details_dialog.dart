@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/models/task.dart';
 import 'package:pivot/screens/models/card_model.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class TaskDetailsDialog extends StatelessWidget {
   final Task task;
@@ -24,7 +25,10 @@ class TaskDetailsDialog extends StatelessWidget {
 
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: Responsive.space(context, size: Space.medium),
+        vertical: Responsive.space(context, size: Space.large),
+      ),
       child: Stack(
         children: [
           Container(
@@ -135,8 +139,118 @@ class TaskDetailsDialog extends StatelessWidget {
                       ),
                       // Attachments Section
                       if (task.attachments != null &&
-                          task.attachments!.isNotEmpty)
-                        AttachmentListWidget(attachments: task.attachments!),
+                          task.attachments!.isNotEmpty) ...[
+                        SizedBox(
+                          height: Responsive.space(context, size: Space.medium),
+                        ),
+                        Divider(thickness: 1, color: Colors.grey[200]),
+                        SizedBox(
+                          height: Responsive.space(context, size: Space.small),
+                        ),
+                        Text(
+                          'المرفقات:',
+                          style: TextStyle(
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.medium,
+                            ),
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black.withOpacity(0.8),
+                          ),
+                          textAlign: TextAlign.right,
+                        ),
+                        SizedBox(
+                          height: Responsive.space(context, size: Space.small),
+                        ),
+                        ...task.attachments!.map((attachment) {
+                          return Container(
+                            margin: EdgeInsets.only(
+                              bottom: Responsive.space(
+                                context,
+                                size: Space.small,
+                              ),
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[100],
+                              borderRadius: BorderRadius.circular(
+                                Responsive.space(context, size: Space.large),
+                              ),
+                              border: Border.all(color: Colors.grey[300]!),
+                            ),
+                            child: ListTile(
+                              leading: Icon(
+                                Icons.attach_file,
+                                color: headerColor,
+                                size: 24,
+                              ),
+                              title: Text(
+                                attachment['title'] ?? 'ملف مرفق',
+                                style: TextStyle(
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.medium,
+                                  ),
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.black.withOpacity(0.8),
+                                ),
+                                textAlign: TextAlign.right,
+                              ),
+                              subtitle: Text(
+                                'اضغط لفتح الملف',
+                                style: TextStyle(
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.small,
+                                  ),
+                                  color: Colors.grey[600],
+                                ),
+                                textAlign: TextAlign.right,
+                              ),
+                              trailing: Icon(
+                                Icons.open_in_new,
+                                color: headerColor,
+                                size: 20,
+                              ),
+                              onTap: () async {
+                                final url = attachment['url'];
+                                if (url != null) {
+                                  try {
+                                    final uri = Uri.parse(url);
+                                    if (await canLaunchUrl(uri)) {
+                                      await launchUrl(
+                                        uri,
+                                        mode: LaunchMode.externalApplication,
+                                      );
+                                    } else {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text('تعذر فتح الملف'),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  } catch (e) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text('خطأ في فتح الملف: $e'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
+                                  }
+                                }
+                              },
+                            ),
+                          );
+                        }).toList(),
+                      ],
                     ],
                   ),
                 ),

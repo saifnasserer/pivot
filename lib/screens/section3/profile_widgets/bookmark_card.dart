@@ -17,7 +17,10 @@ class BookmarkCard extends StatelessWidget {
       builder: (BuildContext context) {
         return Dialog(
           backgroundColor: Colors.transparent,
-          insetPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          insetPadding: EdgeInsets.symmetric(
+            horizontal: Responsive.space(context, size: Space.medium),
+            vertical: Responsive.space(context, size: Space.large),
+          ),
           child: Stack(
             children: [
               Container(
@@ -527,7 +530,10 @@ class BookmarkDetailsDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: Responsive.space(context, size: Space.medium),
+        vertical: Responsive.space(context, size: Space.large),
+      ),
       child: Stack(
         children: [
           Container(

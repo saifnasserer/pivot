@@ -62,7 +62,7 @@ void showAddAnnouncementDialog({
         selectedTags.isNotEmpty &&
         (publishAt == null ||
             expireAt == null ||
-            expireAt!.isAfter(publishAt!));
+            expireAt.isAfter(publishAt));
   }
 
   showDialog(
@@ -176,10 +176,20 @@ void showAddAnnouncementDialog({
                                   },
                                 ),
                               ),
-                              Text('صورة', style: TextStyle(fontSize: 12)),
+                              Text(
+                                'صورة',
+                                style: TextStyle(
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.small,
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
-                          SizedBox(width: 24),
+                          SizedBox(
+                            width: Responsive.space(context, size: Space.large),
+                          ),
                           Column(
                             children: [
                               Tooltip(
@@ -316,8 +326,9 @@ void showAddAnnouncementDialog({
                                         }
                                       }
                                     } catch (e) {
-                                      if (Navigator.canPop(context))
+                                      if (Navigator.canPop(context)) {
                                         Navigator.of(context).pop();
+                                      }
                                       ScaffoldMessenger.of(
                                         context,
                                       ).showSnackBar(
@@ -330,10 +341,20 @@ void showAddAnnouncementDialog({
                                   },
                                 ),
                               ),
-                              Text('ملف', style: TextStyle(fontSize: 12)),
+                              Text(
+                                'ملف',
+                                style: TextStyle(
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.small,
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
-                          SizedBox(width: 24),
+                          SizedBox(
+                            width: Responsive.space(context, size: Space.large),
+                          ),
                           Column(
                             children: [
                               Tooltip(
@@ -357,7 +378,15 @@ void showAddAnnouncementDialog({
                                   },
                                 ),
                               ),
-                              Text('رابط', style: TextStyle(fontSize: 12)),
+                              Text(
+                                'رابط',
+                                style: TextStyle(
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.small,
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                         ],
@@ -369,7 +398,10 @@ void showAddAnnouncementDialog({
                       // Image Picker Section
                       if (links.isNotEmpty)
                         Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          padding: Responsive.paddingVertical(
+                            context,
+                            size: Space.small,
+                          ),
                           child: Wrap(
                             spacing: 8.0,
                             runSpacing: 4.0,
@@ -507,7 +539,10 @@ void showAddAnnouncementDialog({
                               Text(
                                 'مهم',
                                 style: TextStyle(
-                                  fontSize: 14,
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.medium,
+                                  ),
                                   fontWeight:
                                       selectedColor == Color(0xFFFF5252)
                                           ? FontWeight.bold
@@ -564,7 +599,10 @@ void showAddAnnouncementDialog({
                               Text(
                                 'نص نص',
                                 style: TextStyle(
-                                  fontSize: 14,
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.medium,
+                                  ),
                                   fontWeight:
                                       selectedColor == Color(0xFFFFEF86)
                                           ? FontWeight.bold
@@ -621,7 +659,10 @@ void showAddAnnouncementDialog({
                               Text(
                                 'عادي',
                                 style: TextStyle(
-                                  fontSize: 14,
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.medium,
+                                  ),
                                   fontWeight:
                                       selectedColor == Color(0xFF99F16C)
                                           ? FontWeight.bold
@@ -769,7 +810,6 @@ void showAddAnnouncementDialog({
                       //                     () =>
                       //                         setState(() => publishAt = null),
                       //               ),
-                      //             ],
                       //           ],
                       //         ),
                       //         Text(
@@ -869,7 +909,6 @@ void showAddAnnouncementDialog({
                       //                 onPressed:
                       //                     () => setState(() => expireAt = null),
                       //               ),
-                      //             ],
                       //           ],
                       //         ),
                       //         Text(
@@ -921,9 +960,14 @@ void showAddAnnouncementDialog({
                                 vertical: 12,
                               ),
                             ),
-                            child: const Text(
+                            child: Text(
                               'إلغاء',
-                              style: TextStyle(fontSize: 16),
+                              style: TextStyle(
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.medium,
+                                ),
+                              ),
                             ),
                           ),
                           ElevatedButton(
@@ -945,7 +989,7 @@ void showAddAnnouncementDialog({
                                       }
                                       if (publishAt != null &&
                                           expireAt != null &&
-                                          !expireAt!.isAfter(publishAt!)) {
+                                          !expireAt.isAfter(publishAt)) {
                                         ScaffoldMessenger.of(
                                           context,
                                         ).showSnackBar(
@@ -963,14 +1007,22 @@ void showAddAnnouncementDialog({
                                         context: context,
                                         barrierDismissible: false,
                                         builder: (BuildContext context) {
-                                          return const Dialog(
+                                          return Dialog(
                                             child: Padding(
-                                              padding: EdgeInsets.all(20.0),
+                                              padding: Responsive.padding(
+                                                context,
+                                                size: Space.large,
+                                              ),
                                               child: Row(
                                                 mainAxisSize: MainAxisSize.min,
                                                 children: [
                                                   CircularProgressIndicator(),
-                                                  SizedBox(width: 20),
+                                                  SizedBox(
+                                                    width: Responsive.space(
+                                                      context,
+                                                      size: Space.medium,
+                                                    ),
+                                                  ),
                                                   Text("جاري رفع الصور..."),
                                                 ],
                                               ),
@@ -1029,11 +1081,13 @@ void showAddAnnouncementDialog({
                                               await announcementProvider
                                                   .uploadImage(image);
                                           if (imageUrl != null) {
-                                            if (!imageUrls.contains(imageUrl))
+                                            if (!imageUrls.contains(imageUrl)) {
                                               imageUrls.add(imageUrl);
+                                            }
                                           } else {
-                                            if (Navigator.canPop(context))
+                                            if (Navigator.canPop(context)) {
                                               Navigator.of(context).pop();
+                                            }
                                             ScaffoldMessenger.of(
                                               context,
                                             ).showSnackBar(
@@ -1045,8 +1099,9 @@ void showAddAnnouncementDialog({
                                             return;
                                           }
                                         } catch (e) {
-                                          if (Navigator.canPop(context))
+                                          if (Navigator.canPop(context)) {
                                             Navigator.of(context).pop();
+                                          }
                                           ScaffoldMessenger.of(
                                             context,
                                           ).showSnackBar(
@@ -1114,10 +1169,13 @@ void showAddAnnouncementDialog({
                             ),
                             child: Text(
                               isEditing ? 'تحديث' : 'إضافة',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: Colors.black,
                                 fontWeight: FontWeight.bold,
-                                fontSize: 16,
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.medium,
+                                ),
                               ),
                             ),
                           ),

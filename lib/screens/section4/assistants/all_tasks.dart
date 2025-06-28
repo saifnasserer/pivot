@@ -5,6 +5,7 @@ import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/screens/models/task.dart';
 import 'package:pivot/screens/models/task_model.dart';
 import 'package:provider/provider.dart';
+import 'package:pivot/responsive.dart';
 
 import 'add_edit_task_dialog.dart';
 
@@ -60,10 +61,13 @@ class _TasksControlState extends State<TasksControl> {
         child: Stack(
           children: [
             if (tasks.isEmpty && !taskProvider.isLoading)
-              const Center(
+              Center(
                 child: Text(
                   'لا توجد تاسكات حالياً',
-                  style: TextStyle(fontSize: 18, color: Colors.grey),
+                  style: TextStyle(
+                    fontSize: Responsive.text(context, size: TextSize.medium),
+                    color: Colors.grey,
+                  ),
                 ),
               )
             else
@@ -117,10 +121,35 @@ class _TasksControlState extends State<TasksControl> {
     Task? task,
   }) {
     final bool isEditing = task != null;
+    final sectionProvider = Provider.of<SectionProvider>(
+      context,
+      listen: false,
+    );
+
+    // Get sectionId from the task or from the current screen
+    final sectionId =
+        task?.sectionId ??
+        ModalRoute.of(context)?.settings.arguments as String?;
+    // Find the section and get its subjectId
+    final subjectId =
+        sectionId != null
+            ? sectionProvider.sections
+                .firstWhere((s) => s.id == sectionId)
+                .subjectId
+            : null;
+
+    if (subjectId == null) {
+      // Optionally show an error or return
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('لا يمكن تحديد المادة')));
+      return;
+    }
 
     showAddTaskDialog(
       context: context,
       task: task,
+      subjectId: subjectId,
       onSave: (savedTask) async {
         try {
           if (isEditing) {

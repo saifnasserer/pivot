@@ -39,7 +39,10 @@ class ProfileDetails extends StatelessWidget {
                         fontWeight: FontWeight.bold,
                       ),
                       maxLines: 1,
-                      minFontSize: 10,
+                      minFontSize: Responsive.text(
+                        context,
+                        size: TextSize.small,
+                      ),
                       textAlign: TextAlign.end,
                     ),
                   ),

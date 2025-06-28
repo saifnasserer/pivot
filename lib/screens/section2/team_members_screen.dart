@@ -64,7 +64,7 @@ class TeamMembersScreen extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Text('ضيف نفسك'),
-                SizedBox(width: 8),
+                SizedBox(width: Responsive.space(context, size: Space.small)),
                 const Icon(Icons.person_add),
               ],
             ),

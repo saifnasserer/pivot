@@ -1,6 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:pivot/screens/section2/landing.dart';
 import 'package:pivot/screens/models/circular_button.dart';
 import 'package:pivot/data/form_options.dart';
 import 'package:pivot/providers/settings_provider.dart';

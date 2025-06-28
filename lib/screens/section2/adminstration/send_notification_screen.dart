@@ -558,7 +558,10 @@ class _SendNotificationScreenState extends State<SendNotificationScreen> {
                           border: Border.all(color: Colors.grey[200]!),
                         ),
                         child: ListView.builder(
-                          padding: const EdgeInsets.all(8),
+                          padding: Responsive.padding(
+                            context,
+                            size: Space.small,
+                          ),
                           itemCount: _users.length,
                           itemBuilder: (context, index) {
                             final user = _users[index];
@@ -581,7 +584,10 @@ class _SendNotificationScreenState extends State<SendNotificationScreen> {
                                       }
                                       : null,
                               child: Container(
-                                margin: const EdgeInsets.symmetric(vertical: 4),
+                                margin: Responsive.paddingVertical(
+                                  context,
+                                  size: Space.tiny,
+                                ),
                                 padding: Responsive.padding(
                                   context,
                                   size: Space.medium,

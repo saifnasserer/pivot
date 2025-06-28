@@ -203,9 +203,9 @@ class _DoctorProfileState extends State<DoctorProfile> {
               child: Center(child: Text(doctorSubjectProvider.error!)),
             )
           else if (lectures.isEmpty)
-            const SliverToBoxAdapter(
+            SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.all(16.0),
+                padding: Responsive.padding(context, size: Space.medium),
                 child: Center(child: Text('لا توجد عناصر في هذه المادة')),
               ),
             )
@@ -253,16 +253,19 @@ class _DoctorProfileState extends State<DoctorProfile> {
     bool canEdit,
   ) {
     return Padding(
-      padding: const EdgeInsets.all(16.0),
+      padding: Responsive.padding(context, size: Space.medium),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'عن الدكتور',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: Responsive.text(context, size: TextSize.medium),
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               if (canEdit)
                 IconButton(
@@ -275,7 +278,7 @@ class _DoctorProfileState extends State<DoctorProfile> {
                 ),
             ],
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: Responsive.space(context, size: Space.small)),
           Text(
             userProfile.aboutMe.isNotEmpty
                 ? userProfile.aboutMe
@@ -319,15 +322,18 @@ class _DoctorProfileState extends State<DoctorProfile> {
       alignLabelWithHint: true,
     );
     return Padding(
-      padding: const EdgeInsets.all(16.0),
+      padding: Responsive.padding(context, size: Space.medium),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Edit About Me',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: Responsive.text(context, size: TextSize.medium),
+              fontWeight: FontWeight.bold,
+            ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: Responsive.space(context, size: Space.small)),
           Directionality(
             textDirection: TextDirection.rtl,
             child: TextField(
@@ -340,7 +346,7 @@ class _DoctorProfileState extends State<DoctorProfile> {
               textAlign: TextAlign.right,
             ),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: Responsive.space(context, size: Space.medium)),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [

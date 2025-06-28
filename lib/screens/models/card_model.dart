@@ -229,10 +229,13 @@ class _CardModelState extends State<CardModel> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   Icon(Icons.schedule, color: Colors.blue, size: 18),
-                  SizedBox(width: 4),
+                  SizedBox(width: Responsive.space(context, size: Space.small)),
                   Text(
                     'مجدول',
-                    style: TextStyle(color: Colors.blue, fontSize: 11),
+                    style: TextStyle(
+                      color: Colors.blue,
+                      fontSize: Responsive.text(context, size: TextSize.small),
+                    ),
                   ),
                 ],
               ),
@@ -241,10 +244,13 @@ class _CardModelState extends State<CardModel> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   Icon(Icons.event_busy, color: Colors.grey, size: 18),
-                  SizedBox(width: 4),
+                  SizedBox(width: Responsive.space(context, size: Space.small)),
                   Text(
                     'منتهي',
-                    style: TextStyle(color: Colors.grey, fontSize: 11),
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontSize: Responsive.text(context, size: TextSize.small),
+                    ),
                   ),
                 ],
               ),
@@ -660,7 +666,7 @@ class AttachmentListWidget extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        const SizedBox(height: 12),
+        SizedBox(height: Responsive.space(context, size: Space.medium)),
         const Text('المرفقات:', style: TextStyle(fontWeight: FontWeight.bold)),
         ...attachments.map(
           (att) => ListTile(

@@ -182,7 +182,10 @@ void showAddAnnouncementDialog({
                               Text(
                                 'مهم',
                                 style: TextStyle(
-                                  fontSize: 14,
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.medium,
+                                  ),
                                   fontWeight:
                                       selectedColor == Color(0xFFF5BBBC)
                                           ? FontWeight.bold
@@ -239,7 +242,10 @@ void showAddAnnouncementDialog({
                               Text(
                                 'نص نص',
                                 style: TextStyle(
-                                  fontSize: 14,
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.medium,
+                                  ),
                                   fontWeight:
                                       selectedColor == Color(0xFFFFEF86)
                                           ? FontWeight.bold
@@ -296,7 +302,10 @@ void showAddAnnouncementDialog({
                               Text(
                                 'عادي',
                                 style: TextStyle(
-                                  fontSize: 14,
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.medium,
+                                  ),
                                   fontWeight:
                                       selectedColor == Color(0xFF99F16C)
                                           ? FontWeight.bold
@@ -337,7 +346,7 @@ void showAddAnnouncementDialog({
                             Responsive.space(context, size: Space.large),
                           ),
                         ),
-                        padding: EdgeInsets.all(12),
+                        padding: Responsive.padding(context, size: Space.small),
                         child: Wrap(
                           spacing: 8,
                           runSpacing: 8,
@@ -451,19 +460,19 @@ void showAddAnnouncementDialog({
                               ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(
-                                  Responsive.space(
-                                    context,
-                                    size: Space.large,
-                                  ),
+                                  Responsive.space(context, size: Space.large),
                                 ),
                               ),
                             ),
                             child: Text(
                               isEditing ? 'تحديث' : 'إضافة',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: Colors.black,
                                 fontWeight: FontWeight.bold,
-                                fontSize: 16,
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.medium,
+                                ),
                               ),
                             ),
                           ),
@@ -477,9 +486,14 @@ void showAddAnnouncementDialog({
                                 vertical: 12,
                               ),
                             ),
-                            child: const Text(
+                            child: Text(
                               'إلغاء',
-                              style: TextStyle(fontSize: 16),
+                              style: TextStyle(
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.medium,
+                                ),
+                              ),
                             ),
                           ),
                         ],

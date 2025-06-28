@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pivot/screens/models/schedule_item.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/services/permission_service.dart';
+import 'package:auto_size_text/auto_size_text.dart';
 
 class SchaduleCard extends StatelessWidget {
   final ScheduleItem item;
@@ -88,14 +89,19 @@ class SchaduleCard extends StatelessWidget {
               ),
               SizedBox(width: Responsive.space(context) * 0.5),
               Expanded(
-                child: Text(
-                  item.title,
+                child: AutoSizeText(
+                  (item.type == ScheduleItemType.section
+                          ? 'سكشن '
+                          : 'محاضرة ') +
+                      item.title,
                   textAlign: TextAlign.right,
                   style: TextStyle(
                     color: Colors.black87,
                     fontSize: Responsive.text(context) * 1.1,
                     fontWeight: FontWeight.bold,
                   ),
+                  maxLines: 1,
+                  minFontSize: Responsive.text(context, size: TextSize.small),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),

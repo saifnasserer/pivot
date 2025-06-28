@@ -297,7 +297,12 @@ class _NotificationDemoScreenState extends State<NotificationDemoScreen> {
                                         shape: BoxShape.circle,
                                       ),
                                     ),
-                                    SizedBox(width: 8),
+                                    SizedBox(
+                                      width: Responsive.space(
+                                        context,
+                                        size: Space.small,
+                                      ),
+                                    ),
                                     Text(option['name']!),
                                   ],
                                 ),

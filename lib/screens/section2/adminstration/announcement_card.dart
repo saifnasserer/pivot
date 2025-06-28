@@ -294,7 +294,15 @@ class AnnouncementCard extends StatelessWidget {
                                     size: Space.small,
                                   ),
                                 ),
-                                Text('تعديل', style: TextStyle(fontSize: 14)),
+                                Text(
+                                  'تعديل',
+                                  style: TextStyle(
+                                    fontSize: Responsive.text(
+                                      context,
+                                      size: TextSize.medium,
+                                    ),
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -314,7 +322,15 @@ class AnnouncementCard extends StatelessWidget {
                                   size: Space.small,
                                 ),
                               ),
-                              Text('حذف', style: TextStyle(fontSize: 14)),
+                              Text(
+                                'حذف',
+                                style: TextStyle(
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.medium,
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -334,7 +350,15 @@ class AnnouncementCard extends StatelessWidget {
                                     size: Space.small,
                                   ),
                                 ),
-                                Text('تثبيت', style: TextStyle(fontSize: 14)),
+                                Text(
+                                  'تثبيت',
+                                  style: TextStyle(
+                                    fontSize: Responsive.text(
+                                      context,
+                                      size: TextSize.medium,
+                                    ),
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -356,7 +380,12 @@ class AnnouncementCard extends StatelessWidget {
                                 ),
                                 Text(
                                   'إلغاء التثبيت',
-                                  style: TextStyle(fontSize: 14),
+                                  style: TextStyle(
+                                    fontSize: Responsive.text(
+                                      context,
+                                      size: TextSize.medium,
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),

@@ -186,10 +186,15 @@ class LandingState extends State<Landing> {
                         return const Center(child: CircularProgressIndicator());
                       }
                       if (provider.announcements.isEmpty) {
-                        return const Center(
+                        return Center(
                           child: Text(
                             'لا توجد أخبار لعرضها حاليًا',
-                            style: TextStyle(fontSize: 18),
+                            style: TextStyle(
+                              fontSize: Responsive.text(
+                                context,
+                                size: TextSize.medium,
+                              ),
+                            ),
                             textAlign: TextAlign.center,
                           ),
                         );
@@ -210,8 +215,7 @@ class LandingState extends State<Landing> {
                         final landingState =
                             context.findAncestorStateOfType<LandingState>();
                         if (landingState != null &&
-                            landingState.mounted &&
-                            landingState.context != null) {
+                            landingState.mounted) {
                           final selectedCategory =
                               landingState.context
                                   .findAncestorWidgetOfExactType<

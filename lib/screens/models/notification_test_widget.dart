@@ -25,34 +25,45 @@ class _NotificationTestWidgetState extends State<NotificationTestWidget> {
         foregroundColor: Colors.black,
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: Responsive.padding(context, size: Space.medium),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Health Status Card
             Card(
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: Responsive.padding(context, size: Space.medium),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
                         const Icon(Icons.health_and_safety, size: 24),
-                        const SizedBox(width: 8),
-                        const Text(
+                        SizedBox(
+                          width: Responsive.space(context, size: Space.small),
+                        ),
+                        Text(
                           'System Health',
                           style: TextStyle(
-                            fontSize: 18,
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.medium,
+                            ),
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         const Spacer(),
                         if (_healthStatus != null)
                           Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: Responsive.space(
+                                context,
+                                size: Space.small,
+                              ),
+                              vertical: Responsive.space(
+                                context,
+                                size: Space.tiny,
+                              ),
                             ),
                             decoration: BoxDecoration(
                               color: _getStatusColor(
@@ -66,16 +77,21 @@ class _NotificationTestWidgetState extends State<NotificationTestWidget> {
                               _healthStatus!['overall_status']
                                   .toString()
                                   .toUpperCase(),
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: Colors.white,
-                                fontSize: 12,
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.small,
+                                ),
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                           ),
                       ],
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.medium),
+                    ),
                     if (_healthStatus != null) ...[
                       ..._healthStatus!['components'].entries.map((entry) {
                         final component = entry.value as Map<String, dynamic>;
@@ -93,7 +109,12 @@ class _NotificationTestWidgetState extends State<NotificationTestWidget> {
                                         : Colors.red,
                                 size: 16,
                               ),
-                              const SizedBox(width: 8),
+                              SizedBox(
+                                width: Responsive.space(
+                                  context,
+                                  size: Space.small,
+                                ),
+                              ),
                               Expanded(
                                 child: Text(
                                   '${entry.key}: ${component['details']}',
@@ -106,7 +127,9 @@ class _NotificationTestWidgetState extends State<NotificationTestWidget> {
                       }).toList(),
                     ] else
                       const Text('No health data available'),
-                    const SizedBox(height: 16),
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.medium),
+                    ),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
@@ -127,29 +150,36 @@ class _NotificationTestWidgetState extends State<NotificationTestWidget> {
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: Responsive.space(context, size: Space.medium)),
 
             // Test Results Card
             Card(
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: Responsive.padding(context, size: Space.medium),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Row(
+                    Row(
                       children: [
                         Icon(Icons.science, size: 24),
-                        SizedBox(width: 8),
+                        SizedBox(
+                          width: Responsive.space(context, size: Space.small),
+                        ),
                         Text(
                           'Test Results',
                           style: TextStyle(
-                            fontSize: 18,
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.medium,
+                            ),
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.medium),
+                    ),
                     if (_testResults != null) ...[
                       ..._testResults!['tests'].entries.map((entry) {
                         final test = entry.value as Map<String, dynamic>;
@@ -167,7 +197,12 @@ class _NotificationTestWidgetState extends State<NotificationTestWidget> {
                                         : Colors.red,
                                 size: 16,
                               ),
-                              const SizedBox(width: 8),
+                              SizedBox(
+                                width: Responsive.space(
+                                  context,
+                                  size: Space.small,
+                                ),
+                              ),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -203,7 +238,9 @@ class _NotificationTestWidgetState extends State<NotificationTestWidget> {
                       }).toList(),
                     ] else
                       const Text('No test results available'),
-                    const SizedBox(height: 16),
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.medium),
+                    ),
                     Row(
                       children: [
                         Expanded(
@@ -221,7 +258,9 @@ class _NotificationTestWidgetState extends State<NotificationTestWidget> {
                                     : const Text('Run Full Test'),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        SizedBox(
+                          width: Responsive.space(context, size: Space.small),
+                        ),
                         ElevatedButton(
                           onPressed: _sendTestNotification,
                           style: ElevatedButton.styleFrom(
