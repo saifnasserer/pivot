@@ -5,10 +5,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
+import 'package:pivot/screens/section1/introduction_wrapper.dart';
 import 'package:pivot/screens/section1/login/login.dart';
 import 'package:pivot/screens/section1/signup/signup_page1.dart';
 import 'package:pivot/services/auth_service.dart';
 import 'package:pivot/services/local_auth_service.dart';
+import 'package:pivot/services/introduction_service.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -182,6 +184,29 @@ class _FirstLandingScreenState extends State<FirstLandingScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
+                // Debug button (only in debug mode)
+                if (kDebugMode)
+                  Align(
+                    alignment: Alignment.topLeft,
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        top: Responsive.space(context, size: Space.large),
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.refresh, color: Colors.white),
+                        tooltip: 'إعادة تعيين الشاشة التعريفية',
+                        onPressed: () async {
+                          await IntroductionService.resetIntroduction();
+                          if (mounted) {
+                            Navigator.pushReplacementNamed(
+                              context,
+                              IntroductionWrapper.id,
+                            );
+                          }
+                        },
+                      ),
+                    ),
+                  ),
                 Expanded(
                   child: Center(
                     child: Column(

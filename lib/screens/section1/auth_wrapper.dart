@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
-import 'package:pivot/screens/section1/first_landing.dart';
+import 'package:pivot/screens/section1/introduction_wrapper.dart';
 import 'package:pivot/screens/section2/landing.dart';
 import 'package:provider/provider.dart';
 import 'package:pivot/responsive.dart';
@@ -73,7 +73,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
         if (user == null) {
           // Not authenticated
-          return const FirstLandingScreen();
+          return const IntroductionWrapper();
         } else {
           // Authenticated, check if profile is loaded
           if (userProfileProvider.loggedInUserProfile == null ||

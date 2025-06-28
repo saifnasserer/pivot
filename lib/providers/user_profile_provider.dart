@@ -197,6 +197,34 @@ class UserProfileProvider with ChangeNotifier {
     }
   }
 
+  Future<void> updateUserTeachingSubjects(
+    String userId,
+    List<String> subjectIds,
+  ) async {
+    try {
+      await _firestore.collection('users').doc(userId).update({
+        'teachingSubjects': subjectIds,
+      });
+
+      final userIndex = _allUsers.indexWhere((user) => user.id == userId);
+      if (userIndex != -1) {
+        _allUsers[userIndex] = _allUsers[userIndex].copyWith(
+          teachingSubjects: subjectIds,
+        );
+        notifyListeners();
+      }
+
+      // Also update the displayed profile if it's the same user
+      if (_userProfile?.id == userId) {
+        _userProfile = _userProfile!.copyWith(teachingSubjects: subjectIds);
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Failed to update teaching subjects for user $userId: $e');
+      rethrow;
+    }
+  }
+
   Future<void> updateAboutMe(String userId, String aboutMe) async {
     try {
       await _firestore.collection('users').doc(userId).update({

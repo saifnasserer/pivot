@@ -12,8 +12,20 @@ import 'package:pivot/services/permission_service.dart';
 import 'package:pivot/responsive.dart';
 
 Future<void> profile_options(BuildContext context) async {
-  final userProfile =
-      Provider.of<UserProfileProvider>(context, listen: false).userProfile;
+  final userProfileProvider = Provider.of<UserProfileProvider>(
+    context,
+    listen: false,
+  );
+  final loggedInUser =
+      userProfileProvider.loggedInUserProfile; // The logged-in user
+  final displayedProfile =
+      userProfileProvider.userProfile; // The profile being viewed
+
+  // Check if Super Admin is viewing another user's profile
+  final isSuperAdminViewingOtherUser =
+      loggedInUser?.role == 'Super Admin' &&
+      displayedProfile != null &&
+      loggedInUser?.id != displayedProfile.id;
 
   List<PopupMenuEntry<String>> menuItems = [
     PopupMenuItem<String>(
@@ -77,7 +89,8 @@ Future<void> profile_options(BuildContext context) async {
     ),
   ];
 
-  if (userProfile?.role == 'Super Admin') {
+  // If Super Admin is viewing their own profile, show admin options
+  if (loggedInUser?.role == 'Super Admin' && !isSuperAdminViewingOtherUser) {
     menuItems.insertAll(0, [
       PopupMenuItem<String>(
         value: 'user_management',
@@ -111,43 +124,96 @@ Future<void> profile_options(BuildContext context) async {
     ]);
   }
 
-  if (userProfile?.role == 'Student' || userProfile?.role == 'Admin') {
-    menuItems.insert(
-      1, // Insert after 'edit_profile'
-      PopupMenuItem<String>(
-        value: 'enroll_in_courses',
-        child: Directionality(
-          textDirection: TextDirection.rtl,
-          child: Row(
-            children: [
-              Icon(Icons.school, color: Colors.white),
-              SizedBox(width: Responsive.space(context, size: Space.small)),
-              Text('المواد الدراسية', style: TextStyle(color: Colors.white)),
-            ],
+  // If Super Admin is viewing another user's profile, show edit options for that user
+  if (isSuperAdminViewingOtherUser) {
+    // Add edit teaching subjects option for Professor or miniProfessor
+    if (displayedProfile?.role == 'Professor' ||
+        displayedProfile?.role == 'miniProfessor') {
+      menuItems.insert(
+        1, // Insert after 'edit_profile'
+        PopupMenuItem<String>(
+          value: 'edit_teaching_subjects',
+          child: Directionality(
+            textDirection: TextDirection.rtl,
+            child: Row(
+              children: [
+                Icon(Icons.edit_note, color: Colors.white),
+                SizedBox(width: Responsive.space(context, size: Space.small)),
+                Text(
+                  'تعديل المواد المدرسية',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
           ),
         ),
-      ),
-    );
-  }
+      );
+    }
 
-  if (userProfile?.role == 'Professor' ||
-      userProfile?.role == 'miniProfessor') {
-    menuItems.insert(
-      1, // Insert after 'edit_profile'
-      PopupMenuItem<String>(
-        value: 'select_subjects',
-        child: Directionality(
-          textDirection: TextDirection.rtl,
-          child: Row(
-            children: [
-              Icon(Icons.book, color: Colors.white),
-              SizedBox(width: Responsive.space(context, size: Space.small)),
-              Text('المواد الخاصة بي', style: TextStyle(color: Colors.white)),
-            ],
+    // Add edit enrolled subjects option for Student or Admin
+    if (displayedProfile?.role == 'Student' ||
+        displayedProfile?.role == 'Admin') {
+      menuItems.insert(
+        1, // Insert after 'edit_profile'
+        PopupMenuItem<String>(
+          value: 'edit_enrolled_subjects',
+          child: Directionality(
+            textDirection: TextDirection.rtl,
+            child: Row(
+              children: [
+                Icon(Icons.school, color: Colors.white),
+                SizedBox(width: Responsive.space(context, size: Space.small)),
+                Text(
+                  'تعديل المواد المسجلة',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
           ),
         ),
-      ),
-    );
+      );
+    }
+  } else {
+    // Normal user viewing their own profile - show their own options
+    if (displayedProfile?.role == 'Student' ||
+        displayedProfile?.role == 'Admin') {
+      menuItems.insert(
+        1, // Insert after 'edit_profile'
+        PopupMenuItem<String>(
+          value: 'enroll_in_courses',
+          child: Directionality(
+            textDirection: TextDirection.rtl,
+            child: Row(
+              children: [
+                Icon(Icons.school, color: Colors.white),
+                SizedBox(width: Responsive.space(context, size: Space.small)),
+                Text('المواد الدراسية', style: TextStyle(color: Colors.white)),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (displayedProfile?.role == 'Professor' ||
+        displayedProfile?.role == 'miniProfessor') {
+      menuItems.insert(
+        1, // Insert after 'edit_profile'
+        PopupMenuItem<String>(
+          value: 'select_subjects',
+          child: Directionality(
+            textDirection: TextDirection.rtl,
+            child: Row(
+              children: [
+                Icon(Icons.book, color: Colors.white),
+                SizedBox(width: Responsive.space(context, size: Space.small)),
+                Text('المواد الخاصة بي', style: TextStyle(color: Colors.white)),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
   }
 
   final result = await showMenu<String>(
@@ -173,9 +239,77 @@ Future<void> profile_options(BuildContext context) async {
     case 'manage_subjects':
       Navigator.pushNamed(context, GlobalSubjectManagementScreen.id);
       break;
+    case 'edit_teaching_subjects':
+      final displayedProfile =
+          Provider.of<UserProfileProvider>(context, listen: false).userProfile;
+      if (displayedProfile != null) {
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder:
+                (context) => SubjectSelectionScreen(
+                  previouslySelectedIds: displayedProfile.teachingSubjects,
+                  targetUserId: displayedProfile.id,
+                ),
+          ),
+        );
+        // If the user saved changes, refresh the profile data
+        if (result == true && context.mounted) {
+          final userProfileProvider = Provider.of<UserProfileProvider>(
+            context,
+            listen: false,
+          );
+          // Refresh the profile data
+          await userProfileProvider.loadLoggedInUserProfile();
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('تم تحديث المواد المدرسية بنجاح'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+      break;
+    case 'edit_enrolled_subjects':
+      final displayedProfile =
+          Provider.of<UserProfileProvider>(context, listen: false).userProfile;
+      if (displayedProfile != null) {
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder:
+                (context) => SubjectSelectionScreen(
+                  previouslySelectedIds: displayedProfile.enrolledSubjects,
+                  targetUserId: displayedProfile.id,
+                ),
+          ),
+        );
+        // If the user saved changes, refresh the profile data
+        if (result == true && context.mounted) {
+          final userProfileProvider = Provider.of<UserProfileProvider>(
+            context,
+            listen: false,
+          );
+          // Refresh the profile data
+          await userProfileProvider.loadLoggedInUserProfile();
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('تم تحديث المواد المسجلة بنجاح'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+      break;
     case 'edit_profile':
-      if (userProfile != null) {
-        Navigator.pushNamed(context, EditProfile.id, arguments: userProfile);
+      if (displayedProfile != null) {
+        Navigator.pushNamed(
+          context,
+          EditProfile.id,
+          arguments: displayedProfile,
+        );
       }
       break;
     case 'notification_settings':
@@ -193,7 +327,7 @@ Future<void> profile_options(BuildContext context) async {
         MaterialPageRoute(
           builder:
               (context) => SubjectSelectionScreen(
-                previouslySelectedIds: userProfile?.teachingSubjects ?? [],
+                previouslySelectedIds: displayedProfile?.teachingSubjects ?? [],
               ),
         ),
       );
@@ -204,7 +338,7 @@ Future<void> profile_options(BuildContext context) async {
         MaterialPageRoute(
           builder:
               (context) => SubjectSelectionScreen(
-                previouslySelectedIds: userProfile?.enrolledSubjects ?? [],
+                previouslySelectedIds: displayedProfile?.enrolledSubjects ?? [],
               ),
         ),
       );
@@ -300,7 +434,8 @@ class NotificationSwitch extends StatelessWidget {
   final IconData icon;
   final ValueChanged<bool> onChanged;
 
-  const NotificationSwitch({super.key, 
+  const NotificationSwitch({
+    super.key,
     required this.title,
     required this.subtitle,
     required this.value,

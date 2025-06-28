@@ -15,6 +15,7 @@ import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/screens/section1/login/login.dart';
 import 'package:pivot/screens/section1/auth_wrapper.dart';
 import 'package:pivot/screens/section1/first_landing.dart';
+import 'package:pivot/screens/section1/introduction_wrapper.dart';
 
 import 'package:pivot/screens/section1/signup/signup_page1.dart';
 // import 'package:pivot/screens/section1/signup/signup_page2.dart'; // Removed unused import
@@ -243,6 +244,7 @@ class Pivot extends StatelessWidget {
         initialRoute: AuthWrapper.id, // Set the initial route
         routes: {
           AuthWrapper.id: (context) => const AuthWrapper(),
+          IntroductionWrapper.id: (context) => const IntroductionWrapper(),
 
           FirstLandingScreen.id: (context) => const FirstLandingScreen(),
           Signup_1.id: (context) => const Signup_1(),

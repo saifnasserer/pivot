@@ -10,10 +10,12 @@ import 'package:url_launcher/url_launcher.dart';
 
 class SubjectSelectionScreen extends StatefulWidget {
   final List<String> previouslySelectedIds;
+  final String? targetUserId; // For Super Admin to edit other users' subjects
 
   const SubjectSelectionScreen({
     super.key,
     required this.previouslySelectedIds,
+    this.targetUserId,
   });
 
   @override
@@ -35,6 +37,13 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<SubjectProvider>(context, listen: false).fetchAllSubjects();
       Provider.of<GuideProvider>(context, listen: false).fetchGuideContent();
+      // If targetUserId is provided, fetch all users for Super Admin functionality
+      if (widget.targetUserId != null) {
+        Provider.of<UserProfileProvider>(
+          context,
+          listen: false,
+        ).fetchAllUsers();
+      }
     });
   }
 
@@ -708,33 +717,90 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
                             userProfileProvider.loggedInUserProfile?.role;
                         UserProfile? updatedProfile;
 
-                        if (userRole == 'Student' || userRole == 'Admin') {
-                          updatedProfile = await userProfileProvider
-                              .updateEnrolledSubjects(
-                                _selectedSubjectIds.toList(),
+                        // If targetUserId is provided, Super Admin is editing another user's subjects
+                        if (widget.targetUserId != null &&
+                            userRole == 'Super Admin') {
+                          final targetUser = userProfileProvider.allUsers
+                              .firstWhere(
+                                (user) => user.id == widget.targetUserId,
+                                orElse:
+                                    () =>
+                                        throw Exception(
+                                          'Target user not found',
+                                        ),
                               );
-                        } else if (userRole == 'Professor' ||
-                            userRole == 'miniProfessor' ||
-                            userRole == 'Doctor') {
-                          updatedProfile = await userProfileProvider
-                              .updateTeachingSubjects(
-                                _selectedSubjectIds.toList(),
-                              );
-                        } else {
-                          // Handle unknown role
-                          throw Exception('Unknown user role: $userRole');
-                        }
 
-                        if (updatedProfile != null) {
-                          await subjectProvider.fetchAndFilterSubjects(
-                            updatedProfile,
+                          if (targetUser.role == 'Student' ||
+                              targetUser.role == 'Admin') {
+                            await userProfileProvider
+                                .updateUserEnrolledSubjects(
+                                  widget.targetUserId!,
+                                  _selectedSubjectIds.toList(),
+                                );
+                          } else if (targetUser.role == 'Professor' ||
+                              targetUser.role == 'miniProfessor' ||
+                              targetUser.role == 'Doctor') {
+                            await userProfileProvider
+                                .updateUserTeachingSubjects(
+                                  widget.targetUserId!,
+                                  _selectedSubjectIds.toList(),
+                                );
+                          }
+
+                          // Update the target user in the allUsers list
+                          final updatedTargetUser = targetUser.copyWith(
+                            enrolledSubjects:
+                                targetUser.role == 'Student' ||
+                                        targetUser.role == 'Admin'
+                                    ? _selectedSubjectIds.toList()
+                                    : targetUser.enrolledSubjects,
+                            teachingSubjects:
+                                targetUser.role == 'Professor' ||
+                                        targetUser.role == 'miniProfessor' ||
+                                        targetUser.role == 'Doctor'
+                                    ? _selectedSubjectIds.toList()
+                                    : targetUser.teachingSubjects,
                           );
-                          // After updating subjects, fetch the latest user profile to ensure
-                          // the UI reflects the changes upon returning to the previous screen.
-                          await userProfileProvider.loadLoggedInUserProfile();
+
+                          // Update the displayed profile if it's the target user
+                          if (userProfileProvider.userProfile?.id ==
+                              widget.targetUserId) {
+                            userProfileProvider.setUserProfile(
+                              updatedTargetUser,
+                            );
+                          }
+
                           success = true;
                         } else {
-                          throw Exception('Failed to update profile');
+                          // Normal flow - user editing their own subjects
+                          if (userRole == 'Student' || userRole == 'Admin') {
+                            updatedProfile = await userProfileProvider
+                                .updateEnrolledSubjects(
+                                  _selectedSubjectIds.toList(),
+                                );
+                          } else if (userRole == 'Professor' ||
+                              userRole == 'miniProfessor' ||
+                              userRole == 'Doctor') {
+                            updatedProfile = await userProfileProvider
+                                .updateTeachingSubjects(
+                                  _selectedSubjectIds.toList(),
+                                );
+                          } else {
+                            // Handle unknown role
+                            throw Exception('Unknown user role: $userRole');
+                          }
+
+                          if (updatedProfile != null) {
+                            await subjectProvider.fetchAndFilterSubjects(
+                              updatedProfile,
+                            );
+                            // After updating subjects, fetch the latest user profile to ensure
+                            // the UI reflects the changes upon returning to the previous screen.
+                            await userProfileProvider.loadLoggedInUserProfile();
+                            success = true;
+                          } else {
+                            throw Exception('Failed to update profile');
+                          }
                         }
                       } catch (e) {
                         if (mounted) {

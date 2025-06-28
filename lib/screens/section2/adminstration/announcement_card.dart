@@ -307,33 +307,6 @@ class AnnouncementCard extends StatelessWidget {
                             ),
                           ),
                         ),
-                        PopupMenuItem(
-                          value: 'delete',
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.delete_outline,
-                                size: 18,
-                                color: Colors.red[600],
-                              ),
-                              SizedBox(
-                                width: Responsive.space(
-                                  context,
-                                  size: Space.small,
-                                ),
-                              ),
-                              Text(
-                                'حذف',
-                                style: TextStyle(
-                                  fontSize: Responsive.text(
-                                    context,
-                                    size: TextSize.medium,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
                         if (!announcement.pinned)
                           PopupMenuItem(
                             value: 'pin',
@@ -390,6 +363,35 @@ class AnnouncementCard extends StatelessWidget {
                               ],
                             ),
                           ),
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.delete_outline,
+                                size: 18,
+                                color: Colors.red[600],
+                              ),
+                              
+                              SizedBox(
+                                width: Responsive.space(
+                                  context,
+                                  size: Space.small,
+                                ),
+                              ),
+                              Text(
+                                'حذف',
+                                style: TextStyle(
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.medium,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        
                       ],
                   borderRadius: BorderRadius.circular(
                     Responsive.space(context, size: Space.large),

@@ -11,6 +11,7 @@ class SubjectProvider with ChangeNotifier {
   List<Subject> _filteredSubjects = [];
   bool _isLoading = false;
   String? _error;
+  bool _disposed = false;
 
   List<Subject> get allSubjects => _allSubjects;
   List<Subject> get filteredSubjects => _filteredSubjects;
@@ -21,7 +22,20 @@ class SubjectProvider with ChangeNotifier {
   Map<String, List<UserProfile>> get instructorsBySubject =>
       _instructorsBySubject;
 
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
+  void _checkDisposed() {
+    if (_disposed) {
+      throw StateError('SubjectProvider has been disposed');
+    }
+  }
+
   void buildInstructorsMap(List<UserProfile> allUsers) {
+    _checkDisposed();
     _instructorsBySubject.clear();
     final instructors =
         allUsers
@@ -46,20 +60,27 @@ class SubjectProvider with ChangeNotifier {
         }
       }
     }
-    notifyListeners();
+    if (!_disposed) {
+      notifyListeners();
+    }
   }
 
   Future<void> fetchAllSubjects() async {
+    _checkDisposed();
     _isLoading = true;
     _error = null;
-    notifyListeners();
+    if (!_disposed) {
+      notifyListeners();
+    }
 
     try {
       // Step 1: Load from cache first
       final cachedSubjects = CacheService.instance.getCachedSubjects();
       if (cachedSubjects.isNotEmpty) {
         _allSubjects = cachedSubjects;
-        notifyListeners();
+        if (!_disposed) {
+          notifyListeners();
+        }
       }
 
       // Step 2: Fetch from server in the background
@@ -69,55 +90,75 @@ class SubjectProvider with ChangeNotifier {
       _error = 'Failed to fetch all subjects: ${e.toString()}';
     } finally {
       _isLoading = false;
-      notifyListeners();
+      if (!_disposed) {
+        notifyListeners();
+      }
     }
   }
 
   Future<void> addSubject(Subject subject) async {
+    _checkDisposed();
     try {
       final newSubject = await _subjectService.addSubject(subject);
       _allSubjects.add(newSubject);
-      notifyListeners();
+      if (!_disposed) {
+        notifyListeners();
+      }
     } catch (e) {
       _error = 'Failed to add subject: ${e.toString()}';
-      notifyListeners();
+      if (!_disposed) {
+        notifyListeners();
+      }
       rethrow;
     }
   }
 
   Future<void> updateSubject(Subject subject) async {
+    _checkDisposed();
     try {
       await _subjectService.updateSubject(subject);
       final index = _allSubjects.indexWhere((s) => s.id == subject.id);
       if (index != -1) {
         _allSubjects[index] = subject;
-        notifyListeners();
+        if (!_disposed) {
+          notifyListeners();
+        }
       }
     } catch (e) {
       _error = 'Failed to update subject: ${e.toString()}';
-      notifyListeners();
+      if (!_disposed) {
+        notifyListeners();
+      }
       rethrow;
     }
   }
 
   Future<void> deleteSubject(String subjectId) async {
+    _checkDisposed();
     try {
       await _subjectService.deleteSubject(subjectId);
       _allSubjects.removeWhere((s) => s.id == subjectId);
-      notifyListeners();
+      if (!_disposed) {
+        notifyListeners();
+      }
     } catch (e) {
       _error = 'Failed to delete subject: ${e.toString()}';
-      notifyListeners();
+      if (!_disposed) {
+        notifyListeners();
+      }
       rethrow;
     }
   }
 
   Future<void> fetchAndFilterSubjects(UserProfile? userProfile) async {
+    _checkDisposed();
     if (userProfile == null) return;
 
     _isLoading = true;
     _error = null;
-    notifyListeners();
+    if (!_disposed) {
+      notifyListeners();
+    }
 
     try {
       _allSubjects = await _subjectService.getSubjects();
@@ -144,7 +185,9 @@ class SubjectProvider with ChangeNotifier {
       _error = 'Failed to fetch subjects: ${e.toString()}';
     } finally {
       _isLoading = false;
-      notifyListeners();
+      if (!_disposed) {
+        notifyListeners();
+      }
     }
   }
 }

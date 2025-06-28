@@ -61,23 +61,48 @@ class _DoctorProfileState extends State<DoctorProfile> {
       _displayedProfile = profileToShow;
       _previousProfileId = profileToShow.id;
       _aboutMeController.text = _displayedProfile?.aboutMe ?? '';
+
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          _fetchInitialData(profileToShow!);
+        if (mounted && profileToShow != null) {
+          // Set the displayed profile in the provider after build is complete
+          Provider.of<UserProfileProvider>(
+            context,
+            listen: false,
+          ).setUserProfile(profileToShow);
+          _fetchInitialData(profileToShow);
         }
       });
     }
   }
 
   void _fetchInitialData(UserProfile userProfile) {
-    context.read<SubjectProvider>().fetchAndFilterSubjects(userProfile).then((
-      _,
-    ) {
-      if (mounted) {
-        final subjects = context.read<SubjectProvider>().filteredSubjects;
-        if (subjects.isNotEmpty) {
-          _onSubjectSelected(0, fetchLectures: true);
-        }
+    if (!mounted) return;
+
+    // Use a safer approach to access providers
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      try {
+        final subjectProvider = Provider.of<SubjectProvider>(
+          context,
+          listen: false,
+        );
+        subjectProvider.fetchAndFilterSubjects(userProfile).then((_) {
+          if (mounted) {
+            try {
+              final subjects = subjectProvider.filteredSubjects;
+              if (subjects.isNotEmpty) {
+                _onSubjectSelected(0, fetchLectures: true);
+              }
+            } catch (e) {
+              // Provider might be disposed, ignore the error
+              print('Provider access error in callback: $e');
+            }
+          }
+        });
+      } catch (e) {
+        // Provider might be disposed, ignore the error
+        print('Provider access error: $e');
       }
     });
   }
@@ -427,7 +452,9 @@ class _DoctorProfileState extends State<DoctorProfile> {
         onPressed: () => Navigator.pop(context),
       ),
       actions: [
-        if (isOwnProfile)
+        if (isOwnProfile ||
+            (loggedInUser?.role == 'Super Admin' &&
+                userProfile?.role.toLowerCase() == 'professor'))
           IconButton(
             icon: const Icon(Icons.more_vert_sharp, color: Colors.black),
             onPressed: () => profile_options(context),

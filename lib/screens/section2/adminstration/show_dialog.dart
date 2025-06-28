@@ -33,6 +33,14 @@ void showAddAnnouncementDialog({
   bool isEditing = false,
   AnnouncementData? announcement,
 }) {
+  // Create controllers with initial values for editing
+  final TextEditingController titleController = TextEditingController(
+    text: announcement?.title ?? '',
+  );
+  final TextEditingController descriptionController = TextEditingController(
+    text: announcement?.description ?? '',
+  );
+
   // Use String state variables
   String title = announcement?.title ?? '';
   String description = announcement?.description ?? '';
@@ -60,9 +68,7 @@ void showAddAnnouncementDialog({
     return title.trim().isNotEmpty &&
         description.trim().isNotEmpty &&
         selectedTags.isNotEmpty &&
-        (publishAt == null ||
-            expireAt == null ||
-            expireAt.isAfter(publishAt));
+        (publishAt == null || expireAt == null || expireAt.isAfter(publishAt));
   }
 
   showDialog(
@@ -105,6 +111,7 @@ void showAddAnnouncementDialog({
                       // Title field
                       CustomTextField(
                         hint: 'العنوان',
+                        controller: titleController,
                         onChanged: (value) {
                           title = value;
                         },
@@ -122,6 +129,7 @@ void showAddAnnouncementDialog({
                       // Description field
                       CustomTextField(
                         hint: 'الوصف',
+                        controller: descriptionController,
                         onChanged: (value) {
                           description = value;
                         },
@@ -267,38 +275,328 @@ void showAddAnnouncementDialog({
                                           context: context,
                                           builder: (context) {
                                             String tempTitle = fileName;
-                                            return AlertDialog(
-                                              title: const Text('عنوان الملف'),
-                                              content: TextField(
-                                                decoration:
-                                                    const InputDecoration(
-                                                      hintText:
-                                                          'أدخل عنوان الرابط',
-                                                    ),
-                                                controller:
-                                                    TextEditingController(
-                                                      text: fileName,
-                                                    ),
-                                                textAlign: TextAlign.right,
-                                                onChanged: (v) => tempTitle = v,
+                                            final TextEditingController
+                                            controller = TextEditingController(
+                                              text: fileName,
+                                            );
+                                            return Dialog(
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(20),
                                               ),
-                                              actions: [
-                                                TextButton(
-                                                  onPressed:
-                                                      () => Navigator.pop(
-                                                        context,
-                                                        tempTitle,
-                                                      ),
-                                                  child: const Text('موافق'),
+                                              child: Container(
+                                                padding: EdgeInsets.all(
+                                                  Responsive.space(
+                                                    context,
+                                                    size: Space.large,
+                                                  ),
                                                 ),
-                                                TextButton(
-                                                  onPressed:
-                                                      () => Navigator.pop(
-                                                        context,
+                                                child: Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    // Header with icon
+                                                    Container(
+                                                      padding: EdgeInsets.all(
+                                                        Responsive.space(
+                                                          context,
+                                                          size: Space.medium,
+                                                        ),
                                                       ),
-                                                  child: const Text('إلغاء'),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.blue
+                                                            .withOpacity(0.1),
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              15,
+                                                            ),
+                                                      ),
+                                                      child: Icon(
+                                                        Icons.edit_note,
+                                                        size:
+                                                            Responsive.space(
+                                                              context,
+                                                              size: Space.large,
+                                                            ) *
+                                                            2,
+                                                        color: Colors.blue[700],
+                                                      ),
+                                                    ),
+                                                    SizedBox(
+                                                      height: Responsive.space(
+                                                        context,
+                                                        size: Space.medium,
+                                                      ),
+                                                    ),
+
+                                                    // Title
+                                                    Text(
+                                                      'تعديل اسم الملف',
+                                                      style: TextStyle(
+                                                        fontSize:
+                                                            Responsive.text(
+                                                              context,
+                                                              size:
+                                                                  TextSize
+                                                                      .heading,
+                                                            ),
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color: Colors.black87,
+                                                      ),
+                                                      textAlign:
+                                                          TextAlign.center,
+                                                    ),
+                                                    SizedBox(
+                                                      height: Responsive.space(
+                                                        context,
+                                                        size: Space.small,
+                                                      ),
+                                                    ),
+
+                                                    // Subtitle
+                                                    Text(
+                                                      'أدخل اسم الملف كما تريد أن يظهر في الإعلان',
+                                                      style: TextStyle(
+                                                        fontSize:
+                                                            Responsive.text(
+                                                              context,
+                                                              size:
+                                                                  TextSize
+                                                                      .small,
+                                                            ),
+                                                        color: Colors.grey[600],
+                                                      ),
+                                                      textAlign:
+                                                          TextAlign.center,
+                                                    ),
+                                                    SizedBox(
+                                                      height: Responsive.space(
+                                                        context,
+                                                        size: Space.large,
+                                                      ),
+                                                    ),
+
+                                                    // File info card
+                                                    Container(
+                                                      padding: EdgeInsets.all(
+                                                        Responsive.space(
+                                                          context,
+                                                          size: Space.medium,
+                                                        ),
+                                                      ),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.grey[50],
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              12,
+                                                            ),
+                                                        border: Border.all(
+                                                          color:
+                                                              Colors.grey[200]!,
+                                                        ),
+                                                      ),
+                                                      child: Row(
+                                                        children: [
+                                                          Icon(
+                                                            Icons
+                                                                .picture_as_pdf,
+                                                            color:
+                                                                Colors.red[600],
+                                                            size: Responsive.space(
+                                                              context,
+                                                              size:
+                                                                  Space.medium,
+                                                            ),
+                                                          ),
+                                                          SizedBox(
+                                                            width:
+                                                                Responsive.space(
+                                                                  context,
+                                                                  size:
+                                                                      Space
+                                                                          .small,
+                                                                ),
+                                                          ),
+                                                          Expanded(
+                                                            child: Column(
+                                                              crossAxisAlignment:
+                                                                  CrossAxisAlignment
+                                                                      .start,
+                                                              children: [
+                                                                Text(
+                                                                  'الملف المرفوع:',
+                                                                  style: TextStyle(
+                                                                    fontSize: Responsive.text(
+                                                                      context,
+                                                                      size:
+                                                                          TextSize
+                                                                              .small,
+                                                                    ),
+                                                                    color:
+                                                                        Colors
+                                                                            .grey[600],
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .w500,
+                                                                  ),
+                                                                ),
+                                                                Text(
+                                                                  fileName,
+                                                                  style: TextStyle(
+                                                                    fontSize: Responsive.text(
+                                                                      context,
+                                                                      size:
+                                                                          TextSize
+                                                                              .medium,
+                                                                    ),
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .w600,
+                                                                    color:
+                                                                        Colors
+                                                                            .black87,
+                                                                  ),
+                                                                  maxLines: 1,
+                                                                  overflow:
+                                                                      TextOverflow
+                                                                          .ellipsis,
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                    SizedBox(
+                                                      height: Responsive.space(
+                                                        context,
+                                                        size: Space.large,
+                                                      ),
+                                                    ),
+
+                                                    // Input field using CustomTextField
+                                                    CustomTextField(
+                                                      hint:
+                                                          'أدخل اسم الملف الجديد',
+                                                      controller: controller,
+                                                      onChanged: (value) {
+                                                        tempTitle = value;
+                                                      },
+                                                    ),
+                                                    SizedBox(
+                                                      height: Responsive.space(
+                                                        context,
+                                                        size: Space.large,
+                                                      ),
+                                                    ),
+
+                                                    // Action buttons
+                                                    Row(
+                                                      children: [
+                                                        Expanded(
+                                                          child: TextButton(
+                                                            onPressed:
+                                                                () =>
+                                                                    Navigator.pop(
+                                                                      context,
+                                                                    ),
+                                                            style: TextButton.styleFrom(
+                                                              padding: EdgeInsets.symmetric(
+                                                                vertical:
+                                                                    Responsive.space(
+                                                                      context,
+                                                                      size:
+                                                                          Space
+                                                                              .small,
+                                                                    ),
+                                                              ),
+                                                              shape: RoundedRectangleBorder(
+                                                                borderRadius:
+                                                                    BorderRadius.circular(
+                                                                      10,
+                                                                    ),
+                                                              ),
+                                                            ),
+                                                            child: Text(
+                                                              'إلغاء',
+                                                              style: TextStyle(
+                                                                fontSize: Responsive.text(
+                                                                  context,
+                                                                  size:
+                                                                      TextSize
+                                                                          .medium,
+                                                                ),
+                                                                color:
+                                                                    Colors
+                                                                        .grey[600],
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w600,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        SizedBox(
+                                                          width:
+                                                              Responsive.space(
+                                                                context,
+                                                                size:
+                                                                    Space.small,
+                                                              ),
+                                                        ),
+                                                        Expanded(
+                                                          child: ElevatedButton(
+                                                            onPressed:
+                                                                () =>
+                                                                    Navigator.pop(
+                                                                      context,
+                                                                      tempTitle,
+                                                                    ),
+                                                            style: ElevatedButton.styleFrom(
+                                                              backgroundColor:
+                                                                  Colors
+                                                                      .blue[600],
+                                                              foregroundColor:
+                                                                  Colors.white,
+                                                              padding: EdgeInsets.symmetric(
+                                                                vertical:
+                                                                    Responsive.space(
+                                                                      context,
+                                                                      size:
+                                                                          Space
+                                                                              .small,
+                                                                    ),
+                                                              ),
+                                                              shape: RoundedRectangleBorder(
+                                                                borderRadius:
+                                                                    BorderRadius.circular(
+                                                                      10,
+                                                                    ),
+                                                              ),
+                                                              elevation: 0,
+                                                            ),
+                                                            child: Text(
+                                                              'حفظ',
+                                                              style: TextStyle(
+                                                                fontSize: Responsive.text(
+                                                                  context,
+                                                                  size:
+                                                                      TextSize
+                                                                          .medium,
+                                                                ),
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w600,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ],
                                                 ),
-                                              ],
+                                              ),
                                             );
                                           },
                                         );
@@ -469,6 +767,60 @@ void showAddAnnouncementDialog({
                                 ],
                               );
                             },
+                          ),
+                        ),
+
+                      // Display existing images when editing
+                      if (isEditing &&
+                          announcement?.imageUrls.isNotEmpty == true)
+                        Container(
+                          height: 100,
+                          margin: EdgeInsets.only(
+                            top: Responsive.space(context, size: Space.small),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'الصور المرفقة حالياً:',
+                                style: TextStyle(
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.small,
+                                  ),
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey[700],
+                                ),
+                              ),
+                              SizedBox(
+                                height: Responsive.space(
+                                  context,
+                                  size: Space.tiny,
+                                ),
+                              ),
+                              Expanded(
+                                child: ListView.builder(
+                                  scrollDirection: Axis.horizontal,
+                                  itemCount: announcement!.imageUrls.length,
+                                  itemBuilder: (context, index) {
+                                    return Container(
+                                      margin: EdgeInsets.only(right: 8),
+                                      width: 100,
+                                      height: 100,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(8),
+                                        image: DecorationImage(
+                                          image: CachedNetworkImageProvider(
+                                            announcement.imageUrls[index],
+                                          ),
+                                          fit: BoxFit.cover,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ],
                           ),
                         ),
 
@@ -1037,6 +1389,14 @@ void showAddAnnouncementDialog({
                                             listen: false,
                                           );
                                       List<String> imageUrls = [];
+
+                                      // Start with existing images if editing
+                                      if (isEditing &&
+                                          announcement?.imageUrls != null) {
+                                        imageUrls.addAll(
+                                          announcement!.imageUrls,
+                                        );
+                                      }
 
                                       // Upload images and collect URLs
                                       for (XFile image in pickedImages) {

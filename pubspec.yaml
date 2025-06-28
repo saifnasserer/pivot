@@ -76,6 +76,8 @@ dependencies:
   font_awesome_flutter: ^10.7.0
   gradient_borders: ^1.0.0
   fl_chart: ^0.66.2
+  webview_flutter: ^4.7.0
+  video_player: ^2.8.3
 
 flutter_launcher_icons:
   android: "launcher_icon"

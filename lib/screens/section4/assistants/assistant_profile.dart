@@ -67,8 +67,14 @@ class _AssistantProfileState extends State<AssistantProfile> {
           _aboutMeController.text = _displayedProfile?.aboutMe ?? '';
         }
       });
+
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
+        if (mounted && newProfile != null) {
+          // Set the displayed profile in the provider after build is complete
+          Provider.of<UserProfileProvider>(
+            context,
+            listen: false,
+          ).setUserProfile(newProfile);
           _fetchData();
         }
       });
@@ -76,11 +82,31 @@ class _AssistantProfileState extends State<AssistantProfile> {
   }
 
   void _fetchData() {
-    if (_displayedProfile == null) return;
-    context.read<SubjectProvider>().fetchAndFilterSubjects(_displayedProfile!);
-    context.read<SectionProvider>().fetchSectionsForUserSubjects(
-      _displayedProfile!.teachingSubjects,
-    );
+    if (_displayedProfile == null || !mounted) return;
+
+    // Use a safer approach to access providers
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      try {
+        final subjectProvider = Provider.of<SubjectProvider>(
+          context,
+          listen: false,
+        );
+        final sectionProvider = Provider.of<SectionProvider>(
+          context,
+          listen: false,
+        );
+
+        subjectProvider.fetchAndFilterSubjects(_displayedProfile!);
+        sectionProvider.fetchSectionsForUserSubjects(
+          _displayedProfile!.teachingSubjects,
+        );
+      } catch (e) {
+        // Provider might be disposed, ignore the error
+        print('Provider access error: $e');
+      }
+    });
   }
 
   void _onMainCategoryChanged(String category) {
@@ -306,8 +332,12 @@ class _AssistantProfileState extends State<AssistantProfile> {
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
-          if (isOwnProfile &&
-              _displayedProfile!.role.toLowerCase() == 'miniprofessor')
+          if ((isOwnProfile &&
+                  _displayedProfile!.role.toLowerCase() == 'miniprofessor') ||
+              (loggedInUser?.role == 'Super Admin' &&
+                  (_displayedProfile!.role.toLowerCase() == 'professor' ||
+                      _displayedProfile!.role.toLowerCase() ==
+                          'miniprofessor')))
             IconButton(
               icon: const Icon(Icons.more_vert_sharp, color: Colors.black),
               onPressed: () => profile_options(context),
