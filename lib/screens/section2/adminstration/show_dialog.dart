@@ -22,7 +22,8 @@ enum DepartmentTag {
   sc('SC', 'اخبار قسم SC'),
   ai('AI', 'اخبار قسم AI'),
   cs('CS', 'اخبار قسم CS'),
-  informationSystems('IS', 'اخبار قسم IS');
+  informationSystems('IS', 'اخبار قسم IS'),
+  generalDept('General', 'اخبار قسم General');
 
   const DepartmentTag(this.displayName, this.fullTag);
   final String displayName;

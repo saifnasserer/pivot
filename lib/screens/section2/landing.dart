@@ -101,6 +101,7 @@ class LandingState extends State<Landing> {
                   children: [
                     Expanded(
                       child: CategorySection(
+                        userDepartment: _userDepartment,
                         onCategoryChanged: (category) {
                           debugPrint(
                             '[LANDING] Category changed to: $category',
@@ -118,7 +119,8 @@ class LandingState extends State<Landing> {
                           if (category == 'SC' ||
                               category == 'AI' ||
                               category == 'CS' ||
-                              category == 'IS') {
+                              category == 'IS' ||
+                              category == 'General') {
                             // Convert short format to full format for filtering
                             departmentCode = 'اخبار قسم $category';
                             debugPrint(

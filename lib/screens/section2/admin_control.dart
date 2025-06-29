@@ -32,6 +32,7 @@ class _AdminControlState extends State<AdminControl> {
     'AI',
     'CS',
     'IS',
+    'General',
   ];
 
   @override
@@ -380,7 +381,13 @@ class _AdminControlState extends State<AdminControl> {
     final weekAgo = now.subtract(const Duration(days: 7));
     final thisWeek =
         announcements.where((a) => a.timestamp.isAfter(weekAgo)).length;
-    final Map<String, int> deptCounts = {'SC': 0, 'AI': 0, 'CS': 0, 'IS': 0};
+    final Map<String, int> deptCounts = {
+      'SC': 0,
+      'AI': 0,
+      'CS': 0,
+      'IS': 0,
+      'General': 0,
+    };
     for (final a in announcements) {
       for (final d in deptCounts.keys) {
         if (a.tags.any((tag) {
