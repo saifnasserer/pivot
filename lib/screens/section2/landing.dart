@@ -36,13 +36,40 @@ class LandingState extends State<Landing> {
       );
       _userDepartment = userProfileProvider.loggedInUserProfile?.department;
 
+      debugPrint('[LANDING] User department: $_userDepartment');
+      debugPrint(
+        '[LANDING] Complete user profile: ${userProfileProvider.loggedInUserProfile?.toJson()}',
+      );
+
       final announcementProvider = Provider.of<AnnouncementProvider>(
         context,
         listen: false,
       );
+
+      // For today's news, we want to show announcements from user's department AND عام announcements
+      String? departmentCode;
+      if (_userDepartment != null) {
+        // Convert user department to proper format if needed
+        String userDeptTag;
+        if (_userDepartment!.startsWith('اخبار قسم ')) {
+          userDeptTag = _userDepartment!;
+        } else {
+          userDeptTag = 'اخبار قسم $_userDepartment';
+        }
+        departmentCode = 'today_mixed:$userDeptTag';
+        debugPrint('[LANDING] Initial fetch - User dept tag: $userDeptTag');
+        debugPrint(
+          '[LANDING] Initial fetch - Department code: $departmentCode',
+        );
+      } else {
+        // Fallback to just عام announcements if no user department
+        departmentCode = 'عام';
+        debugPrint('[LANDING] Initial fetch - No user department, using عام');
+      }
+
       announcementProvider.fetchAnnouncements(
         timeFilter: 'today',
-        department: _userDepartment,
+        department: departmentCode,
       );
     });
   }
@@ -75,6 +102,10 @@ class LandingState extends State<Landing> {
                     Expanded(
                       child: CategorySection(
                         onCategoryChanged: (category) {
+                          debugPrint(
+                            '[LANDING] Category changed to: $category',
+                          );
+
                           final announcementProvider =
                               Provider.of<AnnouncementProvider>(
                                 context,
@@ -90,19 +121,54 @@ class LandingState extends State<Landing> {
                               category == 'IS') {
                             // Convert short format to full format for filtering
                             departmentCode = 'اخبار قسم $category';
+                            debugPrint(
+                              '[LANDING] Department category - Department code: $departmentCode',
+                            );
                           } else if (category == 'اخبار النهاردة') {
                             timeFilter = 'today';
-                            departmentCode =
-                                _userDepartment; // Use user's department
+                            // For today's news, we want to show announcements from user's department AND عام announcements
+                            // We'll use a special format to pass both pieces of information
+                            if (_userDepartment != null) {
+                              // Convert user department to proper format if needed
+                              String userDeptTag;
+                              if (_userDepartment!.startsWith('اخبار قسم ')) {
+                                userDeptTag = _userDepartment!;
+                              } else {
+                                userDeptTag = 'اخبار قسم $_userDepartment';
+                              }
+                              departmentCode = 'today_mixed:$userDeptTag';
+                              debugPrint(
+                                '[LANDING] Today\'s news - User dept tag: $userDeptTag',
+                              );
+                              debugPrint(
+                                '[LANDING] Today\'s news - Department code: $departmentCode',
+                              );
+                            } else {
+                              // Fallback to just عام announcements if no user department
+                              departmentCode = 'عام';
+                              debugPrint(
+                                '[LANDING] Today\'s news - No user department, using عام',
+                              );
+                            }
                           } else if (category == 'عام') {
                             // General news - filter for announcements with 'عام' tag
                             departmentCode = 'عام';
                             timeFilter = null;
+                            debugPrint(
+                              '[LANDING] General category - Department code: $departmentCode',
+                            );
                           } else {
                             // Default case - show all announcements
                             departmentCode = null;
                             timeFilter = null;
+                            debugPrint(
+                              '[LANDING] Default category - No filters',
+                            );
                           }
+
+                          debugPrint(
+                            '[LANDING] Final parameters - Department: $departmentCode, TimeFilter: $timeFilter',
+                          );
 
                           announcementProvider.fetchAnnouncements(
                             department: departmentCode,
