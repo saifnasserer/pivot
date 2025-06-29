@@ -38,9 +38,9 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
         _errorMessage = '';
       });
 
-      // Use the hosted video URL directly with HTTP (allowed by network security config)
+      // Use the hosted video URL directly with HTTPS
       final videoUrl =
-          'http://engseif.com/wp-content/uploads/2025/06/Pivot-intro.mp4';
+          'https://engseif.com/wp-content/uploads/2025/06/Pivot-intro.mp4';
 
       debugPrint('Initializing video with URL: $videoUrl');
 
@@ -140,7 +140,7 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
 
   Future<void> _openVideoInBrowser() async {
     final videoUrl =
-        'http://engseif.com/wp-content/uploads/2025/06/Pivot-intro.mp4';
+        'https://engseif.com/wp-content/uploads/2025/06/Pivot-intro.mp4';
     final uri = Uri.parse(videoUrl);
 
     if (await canLaunchUrl(uri)) {

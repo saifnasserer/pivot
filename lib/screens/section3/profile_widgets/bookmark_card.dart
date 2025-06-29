@@ -287,11 +287,16 @@ class BookmarkCard extends StatelessWidget {
                     final urlString = link['url'];
                     if (urlString == null || urlString.isEmpty) return;
 
-                    // Ensure the URL has a scheme (http or https)
+                    // Ensure the URL has a scheme (https preferred, convert http to https)
                     String formattedUrl = urlString;
-                    if (!formattedUrl.startsWith('http://') &&
-                        !formattedUrl.startsWith('https://')) {
-                      formattedUrl = 'https://$formattedUrl';
+                    if (!formattedUrl.startsWith('https://')) {
+                      formattedUrl = formattedUrl.replaceFirst(
+                        RegExp(r'^http://'),
+                        'https://',
+                      );
+                      if (!formattedUrl.startsWith('https://')) {
+                        formattedUrl = 'https://$formattedUrl';
+                      }
                     }
 
                     debugPrint('Attempting to launch URL: $formattedUrl');

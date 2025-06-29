@@ -6,6 +6,7 @@ import 'package:pivot/providers/subject_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/section3/profile_widgets/Profile_options.dart';
+import 'package:pivot/screens/section3/subject_selection_screen.dart';
 import 'package:pivot/screens/section4/doctor_details.dart';
 import 'package:provider/provider.dart';
 import 'add_edit_section_dialog.dart';
@@ -70,11 +71,6 @@ class _AssistantProfileState extends State<AssistantProfile> {
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && newProfile != null) {
-          // Set the displayed profile in the provider after build is complete
-          Provider.of<UserProfileProvider>(
-            context,
-            listen: false,
-          ).setUserProfile(newProfile);
           _fetchData();
         }
       });
@@ -107,6 +103,62 @@ class _AssistantProfileState extends State<AssistantProfile> {
         print('Provider access error: $e');
       }
     });
+  }
+
+  // Check if Super Admin should see edit icon
+  bool _shouldShowEditIcon() {
+    final loggedInUser =
+        context.watch<UserProfileProvider>().loggedInUserProfile;
+    final isSuperAdmin = loggedInUser?.role == 'Super Admin';
+    final isViewingOtherUser = loggedInUser?.id != _displayedProfile?.id;
+    final isProfessorOrMiniProfessor =
+        _displayedProfile?.role == 'Professor' ||
+        _displayedProfile?.role == 'miniProfessor';
+
+    return isSuperAdmin && isViewingOtherUser && isProfessorOrMiniProfessor;
+  }
+
+  // Handle edit teaching subjects
+  Future<void> _editTeachingSubjects() async {
+    if (_displayedProfile == null) return;
+
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (context) => SubjectSelectionScreen(
+              previouslySelectedIds: _displayedProfile!.teachingSubjects,
+              targetUserId: _displayedProfile!.id,
+              targetUserRole: _displayedProfile!.role,
+            ),
+      ),
+    );
+
+    if (result == true && mounted) {
+      // Refresh the displayed profile data
+      final userProfileProvider = Provider.of<UserProfileProvider>(
+        context,
+        listen: false,
+      );
+
+      // Fetch updated profile data
+      final updatedProfile = await userProfileProvider.getUserProfileById(
+        _displayedProfile!.id,
+      );
+      if (updatedProfile != null) {
+        setState(() {
+          _displayedProfile = updatedProfile;
+        });
+        _fetchData();
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم تحديث المواد المدرسية بنجاح'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
   }
 
   void _onMainCategoryChanged(String category) {
@@ -332,12 +384,15 @@ class _AssistantProfileState extends State<AssistantProfile> {
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
-          if ((isOwnProfile &&
-                  _displayedProfile!.role.toLowerCase() == 'miniprofessor') ||
-              (loggedInUser?.role == 'Super Admin' &&
-                  (_displayedProfile!.role.toLowerCase() == 'professor' ||
-                      _displayedProfile!.role.toLowerCase() ==
-                          'miniprofessor')))
+          // Show edit icon for Super Admin viewing Professor/miniProfessor
+          if (_shouldShowEditIcon())
+            IconButton(
+              icon: const Icon(Icons.edit, color: Colors.black),
+              tooltip: 'تعديل المواد المدرسية',
+              onPressed: _editTeachingSubjects,
+            ),
+          // Show three-dot menu only for own profile
+          if (isOwnProfile)
             IconButton(
               icon: const Icon(Icons.more_vert_sharp, color: Colors.black),
               onPressed: () => profile_options(context),

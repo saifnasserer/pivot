@@ -11,11 +11,13 @@ import 'package:url_launcher/url_launcher.dart';
 class SubjectSelectionScreen extends StatefulWidget {
   final List<String> previouslySelectedIds;
   final String? targetUserId; // For Super Admin to edit other users' subjects
+  final String? targetUserRole; // Role of the target user being edited
 
   const SubjectSelectionScreen({
     super.key,
     required this.previouslySelectedIds,
     this.targetUserId,
+    this.targetUserRole,
   });
 
   @override
@@ -720,53 +722,27 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
                         // If targetUserId is provided, Super Admin is editing another user's subjects
                         if (widget.targetUserId != null &&
                             userRole == 'Super Admin') {
-                          final targetUser = userProfileProvider.allUsers
-                              .firstWhere(
-                                (user) => user.id == widget.targetUserId,
-                                orElse:
-                                    () =>
-                                        throw Exception(
-                                          'Target user not found',
-                                        ),
-                              );
+                          // Use the targetUserRole parameter instead of fetching from allUsers
+                          final targetUserRole = widget.targetUserRole;
 
-                          if (targetUser.role == 'Student' ||
-                              targetUser.role == 'Admin') {
+                          if (targetUserRole == 'Student' ||
+                              targetUserRole == 'Admin') {
                             await userProfileProvider
                                 .updateUserEnrolledSubjects(
                                   widget.targetUserId!,
                                   _selectedSubjectIds.toList(),
                                 );
-                          } else if (targetUser.role == 'Professor' ||
-                              targetUser.role == 'miniProfessor' ||
-                              targetUser.role == 'Doctor') {
+                          } else if (targetUserRole == 'Professor' ||
+                              targetUserRole == 'miniProfessor' ||
+                              targetUserRole == 'Doctor') {
                             await userProfileProvider
                                 .updateUserTeachingSubjects(
                                   widget.targetUserId!,
                                   _selectedSubjectIds.toList(),
                                 );
-                          }
-
-                          // Update the target user in the allUsers list
-                          final updatedTargetUser = targetUser.copyWith(
-                            enrolledSubjects:
-                                targetUser.role == 'Student' ||
-                                        targetUser.role == 'Admin'
-                                    ? _selectedSubjectIds.toList()
-                                    : targetUser.enrolledSubjects,
-                            teachingSubjects:
-                                targetUser.role == 'Professor' ||
-                                        targetUser.role == 'miniProfessor' ||
-                                        targetUser.role == 'Doctor'
-                                    ? _selectedSubjectIds.toList()
-                                    : targetUser.teachingSubjects,
-                          );
-
-                          // Update the displayed profile if it's the target user
-                          if (userProfileProvider.userProfile?.id ==
-                              widget.targetUserId) {
-                            userProfileProvider.setUserProfile(
-                              updatedTargetUser,
+                          } else {
+                            throw Exception(
+                              'Unknown target user role: $targetUserRole',
                             );
                           }
 

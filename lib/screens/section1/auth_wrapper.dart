@@ -27,6 +27,13 @@ class _AuthWrapperState extends State<AuthWrapper> {
   Future<void> _loadProfileAndNavigate(User user) async {
     setState(() => _loadingProfile = true);
     final provider = Provider.of<UserProfileProvider>(context, listen: false);
+
+    // Check if profile is already loaded for this user
+    if (provider.loggedInUserProfile?.id == user.uid) {
+      setState(() => _loadingProfile = false);
+      return;
+    }
+
     final loaded = await provider.loadLoggedInUserProfile();
     setState(() => _loadingProfile = false);
     if (!mounted) return;
@@ -45,8 +52,12 @@ class _AuthWrapperState extends State<AuthWrapper> {
         final user = snapshot.data;
         final userProfileProvider = Provider.of<UserProfileProvider>(context);
 
-        if (snapshot.connectionState == ConnectionState.waiting ||
-            _loadingProfile) {
+        debugPrint(
+          '[AuthWrapper] Build called - User: ${user?.uid}, Profile: ${userProfileProvider.loggedInUserProfile?.id}, Loading: $_loadingProfile',
+        );
+
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          debugPrint('[AuthWrapper] Waiting for auth state...');
           return Scaffold(
             backgroundColor: Colors.white,
             body: Center(
@@ -72,18 +83,28 @@ class _AuthWrapperState extends State<AuthWrapper> {
         }
 
         if (user == null) {
+          debugPrint('[AuthWrapper] No user, showing IntroductionWrapper');
           // Not authenticated
           return const IntroductionWrapper();
         } else {
+          debugPrint('[AuthWrapper] User authenticated: ${user.uid}');
           // Authenticated, check if profile is loaded
           if (userProfileProvider.loggedInUserProfile == null ||
               userProfileProvider.loggedInUserProfile?.id != user.uid) {
-            // Schedule the profile load after the current frame
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted && !_loadingProfile) {
-                _loadProfileAndNavigate(user);
-              }
-            });
+            debugPrint(
+              '[AuthWrapper] Profile not loaded or mismatch, loading profile...',
+            );
+
+            // Only show loading if we're not already loading
+            if (!_loadingProfile) {
+              // Schedule the profile load after the current frame
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted && !_loadingProfile) {
+                  _loadProfileAndNavigate(user);
+                }
+              });
+            }
+
             return Scaffold(
               backgroundColor: Colors.white,
               body: Center(
@@ -110,7 +131,10 @@ class _AuthWrapperState extends State<AuthWrapper> {
               ),
             );
           } else {
-            // Profile loaded, go to main app
+            // Profile loaded, go to main app immediately
+            debugPrint(
+              '[AuthWrapper] Profile already loaded, navigating to Landing',
+            );
             return const Landing();
           }
         }

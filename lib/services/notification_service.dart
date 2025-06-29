@@ -1,8 +1,8 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -242,18 +242,24 @@ class NotificationService {
       if (sound != null) payload['sound'] = sound;
       if (imageUrl != null) payload['image_url'] = imageUrl;
 
-      final response = await http.post(
-        Uri.parse(_functionUrl),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(payload),
-      );
+      // Send HTTPS POST request using dart:io HttpClient
+      final client = HttpClient();
+      try {
+        final request = await client.postUrl(Uri.parse(_functionUrl));
+        request.headers.set('Content-Type', 'application/json');
+        request.add(utf8.encode(jsonEncode(payload)));
+        final response = await request.close();
+        final responseBody = await response.transform(utf8.decoder).join();
 
-      if (response.statusCode == 200) {
-        print('Notification sent successfully: ${response.body}');
-        return true;
-      } else {
-        print('Failed to send notification: ${response.body}');
-        return false;
+        if (response.statusCode == 200) {
+          print('Notification sent successfully: $responseBody');
+          return true;
+        } else {
+          print('Failed to send notification: $responseBody');
+          return false;
+        }
+      } finally {
+        client.close();
       }
     } catch (e) {
       print('Error sending notification: $e');

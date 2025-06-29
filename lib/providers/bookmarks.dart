@@ -56,27 +56,49 @@ class Bookmarks extends ChangeNotifier {
     final isCurrentlyBookmarked = isBookmarked(announcementId);
     final userDocRef = _firestore.collection('users').doc(user.uid);
 
+    // Update UI immediately for better responsiveness
     if (isCurrentlyBookmarked) {
       _bookmarkIds.remove(announcementId);
-      await userDocRef.update({
-        'bookmarks': FieldValue.arrayRemove([announcementId]),
-      });
-      // Log unbookmark
-      // await ActivityLogService().logAction(
-      //   action: 'Announcement unbookmarked',
-      //   details: 'Announcement ID: $announcementId',
-      // );
     } else {
       _bookmarkIds.add(announcementId);
-      await userDocRef.set({
-        'bookmarks': FieldValue.arrayUnion([announcementId]),
-      }, SetOptions(merge: true));
-      // Log bookmark
-      // await ActivityLogService().logAction(
-      //   action: 'Announcement bookmarked',
-      //   details: 'Announcement ID: $announcementId',
-      // );
     }
     notifyListeners();
+
+    // Handle Firestore operation in background
+    try {
+      if (isCurrentlyBookmarked) {
+        await userDocRef.update({
+          'bookmarks': FieldValue.arrayRemove([announcementId]),
+        });
+        // Log unbookmark
+        // await ActivityLogService().logAction(
+        //   action: 'Announcement unbookmarked',
+        //   details: 'Announcement ID: $announcementId',
+        // );
+      } else {
+        await userDocRef.set({
+          'bookmarks': FieldValue.arrayUnion([announcementId]),
+        }, SetOptions(merge: true));
+        // Log bookmark
+        // await ActivityLogService().logAction(
+        //   action: 'Announcement bookmarked',
+        //   details: 'Announcement ID: $announcementId',
+        // );
+      }
+    } catch (e) {
+      // Revert local state if Firestore operation fails
+      debugPrint('Error toggling bookmark: $e');
+      if (isCurrentlyBookmarked) {
+        _bookmarkIds.add(announcementId);
+      } else {
+        _bookmarkIds.remove(announcementId);
+      }
+      notifyListeners();
+
+      // You might want to show a snackbar or toast here to inform the user
+      // ScaffoldMessenger.of(context).showSnackBar(
+      //   SnackBar(content: Text('فشل في تحديث المحفظات')),
+      // );
+    }
   }
 }

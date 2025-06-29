@@ -131,11 +131,16 @@ class _CardModelState extends State<CardModel> {
                     final urlString = link['url'];
                     if (urlString == null || urlString.isEmpty) return;
 
-                    // Ensure the URL has a scheme (http or https)
+                    // Ensure the URL has a scheme (https preferred, convert http to https)
                     String formattedUrl = urlString;
-                    if (!formattedUrl.startsWith('http://') &&
-                        !formattedUrl.startsWith('https://')) {
-                      formattedUrl = 'https://$formattedUrl';
+                    if (!formattedUrl.startsWith('https://')) {
+                      formattedUrl = formattedUrl.replaceFirst(
+                        RegExp(r'^http://'),
+                        'https://',
+                      );
+                      if (!formattedUrl.startsWith('https://')) {
+                        formattedUrl = 'https://$formattedUrl';
+                      }
                     }
 
                     debugPrint('Attempting to launch URL: $formattedUrl');
@@ -200,8 +205,6 @@ class _CardModelState extends State<CardModel> {
 
   @override
   Widget build(BuildContext context) {
-    final bookmarksProvider = Provider.of<Bookmarks>(context);
-    final bool isBookmarked = bookmarksProvider.isBookmarked(widget.id!);
     final now = DateTime.now();
     final isScheduled =
         widget.publishAt != null && widget.publishAt!.isAfter(now);
@@ -418,43 +421,6 @@ class _CardModelState extends State<CardModel> {
             ),
             // Static footer area
             SizedBox(height: Responsive.space(context, size: Space.medium)),
-            // if (widget.tags.isNotEmpty)
-            //   Wrap(
-            //     spacing: Responsive.space(context, size: Space.small),
-            //     runSpacing: Responsive.space(context, size: Space.small),
-            //     alignment: WrapAlignment.end,
-            //     children:
-            //         widget.tags.map((tag) {
-            //           return Container(
-            //             padding: EdgeInsets.symmetric(
-            //               horizontal:
-            //                   Responsive.space(context, size: Space.small) *
-            //                   1.5,
-            //               vertical:
-            //                   Responsive.space(context, size: Space.small) *
-            //                   0.5,
-            //             ),
-            //             decoration: BoxDecoration(
-            //               color: const Color(0xffe1e0da).withValues(alpha: 0.5),
-            //               borderRadius: BorderRadius.circular(16),
-            //               border: Border.all(
-            //                 color: widget.color.withValues(alpha: 0.5),
-            //                 width: 1,
-            //               ),
-            //             ),
-            //             child: Text(
-            //               tag,
-            //               style: TextStyle(
-            //                 fontSize:
-            //                     Responsive.text(context, size: TextSize.small) *
-            //                     0.9,
-            //                 fontWeight: FontWeight.w500,
-            //               ),
-            //             ),
-            //           );
-            //         }).toList(),
-            //   ),
-            // SizedBox(height: Responsive.space(context, size: Space.medium)),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -500,21 +466,25 @@ class _CardModelState extends State<CardModel> {
                         SizedBox(
                           width: Responsive.space(context, size: Space.small),
                         ),
-                        IconButton(
-                          onPressed: () {
-                            final bookmarks = Provider.of<Bookmarks>(
-                              context,
-                              listen: false,
+                        Consumer<Bookmarks>(
+                          builder: (context, bookmarks, child) {
+                            final bool isBookmarked = bookmarks.isBookmarked(
+                              widget.id!,
                             );
-                            bookmarks.toggleBookmark(widget.id!);
+                            return IconButton(
+                              onPressed: () {
+                                // Optimize bookmark toggle with immediate feedback
+                                bookmarks.toggleBookmark(widget.id!);
+                              },
+                              icon: Icon(
+                                isBookmarked
+                                    ? Icons.bookmark
+                                    : Icons.bookmark_border,
+                                color: Colors.black,
+                              ),
+                              splashRadius: 24,
+                            );
                           },
-                          icon: Icon(
-                            isBookmarked
-                                ? Icons.bookmark
-                                : Icons.bookmark_border,
-                            color: Colors.black,
-                          ),
-                          splashRadius: 24,
                         ),
                       ],
                     ),

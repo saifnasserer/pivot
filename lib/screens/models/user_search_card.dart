@@ -1,4 +1,4 @@
- import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/responsive.dart';
@@ -41,12 +41,39 @@ class UserSearchCard extends StatelessWidget {
           CircleAvatar(
             radius: Responsive.space(context, size: Space.medium),
             backgroundColor: gold.withOpacity(0.15),
-            backgroundImage: (user.profileImageUrl != null && user.profileImageUrl!.isNotEmpty)
-                ? CachedNetworkImageProvider(user.profileImageUrl!)
-                : null,
-            child: (user.profileImageUrl == null || user.profileImageUrl!.isEmpty)
-                ? Icon(Icons.person, color: gold, size: Responsive.space(context, size: Space.large))
-                : null,
+            child:
+                (user.profileImageUrl != null &&
+                        user.profileImageUrl!.isNotEmpty)
+                    ? ClipOval(
+                      child: CachedNetworkImage(
+                        imageUrl: user.profileImageUrl!,
+                        width:
+                            Responsive.space(context, size: Space.medium) * 2,
+                        height:
+                            Responsive.space(context, size: Space.medium) * 2,
+                        fit: BoxFit.cover,
+                        placeholder:
+                            (context, url) => const Center(
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                              ),
+                            ),
+                        errorWidget:
+                            (context, url, error) => Icon(
+                              Icons.person,
+                              color: gold,
+                              size: Responsive.space(
+                                context,
+                                size: Space.large,
+                              ),
+                            ),
+                      ),
+                    )
+                    : Icon(
+                      Icons.person,
+                      color: gold,
+                      size: Responsive.space(context, size: Space.large),
+                    ),
           ),
           SizedBox(width: Responsive.space(context, size: Space.medium)),
           Expanded(
@@ -67,7 +94,8 @@ class UserSearchCard extends StatelessWidget {
                   style: TextStyle(
                     color: Colors.black87,
                     fontWeight: FontWeight.w600,
-                    fontSize: Responsive.text(context, size: TextSize.medium) * 1.1,
+                    fontSize:
+                        Responsive.text(context, size: TextSize.medium) * 1.1,
                   ),
                   textAlign: TextAlign.right,
                 ),

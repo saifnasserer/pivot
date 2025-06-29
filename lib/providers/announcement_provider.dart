@@ -8,6 +8,7 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'dart:io';
 import 'package:pivot/services/cache_service.dart';
 import 'package:pivot/services/notification_trigger_service.dart';
+import 'package:pivot/services/storage_optimization_service.dart';
 import 'package:image_picker/image_picker.dart';
 
 class AnnouncementProvider with ChangeNotifier {
@@ -54,8 +55,21 @@ class AnnouncementProvider with ChangeNotifier {
 
       final String? departmentToFilter = department;
       if (departmentToFilter != null && departmentToFilter.isNotEmpty) {
-        final departmentTag = 'اخبار قسم $departmentToFilter';
-        timeQuery = timeQuery.where('tags', arrayContains: departmentTag);
+        if (departmentToFilter == 'عام') {
+          // Filter for general announcements (those with 'عام' tag)
+          timeQuery = timeQuery.where('tags', arrayContains: 'عام');
+        } else {
+          // Handle both short format (SC) and full format (اخبار قسم SC)
+          String departmentTag;
+          if (departmentToFilter.startsWith('اخبار قسم ')) {
+            // Already in full format
+            departmentTag = departmentToFilter;
+          } else {
+            // Convert short format to full format
+            departmentTag = 'اخبار قسم $departmentToFilter';
+          }
+          timeQuery = timeQuery.where('tags', arrayContains: departmentTag);
+        }
       }
 
       if (timeFilter != null && timeFilter.isNotEmpty) {
@@ -89,8 +103,24 @@ class AnnouncementProvider with ChangeNotifier {
             .orderBy('timestamp', descending: true);
 
         if (departmentToFilter != null && departmentToFilter.isNotEmpty) {
-          final departmentTag = 'اخبار قسم $departmentToFilter';
-          pinnedQuery = pinnedQuery.where('tags', arrayContains: departmentTag);
+          if (departmentToFilter == 'عام') {
+            // Filter for general announcements (those with 'عام' tag)
+            pinnedQuery = pinnedQuery.where('tags', arrayContains: 'عام');
+          } else {
+            // Handle both short format (SC) and full format (اخبار قسم SC)
+            String departmentTag;
+            if (departmentToFilter.startsWith('اخبار قسم ')) {
+              // Already in full format
+              departmentTag = departmentToFilter;
+            } else {
+              // Convert short format to full format
+              departmentTag = 'اخبار قسم $departmentToFilter';
+            }
+            pinnedQuery = pinnedQuery.where(
+              'tags',
+              arrayContains: departmentTag,
+            );
+          }
         }
 
         final pinnedSnapshot = await pinnedQuery.get();
@@ -209,51 +239,21 @@ class AnnouncementProvider with ChangeNotifier {
   // Upload an image to Firebase Storage and return the URL
   Future<String?> uploadImage(XFile image) async {
     try {
-      // Compress the image before uploading
-      final tempDir = Directory.systemTemp;
-      final targetPath =
-          '${tempDir.path}/${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final compressedFile = await FlutterImageCompress.compressAndGetFile(
-        image.path,
-        targetPath,
-        quality: 60,
-        minWidth: 600,
-        minHeight: 600,
-        format: CompressFormat.jpeg,
-      );
-      final File fileToUpload =
-          compressedFile != null ? File(compressedFile.path) : File(image.path);
-      final bytes = await fileToUpload.readAsBytes();
-      final String fileName = '${const Uuid().v4()}.jpg';
-      final Reference storageRef = FirebaseStorage.instance.ref().child(
-        'announcements/$fileName',
+      // Use the optimized storage service
+      final storageService = StorageOptimizationService();
+      final downloadUrl = await storageService.uploadFileOptimized(
+        image,
+        folder: 'announcements',
+        usage: 'announcement',
+        checkDuplicate: true,
       );
 
-      final UploadTask uploadTask = storageRef.putData(bytes);
+      if (downloadUrl != null) {
+        debugPrint('Image uploaded successfully: $downloadUrl');
+      }
 
-      // Listen for state changes, errors, and completion of the upload.
-      uploadTask.snapshotEvents.listen(
-        (TaskSnapshot taskSnapshot) {
-          debugPrint(
-            'Task state: ${taskSnapshot.state}',
-          ); // paused, running, success
-          debugPrint(
-            'Progress: ${(taskSnapshot.bytesTransferred / taskSnapshot.totalBytes) * 100} %',
-          );
-        },
-        onError: (e) {
-          // This will catch events like permission errors
-          debugPrint('Upload error from listener: $e');
-        },
-      );
-
-      // Await completion
-      final TaskSnapshot snapshot = await uploadTask;
-      final String downloadUrl = await snapshot.ref.getDownloadURL();
-      debugPrint('Upload successful: $downloadUrl');
       return downloadUrl;
     } catch (e) {
-      // This will catch other exceptions
       debugPrint('Error in uploadImage function: $e');
       return null;
     }

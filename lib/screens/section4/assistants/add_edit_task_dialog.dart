@@ -13,6 +13,8 @@ import 'package:firebase_storage/firebase_storage.dart' as firebase_storage;
 import 'package:pivot/services/permission_service.dart';
 import 'package:pivot/responsive.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:pivot/services/storage_optimization_service.dart';
+import 'package:image_picker/image_picker.dart';
 
 // Function to show the Add/Edit Task Dialog
 Future<void> showAddTaskDialog({
@@ -545,116 +547,213 @@ class _AttachmentSection extends StatelessWidget {
                     ),
               );
               try {
-                final storageRef = firebase_storage.FirebaseStorage.instance
-                    .ref()
-                    .child(
-                      'tasks/attachments/${DateTime.now().millisecondsSinceEpoch}_$fileName',
-                    );
-                final uploadTask = storageRef.putFile(file);
-                final snapshot = await uploadTask.whenComplete(() {});
-                final downloadUrl = await snapshot.ref.getDownloadURL();
-                Navigator.of(context).pop();
-                String? linkTitle = await showDialog<String>(
-                  context: context,
-                  builder: (context) {
-                    String tempTitle = fileName;
-                    final TextEditingController controller =
-                        TextEditingController(text: fileName);
-                    return Dialog(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Container(
-                        padding: EdgeInsets.all(
-                          Responsive.space(context, size: Space.large),
+                final storageService = StorageOptimizationService();
+                final xFile = XFile(file.path);
+                final downloadUrl = await storageService.uploadFileOptimized(
+                  xFile,
+                  folder: 'tasks',
+                  usage: 'task',
+                  checkDuplicate: true,
+                );
+
+                if (downloadUrl != null) {
+                  Navigator.of(context).pop();
+                  String? linkTitle = await showDialog<String>(
+                    context: context,
+                    builder: (context) {
+                      String tempTitle = fileName;
+                      final TextEditingController controller =
+                          TextEditingController(text: fileName);
+                      return Dialog(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
                         ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Header with icon
-                            Container(
-                              padding: EdgeInsets.all(
-                                Responsive.space(context, size: Space.medium),
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.blue.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(15),
-                              ),
-                              child: Icon(
-                                Icons.edit_note,
-                                size:
-                                    Responsive.space(
-                                      context,
-                                      size: Space.large,
-                                    ) *
-                                    2,
-                                color: Colors.blue[700],
-                              ),
-                            ),
-                            SizedBox(
-                              height: Responsive.space(
-                                context,
-                                size: Space.medium,
-                              ),
-                            ),
-
-                            // Title
-                            Text(
-                              'تعديل اسم الملف',
-                              style: TextStyle(
-                                fontSize: Responsive.text(
-                                  context,
-                                  size: TextSize.heading,
+                        child: Container(
+                          padding: EdgeInsets.all(
+                            Responsive.space(context, size: Space.large),
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Header with icon
+                              Container(
+                                padding: EdgeInsets.all(
+                                  Responsive.space(context, size: Space.medium),
                                 ),
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                            SizedBox(
-                              height: Responsive.space(
-                                context,
-                                size: Space.small,
-                              ),
-                            ),
-
-                            // Subtitle
-                            Text(
-                              'أدخل اسم الملف كما تريد أن يظهر في المهمة',
-                              style: TextStyle(
-                                fontSize: Responsive.text(
-                                  context,
-                                  size: TextSize.small,
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(15),
                                 ),
-                                color: Colors.grey[600],
+                                child: Icon(
+                                  Icons.edit_note,
+                                  size:
+                                      Responsive.space(
+                                        context,
+                                        size: Space.large,
+                                      ) *
+                                      2,
+                                  color: Colors.blue[700],
+                                ),
                               ),
-                              textAlign: TextAlign.center,
-                            ),
-                            SizedBox(
-                              height: Responsive.space(
-                                context,
-                                size: Space.large,
+                              SizedBox(
+                                height: Responsive.space(
+                                  context,
+                                  size: Space.medium,
+                                ),
                               ),
-                            ),
 
-                            // File info card
-                            Container(
-                              padding: EdgeInsets.all(
-                                Responsive.space(context, size: Space.medium),
+                              // Title
+                              Text(
+                                'تعديل اسم الملف',
+                                style: TextStyle(
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.heading,
+                                  ),
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
+                                textAlign: TextAlign.center,
                               ),
-                              decoration: BoxDecoration(
-                                color: Colors.grey[50],
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.grey[200]!),
+                              SizedBox(
+                                height: Responsive.space(
+                                  context,
+                                  size: Space.small,
+                                ),
                               ),
-                              child: Row(
+
+                              // Subtitle
+                              Text(
+                                'أدخل اسم الملف كما تريد أن يظهر في المهمة',
+                                style: TextStyle(
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.small,
+                                  ),
+                                  color: Colors.grey[600],
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              SizedBox(
+                                height: Responsive.space(
+                                  context,
+                                  size: Space.large,
+                                ),
+                              ),
+
+                              // File info card
+                              Container(
+                                padding: EdgeInsets.all(
+                                  Responsive.space(context, size: Space.medium),
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[50],
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.grey[200]!),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.attach_file,
+                                      color: Colors.blue[600],
+                                      size: Responsive.space(
+                                        context,
+                                        size: Space.medium,
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      width: Responsive.space(
+                                        context,
+                                        size: Space.small,
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'الملف المرفوع:',
+                                            style: TextStyle(
+                                              fontSize: Responsive.text(
+                                                context,
+                                                size: TextSize.small,
+                                              ),
+                                              color: Colors.grey[600],
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                          Text(
+                                            fileName,
+                                            style: TextStyle(
+                                              fontSize: Responsive.text(
+                                                context,
+                                                size: TextSize.medium,
+                                              ),
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.black87,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              SizedBox(
+                                height: Responsive.space(
+                                  context,
+                                  size: Space.large,
+                                ),
+                              ),
+
+                              // Input field using CustomTextField
+                              CustomTextField(
+                                hint: 'أدخل اسم الملف الجديد',
+                                controller: controller,
+                                onChanged: (value) {
+                                  tempTitle = value;
+                                },
+                              ),
+                              SizedBox(
+                                height: Responsive.space(
+                                  context,
+                                  size: Space.large,
+                                ),
+                              ),
+
+                              // Action buttons
+                              Row(
                                 children: [
-                                  Icon(
-                                    Icons.attach_file,
-                                    color: Colors.blue[600],
-                                    size: Responsive.space(
-                                      context,
-                                      size: Space.medium,
+                                  Expanded(
+                                    child: TextButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      style: TextButton.styleFrom(
+                                        padding: EdgeInsets.symmetric(
+                                          vertical: Responsive.space(
+                                            context,
+                                            size: Space.medium,
+                                          ),
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
+                                      ),
+                                      child: Text(
+                                        'إلغاء',
+                                        style: TextStyle(
+                                          fontSize: Responsive.text(
+                                            context,
+                                            size: TextSize.medium,
+                                          ),
+                                          color: Colors.grey[600],
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                   SizedBox(
@@ -664,146 +763,57 @@ class _AttachmentSection extends StatelessWidget {
                                     ),
                                   ),
                                   Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'الملف المرفوع:',
-                                          style: TextStyle(
-                                            fontSize: Responsive.text(
-                                              context,
-                                              size: TextSize.small,
-                                            ),
-                                            color: Colors.grey[600],
-                                            fontWeight: FontWeight.w500,
+                                    child: ElevatedButton(
+                                      onPressed:
+                                          () =>
+                                              Navigator.pop(context, tempTitle),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.blue[600],
+                                        foregroundColor: Colors.white,
+                                        padding: EdgeInsets.symmetric(
+                                          vertical: Responsive.space(
+                                            context,
+                                            size: Space.medium,
                                           ),
                                         ),
-                                        Text(
-                                          fileName,
-                                          style: TextStyle(
-                                            fontSize: Responsive.text(
-                                              context,
-                                              size: TextSize.medium,
-                                            ),
-                                            fontWeight: FontWeight.w600,
-                                            color: Colors.black87,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            10,
                                           ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
                                         ),
-                                      ],
+                                        elevation: 0,
+                                      ),
+                                      child: Text(
+                                        'حفظ',
+                                        style: TextStyle(
+                                          fontSize: Responsive.text(
+                                            context,
+                                            size: TextSize.medium,
+                                          ),
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ],
                               ),
-                            ),
-                            SizedBox(
-                              height: Responsive.space(
-                                context,
-                                size: Space.large,
-                              ),
-                            ),
-
-                            // Input field using CustomTextField
-                            CustomTextField(
-                              hint: 'أدخل اسم الملف الجديد',
-                              controller: controller,
-                              onChanged: (value) {
-                                tempTitle = value;
-                              },
-                            ),
-                            SizedBox(
-                              height: Responsive.space(
-                                context,
-                                size: Space.large,
-                              ),
-                            ),
-
-                            // Action buttons
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: TextButton(
-                                    onPressed: () => Navigator.pop(context),
-                                    style: TextButton.styleFrom(
-                                      padding: EdgeInsets.symmetric(
-                                        vertical: Responsive.space(
-                                          context,
-                                          size: Space.medium,
-                                        ),
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                    ),
-                                    child: Text(
-                                      'إلغاء',
-                                      style: TextStyle(
-                                        fontSize: Responsive.text(
-                                          context,
-                                          size: TextSize.medium,
-                                        ),
-                                        color: Colors.grey[600],
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                SizedBox(
-                                  width: Responsive.space(
-                                    context,
-                                    size: Space.small,
-                                  ),
-                                ),
-                                Expanded(
-                                  child: ElevatedButton(
-                                    onPressed:
-                                        () => Navigator.pop(context, tempTitle),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.blue[600],
-                                      foregroundColor: Colors.white,
-                                      padding: EdgeInsets.symmetric(
-                                        vertical: Responsive.space(
-                                          context,
-                                          size: Space.medium,
-                                        ),
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      elevation: 0,
-                                    ),
-                                    child: Text(
-                                      'حفظ',
-                                      style: TextStyle(
-                                        fontSize: Responsive.text(
-                                          context,
-                                          size: TextSize.medium,
-                                        ),
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    );
-                  },
-                );
-                onAddAttachment({
-                  'title': linkTitle ?? fileName,
-                  'url': downloadUrl,
-                });
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('تم رفع الملف بنجاح'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
+                      );
+                    },
+                  );
+                  onAddAttachment({
+                    'title': linkTitle ?? fileName,
+                    'url': downloadUrl,
+                  });
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('تم رفع الملف بنجاح'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
               } catch (e) {
                 Navigator.of(context).pop();
                 ScaffoldMessenger.of(context).showSnackBar(

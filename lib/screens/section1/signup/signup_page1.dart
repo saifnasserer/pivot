@@ -17,22 +17,16 @@ class Signup_1 extends StatefulWidget {
 
 class _Signup_1State extends State<Signup_1> {
   final _formKey = GlobalKey<FormState>();
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
   final FocusNode _nameFocus = FocusNode();
   final FocusNode _emailFocus = FocusNode();
   final FocusNode _phoneFocus = FocusNode();
   final FocusNode _passwordFocus = FocusNode();
   bool _isPasswordVisible = false;
-
-  String _name = '';
-  String _email = '';
-  String _phone = '';
-  String _password = '';
   String _gender = 'ذكر';
-
-  bool _isNameValid = false;
-  bool _isEmailValid = false;
-  bool _isPhoneValid = false;
-  bool _isPasswordValid = false;
 
   String? _validateName(String? value) {
     if (value == null || value.isEmpty) {
@@ -73,6 +67,10 @@ class _Signup_1State extends State<Signup_1> {
 
   @override
   void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
+    _passwordController.dispose();
     _nameFocus.dispose();
     _emailFocus.dispose();
     _phoneFocus.dispose();
@@ -140,18 +138,12 @@ class _Signup_1State extends State<Signup_1> {
                             ),
                           ),
                           CustomTextField(
+                            controller: _nameController,
                             focusNode: _nameFocus,
                             hint: 'الاسم (يفضل ثنائي و بالعربي)',
                             validator: _validateName,
-                            isValid: _isNameValid,
                             onEditingComplete: () {
                               FocusScope.of(context).requestFocus(_emailFocus);
-                            },
-                            onChanged: (value) {
-                              setState(() {
-                                _name = value;
-                                _isNameValid = _validateName(value) == null;
-                              });
                             },
                           ),
                           SizedBox(
@@ -161,19 +153,13 @@ class _Signup_1State extends State<Signup_1> {
                             ),
                           ),
                           CustomTextField(
+                            controller: _emailController,
                             focusNode: _emailFocus,
                             hint: 'الايميل الجامعي',
                             validator: _validateEmail,
                             keyboardType: TextInputType.emailAddress,
-                            isValid: _isEmailValid,
                             onEditingComplete: () {
                               FocusScope.of(context).requestFocus(_phoneFocus);
-                            },
-                            onChanged: (value) {
-                              setState(() {
-                                _email = value;
-                                _isEmailValid = _validateEmail(value) == null;
-                              });
                             },
                           ),
                           SizedBox(
@@ -183,22 +169,16 @@ class _Signup_1State extends State<Signup_1> {
                             ),
                           ),
                           CustomTextField(
+                            controller: _phoneController,
                             focusNode: _phoneFocus,
                             hint: 'رقم الموبيل',
                             validator: _validatePhone,
                             keyboardType: TextInputType.phone,
-                            isValid: _isPhoneValid,
                             onEditingComplete: () {
                               FocusScope.of(
                                 context,
                               ).requestFocus(_passwordFocus);
                             },
-                            onChanged: (value) {
-                              setState(() {
-                                _phone = value;
-                                _isPhoneValid = _validatePhone(value) == null;
-                              });
-                            },
                           ),
                           SizedBox(
                             height: Responsive.space(
@@ -207,12 +187,12 @@ class _Signup_1State extends State<Signup_1> {
                             ),
                           ),
                           CustomTextField(
+                            controller: _passwordController,
                             focusNode: _passwordFocus,
                             hint: 'الباسورد',
                             validator: _validatePassword,
                             textInputAction: TextInputAction.done,
                             obscureText: !_isPasswordVisible,
-                            isValid: _isPasswordValid,
                             suffixIcon: IconButton(
                               icon: Icon(
                                 _isPasswordVisible
@@ -230,13 +210,6 @@ class _Signup_1State extends State<Signup_1> {
                                 });
                               },
                             ),
-                            onChanged: (value) {
-                              setState(() {
-                                _password = value;
-                                _isPasswordValid =
-                                    _validatePassword(value) == null;
-                              });
-                            },
                             onEditingComplete: () {
                               FocusScope.of(context).unfocus();
                             },
@@ -291,10 +264,10 @@ class _Signup_1State extends State<Signup_1> {
         MaterialPageRoute(
           builder:
               (context) => Signup_2(
-                name: _name,
-                email: _email.toLowerCase().trim(),
-                phone: _phone,
-                password: _password,
+                name: _nameController.text,
+                email: _emailController.text.toLowerCase().trim(),
+                phone: _phoneController.text,
+                password: _passwordController.text,
                 gender: _gender,
               ),
         ),

@@ -16,10 +16,10 @@ class _CategorySectionState extends State<CategorySection> {
   final List<String> categories = [
     'اخبار النهاردة',
     'عام',
-    'اخبار قسم SC',
-    'اخبار قسم AI',
-    'اخبار قسم CS',
-    'اخبار قسم IS',
+    'SC',
+    'AI',
+    'CS',
+    'IS',
   ];
 
   @override

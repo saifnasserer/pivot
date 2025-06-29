@@ -88,20 +88,39 @@ class UserSearchCard extends StatelessWidget {
             CircleAvatar(
               radius: Responsive.space(context, size: Space.medium),
               backgroundColor: gold.withOpacity(0.15),
-              backgroundImage:
+              child:
                   (user.profileImageUrl != null &&
                           user.profileImageUrl!.isNotEmpty)
-                      ? CachedNetworkImageProvider(user.profileImageUrl!)
-                      : null,
-              child:
-                  (user.profileImageUrl == null ||
-                          user.profileImageUrl!.isEmpty)
-                      ? Icon(
+                      ? ClipOval(
+                        child: CachedNetworkImage(
+                          imageUrl: user.profileImageUrl!,
+                          width:
+                              Responsive.space(context, size: Space.medium) * 2,
+                          height:
+                              Responsive.space(context, size: Space.medium) * 2,
+                          fit: BoxFit.cover,
+                          placeholder:
+                              (context, url) => const Center(
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                ),
+                              ),
+                          errorWidget:
+                              (context, url, error) => Icon(
+                                Icons.person,
+                                color: gold,
+                                size: Responsive.space(
+                                  context,
+                                  size: Space.large,
+                                ),
+                              ),
+                        ),
+                      )
+                      : Icon(
                         Icons.person,
                         color: gold,
                         size: Responsive.space(context, size: Space.large),
-                      )
-                      : null,
+                      ),
             ),
           ],
         ),
@@ -116,9 +135,7 @@ void showUserSearchModal(BuildContext context) {
     isScrollControlled: true,
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(
-        top: Radius.circular(
-          Responsive.space(context, size: Space.large),
-        ),
+        top: Radius.circular(Responsive.space(context, size: Space.large)),
       ),
     ),
     builder: (context) {

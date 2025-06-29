@@ -16,6 +16,19 @@ import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:permission_handler/permission_handler.dart' as ph;
 
+// Enum to map display names to full tag formats
+enum DepartmentTag {
+  general('عام', 'عام'),
+  sc('SC', 'اخبار قسم SC'),
+  ai('AI', 'اخبار قسم AI'),
+  cs('CS', 'اخبار قسم CS'),
+  informationSystems('IS', 'اخبار قسم IS');
+
+  const DepartmentTag(this.displayName, this.fullTag);
+  final String displayName;
+  final String fullTag;
+}
+
 // Available colors for selection
 final List<Color> availableColors = [
   const Color(0xffff5252), // Red
@@ -23,8 +36,9 @@ final List<Color> availableColors = [
   const Color(0xFF99F16C), // Green
 ];
 
-// Available tags (categories) for selection
-final List<String> availableTags = ['عام', 'SC', 'AI', 'CS', 'IS'];
+// Available tags (categories) for selection - using display names
+final List<String> availableTags =
+    DepartmentTag.values.map((tag) => tag.displayName).toList();
 
 // Show dialog to add or edit an announcement
 void showAddAnnouncementDialog({
@@ -48,6 +62,23 @@ void showAddAnnouncementDialog({
   // Selected color and tags
   Color selectedColor = announcement?.color ?? availableColors[0];
   List<String> selectedTags = List<String>.from(announcement?.tags ?? []);
+
+  // Convert full tags to display names for editing
+  if (announcement != null && announcement.tags.isNotEmpty) {
+    print('DEBUG: announcement.tags = ${announcement.tags}');
+    selectedTags =
+        announcement.tags
+            .map((fullTag) {
+              final match =
+                  DepartmentTag.values
+                      .where((tag) => tag.fullTag == fullTag)
+                      .toList();
+              return match.isNotEmpty ? match.first.displayName : null;
+            })
+            .whereType<String>() // Remove nulls
+            .toList();
+    print('DEBUG: selectedTags = $selectedTags');
+  }
 
   // State for images and links
   List<XFile> pickedImages = [];
@@ -1072,7 +1103,9 @@ void showAddAnnouncementDialog({
                                     onSelected: (selected) {
                                       setState(() {
                                         if (selected) {
-                                          selectedTags.add(tag);
+                                          if (!selectedTags.contains(tag)) {
+                                            selectedTags.add(tag);
+                                          }
                                         } else {
                                           selectedTags.remove(tag);
                                         }
@@ -1483,6 +1516,28 @@ void showAddAnnouncementDialog({
                                         uniqueLinks[link['url'] ?? ''] = link;
                                       }
 
+                                      // Before saving, add this debug print:
+                                      print(
+                                        'DEBUG: selectedTags before save = $selectedTags',
+                                      );
+                                      final convertedTags =
+                                          selectedTags.map((displayName) {
+                                            final departmentTag = DepartmentTag
+                                                .values
+                                                .firstWhere(
+                                                  (tag) =>
+                                                      tag.displayName ==
+                                                      displayName,
+                                                  orElse:
+                                                      () =>
+                                                          DepartmentTag.general,
+                                                );
+                                            return departmentTag.fullTag;
+                                          }).toList();
+                                      print(
+                                        'DEBUG: convertedTags to save = $convertedTags',
+                                      );
+
                                       final newAnnouncement = AnnouncementData(
                                         id: announcement?.id,
                                         title: title,
@@ -1491,7 +1546,7 @@ void showAddAnnouncementDialog({
                                         ).format(DateTime.now()),
                                         color: selectedColor,
                                         description: description,
-                                        tags: selectedTags,
+                                        tags: convertedTags,
                                         imageUrls: imageUrls,
                                         links: uniqueLinks.values.toList(),
                                         timestamp: DateTime.now(),

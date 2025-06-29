@@ -170,6 +170,12 @@ class AnnouncementCard extends StatelessWidget {
                         alignment: WrapAlignment.end,
                         children:
                             announcement.tags.map((tag) {
+                              // Convert full format to display format
+                              String displayTag = tag;
+                              if (tag.startsWith('اخبار قسم ')) {
+                                displayTag = tag.replaceFirst('اخبار قسم ', '');
+                              }
+
                               return Container(
                                 margin: EdgeInsets.only(left: 4),
                                 padding: EdgeInsets.symmetric(
@@ -186,7 +192,7 @@ class AnnouncementCard extends StatelessWidget {
                                   ),
                                 ),
                                 child: Text(
-                                  tag,
+                                  displayTag,
                                   style: TextStyle(
                                     fontSize:
                                         Responsive.text(

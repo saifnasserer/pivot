@@ -16,6 +16,7 @@ import 'package:pivot/data/form_options.dart';
 import 'package:pivot/screens/models/custom_text_field.dart';
 import 'package:provider/provider.dart';
 import 'package:pivot/services/permission_service.dart';
+import 'package:pivot/services/session_management_service.dart';
 
 class EditProfile extends StatefulWidget {
   static const String id = 'edit_profile';
@@ -334,18 +335,35 @@ class _EditProfileState extends State<EditProfile> {
           : FileImage(File(_imageFile!.path));
     } else if (widget.userProfile.profileImageUrl != null &&
         widget.userProfile.profileImageUrl!.isNotEmpty) {
-      return CachedNetworkImageProvider(widget.userProfile.profileImageUrl!);
+      // Return null initially, will be handled by FutureBuilder
+      return null;
     }
     return null;
   }
 
   Widget? _getProfileImageChild() {
-    if (_imageFile == null &&
-        (widget.userProfile.profileImageUrl == null ||
-            widget.userProfile.profileImageUrl!.isEmpty)) {
-      return const Icon(Icons.person, color: Colors.white, size: 60);
+    if (_imageFile != null) {
+      return null; // Show the picked image
+    } else if (widget.userProfile.profileImageUrl != null &&
+        widget.userProfile.profileImageUrl!.isNotEmpty) {
+      // Directly show the image
+      return ClipOval(
+        child: CachedNetworkImage(
+          imageUrl: widget.userProfile.profileImageUrl!,
+          width: Responsive.space(context, size: Space.large) * 10,
+          height: Responsive.space(context, size: Space.large) * 10,
+          fit: BoxFit.cover,
+          placeholder:
+              (context, url) => const Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              ),
+          errorWidget:
+              (context, url, error) =>
+                  const Icon(Icons.person, color: Colors.white, size: 60),
+        ),
+      );
     }
-    return null;
+    return const Icon(Icons.person, color: Colors.white, size: 60);
   }
 
   Widget _buildBasicInfoSection() {

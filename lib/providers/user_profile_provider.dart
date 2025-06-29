@@ -7,7 +7,9 @@ import 'package:image_picker/image_picker.dart';
 import '../models/user_profile.dart';
 import 'package:pivot/services/cache_service.dart';
 import 'package:pivot/services/session_management_service.dart';
+import 'package:pivot/services/storage_optimization_service.dart';
 import 'package:flutter/material.dart';
+import 'dart:io';
 
 class UserProfileProvider with ChangeNotifier {
   UserProfile? _userProfile; // The profile being viewed on a profile screen
@@ -309,20 +311,19 @@ class UserProfileProvider with ChangeNotifier {
 
       String? imageUrl;
       if (imageFile != null) {
-        // Upload image to Firebase Storage
-        final storageRef = FirebaseStorage.instance
-            .ref()
-            .child('profile_images')
-            .child('$userId.jpg');
+        // Use the optimized storage service for profile images
+        final storageService = StorageOptimizationService();
+        final xFile = XFile(imageFile.path);
+        imageUrl = await storageService.uploadFileOptimized(
+          xFile,
+          folder: 'profile_images',
+          usage: 'profile',
+          checkDuplicate: true,
+        );
 
-        if (kIsWeb) {
-          await storageRef.putData(await imageFile.readAsBytes());
-        } else {
-          await storageRef.putFile(File(imageFile.path));
+        if (imageUrl != null) {
+          data['profileImageUrl'] = imageUrl;
         }
-
-        imageUrl = await storageRef.getDownloadURL();
-        data['profileImageUrl'] = imageUrl;
       }
 
       final userRef = _firestore.collection('users').doc(userId);
@@ -386,6 +387,20 @@ class UserProfileProvider with ChangeNotifier {
         debugPrint(
           '[UserProfileProvider] Profile loaded successfully: ${_loggedInUserProfile?.name}',
         );
+
+        // Move cleanup operations to background to prevent main thread blocking
+        Future.microtask(() async {
+          try {
+            // Clean up invalid profile image URL if it exists
+            await _cleanupInvalidProfileImageUrl(user.uid);
+
+            // Also trigger a one-time cleanup of all invalid URLs (only for admin users or first load)
+            await _triggerOneTimeCleanup();
+          } catch (e) {
+            debugPrint('[UserProfileProvider] Background cleanup failed: $e');
+          }
+        });
+
         return true;
       } else {
         debugPrint(
@@ -404,6 +419,136 @@ class UserProfileProvider with ChangeNotifier {
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  // Track if cleanup has been run to avoid running it multiple times
+  static bool _cleanupRun = false;
+
+  /// Trigger one-time cleanup of all invalid profile image URLs
+  Future<void> _triggerOneTimeCleanup() async {
+    if (_cleanupRun) return; // Only run once per app session
+
+    _cleanupRun = true;
+
+    // Run cleanup in the background without blocking the UI
+    Future.microtask(() async {
+      try {
+        await cleanupAllInvalidProfileImageUrls();
+      } catch (e) {
+        debugPrint('[UserProfileProvider] Background cleanup failed: $e');
+      }
+    });
+  }
+
+  /// Cleans up invalid profile image URLs from the database
+  Future<void> _cleanupInvalidProfileImageUrl(String userId) async {
+    try {
+      if (_loggedInUserProfile?.profileImageUrl != null &&
+          _loggedInUserProfile!.profileImageUrl!.isNotEmpty) {
+        // Check if the image URL is accessible
+        bool isValid = await _isImageUrlAccessible(
+          _loggedInUserProfile!.profileImageUrl!,
+        );
+
+        if (!isValid) {
+          debugPrint(
+            '[UserProfileProvider] Invalid profile image URL detected, cleaning up...',
+          );
+
+          // Remove the invalid URL from the database
+          await _firestore.collection('users').doc(userId).update({
+            'profileImageUrl': null,
+          });
+
+          // Update local cache
+          _loggedInUserProfile = _loggedInUserProfile!.copyWith(
+            profileImageUrl: null,
+          );
+          _userProfile = _userProfile?.copyWith(profileImageUrl: null);
+          notifyListeners();
+
+          debugPrint(
+            '[UserProfileProvider] Invalid profile image URL cleaned up',
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint(
+        '[UserProfileProvider] Error cleaning up invalid profile image URL: $e',
+      );
+    }
+  }
+
+  /// Check if an image URL is accessible without throwing exceptions
+  Future<bool> _isImageUrlAccessible(String url) async {
+    try {
+      final client = HttpClient();
+      try {
+        final request = await client.getUrl(Uri.parse(url));
+        final response = await request.close();
+
+        // Only consider 404 (Not Found) as invalid
+        // Other status codes (200, 403, 500, etc.) or network errors should not cause removal
+        if (response.statusCode == 404) {
+          debugPrint('[UserProfileProvider] Image URL returned 404: $url');
+          return false;
+        }
+
+        // For any other status code or successful response, consider it valid
+        return true;
+      } finally {
+        client.close();
+      }
+    } catch (e) {
+      // Network errors, timeouts, etc. should not cause URL removal
+      // Only log the error but return true to keep the URL
+      debugPrint(
+        '[UserProfileProvider] Network error checking URL (keeping URL): $url - $e',
+      );
+      return true;
+    }
+  }
+
+  /// Public method to clean up invalid profile image URLs for all users
+  Future<void> cleanupAllInvalidProfileImageUrls() async {
+    try {
+      debugPrint(
+        '[UserProfileProvider] Starting cleanup of invalid profile image URLs...',
+      );
+
+      final snapshot = await _firestore.collection('users').get();
+      int cleanedCount = 0;
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final profileImageUrl = data['profileImageUrl'] as String?;
+
+        if (profileImageUrl != null && profileImageUrl.isNotEmpty) {
+          bool isValid = await _isImageUrlAccessible(profileImageUrl);
+
+          if (!isValid) {
+            await _firestore.collection('users').doc(doc.id).update({
+              'profileImageUrl': null,
+            });
+            cleanedCount++;
+            debugPrint(
+              '[UserProfileProvider] Cleaned invalid URL for user: ${doc.id}',
+            );
+          }
+        }
+      }
+
+      debugPrint(
+        '[UserProfileProvider] Cleanup completed. Removed $cleanedCount invalid URLs.',
+      );
+
+      // Refresh the current user's profile if they were affected
+      if (_loggedInUserProfile != null) {
+        await loadLoggedInUserProfile();
+      }
+    } catch (e) {
+      debugPrint('[UserProfileProvider] Error during bulk cleanup: $e');
     }
   }
 }

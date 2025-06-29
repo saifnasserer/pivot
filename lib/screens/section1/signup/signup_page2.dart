@@ -4,15 +4,13 @@ import 'package:pivot/screens/models/circular_button.dart';
 import 'package:pivot/data/form_options.dart';
 import 'package:pivot/providers/settings_provider.dart';
 import 'package:pivot/screens/models/custom_dropdown.dart';
+import 'package:pivot/screens/section2/landing.dart';
 import '../../../../responsive.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/user_profile_provider.dart';
 import '../../../models/user_profile.dart';
-import '../../../services/auth_service.dart'; // Import AuthService
-import '../../../services/local_auth_service.dart';
+import '../../../services/auth_service.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../services/permission_service.dart';
 
 class Signup_2 extends StatefulWidget {
@@ -41,11 +39,7 @@ class _Signup_2State extends State<Signup_2> {
   final FocusNode _yearFocus = FocusNode();
   final FocusNode _departmentFocus = FocusNode();
   final FocusNode _sectionFocus = FocusNode();
-  bool _isYearValid = false;
-  bool _isDepartmentValid = false;
-  bool _isSectionValid = false;
   bool _isLoading = false;
-  final bool _isInitialized = false;
 
   String? selectedYear;
   String? selectedDepartment;
@@ -54,10 +48,7 @@ class _Signup_2State extends State<Signup_2> {
   List<String> _availableDepartments = [];
   List<String> _availableSections = [];
 
-  // Declare and initialize AuthService
   final AuthService _authService = AuthService();
-  final LocalAuthService _localAuthService = LocalAuthService();
-  final _storage = const FlutterSecureStorage();
 
   @override
   void initState() {
@@ -70,87 +61,6 @@ class _Signup_2State extends State<Signup_2> {
         listen: false,
       ).fetchSectionCounts();
     });
-  }
-
-  Future<void> _promptEnableBiometrics(
-    String uid,
-    String email,
-    String password,
-  ) async {
-    if (kIsWeb) {
-      debugPrint('[Biometric Prompt] Running on web, skipping.');
-      return;
-    }
-
-    debugPrint('[Biometric Prompt] Checking for biometrics on device...');
-    final bool canAuth = await _localAuthService.isBiometricSupported();
-    debugPrint('[Biometric Prompt] Can device authenticate? -> $canAuth');
-
-    if (mounted && canAuth) {
-      debugPrint(
-        '[Biometric Prompt] SUCCESS: Device supports biometrics, showing prompt.',
-      );
-      final bool enable =
-          await showDialog<bool>(
-            context: context,
-            builder:
-                (context) => AlertDialog(
-                  title: const Text('تمكين تسجيل الدخول بالبصمة'),
-                  content: const Text(
-                    'هل ترغب في استخدام بصمة الإصبع أو معرف الوجه لتسجيل الدخول بشكل أسرع في المرة القادمة؟',
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(false),
-                      child: const Text('لاحقاً'),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(true),
-                      child: const Text('تمكين'),
-                    ),
-                  ],
-                ),
-          ) ??
-          false;
-
-      if (enable) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setBool('isBiometricEnabled', true);
-
-        // Securely store credentials
-        await _storage.write(key: 'biometric_email', value: email);
-        await _storage.write(key: 'biometric_password', value: password);
-
-        debugPrint(
-          '[Biometric Prompt] SUCCESS: Biometrics enabled and credentials stored.',
-        );
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('تم تمكين تسجيل الدخول بالبصمة.'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      }
-    } else {
-      debugPrint(
-        '[Biometric Prompt] FAILED: Device does not support biometrics.',
-      );
-    }
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('تم التسجيل بنجاح.'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      // Don't navigate directly to Landing - let AuthWrapper handle it
-      // The AuthWrapper will detect the authenticated state and navigate automatically
-      // This prevents conflicts between direct navigation and AuthWrapper's auth state handling
-    }
   }
 
   @override
@@ -166,12 +76,14 @@ class _Signup_2State extends State<Signup_2> {
     if (kIsWeb) return; // Notifications not supported on web
 
     try {
-      // Use existing static method from PermissionService
-      bool granted = await PermissionService.requestStoragePermission();
+      // Request notification permission instead of storage permission
+      bool granted = await PermissionService.requestNotificationPermission();
 
       if (!granted && mounted) {
         // Show dialog to open settings if permission denied
-        await PermissionService.requestStoragePermissionWithRationale(context);
+        await PermissionService.requestNotificationPermissionWithRationale(
+          context,
+        );
       }
     } catch (e) {
       debugPrint('Error requesting notification permission: $e');
@@ -231,17 +143,13 @@ class _Signup_2State extends State<Signup_2> {
                           value: selectedYear,
                           items: FormOptions.academicYears,
                           hint: 'اختر الفرقة',
-                          isValid: _isYearValid,
                           onChanged: (String? newValue) {
                             setState(() {
                               selectedYear = newValue;
-                              _isYearValid = true;
 
                               // Reset and update dependent dropdowns
                               selectedDepartment = null;
-                              _isDepartmentValid = false;
                               selectedSection = null;
-                              _isSectionValid = false;
 
                               _availableDepartments =
                                   FormOptions.getDepartmentsForYear(newValue);
@@ -261,13 +169,10 @@ class _Signup_2State extends State<Signup_2> {
                           value: selectedDepartment,
                           items: _availableDepartments,
                           hint: 'اختر القسم',
-                          isValid: _isDepartmentValid,
                           onChanged: (String? newValue) {
                             setState(() {
                               selectedDepartment = newValue;
-                              _isDepartmentValid = true;
                               selectedSection = null;
-                              _isSectionValid = false;
 
                               // Get section count from settings provider
                               if (selectedDepartment != null &&
@@ -300,11 +205,9 @@ class _Signup_2State extends State<Signup_2> {
                           value: selectedSection,
                           items: _availableSections,
                           hint: 'اختر السكشن',
-                          isValid: _isSectionValid,
                           onChanged: (String? newValue) {
                             setState(() {
                               selectedSection = newValue;
-                              _isSectionValid = newValue != null;
                             });
                             FocusScope.of(context).unfocus();
                           },
@@ -338,13 +241,9 @@ class _Signup_2State extends State<Signup_2> {
   }
 
   void _submitForm() async {
-    setState(() {
-      _isYearValid = selectedYear != null;
-      _isDepartmentValid = selectedDepartment != null;
-      _isSectionValid = selectedSection != null;
-    });
-
-    if (!_isYearValid || !_isDepartmentValid || !_isSectionValid) {
+    if (selectedYear == null ||
+        selectedDepartment == null ||
+        selectedSection == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('يرجى اختيار الفرقة والقسم والسكشن')),
@@ -378,27 +277,60 @@ class _Signup_2State extends State<Signup_2> {
               userData,
             );
 
-        if (mounted) {
-          Provider.of<UserProfileProvider>(
+        if (mounted && userProfile != null) {
+          debugPrint(
+            '[Signup] User profile created successfully: ${userProfile.name}',
+          );
+
+          // Set the user profile in the provider
+          final provider = Provider.of<UserProfileProvider>(
             context,
             listen: false,
-          ).setUserProfile(userProfile!);
-
-          // Request notification permission after successful signup
-          await _requestNotificationPermission();
-
-          // Add a small delay to ensure AuthWrapper can detect the profile
-          await Future.delayed(const Duration(milliseconds: 100));
-
-          // Ask to enable biometrics before navigating
-          await _promptEnableBiometrics(
-            userProfile.id,
-            widget.email,
-            widget.password,
           );
-          // Don't navigate directly to Landing - let AuthWrapper handle it
-          // The AuthWrapper will detect the authenticated state and navigate automatically
-          // This prevents conflicts between direct navigation and AuthWrapper's auth state handling
+          provider.setLoggedInUserProfile(userProfile);
+
+          debugPrint(
+            '[Signup] Profile set in provider, waiting for AuthWrapper to detect...',
+          );
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('تم التسجيل بنجاح.'),
+                backgroundColor: Colors.green,
+              ),
+            );
+            debugPrint(
+              '[Signup] Success message shown, AuthWrapper should navigate to Landing',
+            );
+
+            // Force navigation to Landing if AuthWrapper doesn't detect it
+            // Use a shorter delay to reduce main thread blocking
+            Future.delayed(const Duration(milliseconds: 200), () {
+              if (mounted) {
+                debugPrint('[Signup] Forcing navigation to Landing...');
+                Navigator.of(
+                  context,
+                ).pushNamedAndRemoveUntil(Landing.id, (route) => false);
+              }
+            });
+          }
+
+          // Move heavy operations to background
+          Future.microtask(() async {
+            try {
+              // Request notification permission after successful signup
+              await _requestNotificationPermission();
+
+              // Force a rebuild by triggering notifyListeners again
+              await Future.delayed(const Duration(milliseconds: 50));
+              if (mounted) {
+                provider.notifyListeners();
+              }
+            } catch (e) {
+              debugPrint('[Signup] Background operations failed: $e');
+            }
+          });
         }
       } on FirebaseAuthException catch (e) {
         String errorMessage;

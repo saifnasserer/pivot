@@ -8,6 +8,10 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:pivot/models/guide_content.dart';
 import 'package:pivot/models/guidebook_model.dart';
+import 'package:pivot/services/storage_optimization_service.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:path/path.dart';
 
 class GuideProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -33,8 +37,9 @@ class GuideProvider with ChangeNotifier {
     try {
       final docSnapshot = await _guideCollection.doc('default_guide').get();
       if (docSnapshot.exists) {
-        _guideContent =
-            GuideContent.fromMap(docSnapshot.data() as Map<String, dynamic>);
+        _guideContent = GuideContent.fromMap(
+          docSnapshot.data() as Map<String, dynamic>,
+        );
       } else {
         _guideContent = GuideContent(guidebooks: []);
         await _guideCollection.doc('default_guide').set(_guideContent!.toMap());
@@ -74,28 +79,49 @@ class GuideProvider with ChangeNotifier {
       try {
         String downloadUrl;
         final String fileName = result.files.single.name;
-        final String storagePath =
-            'guides/${DateTime.now().millisecondsSinceEpoch}_$fileName';
+
+        // Use the optimized storage service
+        final storageService = StorageOptimizationService();
 
         if (kIsWeb) {
+          // For web, we need to create a temporary file
           final Uint8List fileBytes = result.files.single.bytes!;
-          downloadUrl = await _uploadFileBytes(fileBytes, storagePath);
+          // Note: For web, we'll need to handle this differently since StorageOptimizationService expects XFile
+          // For now, use the original method for web
+          final storagePath =
+              'guides/${DateTime.now().millisecondsSinceEpoch}_$fileName';
+          final ref = _storage.ref().child(storagePath);
+          final uploadTask = ref.putData(fileBytes);
+          final snapshot = await uploadTask.whenComplete(() => {});
+          downloadUrl = await snapshot.ref.getDownloadURL();
         } else {
+          // For mobile, use the optimized service
           final File file = File(result.files.single.path!);
-          downloadUrl = await _uploadFile(file, storagePath);
+          final xFile = XFile(file.path);
+          downloadUrl =
+              await storageService.uploadFileOptimized(
+                xFile,
+                folder: 'guides',
+                usage: 'general',
+                checkDuplicate: true,
+              ) ??
+              '';
         }
 
-        final newGuidebook = Guidebook(
-          name: fileName,
-          url: downloadUrl,
-          storagePath: storagePath,
-        );
+        if (downloadUrl.isNotEmpty) {
+          final newGuidebook = Guidebook(
+            name: fileName,
+            url: downloadUrl,
+            storagePath:
+                'guides/${DateTime.now().millisecondsSinceEpoch}_$fileName',
+          );
 
-        await _guideCollection.doc('default_guide').update({
-          'guidebooks': FieldValue.arrayUnion([newGuidebook.toMap()])
-        });
+          await _guideCollection.doc('default_guide').update({
+            'guidebooks': FieldValue.arrayUnion([newGuidebook.toMap()]),
+          });
 
-        await fetchGuideContent();
+          await fetchGuideContent();
+        }
       } catch (e) {
         _error = 'Failed to upload guidebook: $e';
       } finally {
@@ -114,7 +140,7 @@ class GuideProvider with ChangeNotifier {
       await ref.delete();
 
       await _guideCollection.doc('default_guide').update({
-        'guidebooks': FieldValue.arrayRemove([guidebook.toMap()])
+        'guidebooks': FieldValue.arrayRemove([guidebook.toMap()]),
       });
 
       await fetchGuideContent();
@@ -126,4 +152,3 @@ class GuideProvider with ChangeNotifier {
     }
   }
 }
-
