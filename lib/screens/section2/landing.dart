@@ -27,8 +27,6 @@ class LandingState extends State<Landing> {
   @override
   void initState() {
     super.initState();
-    // The AuthWrapper now guarantees the user profile is ready before this screen is built.
-    // We can now safely trigger the initial fetch for 'Today''s News'.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final userProfileProvider = Provider.of<UserProfileProvider>(
         context,
@@ -36,35 +34,26 @@ class LandingState extends State<Landing> {
       );
       _userDepartment = userProfileProvider.loggedInUserProfile?.department;
 
-      debugPrint('[LANDING] User department: $_userDepartment');
-      debugPrint(
-        '[LANDING] Complete user profile: ${userProfileProvider.loggedInUserProfile?.toJson()}',
-      );
+      // Normalize department for initial fetch
+      String? normalizedDepartment;
+      if (_userDepartment != null &&
+          _userDepartment!.startsWith('اخبار قسم ')) {
+        normalizedDepartment = _userDepartment!.replaceFirst('اخبار قسم ', '');
+      } else {
+        normalizedDepartment = _userDepartment;
+      }
 
       final announcementProvider = Provider.of<AnnouncementProvider>(
         context,
         listen: false,
       );
 
-      // For today's news, we want to show announcements from user's department AND عام announcements
+      // Use normalizedDepartment for initial fetch
       String? departmentCode;
-      if (_userDepartment != null) {
-        // Convert user department to proper format if needed
-        String userDeptTag;
-        if (_userDepartment!.startsWith('اخبار قسم ')) {
-          userDeptTag = _userDepartment!;
-        } else {
-          userDeptTag = 'اخبار قسم $_userDepartment';
-        }
-        departmentCode = 'today_mixed:$userDeptTag';
-        debugPrint('[LANDING] Initial fetch - User dept tag: $userDeptTag');
-        debugPrint(
-          '[LANDING] Initial fetch - Department code: $departmentCode',
-        );
+      if (normalizedDepartment != null) {
+        departmentCode = 'today_mixed:اخبار قسم $normalizedDepartment';
       } else {
-        // Fallback to just عام announcements if no user department
         departmentCode = 'عام';
-        debugPrint('[LANDING] Initial fetch - No user department, using عام');
       }
 
       announcementProvider.fetchAnnouncements(
@@ -82,6 +71,13 @@ class LandingState extends State<Landing> {
 
   @override
   Widget build(BuildContext context) {
+    // Normalize the user department for category ordering
+    String? normalizedDepartment;
+    if (_userDepartment != null && _userDepartment!.startsWith('اخبار قسم ')) {
+      normalizedDepartment = _userDepartment!.replaceFirst('اخبار قسم ', '');
+    } else {
+      normalizedDepartment = _userDepartment;
+    }
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -101,7 +97,7 @@ class LandingState extends State<Landing> {
                   children: [
                     Expanded(
                       child: CategorySection(
-                        userDepartment: _userDepartment,
+                        userDepartment: normalizedDepartment,
                         onCategoryChanged: (category) {
                           debugPrint(
                             '[LANDING] Category changed to: $category',
