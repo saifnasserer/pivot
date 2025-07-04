@@ -324,7 +324,13 @@ class SubjectListItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final professors =
-        instructors?.where((prof) => prof.role == 'Professor').toList() ?? [];
+        instructors
+            ?.where(
+              (prof) => prof.role.toLowerCase() == 'professor',
+              // prof.role.toLowerCase() == 'miniprofessor',
+            )
+            .toList() ??
+        [];
 
     return Padding(
       padding: EdgeInsets.only(
@@ -333,12 +339,16 @@ class SubjectListItem extends StatelessWidget {
       child: Card(
         elevation: 0.5,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16.0),
+          borderRadius: BorderRadius.circular(
+            Responsive.space(context, size: Space.large),
+          ),
           side: BorderSide(color: Colors.grey.shade200),
         ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(
+            Responsive.space(context, size: Space.large),
+          ),
           onTap: () {
             _showSubjectDetails(context, subject, professors);
           },

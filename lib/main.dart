@@ -57,17 +57,81 @@ import 'package:pivot/screens/section2/adminstration/feedback_management_screen.
 import 'package:pivot/screens/section2/super_admin_panel/upcoming_notifications_screen.dart';
 import 'package:pivot/providers/team_provider.dart';
 import 'package:pivot/providers/teams_provider.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'web_service_worker.dart';
+import 'firebase_options.dart';
 
 void main() async {
-  debugPrint('--- MAIN START ---');
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // Initialize notification services
+  // Web-specific FCM setup
+  if (kIsWeb) {
+    await _setupFirebaseMessagingWeb();
+  }
+
+  // Essential orientation setup (quick, non-blocking)
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
+
+  // Essential date formatting for Arabic
+  await initializeDateFormatting('ar');
+
+  // Initialize cache
+  await CacheService.instance.init();
+
+  // Prepare user profile provider (data load deferred)
+  final userProfileProvider = UserProfileProvider();
+
+  // Run the app ASAP
+  runApp(PivotWithNotifications(userProfileProvider: userProfileProvider));
+
+  // Now initialize heavy/background services
+  _initializeAppBackgroundServices(userProfileProvider);
+}
+
+Future<void> _setupFirebaseMessagingWeb() async {
+  final messaging = FirebaseMessaging.instance;
+  await messaging.requestPermission();
+  await registerServiceWorkerWeb();
+
+  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+    // Handle foreground message if needed
+  });
+}
+
+void _initializeAppBackgroundServices(UserProfileProvider userProfileProvider) {
+  // Don't await these => they run in background without blocking UI
+
+  // Remote Config
+  RemoteConfigService.instance.initialize().catchError((e) {
+    debugPrint('Remote Config init failed: $e');
+  });
+
+  // Notification service
+  NotificationService().initialize().catchError((e) {
+    debugPrint('Notification service init failed: $e');
+  });
+
+  // Load user profile (if logged in)
+  if (FirebaseAuth.instance.currentUser != null) {
+    userProfileProvider
+        .loadLoggedInUserProfile()
+        .timeout(const Duration(seconds: 10))
+        .catchError((e) {
+          debugPrint('User profile load failed: $e');
+        });
+  }
+
+  // Setup periodic jobs
   final notificationTrigger = NotificationTriggerService();
+
+  // Start batch processing
   notificationTrigger.startBatchProcessing();
 
-  // Start periodic notification checks
+  // Periodic notifications check (every 15 mins)
   Timer.periodic(const Duration(minutes: 15), (_) {
     notificationTrigger.checkAndSendPeriodicNotifications();
   });
@@ -77,89 +141,12 @@ void main() async {
     notificationTrigger.cleanupOldNotifications();
   });
 
-  // Essential initializations only - these are required for app to function
-  try {
-    await SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-    ]);
-
-    // Initialize Arabic date formatting (essential for UI)
-    await initializeDateFormatting('ar');
-
-    // Initialize cache service BEFORE runApp
-    await CacheService.instance.init();
-    debugPrint('--- CacheService initialized, about to runApp ---');
-
-    // Create the provider (don't load data yet)
-    final userProfileProvider = UserProfileProvider();
-    runApp(PivotWithNotifications(userProfileProvider: userProfileProvider));
-
-    // Run non-critical initializations in background
-    _initializeBackgroundServices(userProfileProvider);
-  } catch (e) {
-    debugPrint('Critical error during app initialization: $e');
-    // Run app with minimal configuration
-    final userProfileProvider = UserProfileProvider();
-    runApp(PivotWithNotifications(userProfileProvider: userProfileProvider));
-  }
-}
-
-// Background initialization function
-void _initializeBackgroundServices(
-  UserProfileProvider userProfileProvider,
-) async {
-  try {
-    // Initialize Remote Config
-    await RemoteConfigService.instance.initialize();
-    debugPrint('Remote config initialized successfully');
-  } catch (e) {
-    debugPrint('Remote config initialization failed: $e');
-  }
-
-  try {
-    // Initialize notification service
-    await NotificationService().initialize();
-    debugPrint('Notification service initialized successfully');
-  } catch (e) {
-    debugPrint('Notification service initialization failed: $e');
-  }
-
-  try {
-    // Load user profile if logged in
-    if (FirebaseAuth.instance.currentUser != null) {
-      await userProfileProvider.loadLoggedInUserProfile().timeout(
-        const Duration(seconds: 10),
-        onTimeout: () {
-          debugPrint('User profile loading timed out in background');
-          return false;
-        },
-      );
-      debugPrint('User profile loaded successfully');
-    }
-  } catch (e) {
-    debugPrint('User profile loading failed: $e');
-  }
-
-  // Set Firebase Auth persistence for web (non-blocking)
+  // Set Firebase persistence (web)
   if (kIsWeb) {
-    try {
-      FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
-      debugPrint('Firebase Auth persistence set for web');
-    } catch (e) {
-      debugPrint('Firebase Auth persistence failed: $e');
-    }
+    FirebaseAuth.instance.setPersistence(Persistence.LOCAL).catchError((e) {
+      debugPrint('Set persistence failed: $e');
+    });
   }
-
-  // Run auto notifications after a delay to avoid blocking startup
-  Future.delayed(const Duration(seconds: 5), () {
-    try {
-      // Automatic notifications are now initialized in _startPeriodicNotifications
-      debugPrint('Auto notifications system ready');
-    } catch (e) {
-      debugPrint('Auto notifications failed: $e');
-    }
-  });
 }
 
 class Pivot extends StatelessWidget {
@@ -230,7 +217,6 @@ class Pivot extends StatelessWidget {
         },
         onUnknownRoute: (settings) {
           // Fallback for unknown routes
-          debugPrint('Unknown route: ${settings.name}');
           return MaterialPageRoute(
             builder:
                 (context) => Scaffold(
@@ -362,18 +348,14 @@ class _PivotWithNotificationsState extends State<PivotWithNotifications> {
       try {
         NotificationTriggerService().checkAndSendPeriodicNotifications();
         NotificationTriggerService().processScheduledNotifications();
-      } catch (e) {
-        debugPrint('Error in periodic notifications: $e');
-      }
+      } catch (e) {}
     });
 
     // Clean up old notifications daily
     Timer.periodic(const Duration(days: 1), (timer) {
       try {
         NotificationTriggerService().cleanupOldNotifications();
-      } catch (e) {
-        debugPrint('Error cleaning up old notifications: $e');
-      }
+      } catch (e) {}
     });
 
     // Test function - remove this in production
@@ -384,7 +366,6 @@ class _PivotWithNotificationsState extends State<PivotWithNotifications> {
   void _testAutomaticNotifications() {
     // Run after 10 seconds to allow app to fully initialize
     Timer(const Duration(seconds: 10), () {
-      debugPrint('Testing automatic notification system...');
       NotificationTriggerService().initializeAutomaticNotifications();
     });
   }
@@ -476,7 +457,6 @@ class _ErrorBoundaryState extends State<ErrorBoundary> {
     super.initState();
     // Set up error handling
     FlutterError.onError = (FlutterErrorDetails details) {
-      debugPrint('Flutter error caught: ${details.exception}');
       // Schedule the state update for after the current build frame completes
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {

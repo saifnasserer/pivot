@@ -150,6 +150,7 @@ class _TasksControlState extends State<TasksControl> {
       context: context,
       task: task,
       subjectId: subjectId,
+      initialSectionId: sectionId,
       onSave: (savedTask) async {
         try {
           if (isEditing) {

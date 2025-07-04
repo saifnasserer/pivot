@@ -75,10 +75,8 @@ class AuthService {
   // You might also want a method to fetch user profile data
   Future<UserProfile?> getUserProfile(String uid) async {
     try {
-      DocumentSnapshot doc = await _firestore
-          .collection('users')
-          .doc(uid)
-          .get();
+      DocumentSnapshot doc =
+          await _firestore.collection('users').doc(uid).get();
       if (doc.exists) {
         return UserProfile.fromJson(doc.data() as Map<String, dynamic>);
       } else {
@@ -92,15 +90,22 @@ class AuthService {
 
   // Method to get all users
   Future<List<UserProfile>> getAllUsers() async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) return [];
     try {
-      QuerySnapshot snapshot = await _firestore.collection('users').get();
+      // Fetch the current user's role
+      // final userDoc = await _firestore.collection('users').doc(user.uid).get();
+      // final userRole = userDoc.data()?['role']?.toString() ?? '';
+      final snapshot =
+          await _firestore
+              .collection('users')
+              // .where('role', whereIn: ['Professor', 'miniProfessor'])
+              .get();
+
       return snapshot.docs
-          .map(
-            (doc) => UserProfile.fromJson(doc.data() as Map<String, dynamic>),
-          )
+          .map((doc) => UserProfile.fromJson(doc.data()))
           .toList();
     } catch (e) {
-      print(e.toString());
       return [];
     }
   }

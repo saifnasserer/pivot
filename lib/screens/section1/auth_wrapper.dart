@@ -5,6 +5,7 @@ import 'package:pivot/screens/section1/introduction_wrapper.dart';
 import 'package:pivot/screens/section2/landing.dart';
 import 'package:provider/provider.dart';
 import 'package:pivot/responsive.dart';
+import 'package:pivot/services/cache_service.dart';
 
 class AuthWrapper extends StatefulWidget {
   static const String id = 'auth_wrapper';
@@ -17,11 +18,22 @@ class AuthWrapper extends StatefulWidget {
 class _AuthWrapperState extends State<AuthWrapper> {
   late final Stream<User?> _authStateChanges;
   bool _loadingProfile = false;
+  bool _cacheReady = false;
 
   @override
   void initState() {
     super.initState();
     _authStateChanges = FirebaseAuth.instance.authStateChanges();
+    _initCache();
+  }
+
+  Future<void> _initCache() async {
+    await CacheService.instance.init();
+    if (mounted) {
+      setState(() {
+        _cacheReady = true;
+      });
+    }
   }
 
   Future<void> _loadProfileAndNavigate(User user) async {
@@ -46,18 +58,40 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_cacheReady) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(color: Colors.black),
+              SizedBox(height: 24),
+              Text(
+                'لحظة...',
+                style: TextStyle(
+                  fontSize: 18,
+                  color: Colors.black87,
+                  fontFamily: 'NotoSansArabic',
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     return StreamBuilder<User?>(
       stream: _authStateChanges,
       builder: (context, snapshot) {
         final user = snapshot.data;
         final userProfileProvider = Provider.of<UserProfileProvider>(context);
 
-        debugPrint(
-          '[AuthWrapper] Build called - User: ${user?.uid}, Profile: ${userProfileProvider.loggedInUserProfile?.id}, Loading: $_loadingProfile',
-        );
+        //debugprint(
+        //   '[AuthWrapper] Build called - User: ${user?.uid}, Profile: ${userProfileProvider.loggedInUserProfile?.id}, Loading: $_loadingProfile',
+        // );
 
         if (snapshot.connectionState == ConnectionState.waiting) {
-          debugPrint('[AuthWrapper] Waiting for auth state...');
+          //debugprint('[AuthWrapper] Waiting for auth state...');
           return Scaffold(
             backgroundColor: Colors.white,
             body: Center(
@@ -83,17 +117,17 @@ class _AuthWrapperState extends State<AuthWrapper> {
         }
 
         if (user == null) {
-          debugPrint('[AuthWrapper] No user, showing IntroductionWrapper');
+          //debugprint('[AuthWrapper] No user, showing IntroductionWrapper');
           // Not authenticated
           return const IntroductionWrapper();
         } else {
-          debugPrint('[AuthWrapper] User authenticated: ${user.uid}');
+          //debugprint('[AuthWrapper] User authenticated: ${user.uid}');
           // Authenticated, check if profile is loaded
           if (userProfileProvider.loggedInUserProfile == null ||
               userProfileProvider.loggedInUserProfile?.id != user.uid) {
-            debugPrint(
-              '[AuthWrapper] Profile not loaded or mismatch, loading profile...',
-            );
+            //debugprint(
+            //   '[AuthWrapper] Profile not loaded or mismatch, loading profile...',
+            // );
 
             // Only show loading if we're not already loading
             if (!_loadingProfile) {
@@ -132,9 +166,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
             );
           } else {
             // Profile loaded, go to main app immediately
-            debugPrint(
-              '[AuthWrapper] Profile already loaded, navigating to Landing',
-            );
+            //debugprint(
+            //   '[AuthWrapper] Profile already loaded, navigating to Landing',
+            // );
             return const Landing();
           }
         }

@@ -5,7 +5,6 @@ import 'package:pivot/screens/section1/first_landing.dart';
 import 'package:pivot/services/introduction_service.dart';
 import 'package:video_player/video_player.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:flutter/foundation.dart';
 
 class IntroductionScreen extends StatefulWidget {
   const IntroductionScreen({super.key});
@@ -42,18 +41,18 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
       final videoUrl =
           'https://engseif.com/wp-content/uploads/2025/06/Pivot-intro.mp4';
 
-      debugPrint('Initializing video with URL: $videoUrl');
+      //debugprint('Initializing video with URL: $videoUrl');
 
       _videoController = VideoPlayerController.networkUrl(Uri.parse(videoUrl));
 
-      debugPrint('Video controller created, initializing...');
+      //debugprint('Video controller created, initializing...');
       await _videoController.initialize().timeout(
         const Duration(seconds: 30),
         onTimeout: () {
           throw Exception('Video initialization timed out after 30 seconds');
         },
       );
-      debugPrint('Video initialized successfully');
+      //debugprint('Video initialized successfully');
 
       // Add listener for video completion
       _videoController.addListener(() {
@@ -73,11 +72,11 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
         // Only start playing if we're already on the video page
         if (_currentPage == 1) {
           _videoController.play();
-          debugPrint('Video started playing');
+          //debugprint('Video started playing');
         }
       }
     } catch (e) {
-      debugPrint('Error initializing video: $e');
+      //debugprint('Error initializing video: $e');
       if (mounted) {
         setState(() {
           _hasVideoError = true;

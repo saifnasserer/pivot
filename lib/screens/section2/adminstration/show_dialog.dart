@@ -1,7 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:pivot/responsive.dart';
 import 'package:intl/intl.dart';
 import 'dart:io';
@@ -14,7 +13,6 @@ import 'package:pivot/providers/announcement_provider.dart';
 import 'package:pivot/services/permission_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:permission_handler/permission_handler.dart' as ph;
 
 // Enum to map display names to full tag formats
 enum DepartmentTag {

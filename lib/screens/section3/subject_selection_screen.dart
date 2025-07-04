@@ -7,6 +7,7 @@ import 'package:pivot/providers/subject_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SubjectSelectionScreen extends StatefulWidget {
   final List<String> previouslySelectedIds;
@@ -583,7 +584,7 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
         backgroundColor: Colors.white,
         appBar: AppBar(
           title: Text(
-            'اختر كورساتك',
+            'اختار كورساتك',
             style: TextStyle(
               fontSize: Responsive.text(context, size: TextSize.heading),
               fontWeight: FontWeight.bold,

@@ -21,6 +21,7 @@ class CardModel extends StatefulWidget {
   final List<Map<String, String>> links;
   final DateTime? publishAt;
   final DateTime? expireAt;
+  final PageController? pageController;
 
   const CardModel({
     super.key,
@@ -37,6 +38,7 @@ class CardModel extends StatefulWidget {
     this.links = const [],
     this.publishAt,
     this.expireAt,
+    this.pageController,
   });
 
   @override
@@ -45,6 +47,48 @@ class CardModel extends StatefulWidget {
 
 class _CardModelState extends State<CardModel> {
   bool _isTitleExpanded = false;
+  final ScrollController _scrollController = ScrollController();
+  bool _isPageChanging = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(() {
+      debugPrint(
+        '[CardModel] ScrollController position: '
+        'pixels: ${_scrollController.position.pixels}, '
+        'min: ${_scrollController.position.minScrollExtent}, '
+        'max: ${_scrollController.position.maxScrollExtent}',
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _triggerPageChange(bool next) {
+    if (_isPageChanging || widget.pageController == null) return;
+    setState(() {
+      _isPageChanging = true;
+    });
+    if (next) {
+      widget.pageController!.nextPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.ease,
+      );
+    } else {
+      widget.pageController!.previousPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.ease,
+      );
+    }
+    Future.delayed(const Duration(milliseconds: 350), () {
+      if (mounted) setState(() => _isPageChanging = false);
+    });
+  }
 
   // Builds the horizontally scrolling image gallery
   Widget _buildImageGallery(BuildContext context) {
@@ -143,7 +187,7 @@ class _CardModelState extends State<CardModel> {
                       }
                     }
 
-                    debugPrint('Attempting to launch URL: $formattedUrl');
+                    //debugprint('Attempting to launch URL: $formattedUrl');
                     final url = Uri.parse(formattedUrl);
 
                     if (await canLaunchUrl(url)) {
@@ -259,84 +303,51 @@ class _CardModelState extends State<CardModel> {
               ),
             // Scrollable content area
             Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    _isTitleExpanded
-                        ? Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              widget.title,
-                              textAlign: TextAlign.right,
-                              style: TextStyle(
-                                fontSize:
-                                    Responsive.text(
-                                      context,
-                                      size: TextSize.medium,
-                                    ) *
-                                    1.2,
-
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            InkWell(
-                              onTap:
-                                  () =>
-                                      setState(() => _isTitleExpanded = false),
-                              child: Text(
-                                'عرض أقل',
-                                style: TextStyle(
-                                  fontSize: Responsive.text(
-                                    context,
-                                    size: TextSize.small,
-                                  ),
-                                  fontWeight: FontWeight.normal,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                            ),
-                          ],
-                        )
-                        : AutoSizeText(
-                          widget.title,
-                          textAlign: TextAlign.right,
-                          maxLines: 2,
-                          minFontSize: Responsive.text(
-                            context,
-                            size: TextSize.small,
-                          ),
-                          style: TextStyle(
-                            fontSize: Responsive.text(
-                              context,
-                              size: TextSize.heading,
-                            ),
-                            fontWeight: FontWeight.bold,
-                          ),
-                          overflowReplacement: Column(
+              child: NotificationListener<OverscrollNotification>(
+                onNotification: (notification) {
+                  // Let parent PageView handle the gesture at the edge
+                  if ((notification.overscroll < 0 &&
+                          notification.metrics.pixels <=
+                              notification.metrics.minScrollExtent) ||
+                      (notification.overscroll > 0 &&
+                          notification.metrics.pixels >=
+                              notification.metrics.maxScrollExtent)) {
+                    return false; // Let the notification bubble up
+                  }
+                  return true; // Consume other notifications
+                },
+                child: SingleChildScrollView(
+                  controller: _scrollController,
+                  physics: const ClampingScrollPhysics(),
+                  primary: false,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      _isTitleExpanded
+                          ? Column(
                             crossAxisAlignment: CrossAxisAlignment.end,
-                            mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
                                 widget.title,
                                 textAlign: TextAlign.right,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                  fontSize: Responsive.text(
-                                    context,
-                                    size: TextSize.medium,
-                                  ),
+                                  fontSize:
+                                      Responsive.text(
+                                        context,
+                                        size: TextSize.medium,
+                                      ) *
+                                      1.2,
+
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                               InkWell(
                                 onTap:
-                                    () =>
-                                        setState(() => _isTitleExpanded = true),
+                                    () => setState(
+                                      () => _isTitleExpanded = false,
+                                    ),
                                 child: Text(
-                                  '...عرض المزيد',
+                                  'عرض أقل',
                                   style: TextStyle(
                                     fontSize: Responsive.text(
                                       context,
@@ -348,74 +359,132 @@ class _CardModelState extends State<CardModel> {
                                 ),
                               ),
                             ],
-                          ),
-                        ),
-                    SizedBox(
-                      height: Responsive.space(context, size: Space.medium),
-                    ),
-                    Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: Responsive.space(
-                          context,
-                          size: Space.small,
-                        ),
-                        vertical: Responsive.space(context, size: Space.small),
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.7),
-                        borderRadius: BorderRadius.circular(
-                          Responsive.space(context, size: Space.large),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.calendar_today,
-                            size: Responsive.text(
+                          )
+                          : AutoSizeText(
+                            widget.title,
+                            textAlign: TextAlign.right,
+                            maxLines: 2,
+                            minFontSize: Responsive.text(
                               context,
                               size: TextSize.small,
                             ),
-                            color: Colors.white,
-                          ),
-                          SizedBox(
-                            width: Responsive.space(context, size: Space.small),
-                          ),
-                          Text(
-                            widget.date,
                             style: TextStyle(
-                              color: Colors.white,
-                              fontSize:
-                                  Responsive.text(
-                                    context,
-                                    size: TextSize.small,
-                                  ) *
-                                  0.9,
-                              fontWeight: FontWeight.w500,
+                              fontSize: Responsive.text(
+                                context,
+                                size: TextSize.heading,
+                              ),
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflowReplacement: Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  widget.title,
+                                  textAlign: TextAlign.right,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: Responsive.text(
+                                      context,
+                                      size: TextSize.medium,
+                                    ),
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                InkWell(
+                                  onTap:
+                                      () => setState(
+                                        () => _isTitleExpanded = true,
+                                      ),
+                                  child: Text(
+                                    '...عرض المزيد',
+                                    style: TextStyle(
+                                      fontSize: Responsive.text(
+                                        context,
+                                        size: TextSize.small,
+                                      ),
+                                      fontWeight: FontWeight.normal,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ],
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.medium),
                       ),
-                    ),
-                    SizedBox(
-                      height: Responsive.space(context, size: Space.small),
-                    ),
-                    Text(
-                      widget.description,
-                      textAlign: TextAlign.right,
-                      style: TextStyle(
-                        fontSize: Responsive.text(
-                          context,
-                          size: TextSize.medium,
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: Responsive.space(
+                            context,
+                            size: Space.small,
+                          ),
+                          vertical: Responsive.space(
+                            context,
+                            size: Space.small,
+                          ),
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.7),
+                          borderRadius: BorderRadius.circular(
+                            Responsive.space(context, size: Space.large),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.calendar_today,
+                              size: Responsive.text(
+                                context,
+                                size: TextSize.small,
+                              ),
+                              color: Colors.white,
+                            ),
+                            SizedBox(
+                              width: Responsive.space(
+                                context,
+                                size: Space.small,
+                              ),
+                            ),
+                            Text(
+                              widget.date,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize:
+                                    Responsive.text(
+                                      context,
+                                      size: TextSize.small,
+                                    ) *
+                                    0.9,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                    // Image Gallery
-                    if (widget.imageUrls.isNotEmpty)
-                      _buildImageGallery(context),
-                    // Links List
-                    if (widget.links.isNotEmpty) _buildLinksList(context),
-                  ],
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.small),
+                      ),
+                      Text(
+                        widget.description,
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                          fontSize: Responsive.text(
+                            context,
+                            size: TextSize.medium,
+                          ),
+                        ),
+                      ),
+                      // Image Gallery
+                      if (widget.imageUrls.isNotEmpty)
+                        _buildImageGallery(context),
+                      // Links List
+                      if (widget.links.isNotEmpty) _buildLinksList(context),
+                    ],
+                  ),
                 ),
               ),
             ),

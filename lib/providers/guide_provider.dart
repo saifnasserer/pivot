@@ -10,8 +10,6 @@ import 'package:pivot/models/guide_content.dart';
 import 'package:pivot/models/guidebook_model.dart';
 import 'package:pivot/services/storage_optimization_service.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:path/path.dart';
 
 class GuideProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;

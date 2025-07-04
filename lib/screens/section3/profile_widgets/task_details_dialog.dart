@@ -249,7 +249,7 @@ class TaskDetailsDialog extends StatelessWidget {
                               },
                             ),
                           );
-                        }).toList(),
+                        }),
                       ],
                     ],
                   ),

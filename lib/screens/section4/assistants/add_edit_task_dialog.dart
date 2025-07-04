@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' as intl;
-import 'package:pivot/models/section_model.dart';
 import 'package:pivot/providers/section_provider.dart';
 import 'package:pivot/providers/subject_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
@@ -9,8 +8,6 @@ import 'package:pivot/screens/models/custom_text_field.dart';
 import 'package:pivot/screens/models/task.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart' as firebase_storage;
-import 'package:pivot/services/permission_service.dart';
 import 'package:pivot/responsive.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:pivot/services/storage_optimization_service.dart';
@@ -21,6 +18,7 @@ Future<void> showAddTaskDialog({
   required BuildContext context,
   required Function(Task) onSave,
   required String subjectId,
+  String? initialSectionId,
   Task? task,
 }) async {
   return showDialog<void>(
@@ -43,6 +41,7 @@ Future<void> showAddTaskDialog({
           onSave: onSave,
           task: task,
           subjectId: subjectId,
+          initialSectionId: initialSectionId,
         ),
       );
     },
@@ -53,10 +52,12 @@ class _AddEditTaskDialogContent extends StatefulWidget {
   final Function(Task) onSave;
   final Task? task;
   final String subjectId;
+  final String? initialSectionId;
   const _AddEditTaskDialogContent({
     required this.onSave,
     this.task,
     required this.subjectId,
+    this.initialSectionId,
   });
   @override
   State<_AddEditTaskDialogContent> createState() =>
@@ -95,6 +96,8 @@ class _AddEditTaskDialogContentState extends State<_AddEditTaskDialogContent> {
     _selectedSubjectId = widget.subjectId;
     if (_isEditing && widget.task != null) {
       _selectedSectionId = widget.task!.sectionId;
+    } else if (widget.initialSectionId != null) {
+      _selectedSectionId = widget.initialSectionId;
     }
     if (_isEditing && widget.task?.attachments != null) {
       attachments = List<Map<String, String>>.from(widget.task!.attachments!);
@@ -109,7 +112,13 @@ class _AddEditTaskDialogContentState extends State<_AddEditTaskDialogContent> {
     );
     await sectionProvider.fetchSectionsForUserSubjects([_selectedSubjectId!]);
     if (sectionProvider.sections.isNotEmpty) {
-      setState(() => _selectedSectionId = sectionProvider.sections.first.id);
+      // Only set _selectedSectionId if it is not already set or not found in the list
+      final found = sectionProvider.sections.any(
+        (s) => s.id == _selectedSectionId,
+      );
+      if (!found) {
+        setState(() => _selectedSectionId = sectionProvider.sections.first.id);
+      }
     }
     setState(() => _isLoadingSections = false);
   }

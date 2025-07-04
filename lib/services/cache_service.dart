@@ -1,11 +1,9 @@
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/models/section_model.dart';
 import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/screens/models/schedule_item.dart';
 import 'package:pivot/screens/section2/adminstration/models/announcement_data.dart';
-import 'package:flutter/foundation.dart';
 
 class CacheService {
   // Singleton instance
@@ -20,8 +18,7 @@ class CacheService {
   static const String _announcementsBoxName = 'announcementsBox';
 
   Future<void> init() async {
-    final appDocumentDir = await getApplicationDocumentsDirectory();
-    await Hive.initFlutter(appDocumentDir.path);
+    await Hive.initFlutter(); // Works for both web and mobile
 
     // Register adapters
     if (!Hive.isAdapterRegistered(NotificationPreferencesAdapter().typeId)) {
@@ -52,7 +49,7 @@ class CacheService {
     await Hive.openBox<Subject>(_subjectsBoxName);
     await Hive.openBox<ScheduleItem>(_scheduleBoxName);
     await Hive.openBox<AnnouncementData>(_announcementsBoxName);
-    debugPrint('Announcements box opened!');
+    //debugprint('Announcements box opened!');
   }
 
   // User Caching

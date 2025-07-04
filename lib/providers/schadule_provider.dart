@@ -217,7 +217,7 @@ class ScheduleProvider with ChangeNotifier {
         );
       }
     } catch (e) {
-      debugPrint('Error scheduling class notification: $e');
+      //debugprint('Error scheduling class notification: $e');
     }
   }
 
@@ -248,10 +248,10 @@ class ScheduleProvider with ChangeNotifier {
       if (itemToRemove != null) {
         // Remove scheduled notifications for this class
         // This would require additional logic to identify and remove specific notifications
-        debugPrint('Removed notifications for class: ${itemToRemove.title}');
+        //debugprint('Removed notifications for class: ${itemToRemove.title}');
       }
     } catch (e) {
-      debugPrint('Error removing class notifications: $e');
+      //debugprint('Error removing class notifications: $e');
     }
   }
 

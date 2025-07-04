@@ -66,7 +66,7 @@ class _TeamFormationScreenState extends State<TeamFormationScreen> {
         currentUserProfile = _userProfileProvider.userProfile;
       });
     } catch (e) {
-      debugPrint('Error loading user profile: $e');
+      //debugprint('Error loading user profile: $e');
     }
   }
 

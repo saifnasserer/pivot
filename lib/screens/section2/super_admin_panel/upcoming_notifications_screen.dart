@@ -81,8 +81,7 @@ class _UpcomingNotificationsScreenState
             tooltip: 'Test Automatic Notifications',
             onPressed: () async {
               try {
-                await NotificationTriggerService()
-                    .initializeAutomaticNotifications();
+                NotificationTriggerService().initializeAutomaticNotifications();
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(

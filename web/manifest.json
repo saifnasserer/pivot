@@ -1,11 +1,11 @@
 {
-    "name": "pivot",
-    "short_name": "pivot",
+    "name": "Pivot",
+    "short_name": "Pivot",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#FFFFFF",
+    "theme_color": "#FFFFFF",
+    "description": "Pivot is a student-focused app designed to simplify and organize educational content and ads in an engaging way. It offers swipeable cards for easy browsing, personalized notifications, instructor profiles, and categorized news also many other features like login, bookmarks, calendar, search.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

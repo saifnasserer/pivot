@@ -131,7 +131,7 @@ class _FirstLandingScreenState extends State<FirstLandingScreen> {
         Navigator.pushReplacementNamed(context, Login.id);
       }
     } catch (e) {
-      debugPrint('Biometric login error: $e');
+      //debugprint('Biometric login error: $e');
       if (mounted) {
         ScaffoldMessenger.of(
           context,

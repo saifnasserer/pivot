@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pivot/services/permission_service.dart';
 import 'package:pivot/responsive.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 Future<void> profile_options(BuildContext context) async {
   final userProfileProvider = Provider.of<UserProfileProvider>(
@@ -342,7 +343,26 @@ class NotificationSwitch extends StatelessWidget {
 }
 
 Future<void> _showNotificationSettingsDialog(BuildContext context) async {
+  final user = FirebaseAuth.instance.currentUser;
   NotificationPreferencesModel prefs = NotificationPreferencesModel();
+
+  // Load preferences from Firestore if user is logged in
+  if (user != null) {
+    final doc =
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+    final data = doc.data();
+    if (data != null && data['notificationPreferences'] != null) {
+      final np = data['notificationPreferences'];
+      prefs = NotificationPreferencesModel(
+        classNotifications: np['classNotifications'] ?? true,
+        taskNotifications: np['taskNotifications'] ?? true,
+        announcementNotifications: np['announcementNotifications'] ?? true,
+      );
+    }
+  }
 
   return showDialog(
     context: context,
@@ -596,8 +616,8 @@ Future<void> _showNotificationSettingsDialog(BuildContext context) async {
               actionsAlignment: MainAxisAlignment.center,
               actions: [
                 ElevatedButton(
-                  onPressed: () {
-                    _saveNotificationPreferences(
+                  onPressed: () async {
+                    await _saveNotificationPreferences(
                       classNotifications: prefs.classNotifications,
                       taskNotifications: prefs.taskNotifications,
                       announcementNotifications:
@@ -649,11 +669,19 @@ Future<void> _showNotificationSettingsDialog(BuildContext context) async {
   );
 }
 
-void _saveNotificationPreferences({
+Future<void> _saveNotificationPreferences({
   required bool classNotifications,
   required bool taskNotifications,
   required bool announcementNotifications,
-}) {
-  // Save to SharedPreferences or other storage
-  // This is a placeholder - implement actual storage logic
+}) async {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user != null) {
+    await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+      'notificationPreferences': {
+        'classNotifications': classNotifications,
+        'taskNotifications': taskNotifications,
+        'announcementNotifications': announcementNotifications,
+      },
+    });
+  }
 }

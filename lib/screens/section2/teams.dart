@@ -40,7 +40,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
         currentUserProfile = profile;
       });
     } catch (e) {
-      debugPrint('Error loading user profile: $e');
+      //debugprint('Error loading user profile: $e');
     }
   }
 
@@ -61,18 +61,18 @@ class _TeamsScreenState extends State<TeamsScreen> {
 
       final studentYear = userYear;
 
-      debugPrint('User Level: $userYear');
-      debugPrint('Mapped Year: $studentYear');
-      debugPrint(
-        'Available Teams: ${teams.map((t) => "${t.name} - ${t.year}").join(", ")}',
-      );
+      //debugprint('User Level: $userYear');
+      //debugprint('Mapped Year: $studentYear');
+      //debugprint(
+        //   'Available Teams: ${teams.map((t) => "${t.name} - ${t.year}").join(", ")}',
+        // );
 
       final filteredTeams =
           teams.where((team) => team.year == studentYear).toList();
 
-      debugPrint(
-        'Filtered Teams: ${filteredTeams.map((t) => "${t.name} - ${t.year}").join(", ")}',
-      );
+      //debugprint(
+        // 'Filtered Teams: ${filteredTeams.map((t) => "${t.name} - ${t.year}").join(", ")}',
+        // );
 
       return filteredTeams;
     }

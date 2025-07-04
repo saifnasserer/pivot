@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:pivot/screens/section2/adminstration/models/announcement_data.dart';
-import 'package:uuid/uuid.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
-import 'dart:io';
 import 'package:pivot/services/cache_service.dart';
 import 'package:pivot/services/notification_trigger_service.dart';
 import 'package:pivot/services/storage_optimization_service.dart';
@@ -30,10 +27,7 @@ class AnnouncementProvider with ChangeNotifier {
     String? timeFilter,
     bool includeScheduledAndExpired = false,
   }) async {
-    debugPrint('[ANNOUNCEMENT_PROVIDER] fetchAnnouncements called');
-    debugPrint(
-      '[ANNOUNCEMENT_PROVIDER] Parameters - Department: $department, TimeFilter: $timeFilter, IncludeScheduled: $includeScheduledAndExpired',
-    );
+    
 
     _isLoading = true;
     _currentDepartmentFilter = department;
@@ -45,9 +39,9 @@ class AnnouncementProvider with ChangeNotifier {
       final cachedAnnouncements =
           CacheService.instance.getCachedAnnouncements();
       if (cachedAnnouncements.isNotEmpty) {
-        debugPrint(
-          '[ANNOUNCEMENT_PROVIDER] Loaded ${cachedAnnouncements.length} announcements from cache',
-        );
+        //debugprint(
+        //   '[ANNOUNCEMENT_PROVIDER] Loaded ${cachedAnnouncements.length} announcements from cache',
+        // );
         _announcements = cachedAnnouncements;
         notifyListeners();
       }
@@ -58,24 +52,21 @@ class AnnouncementProvider with ChangeNotifier {
           .orderBy('timestamp', descending: true);
 
       final String? departmentToFilter = department;
-      debugPrint(
-        '[ANNOUNCEMENT_PROVIDER] Department to filter: $departmentToFilter',
-      );
-
+      
       if (departmentToFilter != null && departmentToFilter.isNotEmpty) {
         if (departmentToFilter == 'عام') {
           // Filter for general announcements (those with 'عام' tag)
-          debugPrint('[ANNOUNCEMENT_PROVIDER] Filtering for عام announcements');
+          // //debugprint('[ANNOUNCEMENT_PROVIDER] Filtering for عام announcements');
           query = query.where('tags', arrayContains: 'عام');
         } else if (departmentToFilter.startsWith('today_mixed:')) {
           // Special case for today's news: include both user's department and عام announcements
           // Format: 'today_mixed:userDeptTag'
-          final userDeptTag = departmentToFilter.substring(
-            'today_mixed:'.length,
-          );
-          debugPrint(
-            '[ANNOUNCEMENT_PROVIDER] Today mixed filtering - User dept tag: $userDeptTag',
-          );
+          // final userDeptTag = departmentToFilter.substring(
+          //   'today_mixed:'.length,
+          // );
+          //debugprint(
+          //   '[ANNOUNCEMENT_PROVIDER] Today mixed filtering - User dept tag: $userDeptTag',
+          // );
           // We'll handle this with multiple queries and merge results
         } else {
           // Handle both short format (SC) and full format (اخبار قسم SC)
@@ -87,9 +78,9 @@ class AnnouncementProvider with ChangeNotifier {
             // Convert short format to full format
             departmentTag = 'اخبار قسم $departmentToFilter';
           }
-          debugPrint(
-            '[ANNOUNCEMENT_PROVIDER] Department filtering - Department tag: $departmentTag',
-          );
+          //debugprint(
+          //   '[ANNOUNCEMENT_PROVIDER] Department filtering - Department tag: $departmentTag',
+          // );
           query = query.where('tags', arrayContains: departmentTag);
         }
       }
@@ -100,15 +91,15 @@ class AnnouncementProvider with ChangeNotifier {
         if (timeFilter == 'today') {
           // Show announcements from the last 24 hours instead of calendar day
           startDate = now.subtract(const Duration(hours: 24));
-          debugPrint(
-            '[ANNOUNCEMENT_PROVIDER] Time filtering - Last 24 hours from: $startDate',
-          );
+          //debugprint(
+          //   '[ANNOUNCEMENT_PROVIDER] Time filtering - Last 24 hours from: $startDate',
+          // );
         } else if (timeFilter == 'week') {
           final weekAgo = now.subtract(const Duration(days: 7));
           startDate = DateTime(weekAgo.year, weekAgo.month, weekAgo.day);
-          debugPrint(
-            '[ANNOUNCEMENT_PROVIDER] Time filtering - Week from: $startDate',
-          );
+          //debugprint(
+          //   '[ANNOUNCEMENT_PROVIDER] Time filtering - Week from: $startDate',
+          // );
         }
         if (startDate != null) {
           query = query.where(
@@ -124,35 +115,35 @@ class AnnouncementProvider with ChangeNotifier {
       if (departmentToFilter != null &&
           departmentToFilter.startsWith('today_mixed:') &&
           timeFilter == 'today') {
-        debugPrint('[ANNOUNCEMENT_PROVIDER] Executing today mixed filtering');
+        //debugprint('[ANNOUNCEMENT_PROVIDER] Executing today mixed filtering');
 
         // Fetch announcements from today that are either from user's department OR are عام
         final now = DateTime.now();
         // Use last 24 hours instead of calendar day
         final startDate = now.subtract(const Duration(hours: 24));
-        debugPrint(
-          '[ANNOUNCEMENT_PROVIDER] Today mixed - Last 24 hours from: $startDate',
-        );
-        debugPrint('[ANNOUNCEMENT_PROVIDER] Today mixed - Current time: $now');
-        debugPrint(
-          '[ANNOUNCEMENT_PROVIDER] Today mixed - Start date milliseconds: ${startDate.millisecondsSinceEpoch}',
-        );
+        //debugprint(
+        //   '[ANNOUNCEMENT_PROVIDER] Today mixed - Last 24 hours from: $startDate',
+        // );
+        //debugprint('[ANNOUNCEMENT_PROVIDER] Today mixed - Current time: $now');
+        //debugprint(
+        //   '[ANNOUNCEMENT_PROVIDER] Today mixed - Start date milliseconds: ${startDate.millisecondsSinceEpoch}',
+        // );
 
         // Extract user department tag from the format 'today_mixed:userDeptTag'
         final userDeptTag = departmentToFilter.substring('today_mixed:'.length);
-        debugPrint(
-          '[ANNOUNCEMENT_PROVIDER] Today mixed - User dept tag: $userDeptTag',
-        );
+        //debugprint(
+        //   '[ANNOUNCEMENT_PROVIDER] Today mixed - User dept tag: $userDeptTag',
+        // );
 
         // DEBUG: Check what announcements exist in the database
-        debugPrint(
-          '[ANNOUNCEMENT_PROVIDER] DEBUG: Checking all announcements in database...',
-        );
+        //debugprint(
+        //   '[ANNOUNCEMENT_PROVIDER] DEBUG: Checking all announcements in database...',
+        // );
         final allAnnouncementsSnapshot =
             await _firestore.collection(_collectionPath).get();
-        debugPrint(
-          '[ANNOUNCEMENT_PROVIDER] DEBUG: Total announcements in database: ${allAnnouncementsSnapshot.docs.length}',
-        );
+        //debugprint(
+        //   '[ANNOUNCEMENT_PROVIDER] DEBUG: Total announcements in database: ${allAnnouncementsSnapshot.docs.length}',
+        // );
 
         for (final doc in allAnnouncementsSnapshot.docs) {
           final data = doc.data();
@@ -161,58 +152,58 @@ class AnnouncementProvider with ChangeNotifier {
           final title = data['title'] ?? 'No title';
 
           // Convert timestamp to readable date
-          DateTime announcementDate;
-          if (timestamp is int) {
-            announcementDate = DateTime.fromMillisecondsSinceEpoch(timestamp);
-          } else if (timestamp is Timestamp) {
-            announcementDate = timestamp.toDate();
-          } else {
-            announcementDate = DateTime.now();
-          }
+          // DateTime announcementDate;
+          // if (timestamp is int) {
+          //   announcementDate = DateTime.fromMillisecondsSinceEpoch(timestamp);
+          // } else if (timestamp is Timestamp) {
+          //   announcementDate = timestamp.toDate();
+          // } else {
+          //   announcementDate = DateTime.now();
+          // }
 
-          debugPrint(
-            '[ANNOUNCEMENT_PROVIDER] DEBUG: Announcement "$title" - Tags: $tags, Timestamp: $timestamp, Date: $announcementDate',
-          );
+          //debugprint(
+          //   '[ANNOUNCEMENT_PROVIDER] DEBUG: Announcement "$title" - Tags: $tags, Timestamp: $timestamp, Date: $announcementDate',
+          // );
         }
 
         // DEBUG: Check announcements with the specific department tag (any time)
-        debugPrint(
-          '[ANNOUNCEMENT_PROVIDER] DEBUG: Checking announcements with tag: $userDeptTag (any time)',
-        );
+        //debugprint(
+        //   '[ANNOUNCEMENT_PROVIDER] DEBUG: Checking announcements with tag: $userDeptTag (any time)',
+        // );
         final deptAnyTimeQuery = _firestore
             .collection(_collectionPath)
             .where('tags', arrayContains: userDeptTag);
         final deptAnyTimeSnapshot = await deptAnyTimeQuery.get();
-        debugPrint(
-          '[ANNOUNCEMENT_PROVIDER] DEBUG: Announcements with tag $userDeptTag (any time): ${deptAnyTimeSnapshot.docs.length}',
-        );
+        //debugprint(
+        //   '[ANNOUNCEMENT_PROVIDER] DEBUG: Announcements with tag $userDeptTag (any time): ${deptAnyTimeSnapshot.docs.length}',
+        // );
 
         // DEBUG: Check announcements with عام tag (any time)
-        debugPrint(
-          '[ANNOUNCEMENT_PROVIDER] DEBUG: Checking announcements with tag: عام (any time)',
-        );
-        final generalAnyTimeQuery = _firestore
-            .collection(_collectionPath)
-            .where('tags', arrayContains: 'عام');
-        final generalAnyTimeSnapshot = await generalAnyTimeQuery.get();
-        debugPrint(
-          '[ANNOUNCEMENT_PROVIDER] DEBUG: Announcements with tag عام (any time): ${generalAnyTimeSnapshot.docs.length}',
-        );
+        //debugprint(
+        //   '[ANNOUNCEMENT_PROVIDER] DEBUG: Checking announcements with tag: عام (any time)',
+        // );
+        // final generalAnyTimeQuery = _firestore
+        //     .collection(_collectionPath)
+        //     .where('tags', arrayContains: 'عام');
+        // final generalAnyTimeSnapshot = await generalAnyTimeQuery.get();
+        //debugprint(
+        //   '[ANNOUNCEMENT_PROVIDER] DEBUG: Announcements with tag عام (any time): ${generalAnyTimeSnapshot.docs.length}',
+        // );
 
         // DEBUG: Check announcements from today (any tag)
-        debugPrint(
-          '[ANNOUNCEMENT_PROVIDER] DEBUG: Checking announcements from last 24 hours (any tag)',
-        );
-        final todayAnyTagQuery = _firestore
-            .collection(_collectionPath)
-            .where(
-              'timestamp',
-              isGreaterThanOrEqualTo: startDate.millisecondsSinceEpoch,
-            );
-        final todayAnyTagSnapshot = await todayAnyTagQuery.get();
-        debugPrint(
-          '[ANNOUNCEMENT_PROVIDER] DEBUG: Announcements from last 24 hours (any tag): ${todayAnyTagSnapshot.docs.length}',
-        );
+        //debugprint(
+        //   '[ANNOUNCEMENT_PROVIDER] DEBUG: Checking announcements from last 24 hours (any tag)',
+        // );
+        // final todayAnyTagQuery = _firestore
+        //     .collection(_collectionPath)
+        //     .where(
+        //       'timestamp',
+        //       isGreaterThanOrEqualTo: startDate.millisecondsSinceEpoch,
+        //     );
+        // final todayAnyTagSnapshot = await todayAnyTagQuery.get();
+        //debugprint(
+        //   '[ANNOUNCEMENT_PROVIDER] DEBUG: Announcements from last 24 hours (any tag): ${todayAnyTagSnapshot.docs.length}',
+        // );
 
         // Query 1: Today's announcements from user's department
         Query deptQuery = _firestore
@@ -224,13 +215,13 @@ class AnnouncementProvider with ChangeNotifier {
             )
             .orderBy('timestamp', descending: true);
 
-        debugPrint(
-          '[ANNOUNCEMENT_PROVIDER] Today mixed - Executing department query for tag: $userDeptTag (last 24h)',
-        );
+        //debugprint(
+        //   '[ANNOUNCEMENT_PROVIDER] Today mixed - Executing department query for tag: $userDeptTag (last 24h)',
+        // );
         final deptSnapshot = await deptQuery.get();
-        debugPrint(
-          '[ANNOUNCEMENT_PROVIDER] Today mixed - Department query returned ${deptSnapshot.docs.length} documents',
-        );
+        // //debugprint(
+        //   '[ANNOUNCEMENT_PROVIDER] Today mixed - Department query returned ${deptSnapshot.docs.length} documents',
+        // );
 
         // Query 2: Today's عام announcements
         Query generalQuery = _firestore
@@ -242,13 +233,13 @@ class AnnouncementProvider with ChangeNotifier {
             )
             .orderBy('timestamp', descending: true);
 
-        debugPrint(
-          '[ANNOUNCEMENT_PROVIDER] Today mixed - Executing general query for عام (last 24h)',
-        );
+        //debugprint(
+        //   '[ANNOUNCEMENT_PROVIDER] Today mixed - Executing general query for عام (last 24h)',
+        // );
         final generalSnapshot = await generalQuery.get();
-        debugPrint(
-          '[ANNOUNCEMENT_PROVIDER] Today mixed - General query returned ${generalSnapshot.docs.length} documents',
-        );
+        //debugprint(
+          // '[ANNOUNCEMENT_PROVIDER] Today mixed - General query returned ${generalSnapshot.docs.length} documents',
+        // );
 
         // Merge results and deduplicate
         final Map<String, AnnouncementData> mergedResults = {};
@@ -256,31 +247,31 @@ class AnnouncementProvider with ChangeNotifier {
         for (final doc in deptSnapshot.docs) {
           final announcement = AnnouncementData.fromFirestore(doc);
           mergedResults[announcement.id ?? ''] = announcement;
-          debugPrint(
-            '[ANNOUNCEMENT_PROVIDER] Today mixed - Added department announcement: ${announcement.title} (ID: ${announcement.id})',
-          );
+          //debugprint(
+          //   '[ANNOUNCEMENT_PROVIDER] Today mixed - Added department announcement: ${announcement.title} (ID: ${announcement.id})',
+          // );
         }
 
         for (final doc in generalSnapshot.docs) {
           final announcement = AnnouncementData.fromFirestore(doc);
           mergedResults[announcement.id ?? ''] = announcement;
-          debugPrint(
-            '[ANNOUNCEMENT_PROVIDER] Today mixed - Added general announcement: ${announcement.title} (ID: ${announcement.id})',
-          );
+          //debugprint(
+          //   '[ANNOUNCEMENT_PROVIDER] Today mixed - Added general announcement: ${announcement.title} (ID: ${announcement.id})',
+          // );
         }
 
         announcements = mergedResults.values.toList();
-        debugPrint(
-          '[ANNOUNCEMENT_PROVIDER] Today mixed - Final merged count: ${announcements.length}',
-        );
+        //debugprint(
+        //   '[ANNOUNCEMENT_PROVIDER] Today mixed - Final merged count: ${announcements.length}',
+        // );
 
         // TEMPORARY: If no announcements found for today, try last 7 days
         if (announcements.isEmpty) {
-          debugPrint(
-            '[ANNOUNCEMENT_PROVIDER] No announcements found for last 24 hours, trying last 7 days...',
-          );
+          //debugprint(
+          //   '[ANNOUNCEMENT_PROVIDER] No announcements found for last 24 hours, trying last 7 days...',
+          // );
           final weekAgo = now.subtract(const Duration(days: 7));
-          debugPrint('[ANNOUNCEMENT_PROVIDER] Week start date: $weekAgo');
+          //debugprint('[ANNOUNCEMENT_PROVIDER] Week start date: $weekAgo');
 
           // Query 1: Last 7 days announcements from user's department
           Query deptWeekQuery = _firestore
@@ -305,9 +296,9 @@ class AnnouncementProvider with ChangeNotifier {
           final deptWeekSnapshot = await deptWeekQuery.get();
           final generalWeekSnapshot = await generalWeekQuery.get();
 
-          debugPrint(
-            '[ANNOUNCEMENT_PROVIDER] Week query - Department: ${deptWeekSnapshot.docs.length}, General: ${generalWeekSnapshot.docs.length}',
-          );
+          //debugprint(
+          //   '[ANNOUNCEMENT_PROVIDER] Week query - Department: ${deptWeekSnapshot.docs.length}, General: ${generalWeekSnapshot.docs.length}',
+          // );
 
           // Merge results and deduplicate
           final Map<String, AnnouncementData> weekMergedResults = {};
@@ -323,26 +314,26 @@ class AnnouncementProvider with ChangeNotifier {
           }
 
           announcements = weekMergedResults.values.toList();
-          debugPrint(
-            '[ANNOUNCEMENT_PROVIDER] Week fallback - Final count: ${announcements.length}',
-          );
+          //debugprint(
+          //   '[ANNOUNCEMENT_PROVIDER] Week fallback - Final count: ${announcements.length}',
+          // );
         }
       } else {
         // Regular query execution
-        debugPrint('[ANNOUNCEMENT_PROVIDER] Executing regular query');
+        //debugprint('[ANNOUNCEMENT_PROVIDER] Executing regular query');
         final snapshot = await query.get();
-        debugPrint(
-          '[ANNOUNCEMENT_PROVIDER] Regular query returned ${snapshot.docs.length} documents',
-        );
+        //debugprint(
+        //   '[ANNOUNCEMENT_PROVIDER] Regular query returned ${snapshot.docs.length} documents',
+        // );
         announcements =
             snapshot.docs
                 .map((doc) => AnnouncementData.fromFirestore(doc))
                 .toList();
       }
 
-      debugPrint(
-        '[ANNOUNCEMENT_PROVIDER] Before sorting - Count: ${announcements.length}',
-      );
+      //debugprint(
+      //   '[ANNOUNCEMENT_PROVIDER] Before sorting - Count: ${announcements.length}',
+      // );
 
       // Sort announcements: pinned first, then by timestamp
       announcements.sort((a, b) {
@@ -352,12 +343,12 @@ class AnnouncementProvider with ChangeNotifier {
         return b.pinned ? 1 : -1;
       });
 
-      debugPrint(
-        '[ANNOUNCEMENT_PROVIDER] After sorting - Count: ${announcements.length}',
-      );
-      debugPrint(
-        '[ANNOUNCEMENT_PROVIDER] Pinned announcements: ${announcements.where((a) => a.pinned).length}',
-      );
+      //debugprint(
+      //   '[ANNOUNCEMENT_PROVIDER] After sorting - Count: ${announcements.length}',
+      // );
+      //debugprint(
+      //   '[ANNOUNCEMENT_PROVIDER] Pinned announcements: ${announcements.where((a) => a.pinned).length}',
+      // );
 
       // Filter out scheduled (future) and expired announcements unless requested otherwise
       if (!includeScheduledAndExpired) {
@@ -367,16 +358,16 @@ class AnnouncementProvider with ChangeNotifier {
             announcements
                 .where((a) => a.expireAt != null && a.expireAt!.isBefore(now))
                 .toList();
-        debugPrint(
-          '[ANNOUNCEMENT_PROVIDER] Expired announcements found: ${expired.length}',
-        );
+        //debugprint(
+        //   '[ANNOUNCEMENT_PROVIDER] Expired announcements found: ${expired.length}',
+        // );
 
         for (final a in expired) {
           // Delete from Firestore
           await _firestore.collection(_collectionPath).doc(a.id).delete();
         }
 
-        final beforeFilter = announcements.length;
+        // final beforeFilter = announcements.length;
         announcements =
             announcements.where((a) {
               final publishAt = a.publishAt;
@@ -385,19 +376,19 @@ class AnnouncementProvider with ChangeNotifier {
               if (expireAt != null && expireAt.isBefore(now)) return false;
               return true;
             }).toList();
-        debugPrint(
-          '[ANNOUNCEMENT_PROVIDER] After filtering scheduled/expired - Before: $beforeFilter, After: ${announcements.length}',
-        );
+        //debugprint(
+        //   '[ANNOUNCEMENT_PROVIDER] After filtering scheduled/expired - Before: $beforeFilter, After: ${announcements.length}',
+        // );
       }
 
       _announcements = announcements;
-      debugPrint(
-        '[ANNOUNCEMENT_PROVIDER] Final announcements count: ${_announcements.length}',
-      );
+      //debugprint(
+      //   '[ANNOUNCEMENT_PROVIDER] Final announcements count: ${_announcements.length}',
+      // );
 
       await CacheService.instance.cacheAnnouncements(_announcements);
     } catch (e) {
-      debugPrint('[ANNOUNCEMENT_PROVIDER] Error fetching announcements: $e');
+      //debugprint('[ANNOUNCEMENT_PROVIDER] Error fetching announcements: $e');
       _announcements = [];
     }
     _isLoading = false;
@@ -408,9 +399,9 @@ class AnnouncementProvider with ChangeNotifier {
   Future<void> addAnnouncement(AnnouncementData announcement) async {
     try {
       final data = announcement.toJson();
-      debugPrint(
-        'Saving announcement with tags: ${data['tags']}',
-      ); // Diagnostic print
+      //debugprint(
+      //   'Saving announcement with tags: ${data['tags']}',
+      // ); // Diagnostic print
       await _firestore.collection(_collectionPath).add(data);
       await fetchAnnouncements(
         department: _currentDepartmentFilter,
@@ -433,14 +424,14 @@ class AnnouncementProvider with ChangeNotifier {
         }
       }
     } catch (e) {
-      debugPrint('Error adding announcement: $e');
+      //debugprint('Error adding announcement: $e');
     }
   }
 
   // Update an announcement and refresh the list with the current filters
   Future<void> updateAnnouncement(AnnouncementData announcement) async {
     if (announcement.id == null) {
-      debugPrint('Error: Announcement ID is null, cannot update.');
+      //debugprint('Error: Announcement ID is null, cannot update.');
       return;
     }
     try {
@@ -453,7 +444,7 @@ class AnnouncementProvider with ChangeNotifier {
         timeFilter: _currentTimeFilter,
       );
     } catch (e) {
-      debugPrint('Error updating announcement: $e');
+      //debugprint('Error updating announcement: $e');
     }
   }
 
@@ -470,12 +461,12 @@ class AnnouncementProvider with ChangeNotifier {
       );
 
       if (downloadUrl != null) {
-        debugPrint('Image uploaded successfully: $downloadUrl');
+        //debugprint('Image uploaded successfully: $downloadUrl');
       }
 
       return downloadUrl;
     } catch (e) {
-      debugPrint('Error in uploadImage function: $e');
+      //debugprint('Error in uploadImage function: $e');
       return null;
     }
   }
@@ -495,7 +486,7 @@ class AnnouncementProvider with ChangeNotifier {
         timeFilter: _currentTimeFilter,
       );
     } catch (e) {
-      debugPrint('Error deleting announcement: $e');
+      //debugprint('Error deleting announcement: $e');
     }
   }
 
@@ -511,7 +502,7 @@ class AnnouncementProvider with ChangeNotifier {
         timeFilter: _currentTimeFilter,
       );
     } catch (e) {
-      debugPrint('Error pinning announcement: $e');
+      //debugprint('Error pinning announcement: $e');
     }
   }
 
@@ -526,13 +517,13 @@ class AnnouncementProvider with ChangeNotifier {
         timeFilter: _currentTimeFilter,
       );
     } catch (e) {
-      debugPrint('Error unpinning announcement: $e');
+      //debugprint('Error unpinning announcement: $e');
     }
   }
 
   // Announcement Caching
   Future<void> cacheAnnouncements(List<AnnouncementData> announcements) async {
-    debugPrint('[AnnouncementProvider] cacheAnnouncements called');
+    //debugprint('[AnnouncementProvider] cacheAnnouncements called');
     if (!Hive.isBoxOpen(_announcementsBoxName)) {
       throw Exception(
         'Announcement box is not open! Make sure CacheService.init() is called before any provider access.',
@@ -546,7 +537,7 @@ class AnnouncementProvider with ChangeNotifier {
   }
 
   Future<List<AnnouncementData>> getCachedAnnouncements() async {
-    debugPrint('[AnnouncementProvider] getCachedAnnouncements called');
+    //debugprint('[AnnouncementProvider] getCachedAnnouncements called');
     if (!Hive.isBoxOpen(_announcementsBoxName)) {
       throw Exception(
         'Announcement box is not open! Make sure CacheService.init() is called before any provider access.',

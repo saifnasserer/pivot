@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/services/auth_service.dart';
 import 'package:pivot/responsive.dart';
+import 'package:provider/provider.dart';
+import 'package:pivot/providers/user_profile_provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class UserManagementPage extends StatefulWidget {
   static const String id = 'user_management_page';
@@ -38,7 +41,32 @@ class _UserManagementPageState extends State<UserManagementPage> {
   Future<void> _fetchUsers() async {
     setState(() => _isLoading = true);
     try {
-      final users = await _authService.getAllUsers();
+      final userProfileProvider = Provider.of<UserProfileProvider>(
+        context,
+        listen: false,
+      );
+      final currentUser = userProfileProvider.loggedInUserProfile;
+      List<UserProfile> users = [];
+      if (currentUser != null &&
+          (currentUser.role == 'Super Admin' || currentUser.role == 'Admin')) {
+        // Admin: fetch all users
+        final snapshot =
+            await FirebaseFirestore.instance.collection('users').get();
+        users =
+            snapshot.docs
+                .map((doc) => UserProfile.fromJson(doc.data()))
+                .toList();
+      } else if (currentUser != null) {
+        // Regular user: fetch only their own document
+        final doc =
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(currentUser.id)
+                .get();
+        if (doc.exists) {
+          users = [UserProfile.fromJson(doc.data()!)];
+        }
+      }
       setState(() {
         _allUsers = users;
         _filteredUsers = users;

@@ -47,6 +47,13 @@ class SubjectProvider with ChangeNotifier {
             )
             .toList();
 
+    print('Instructors found:');
+    for (final instructor in instructors) {
+      print(
+        '${instructor.name} (${instructor.role}) teaches: ${instructor.teachingSubjects}',
+      );
+    }
+
     for (final instructor in instructors) {
       for (final subjectId in instructor.teachingSubjects) {
         if (_instructorsBySubject.containsKey(subjectId)) {
@@ -60,6 +67,10 @@ class SubjectProvider with ChangeNotifier {
         }
       }
     }
+    print('instructorsBySubject map:');
+    _instructorsBySubject.forEach((subjectId, instructors) {
+      print('Subject $subjectId: ${instructors.map((i) => i.name).toList()}');
+    });
     if (!_disposed) {
       notifyListeners();
     }

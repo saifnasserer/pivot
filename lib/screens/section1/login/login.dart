@@ -120,16 +120,16 @@ class _LoginState extends State<Login> {
         _password,
       );
       if (mounted && userProfile != null) {
-        debugPrint('[Login] User profile received: ${userProfile.id}');
+        //debugprint('[Login] User profile received: ${userProfile.id}');
         final provider = Provider.of<UserProfileProvider>(
           context,
           listen: false,
         );
-        debugPrint('[Login] Setting logged in user profile...');
+        //debugprint('[Login] Setting logged in user profile...');
         provider.setLoggedInUserProfile(userProfile);
-        debugPrint('[Login] Setting user profile...');
+        //debugprint('[Login] Setting user profile...');
         provider.setUserProfile(userProfile);
-        debugPrint('[Login] Profile set successfully');
+        //debugprint('[Login] Profile set successfully');
 
         // Request notification permission after successful login
         await _requestNotificationPermission();
@@ -141,22 +141,22 @@ class _LoginState extends State<Login> {
         );
 
         // Add a small delay to ensure AuthWrapper can detect the profile
-        debugPrint('[Login] Waiting for AuthWrapper to detect profile...');
+        //debugprint('[Login] Waiting for AuthWrapper to detect profile...');
         await Future.delayed(const Duration(milliseconds: 100));
-        debugPrint(
-          '[Login] Login process completed, waiting for navigation...',
-        );
+        //debugprint(
+        // '[Login] Login process completed, waiting for navigation...',
+        // );
 
         // Force AuthWrapper to check current user state
         final authService = AuthService();
         final currentUser = authService.getCurrentUser();
         if (currentUser != null) {
-          debugPrint('[Login] Current user confirmed: ${currentUser.uid}');
+          //debugprint('[Login] Current user confirmed: ${currentUser.uid}');
 
           // Add a short delay then navigate directly
           Future.delayed(const Duration(milliseconds: 500), () {
             if (mounted) {
-              debugPrint('[Login] Navigating to Landing screen');
+              //debugprint('[Login] Navigating to Landing screen');
               Navigator.pushReplacementNamed(context, Landing.id);
             }
           });
@@ -222,7 +222,7 @@ class _LoginState extends State<Login> {
         await _storage.write(key: 'biometric_password', value: password);
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool('isBiometricEnabled', true);
-        debugPrint('Biometrics enabled automatically.');
+        //debugprint('Biometrics enabled automatically.');
         if (mounted) {
           setState(() {
             _isBiometricAvailable = true;
@@ -230,7 +230,7 @@ class _LoginState extends State<Login> {
         }
       }
     } catch (e) {
-      debugPrint('Could not enable biometrics automatically: $e');
+      //debugprint('Could not enable biometrics automatically: $e');
       // Fail silently, as this is a convenience feature
     }
   }
@@ -248,7 +248,7 @@ class _LoginState extends State<Login> {
         await PermissionService.requestStoragePermissionWithRationale(context);
       }
     } catch (e) {
-      debugPrint('Error requesting notification permission: $e');
+      //debugprint('Error requesting notification permission: $e');
     }
   }
 

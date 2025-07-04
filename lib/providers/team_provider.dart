@@ -36,7 +36,7 @@ class TeamProvider with ChangeNotifier {
           snapshot.docs.map((doc) => TeamMember.fromFirestore(doc)).toList();
     } catch (e) {
       _error = 'Failed to fetch team members: $e';
-      debugPrint(_error);
+      //debugprint(_error);
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -53,7 +53,7 @@ class TeamProvider with ChangeNotifier {
       await fetchTeamMembers(); // Refresh the list
     } catch (e) {
       _error = 'Failed to add team member: $e';
-      debugPrint(_error);
+      //debugprint(_error);
       throw Exception(_error);
     }
   }
@@ -65,7 +65,7 @@ class TeamProvider with ChangeNotifier {
       await fetchTeamMembers(); // Refresh the list
     } catch (e) {
       _error = 'Failed to update team member: $e';
-      debugPrint(_error);
+      //debugprint(_error);
       throw Exception(_error);
     }
   }
@@ -77,7 +77,7 @@ class TeamProvider with ChangeNotifier {
       await fetchTeamMembers(); // Refresh the list
     } catch (e) {
       _error = 'Failed to delete team member: $e';
-      debugPrint(_error);
+      //debugprint(_error);
       throw Exception(_error);
     }
   }

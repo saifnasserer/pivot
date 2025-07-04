@@ -6,6 +6,7 @@ import 'package:pivot/screens/section4/doctor/doctor_profile.dart';
 import 'package:pivot/screens/section4/assistants/assistant_profile.dart';
 import 'package:pivot/services/cache_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class UserSearchCard extends StatelessWidget {
   final UserProfile user;
@@ -176,6 +177,14 @@ class _UserSearchModalContentState extends State<_UserSearchModalContent> {
       _error = '';
     });
 
+    // Debugging: print current user and token
+    final user = FirebaseAuth.instance.currentUser;
+    print('Current user: ' + (user?.uid ?? 'null'));
+    if (user != null) {
+      final token = await user.getIdToken();
+      print('User token: $token');
+    }
+
     try {
       // Direct server fetch first (bypass cache for testing)
       final serverUsers = await AuthService().getAllUsers();
@@ -209,11 +218,9 @@ class _UserSearchModalContentState extends State<_UserSearchModalContent> {
             cachedUsers
                 .where(
                   (u) => [
-                    'Professor',
-                    'miniProfessor',
                     'professor',
                     'miniprofessor',
-                  ].contains(u.role),
+                  ].contains(u.role.trim().toLowerCase()),
                 )
                 .toList();
       }

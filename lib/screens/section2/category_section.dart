@@ -31,9 +31,9 @@ class _CategorySectionState extends State<CategorySection> {
 
     // If no user department, return default order
     if (widget.userDepartment == null) {
-      debugPrint(
-        '[CATEGORY_SECTION] No user department, using default order: $baseCategories',
-      );
+      //debugprint(
+        // '[CATEGORY_SECTION] No user department, using default order: $baseCategories',
+        // );
       return baseCategories;
     }
 
@@ -58,8 +58,8 @@ class _CategorySectionState extends State<CategorySection> {
       }
     }
 
-    debugPrint('[CATEGORY_SECTION] User department: ${widget.userDepartment}');
-    debugPrint('[CATEGORY_SECTION] Ordered categories: $orderedCategories');
+    //debugprint('[CATEGORY_SECTION] User department: ${widget.userDepartment}');
+    //debugprint('[CATEGORY_SECTION] Ordered categories: $orderedCategories');
 
     return orderedCategories;
   }

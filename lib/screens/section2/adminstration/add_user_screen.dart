@@ -34,7 +34,7 @@ class _AddUserScreenState extends State<AddUserScreen> {
 
   bool _isLoading = false;
   bool _showSubjectSelection = false;
-  Set<String> _selectedSubjectIds = {};
+  final Set<String> _selectedSubjectIds = {};
   String _subjectSearchQuery = '';
 
   List<String> _availableDepartments = [];

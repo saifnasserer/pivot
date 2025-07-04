@@ -85,4 +85,5 @@ class DefaultFirebaseOptions {
     storageBucket: 'pivot-28563.firebasestorage.app',
     measurementId: 'G-1M0EMYV7XC',
   );
+
 }

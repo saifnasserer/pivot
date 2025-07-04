@@ -3,6 +3,7 @@ import 'package:pivot/services/notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pivot/models/scheduled_notification.dart';
 import 'package:pivot/models/user_profile.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class NotificationTriggerService {
   static final NotificationTriggerService _instance =
@@ -642,13 +643,17 @@ class NotificationTriggerService {
   // Schedule automatic class reminder notifications
   Future<void> scheduleClassReminderNotifications() async {
     try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return; // Not logged in
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
 
-      // Get all schedules for today and future dates
+      // Get all schedules for today and future dates for the current user
       final querySnapshot =
           await FirebaseFirestore.instance
-              .collection('schedules')
+              .collection('users')
+              .doc(user.uid)
+              .collection('schedule')
               .where('date', isGreaterThanOrEqualTo: today)
               .get();
 
@@ -756,11 +761,15 @@ class NotificationTriggerService {
   // Schedule task reminder notifications
   Future<void> scheduleTaskReminderNotifications() async {
     try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return; // Not logged in
       final now = DateTime.now();
 
-      // Get all incomplete tasks
+      // Get all incomplete tasks for the current user
       final querySnapshot =
           await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
               .collection('tasks')
               .where('completed', isEqualTo: false)
               .get();
@@ -946,27 +955,22 @@ class NotificationTriggerService {
           .collection('scheduledNotifications')
           .add(scheduledNotification.toJson());
 
-      print('Scheduled welcome notification for $userName');
+      // print('Scheduled welcome notification for $userName');
     } catch (e) {
-      print('Error scheduling welcome notification: $e');
+      // print('Error scheduling welcome notification: $e');
     }
   }
 
   // Initialize all automatic notifications
-  Future<void> initializeAutomaticNotifications() async {
-    try {
-      print('Initializing automatic notifications...');
-
-      // Schedule class reminders
-      await scheduleClassReminderNotifications();
-
-      // Schedule task reminders
-      await scheduleTaskReminderNotifications();
-
-      print('Automatic notifications initialized successfully');
-    } catch (e) {
-      print('Error initializing automatic notifications: $e');
-    }
+  void initializeAutomaticNotifications() {
+    // print('Initializing automatic notifications...');
+    scheduleClassReminderNotifications().catchError((e) {
+      // print('Error scheduling class reminder notifications: $e');
+    });
+    scheduleTaskReminderNotifications().catchError((e) {
+      // print('Error scheduling task reminder notifications: $e');
+    });
+    // print('Automatic notifications initialization started in background');
   }
 
   // Clean up old scheduled notifications
@@ -990,9 +994,9 @@ class NotificationTriggerService {
       }
 
       await batch.commit();
-      print('Cleaned up ${querySnapshot.docs.length} old notifications');
+      // print('Cleaned up ${querySnapshot.docs.length} old notifications');
     } catch (e) {
-      print('Error cleaning up old notifications: $e');
+      // print('Error cleaning up old notifications: $e');
     }
   }
 
@@ -1012,7 +1016,7 @@ class NotificationTriggerService {
         await sendTaskReminders();
       }
     } catch (e) {
-      print('Error in periodic notification check: $e');
+      // print('Error in periodic notification check: $e');
     }
   }
 
@@ -1040,7 +1044,7 @@ class NotificationTriggerService {
         await sendScheduledNotification(notification);
       }
     } catch (e) {
-      print('Error processing scheduled notifications: $e');
+      // print('Error processing scheduled notifications: $e');
     }
   }
 
@@ -1085,7 +1089,7 @@ class NotificationTriggerService {
         }
       }
     } catch (e) {
-      print('Error handling schedule creation: $e');
+      // print('Error handling schedule creation: $e');
     }
   }
 
@@ -1107,7 +1111,7 @@ class NotificationTriggerService {
         );
       }
     } catch (e) {
-      print('Error handling task creation: $e');
+      // print('Error handling task creation: $e');
     }
   }
 
@@ -1116,7 +1120,7 @@ class NotificationTriggerService {
     try {
       await scheduleWelcomeNotification(userId, userName);
     } catch (e) {
-      print('Error handling user registration: $e');
+      // print('Error handling user registration: $e');
     }
   }
 
@@ -1165,7 +1169,7 @@ class NotificationTriggerService {
         await handleTaskCreated(doc.data());
       }
     } catch (e) {
-      print('Error rescheduling user notifications: $e');
+      // print('Error rescheduling user notifications: $e');
     }
   }
 }

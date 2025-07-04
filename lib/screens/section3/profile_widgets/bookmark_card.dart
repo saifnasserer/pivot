@@ -299,7 +299,7 @@ class BookmarkCard extends StatelessWidget {
                       }
                     }
 
-                    debugPrint('Attempting to launch URL: $formattedUrl');
+                    //debugprint('Attempting to launch URL: $formattedUrl');
                     final url = Uri.parse(formattedUrl);
 
                     if (await canLaunchUrl(url)) {

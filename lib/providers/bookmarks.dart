@@ -42,7 +42,7 @@ class Bookmarks extends ChangeNotifier {
       }
       notifyListeners();
     } catch (e) {
-      debugPrint('Error loading bookmarks: $e');
+      //debugprint('Error loading bookmarks: $e');
       _bookmarkIds = []; // Reset on error
       notifyListeners();
     }
@@ -87,7 +87,7 @@ class Bookmarks extends ChangeNotifier {
       }
     } catch (e) {
       // Revert local state if Firestore operation fails
-      debugPrint('Error toggling bookmark: $e');
+      //debugprint('Error toggling bookmark: $e');
       if (isCurrentlyBookmarked) {
         _bookmarkIds.add(announcementId);
       } else {

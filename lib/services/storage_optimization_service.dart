@@ -18,8 +18,8 @@ class StorageOptimizationService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // Storage analytics
-  Map<String, int> _storageUsage = {};
-  Map<String, List<String>> _fileReferences = {};
+  final Map<String, int> _storageUsage = {};
+  final Map<String, List<String>> _fileReferences = {};
 
   /// Enhanced image compression with multiple quality levels based on usage
   Future<XFile?> compressImageOptimized(
@@ -75,12 +75,12 @@ class StorageOptimizationService {
         final size = await file.length();
         _updateStorageUsage('images', size);
 
-        debugPrint('Image compressed: ${size / 1024}KB (${quality}% quality)');
+        //debugprint('Image compressed: ${size / 1024}KB (${quality}% quality)');
       }
 
       return compressedFile;
     } catch (e) {
-      debugPrint('Error compressing image: $e');
+      //debugprint('Error compressing image: $e');
       return null;
     }
   }
@@ -103,7 +103,7 @@ class StorageOptimizationService {
           await _firestore.collection('file_hashes').doc(hash).get();
 
       if (hashDoc.exists) {
-        debugPrint('Duplicate file detected: $filePath');
+        //debugprint('Duplicate file detected: $filePath');
         return true;
       }
 
@@ -116,7 +116,7 @@ class StorageOptimizationService {
 
       return false;
     } catch (e) {
-      debugPrint('Error checking duplicate: $e');
+      //debugprint('Error checking duplicate: $e');
       return false;
     }
   }
@@ -176,10 +176,10 @@ class StorageOptimizationService {
       // Track file reference
       _addFileReference(folder ?? 'general', downloadUrl, storagePath);
 
-      debugPrint('File uploaded successfully: $downloadUrl');
+      //debugprint('File uploaded successfully: $downloadUrl');
       return downloadUrl;
     } catch (e) {
-      debugPrint('Error uploading file: $e');
+      //debugprint('Error uploading file: $e');
       return null;
     }
   }
@@ -187,7 +187,7 @@ class StorageOptimizationService {
   /// Clean up orphaned files (files in storage but not referenced in Firestore)
   Future<void> cleanupOrphanedFiles() async {
     try {
-      debugPrint('Starting orphaned files cleanup...');
+      //debugprint('Starting orphaned files cleanup...');
 
       // Get all file references from Firestore
       final Set<String> referencedFiles = {};
@@ -201,6 +201,7 @@ class StorageOptimizationService {
       }
 
       // Check user profiles
+      // TODO: The following code fetches the entire users collection and should be moved to a backend/admin function for security and privacy reasons.
       final users = await _firestore.collection('users').get();
       for (var doc in users.docs) {
         final data = doc.data();
@@ -224,7 +225,7 @@ class StorageOptimizationService {
       await _cleanupStorageFolder('tasks', referencedFiles);
       await _cleanupStorageFolder('guides', referencedFiles);
     } catch (e) {
-      debugPrint('Error during orphaned files cleanup: $e');
+      //debugprint('Error during orphaned files cleanup: $e');
     }
   }
 
@@ -255,16 +256,16 @@ class StorageOptimizationService {
           try {
             await item.delete();
             deletedCount++;
-            debugPrint('Deleted orphaned file: ${item.fullPath}');
+            //debugprint('Deleted orphaned file: ${item.fullPath}');
           } catch (e) {
-            debugPrint('Error deleting file ${item.fullPath}: $e');
+            //debugprint('Error deleting file ${item.fullPath}: $e');
           }
         }
       }
 
-      debugPrint('Cleaned up $deletedCount orphaned files in $folder');
+      //debugprint('Cleaned up $deletedCount orphaned files in $folder');
     } catch (e) {
-      debugPrint('Error cleaning up folder $folder: $e');
+      //debugprint('Error cleaning up folder $folder: $e');
     }
   }
 
@@ -295,7 +296,7 @@ class StorageOptimizationService {
 
       return stats;
     } catch (e) {
-      debugPrint('Error getting storage stats: $e');
+      //debugprint('Error getting storage stats: $e');
       return {};
     }
   }
@@ -330,10 +331,10 @@ class StorageOptimizationService {
       // Remove from tracking
       _fileReferences[category]?.remove(downloadUrl);
 
-      debugPrint('File deleted successfully: $downloadUrl');
+      //debugprint('File deleted successfully: $downloadUrl');
       return true;
     } catch (e) {
-      debugPrint('Error deleting file: $e');
+      //debugprint('Error deleting file: $e');
       return false;
     }
   }
@@ -341,29 +342,29 @@ class StorageOptimizationService {
   /// Batch cleanup operation
   Future<void> performFullCleanup() async {
     try {
-      debugPrint('Starting full storage cleanup...');
+      //debugprint('Starting full storage cleanup...');
 
       // Clean up orphaned files
       await cleanupOrphanedFiles();
 
       // Get and log storage statistics
       final stats = await getStorageStats();
-      debugPrint('Storage cleanup completed. Current stats: $stats');
+      //debugprint('Storage cleanup completed. Current stats: $stats');
     } catch (e) {
-      debugPrint('Error during full cleanup: $e');
+      //debugprint('Error during full cleanup: $e');
     }
   }
 
   /// Optimize existing files (recompress if needed)
   Future<void> optimizeExistingFiles() async {
     try {
-      debugPrint('Starting file optimization...');
+      //debugprint('Starting file optimization...');
 
       // This would require downloading, recompressing, and re-uploading files
       // Only implement if absolutely necessary due to cost implications
-      debugPrint('File optimization skipped (cost considerations)');
+      //debugprint('File optimization skipped (cost considerations)');
     } catch (e) {
-      debugPrint('Error during file optimization: $e');
+      //debugprint('Error during file optimization: $e');
     }
   }
 }

@@ -50,34 +50,31 @@ class NotificationService {
   Future<void> _getAndSaveFCMToken() async {
     String? token = await _firebaseMessaging.getToken();
     if (token != null) {
-      print('FCM Token: $token');
       await _saveToken(token);
       await saveTokenToFirestore(token);
     }
   }
 
   Future<void> _configureFCMListeners() async {
-    print("NotificationService: Configuring FCM listeners...");
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      print("NotificationService: FOREGROUND message received!");
-      print(
-        "NotificationService: Title: ${message.notification?.title}, Body: ${message.notification?.body}",
-      );
-      _showAwesomeNotification(message);
-      _saveNotificationToHistory(message);
+    // Listen for foreground messages
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
+      await _showAwesomeNotification(message);
+      await _saveNotificationToHistory(message);
     });
 
+    // Listen for when the app is opened from a notification
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) async {
+      await _showAwesomeNotification(message);
+      await _saveNotificationToHistory(message);
+    });
+
+    // Set the background message handler
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-    print("NotificationService: FCM listeners configured.");
   }
 
   Future<void> _showAwesomeNotification(RemoteMessage message) async {
-    print("NotificationService: Attempting to show notification...");
     final notification = message.notification;
     if (notification == null) {
-      print(
-        "NotificationService: Message has no notification payload, aborting.",
-      );
       return;
     }
 
@@ -95,10 +92,7 @@ class NotificationService {
           bigPicture: message.data['image_url'],
         ),
       );
-      print("NotificationService: createNotification call succeeded.");
-    } catch (e) {
-      print("NotificationService: ERROR creating notification: $e");
-    }
+    } catch (e) {}
   }
 
   Future<void> _saveNotificationToHistory(RemoteMessage message) async {
@@ -119,10 +113,7 @@ class NotificationService {
           .doc(user.uid)
           .collection('notifications')
           .add(notification.toJson());
-      print("Notification saved to history for user ${user.uid}");
-    } catch (e) {
-      print("Error saving notification to history: $e");
-    }
+    } catch (e) {}
   }
 
   // Show a local test notification
@@ -164,11 +155,8 @@ class NotificationService {
               'fcmToken': token,
               'lastTokenUpdate': FieldValue.serverTimestamp(),
             });
-        print('FCM token saved to Firestore for user: ${user.uid}');
       }
-    } catch (e) {
-      print('Error saving FCM token to Firestore: $e');
-    }
+    } catch (e) {}
   }
 
   Future<String?> getUserFCMToken(String userId) async {
@@ -183,7 +171,6 @@ class NotificationService {
       }
       return null;
     } catch (e) {
-      print('Error getting FCM token for user $userId: $e');
       return null;
     }
   }
@@ -209,9 +196,7 @@ class NotificationService {
         final token = doc.data()['fcmToken'] as String?;
         if (token != null) tokens.add(token);
       }
-    } catch (e) {
-      print('Error getting all FCM tokens: $e');
-    }
+    } catch (e) {}
     return tokens;
   }
 
@@ -252,17 +237,14 @@ class NotificationService {
         final responseBody = await response.transform(utf8.decoder).join();
 
         if (response.statusCode == 200) {
-          print('Notification sent successfully: $responseBody');
           return true;
         } else {
-          print('Failed to send notification: $responseBody');
           return false;
         }
       } finally {
         client.close();
       }
     } catch (e) {
-      print('Error sending notification: $e');
       return false;
     }
   }
@@ -271,7 +253,6 @@ class NotificationService {
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(); // Required for background isolate
-  print("Handling a background message: ${message.messageId}");
 
   // Show the notification
   await AwesomeNotifications().createNotification(
@@ -303,13 +284,6 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
           .doc(userId)
           .collection('notifications')
           .add(userNotification.toJson());
-      print("Background notification saved to history for user $userId");
-    } catch (e) {
-      print("Error saving background notification to history: $e");
-    }
-  } else {
-    print(
-      "Could not save background notification to history: userId or notification part is null.",
-    );
-  }
+    } catch (e) {}
+  } else {}
 }

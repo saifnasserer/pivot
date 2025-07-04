@@ -47,21 +47,44 @@ class _WeekTasksState extends State<WeekTasks> {
     final sectionProvider = Provider.of<SectionProvider>(context);
     final userProfile = userProfileProvider.userProfile;
     final allTasks = [...taskProvider.tasks, ..._personalTasks];
+    print('[WeekTasks] allTasks count: \\${allTasks.length}');
+    for (final task in allTasks) {
+      print(
+        '[WeekTasks] ALL Task: id=\\${task.id}, title=\\${task.title}, sectionId=\\${task.sectionId}, isPersonal=\\${task.isPersonal}',
+      );
+    }
 
     final userEnrolledSubjectIds = userProfile?.enrolledSubjects ?? [];
+    final userSection = userProfile?.section;
+    print(
+      '[WeekTasks] userProfile: id=\\${userProfile?.id}, section=\\${userProfile?.section}, enrolledSubjects=\\${userProfile?.enrolledSubjects}',
+    );
     final relevantSectionIds =
         sectionProvider.sections
             .where(
-              (section) => userEnrolledSubjectIds.contains(section.subjectId),
+              (section) =>
+                  userEnrolledSubjectIds.contains(section.subjectId) &&
+                  userSection != null &&
+                  section.name.trim().toLowerCase().contains(
+                    userSection.trim().toLowerCase(),
+                  ),
             )
             .map((section) => section.id)
             .toSet();
+    print('[WeekTasks] relevantSectionIds: \\${relevantSectionIds}');
 
     final filteredTasks =
         allTasks.where((task) {
           if (task.isPersonal) return true;
           return relevantSectionIds.contains(task.sectionId);
         }).toList();
+
+    print('[WeekTasks] filteredTasks count: \\${filteredTasks.length}');
+    for (final task in filteredTasks) {
+      print(
+        '[WeekTasks] Task: id=\\${task.id}, title=\\${task.title}, sectionId=\\${task.sectionId}, isPersonal=\\${task.isPersonal}',
+      );
+    }
 
     final userId = userProfile?.id;
     final pendingTasks =

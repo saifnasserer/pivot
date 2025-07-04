@@ -284,7 +284,7 @@ Future<void> cacheWithErrorHandling<T>(
       await box.put(keyExtractor(item), item);
     }
   } catch (e) {
-    debugPrint('Error caching $boxName: $e');
+    //debugprint('Error caching $boxName: $e');
     // Handle error appropriately
   }
 }

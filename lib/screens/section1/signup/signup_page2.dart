@@ -86,7 +86,7 @@ class _Signup_2State extends State<Signup_2> {
         );
       }
     } catch (e) {
-      debugPrint('Error requesting notification permission: $e');
+      //debugprint('Error requesting notification permission: $e');
     }
   }
 
@@ -278,9 +278,9 @@ class _Signup_2State extends State<Signup_2> {
             );
 
         if (mounted && userProfile != null) {
-          debugPrint(
-            '[Signup] User profile created successfully: ${userProfile.name}',
-          );
+          //debugprint(
+            // '[Signup] User profile created successfully: ${userProfile.name}',
+          // );
 
           // Set the user profile in the provider
           final provider = Provider.of<UserProfileProvider>(
@@ -289,9 +289,9 @@ class _Signup_2State extends State<Signup_2> {
           );
           provider.setLoggedInUserProfile(userProfile);
 
-          debugPrint(
-            '[Signup] Profile set in provider, waiting for AuthWrapper to detect...',
-          );
+          //debugprint(
+            // '[Signup] Profile set in provider, waiting for AuthWrapper to detect...',
+          // );
 
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -300,15 +300,15 @@ class _Signup_2State extends State<Signup_2> {
                 backgroundColor: Colors.green,
               ),
             );
-            debugPrint(
-              '[Signup] Success message shown, AuthWrapper should navigate to Landing',
-            );
+            //debugprint(
+            //   '[Signup] Success message shown, AuthWrapper should navigate to Landing',
+            // );
 
             // Force navigation to Landing if AuthWrapper doesn't detect it
             // Use a shorter delay to reduce main thread blocking
             Future.delayed(const Duration(milliseconds: 200), () {
               if (mounted) {
-                debugPrint('[Signup] Forcing navigation to Landing...');
+                //debugprint('[Signup] Forcing navigation to Landing...');
                 Navigator.of(
                   context,
                 ).pushNamedAndRemoveUntil(Landing.id, (route) => false);
@@ -328,7 +328,7 @@ class _Signup_2State extends State<Signup_2> {
                 provider.notifyListeners();
               }
             } catch (e) {
-              debugPrint('[Signup] Background operations failed: $e');
+              //debugprint('[Signup] Background operations failed: $e');
             }
           });
         }

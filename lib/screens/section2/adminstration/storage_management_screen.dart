@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/services/storage_optimization_service.dart';
-import 'package:provider/provider.dart';
 
 class StorageManagementScreen extends StatefulWidget {
   static const String id = 'storage_management';

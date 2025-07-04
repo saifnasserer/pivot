@@ -49,6 +49,7 @@ class _ProfileState extends State<Profile> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    print('[didChangeDependencies] called');
     final userProfile = Provider.of<UserProfileProvider>(context).userProfile;
     if (userProfile != null && userProfile != _previousUserProfile) {
       _previousUserProfile = userProfile;
@@ -57,6 +58,7 @@ class _ProfileState extends State<Profile> {
   }
 
   void _fetchProfileData(UserProfile userProfile) {
+    print('[_fetchProfileData] called');
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final scheduleProvider = Provider.of<ScheduleProvider>(
@@ -79,16 +81,24 @@ class _ProfileState extends State<Profile> {
 
       scheduleProvider.fetchSchedule();
       taskProvider.fetchTasks();
-      userProfileProvider.fetchAllUsers().then((_) {
-        if (!mounted) return;
-        subjectProvider.buildInstructorsMap(userProfileProvider.allUsers);
-        subjectProvider.fetchAndFilterSubjects(userProfile).then((_) {
-          if (!mounted) return;
-          final subjectIds =
-              subjectProvider.filteredSubjects.map((s) => s.id).toList();
-          sectionProvider.fetchSectionsForUserSubjects(subjectIds);
-        });
-      });
+      userProfileProvider
+          .fetchAllUsers(
+            forceAll: true,
+            roleFilter: ['Professor', 'miniProfessor'],
+          )
+          .then((_) {
+            print(
+              '[fetchAllUsers] completed, users: \\${userProfileProvider.allUsers.length}',
+            );
+            if (!mounted) return;
+            subjectProvider.buildInstructorsMap(userProfileProvider.allUsers);
+            subjectProvider.fetchAndFilterSubjects(userProfile).then((_) {
+              if (!mounted) return;
+              final subjectIds =
+                  subjectProvider.filteredSubjects.map((s) => s.id).toList();
+              sectionProvider.fetchSectionsForUserSubjects(subjectIds);
+            });
+          });
     });
   }
 

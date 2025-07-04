@@ -16,7 +16,6 @@ import 'package:pivot/data/form_options.dart';
 import 'package:pivot/screens/models/custom_text_field.dart';
 import 'package:provider/provider.dart';
 import 'package:pivot/services/permission_service.dart';
-import 'package:pivot/services/session_management_service.dart';
 
 class EditProfile extends StatefulWidget {
   static const String id = 'edit_profile';
@@ -136,14 +135,14 @@ class _EditProfileState extends State<EditProfile> {
   }
 
   Future<void> _pickImage() async {
-    debugPrint('[EditProfile] Starting image pick process');
+    //debugprint('[EditProfile] Starting image pick process');
     bool granted = await PermissionService.requestPhotosPermissionWithRationale(
       context,
     );
-    debugPrint('[EditProfile] Permission granted: $granted');
+    //debugprint('[EditProfile] Permission granted: $granted');
     if (!granted) return;
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-    debugPrint('[EditProfile] Picked file: \\${pickedFile?.path}');
+    //debugprint('[EditProfile] Picked file: \\${pickedFile?.path}');
     if (pickedFile == null) return;
 
     setState(() {
@@ -157,10 +156,10 @@ class _EditProfileState extends State<EditProfile> {
         setState(() {
           _imageFile = File(compressedFile.path);
         });
-        debugPrint('[EditProfile] Image compressed and set in state');
+        //debugprint('[EditProfile] Image compressed and set in state');
       }
     } catch (e) {
-      debugPrint('[EditProfile] Exception during compression: $e');
+      //debugprint('[EditProfile] Exception during compression: $e');
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -175,7 +174,7 @@ class _EditProfileState extends State<EditProfile> {
       final tempDir = await getTemporaryDirectory();
       final targetPath =
           '${tempDir.path}/${DateTime.now().millisecondsSinceEpoch}.jpg';
-      debugPrint('[EditProfile] Compressing image to: $targetPath');
+      //debugprint('[EditProfile] Compressing image to: $targetPath');
 
       final compressedFile = await FlutterImageCompress.compressAndGetFile(
         imagePath,
@@ -185,10 +184,10 @@ class _EditProfileState extends State<EditProfile> {
         minHeight: 600,
         format: CompressFormat.jpeg,
       );
-      debugPrint('[EditProfile] Compressed file: \\${compressedFile?.path}');
+      //debugprint('[EditProfile] Compressed file: \\${compressedFile?.path}');
       return compressedFile;
     } catch (e) {
-      debugPrint('[EditProfile] Compression error: $e');
+      //debugprint('[EditProfile] Compression error: $e');
       return null;
     }
   }

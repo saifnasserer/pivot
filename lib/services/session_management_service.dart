@@ -49,7 +49,7 @@ class SessionManagementService {
       await user.reauthenticateWithCredential(credential);
       return true;
     } catch (e) {
-      debugPrint('Re-authentication failed: $e');
+      //debugprint('Re-authentication failed: $e');
       return false;
     }
   }
@@ -145,7 +145,7 @@ class SessionManagementService {
         );
       }
     } catch (e) {
-      debugPrint('Error navigating to login: $e');
+      //debugprint('Error navigating to login: $e');
     }
   }
 
@@ -194,7 +194,7 @@ class SessionManagementService {
   Future<void> simulateSessionExpiration() async {
     // This method is for testing purposes only
     // In a real scenario, you would wait for the actual session to expire
-    debugPrint('Session expiration simulation requested');
+    //debugprint('Session expiration simulation requested');
   }
 
   /// Get detailed session information for debugging

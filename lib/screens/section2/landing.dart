@@ -99,9 +99,9 @@ class LandingState extends State<Landing> {
                       child: CategorySection(
                         userDepartment: normalizedDepartment,
                         onCategoryChanged: (category) {
-                          debugPrint(
-                            '[LANDING] Category changed to: $category',
-                          );
+                          //debugprint(
+                          // '[LANDING] Category changed to: $category',
+                          // );
 
                           final announcementProvider =
                               Provider.of<AnnouncementProvider>(
@@ -119,9 +119,9 @@ class LandingState extends State<Landing> {
                               category == 'General') {
                             // Convert short format to full format for filtering
                             departmentCode = 'اخبار قسم $category';
-                            debugPrint(
-                              '[LANDING] Department category - Department code: $departmentCode',
-                            );
+                            //debugprint(
+                            // '[LANDING] Department category - Department code: $departmentCode',
+                            // );
                           } else if (category == 'اخبار النهاردة') {
                             timeFilter = 'today';
                             // For today's news, we want to show announcements from user's department AND عام announcements
@@ -135,38 +135,38 @@ class LandingState extends State<Landing> {
                                 userDeptTag = 'اخبار قسم $_userDepartment';
                               }
                               departmentCode = 'today_mixed:$userDeptTag';
-                              debugPrint(
-                                '[LANDING] Today\'s news - User dept tag: $userDeptTag',
-                              );
-                              debugPrint(
-                                '[LANDING] Today\'s news - Department code: $departmentCode',
-                              );
+                              //debugprint(
+                              // '[LANDING] Today\'s news - User dept tag: $userDeptTag',
+                              // );
+                              //debugprint(
+                              // '[LANDING] Today\'s news - Department code: $departmentCode',
+                              // );
                             } else {
                               // Fallback to just عام announcements if no user department
                               departmentCode = 'عام';
-                              debugPrint(
-                                '[LANDING] Today\'s news - No user department, using عام',
-                              );
+                              //debugprint(
+                              // '[LANDING] Today\'s news - No user department, using عام',
+                              // );
                             }
                           } else if (category == 'عام') {
                             // General news - filter for announcements with 'عام' tag
                             departmentCode = 'عام';
                             timeFilter = null;
-                            debugPrint(
-                              '[LANDING] General category - Department code: $departmentCode',
-                            );
+                            //debugprint(
+                            // '[LANDING] General category - Department code: $departmentCode',
+                            // );
                           } else {
                             // Default case - show all announcements
                             departmentCode = null;
                             timeFilter = null;
-                            debugPrint(
-                              '[LANDING] Default category - No filters',
-                            );
+                            //debugprint(
+                            // '[LANDING] Default category - No filters',
+                            // );
                           }
 
-                          debugPrint(
-                            '[LANDING] Final parameters - Department: $departmentCode, TimeFilter: $timeFilter',
-                          );
+                          //debugprint(
+                          // '[LANDING] Final parameters - Department: $departmentCode, TimeFilter: $timeFilter',
+                          // );
 
                           announcementProvider.fetchAnnouncements(
                             department: departmentCode,
@@ -263,6 +263,7 @@ class LandingState extends State<Landing> {
                       return PageView.builder(
                         itemCount: sortedAnnouncements.length,
                         scrollDirection: Axis.vertical,
+                        physics: const ClampingScrollPhysics(),
                         itemBuilder: (context, index) {
                           final announcement = sortedAnnouncements[index];
                           return Padding(

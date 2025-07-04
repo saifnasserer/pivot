@@ -48,7 +48,7 @@ class ScheduledNotificationProvider with ChangeNotifier {
       _error = null;
     } catch (e) {
       _error = 'فشل في تحميل الإشعارات المجدولة: $e';
-      debugPrint('Error fetching scheduled notifications: $e');
+      //debugprint('Error fetching scheduled notifications: $e');
     } finally {
       _setLoading(false);
     }
@@ -73,7 +73,7 @@ class ScheduledNotificationProvider with ChangeNotifier {
       return true;
     } catch (e) {
       _error = 'فشل في إنشاء الإشعار المجدول: $e';
-      debugPrint('Error creating scheduled notification: $e');
+      //debugprint('Error creating scheduled notification: $e');
       notifyListeners();
       return false;
     }
@@ -104,7 +104,7 @@ class ScheduledNotificationProvider with ChangeNotifier {
       return true;
     } catch (e) {
       _error = 'فشل في تحديث الإشعار المجدول: $e';
-      debugPrint('Error updating scheduled notification: $e');
+      //debugprint('Error updating scheduled notification: $e');
       notifyListeners();
       return false;
     }
@@ -132,7 +132,7 @@ class ScheduledNotificationProvider with ChangeNotifier {
       return true;
     } catch (e) {
       _error = 'فشل في إلغاء الإشعار المجدول: $e';
-      debugPrint('Error cancelling scheduled notification: $e');
+      //debugprint('Error cancelling scheduled notification: $e');
       notifyListeners();
       return false;
     }
@@ -151,7 +151,7 @@ class ScheduledNotificationProvider with ChangeNotifier {
       return true;
     } catch (e) {
       _error = 'فشل في حذف الإشعار المجدول: $e';
-      debugPrint('Error deleting scheduled notification: $e');
+      //debugprint('Error deleting scheduled notification: $e');
       notifyListeners();
       return false;
     }
@@ -252,7 +252,7 @@ class ScheduledNotificationProvider with ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      debugPrint('Error updating notification status: $e');
+      //debugprint('Error updating notification status: $e');
     }
   }
 

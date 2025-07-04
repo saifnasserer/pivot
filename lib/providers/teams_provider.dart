@@ -94,7 +94,7 @@ class TeamsProvider with ChangeNotifier {
               await _teamsCollection
                   .orderBy('createdAt', descending: true)
                   .get();
-          debugPrint('Warning: Using fallback ordering until index is created');
+          //debugprint('Warning: Using fallback ordering until index is created');
         } else {
           rethrow;
         }
@@ -102,7 +102,7 @@ class TeamsProvider with ChangeNotifier {
       _teams = snapshot.docs.map((doc) => Team.fromFirestore(doc)).toList();
     } catch (e) {
       _error = 'Failed to fetch teams: $e';
-      debugPrint(_error);
+      //debugprint(_error);
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -128,7 +128,7 @@ class TeamsProvider with ChangeNotifier {
       await fetchTeams(); // Refresh the list
     } catch (e) {
       _error = 'Failed to add team: $e';
-      debugPrint(_error);
+      //debugprint(_error);
       throw Exception(_error);
     }
   }
@@ -148,7 +148,7 @@ class TeamsProvider with ChangeNotifier {
       await fetchTeams(); // Refresh the list to ensure consistency
     } catch (e) {
       _error = 'Failed to update team pin status: $e';
-      debugPrint(_error);
+      //debugprint(_error);
       throw Exception(_error);
     }
   }
@@ -165,7 +165,7 @@ class TeamsProvider with ChangeNotifier {
       await fetchTeams(); // Refresh the list to ensure consistency
     } catch (e) {
       _error = 'Failed to delete team: $e';
-      debugPrint(_error);
+      //debugprint(_error);
       throw Exception(_error);
     }
   }

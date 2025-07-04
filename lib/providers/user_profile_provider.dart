@@ -1,8 +1,7 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
-import 'dart:io' show File;
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/user_profile.dart';
 import 'package:pivot/services/cache_service.dart';
@@ -52,7 +51,7 @@ class UserProfileProvider with ChangeNotifier {
       _userProfilesCache[userId] = profile;
       return profile;
     } catch (e) {
-      debugPrint('Error fetching user profile: $e');
+      //debugprint('Error fetching user profile: $e');
       return null;
     }
   }
@@ -66,9 +65,9 @@ class UserProfileProvider with ChangeNotifier {
   // Sets the profile for the currently authenticated user
   void setLoggedInUserProfile(UserProfile profile) {
     _loggedInUserProfile = profile;
-    debugPrint(
-      '[UserProfileProvider] Set logged in user profile: ${profile.name} (${profile.id})',
-    );
+    //debugprint(
+    //   '[UserProfileProvider] Set logged in user profile: ${profile.name} (${profile.id})',
+    // );
     notifyListeners();
   }
 
@@ -146,34 +145,35 @@ class UserProfileProvider with ChangeNotifier {
     return null;
   }
 
-  Future<void> fetchAllUsers() async {
-    _isLoading = true;
-    notifyListeners();
+  Future<void> fetchAllUsers({
+    bool forceAll = false,
+    List<String>? roleFilter,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
     try {
-      // Step 1: Load from cache first
-      final cachedUsers = CacheService.instance.getCachedUsers();
-      if (cachedUsers.isNotEmpty) {
-        _allUsers = cachedUsers;
-        _isLoading = false;
-        notifyListeners(); // Notify with cached data
+      if (forceAll) {
+        Query query = _firestore.collection('users');
+        if (roleFilter != null && roleFilter.isNotEmpty) {
+          query = query.where('role', whereIn: roleFilter);
+        }
+        final snapshot = await query.get();
+        _allUsers =
+            snapshot.docs
+                .map(
+                  (doc) =>
+                      UserProfile.fromJson(doc.data() as Map<String, dynamic>),
+                )
+                .toList();
+      } else {
+        final doc = await _firestore.collection('users').doc(user.uid).get();
+        if (doc.exists) {
+          _allUsers = [UserProfile.fromJson(doc.data()!)];
+        }
       }
-
-      // Step 2: Fetch from server in the background
-      final snapshot = await _firestore.collection('users').get();
-      final serverUsers =
-          snapshot.docs.map((doc) => UserProfile.fromJson(doc.data())).toList();
-
-      // Step 3: Update UI and cache if new data is available
-      if (serverUsers.length != cachedUsers.length) {
-        _allUsers = serverUsers;
-        await CacheService.instance.cacheUsers(serverUsers);
-      }
+      notifyListeners();
     } catch (e) {
-      print('Failed to fetch all users: $e');
-      // Optionally handle the error
-    } finally {
-      _isLoading = false;
-      notifyListeners(); // Notify with final data (or if an error occurred)
+      print('Failed to fetch user(s): $e');
     }
   }
 
@@ -363,57 +363,50 @@ class UserProfileProvider with ChangeNotifier {
     }
   }
 
-  Future<bool> loadLoggedInUserProfile() async {
+  Future<bool> loadLoggedInUserProfile({bool notifyImmediately = true}) async {
     _isLoading = true;
-    notifyListeners();
+    if (notifyImmediately) notifyListeners();
+
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        debugPrint('[UserProfileProvider] No current user found');
         clearProfile();
         return false;
       }
 
-      debugPrint('[UserProfileProvider] Loading profile for user: ${user.uid}');
-      final doc = await _firestore.collection('users').doc(user.uid).get();
+      final doc = await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .get()
+          .timeout(
+            const Duration(seconds: 5),
+            onTimeout: () {
+              throw TimeoutException('Fetching user profile timed out');
+            },
+          );
 
       if (doc.exists) {
-        debugPrint(
-          '[UserProfileProvider] Profile document exists, parsing data',
-        );
         _loggedInUserProfile = UserProfile.fromJson(doc.data()!);
-        _userProfile =
-            _loggedInUserProfile; // Also set the default viewed profile
-        debugPrint(
-          '[UserProfileProvider] Profile loaded successfully: ${_loggedInUserProfile?.name}',
-        );
+        _userProfile = _loggedInUserProfile;
 
-        // Move cleanup operations to background to prevent main thread blocking
-        Future.microtask(() async {
-          try {
-            // Clean up invalid profile image URL if it exists
-            await _cleanupInvalidProfileImageUrl(user.uid);
-
-            // Also trigger a one-time cleanup of all invalid URLs (only for admin users or first load)
-            await _triggerOneTimeCleanup();
-          } catch (e) {
-            debugPrint('[UserProfileProvider] Background cleanup failed: $e');
-          }
+        Future(() {
+          _cleanupInvalidProfileImageUrl(user.uid).catchError((e) {});
+          _triggerOneTimeCleanup().catchError((e) {});
         });
 
         return true;
       } else {
-        debugPrint(
-          '[UserProfileProvider] Profile document does not exist for user: ${user.uid}',
-        );
-        // User authenticated but no profile in Firestore
         clearProfile();
         return false;
       }
     } catch (e) {
-      debugPrint(
-        '[UserProfileProvider] Failed to load logged-in user profile: $e',
-      );
+      if (e is TimeoutException) {
+        debugPrint('[UserProfileProvider] Timeout loading profile');
+      } else if (e is FirebaseException && e.code == 'permission-denied') {
+        debugPrint('[UserProfileProvider] Permission denied loading profile');
+      } else {
+        debugPrint('[UserProfileProvider] Error loading profile: $e');
+      }
       clearProfile();
       return false;
     } finally {
@@ -436,7 +429,7 @@ class UserProfileProvider with ChangeNotifier {
       try {
         await cleanupAllInvalidProfileImageUrls();
       } catch (e) {
-        debugPrint('[UserProfileProvider] Background cleanup failed: $e');
+        //debugprint('[UserProfileProvider] Background cleanup failed: $e');
       }
     });
   }
@@ -452,9 +445,9 @@ class UserProfileProvider with ChangeNotifier {
         );
 
         if (!isValid) {
-          debugPrint(
-            '[UserProfileProvider] Invalid profile image URL detected, cleaning up...',
-          );
+          //debugprint(
+          //   '[UserProfileProvider] Invalid profile image URL detected, cleaning up...',
+          // );
 
           // Remove the invalid URL from the database
           await _firestore.collection('users').doc(userId).update({
@@ -468,15 +461,15 @@ class UserProfileProvider with ChangeNotifier {
           _userProfile = _userProfile?.copyWith(profileImageUrl: null);
           notifyListeners();
 
-          debugPrint(
-            '[UserProfileProvider] Invalid profile image URL cleaned up',
-          );
+          //debugprint(
+          //   '[UserProfileProvider] Invalid profile image URL cleaned up',
+          // );
         }
       }
     } catch (e) {
-      debugPrint(
-        '[UserProfileProvider] Error cleaning up invalid profile image URL: $e',
-      );
+      //debugprint(
+      //   '[UserProfileProvider] Error cleaning up invalid profile image URL: $e',
+      // );
     }
   }
 
@@ -491,7 +484,7 @@ class UserProfileProvider with ChangeNotifier {
         // Only consider 404 (Not Found) as invalid
         // Other status codes (200, 403, 500, etc.) or network errors should not cause removal
         if (response.statusCode == 404) {
-          debugPrint('[UserProfileProvider] Image URL returned 404: $url');
+          //debugprint('[UserProfileProvider] Image URL returned 404: $url');
           return false;
         }
 
@@ -503,9 +496,9 @@ class UserProfileProvider with ChangeNotifier {
     } catch (e) {
       // Network errors, timeouts, etc. should not cause URL removal
       // Only log the error but return true to keep the URL
-      debugPrint(
-        '[UserProfileProvider] Network error checking URL (keeping URL): $url - $e',
-      );
+      //debugprint(
+      //   '[UserProfileProvider] Network error checking URL (keeping URL): $url - $e',
+      // );
       return true;
     }
   }
@@ -513,9 +506,9 @@ class UserProfileProvider with ChangeNotifier {
   /// Public method to clean up invalid profile image URLs for all users
   Future<void> cleanupAllInvalidProfileImageUrls() async {
     try {
-      debugPrint(
-        '[UserProfileProvider] Starting cleanup of invalid profile image URLs...',
-      );
+      //debugprint(
+      //   '[UserProfileProvider] Starting cleanup of invalid profile image URLs...',
+      // );
 
       final snapshot = await _firestore.collection('users').get();
       int cleanedCount = 0;
@@ -532,23 +525,23 @@ class UserProfileProvider with ChangeNotifier {
               'profileImageUrl': null,
             });
             cleanedCount++;
-            debugPrint(
-              '[UserProfileProvider] Cleaned invalid URL for user: ${doc.id}',
-            );
+            //debugprint(
+            //   '[UserProfileProvider] Cleaned invalid URL for user: ${doc.id}',
+            // );
           }
         }
       }
 
-      debugPrint(
-        '[UserProfileProvider] Cleanup completed. Removed $cleanedCount invalid URLs.',
-      );
+      //debugprint(
+      //   '[UserProfileProvider] Cleanup completed. Removed $cleanedCount invalid URLs.',
+      // );
 
       // Refresh the current user's profile if they were affected
       if (_loggedInUserProfile != null) {
         await loadLoggedInUserProfile();
       }
     } catch (e) {
-      debugPrint('[UserProfileProvider] Error during bulk cleanup: $e');
+      //debugprint('[UserProfileProvider] Error during bulk cleanup: $e');
     }
   }
 }

@@ -17,8 +17,14 @@ class TaskProvider with ChangeNotifier {
   String? _error;
 
   TaskProvider() {
-    _tasksCollection = _firestore.collection('tasks');
-    fetchTasks();
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      _tasksCollection = FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('tasks');
+      fetchTasks();
+    }
   }
 
   // Getters
@@ -65,7 +71,6 @@ class TaskProvider with ChangeNotifier {
         task.title,
         task.description,
       );
-      await NotificationTriggerService().sendClassReminders();
       await NotificationTriggerService().sendClassReminders();
     } catch (e) {
       // Re-throw the exception to be handled by the UI
