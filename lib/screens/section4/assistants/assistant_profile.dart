@@ -14,7 +14,7 @@ import 'assistant_categories.dart';
 import 'assistant_subjects.dart';
 
 class AssistantProfile extends StatefulWidget {
-  static const String id = 'section';
+  // = 'section';
   final bool isAdmin;
 
   const AssistantProfile({super.key, this.isAdmin = false});

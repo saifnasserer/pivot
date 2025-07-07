@@ -16,6 +16,7 @@ import '../../../services/local_auth_service.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../services/permission_service.dart';
+import '../../../services/notification_service.dart';
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -157,7 +158,7 @@ class _LoginState extends State<Login> {
           Future.delayed(const Duration(milliseconds: 500), () {
             if (mounted) {
               //debugprint('[Login] Navigating to Landing screen');
-              Navigator.pushReplacementNamed(context, Landing.id);
+              Navigator.pushReplacementNamed(context, '/landing');
             }
           });
         }
@@ -240,12 +241,15 @@ class _LoginState extends State<Login> {
     if (kIsWeb) return; // Notifications not supported on web
 
     try {
-      // Use existing static method from PermissionService
-      bool granted = await PermissionService.requestStoragePermission();
+      // Use the new graceful approach from NotificationService
+      final notificationService = NotificationService();
+      final granted = await notificationService.requestPermissionsExplicitly();
 
       if (!granted && mounted) {
         // Show dialog to open settings if permission denied
-        await PermissionService.requestStoragePermissionWithRationale(context);
+        await PermissionService.requestNotificationPermissionWithRationale(
+          context,
+        );
       }
     } catch (e) {
       //debugprint('Error requesting notification permission: $e');
@@ -316,7 +320,7 @@ class _LoginState extends State<Login> {
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () {
-              Navigator.pushReplacementNamed(context, FirstLandingScreen.id);
+              Navigator.pushReplacementNamed(context, '/first-landing');
             },
           ),
         ),

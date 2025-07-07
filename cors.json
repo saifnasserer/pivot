@@ -1,6 +1,6 @@
 [
   {
-    "origin": ["https://pivot.engseif.com"],
+    "origin": ["*"],
     "method": ["GET"],
     "maxAgeSeconds": 3600
   }

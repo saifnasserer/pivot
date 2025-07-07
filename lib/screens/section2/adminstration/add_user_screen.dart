@@ -10,7 +10,7 @@ import 'package:pivot/providers/subject_provider.dart';
 import 'package:provider/provider.dart';
 
 class AddUserScreen extends StatefulWidget {
-  static const String id = 'add_user_screen';
+  // = 'add_user_screen';
   const AddUserScreen({super.key});
 
   @override

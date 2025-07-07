@@ -27,8 +27,6 @@ class AnnouncementProvider with ChangeNotifier {
     String? timeFilter,
     bool includeScheduledAndExpired = false,
   }) async {
-    
-
     _isLoading = true;
     _currentDepartmentFilter = department;
     _currentTimeFilter = timeFilter;
@@ -52,7 +50,7 @@ class AnnouncementProvider with ChangeNotifier {
           .orderBy('timestamp', descending: true);
 
       final String? departmentToFilter = department;
-      
+
       if (departmentToFilter != null && departmentToFilter.isNotEmpty) {
         if (departmentToFilter == 'عام') {
           // Filter for general announcements (those with 'عام' tag)
@@ -238,7 +236,7 @@ class AnnouncementProvider with ChangeNotifier {
         // );
         final generalSnapshot = await generalQuery.get();
         //debugprint(
-          // '[ANNOUNCEMENT_PROVIDER] Today mixed - General query returned ${generalSnapshot.docs.length} documents',
+        // '[ANNOUNCEMENT_PROVIDER] Today mixed - General query returned ${generalSnapshot.docs.length} documents',
         // );
 
         // Merge results and deduplicate
@@ -265,59 +263,8 @@ class AnnouncementProvider with ChangeNotifier {
         //   '[ANNOUNCEMENT_PROVIDER] Today mixed - Final merged count: ${announcements.length}',
         // );
 
-        // TEMPORARY: If no announcements found for today, try last 7 days
-        if (announcements.isEmpty) {
-          //debugprint(
-          //   '[ANNOUNCEMENT_PROVIDER] No announcements found for last 24 hours, trying last 7 days...',
-          // );
-          final weekAgo = now.subtract(const Duration(days: 7));
-          //debugprint('[ANNOUNCEMENT_PROVIDER] Week start date: $weekAgo');
-
-          // Query 1: Last 7 days announcements from user's department
-          Query deptWeekQuery = _firestore
-              .collection(_collectionPath)
-              .where('tags', arrayContains: userDeptTag)
-              .where(
-                'timestamp',
-                isGreaterThanOrEqualTo: weekAgo.millisecondsSinceEpoch,
-              )
-              .orderBy('timestamp', descending: true);
-
-          // Query 2: Last 7 days عام announcements
-          Query generalWeekQuery = _firestore
-              .collection(_collectionPath)
-              .where('tags', arrayContains: 'عام')
-              .where(
-                'timestamp',
-                isGreaterThanOrEqualTo: weekAgo.millisecondsSinceEpoch,
-              )
-              .orderBy('timestamp', descending: true);
-
-          final deptWeekSnapshot = await deptWeekQuery.get();
-          final generalWeekSnapshot = await generalWeekQuery.get();
-
-          //debugprint(
-          //   '[ANNOUNCEMENT_PROVIDER] Week query - Department: ${deptWeekSnapshot.docs.length}, General: ${generalWeekSnapshot.docs.length}',
-          // );
-
-          // Merge results and deduplicate
-          final Map<String, AnnouncementData> weekMergedResults = {};
-
-          for (final doc in deptWeekSnapshot.docs) {
-            final announcement = AnnouncementData.fromFirestore(doc);
-            weekMergedResults[announcement.id ?? ''] = announcement;
-          }
-
-          for (final doc in generalWeekSnapshot.docs) {
-            final announcement = AnnouncementData.fromFirestore(doc);
-            weekMergedResults[announcement.id ?? ''] = announcement;
-          }
-
-          announcements = weekMergedResults.values.toList();
-          //debugprint(
-          //   '[ANNOUNCEMENT_PROVIDER] Week fallback - Final count: ${announcements.length}',
-          // );
-        }
+        // Remove the fallback logic - "اخبار اليوم" should only show last 24 hours
+        // even if there are no announcements in that time period
       } else {
         // Regular query execution
         //debugprint('[ANNOUNCEMENT_PROVIDER] Executing regular query');

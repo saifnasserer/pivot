@@ -139,7 +139,7 @@ class SectionListItem extends StatelessWidget {
                     Navigator.of(context).pop();
                     Navigator.pushNamed(
                       context,
-                      AssistantProfile.id,
+                      '/assistant-profile',
                       arguments: assistant,
                     );
                   },
@@ -275,7 +275,7 @@ class SectionListItem extends StatelessWidget {
                                       Navigator.of(context).pop();
                                       Navigator.pushNamed(
                                         context,
-                                        AssistantProfile.id,
+                                        '/assistant-profile',
                                         arguments: assistant,
                                       );
                                     },

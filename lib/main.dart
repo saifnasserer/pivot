@@ -8,7 +8,8 @@ import 'package:pivot/providers/super_admin_provider.dart';
 import 'package:pivot/providers/guide_provider.dart';
 import 'package:pivot/screens/section2/team_formation_screen.dart';
 import 'package:pivot/screens/section2/teams.dart';
-import 'package:pivot/screens/section3/edit_profile.dart';
+import 'package:pivot/screens/section3/edit_profile.dart'
+    deferred as edit_profile;
 import 'package:pivot/services/remote_config_service.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/models/user_profile.dart';
@@ -20,11 +21,16 @@ import 'package:pivot/screens/section1/introduction_wrapper.dart';
 import 'package:pivot/screens/section1/signup/signup_page1.dart';
 // import 'package:pivot/screens/section1/signup/signup_page2.dart'; // Removed unused import
 import 'package:pivot/screens/section2/admin_control.dart';
-import 'package:pivot/screens/section2/adminstration/user_management_page.dart';
-import 'package:pivot/screens/section2/adminstration/section_management_screen.dart';
-import 'package:pivot/screens/section2/adminstration/global_subject_management_screen.dart';
-import 'package:pivot/screens/section2/adminstration/send_notification_screen.dart';
-import 'package:pivot/screens/section2/super_admin_panel/super_admin_panel_screen.dart';
+import 'package:pivot/screens/section2/adminstration/user_management_page.dart'
+    deferred as user_management_page;
+import 'package:pivot/screens/section2/adminstration/section_management_screen.dart'
+    deferred as section_management_screen;
+import 'package:pivot/screens/section2/adminstration/global_subject_management_screen.dart'
+    deferred as global_subject_management_screen;
+import 'package:pivot/screens/section2/adminstration/send_notification_screen.dart'
+    deferred as send_notification_screen;
+import 'package:pivot/screens/section2/super_admin_panel/super_admin_panel_screen.dart'
+    deferred as super_admin_panel_screen;
 import 'package:pivot/screens/section2/landing.dart';
 import 'package:pivot/screens/section3/profile.dart';
 import 'package:pivot/screens/section4/assistants/all_tasks.dart';
@@ -45,87 +51,152 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:pivot/screens/section2/super_admin_panel/analytics_screen.dart';
+import 'package:pivot/screens/section2/super_admin_panel/analytics_screen.dart'
+    deferred as analytics_screen;
 import 'package:pivot/services/cache_service.dart';
 import 'package:pivot/services/notification_service.dart';
 import 'package:pivot/services/notification_trigger_service.dart';
 import 'dart:async';
-import 'package:pivot/screens/section2/adminstration/add_user_screen.dart';
-import 'package:pivot/screens/section3/feedback_screen.dart';
+import 'package:pivot/screens/section2/adminstration/add_user_screen.dart'
+    deferred as add_user_screen;
+import 'package:pivot/screens/section3/feedback_screen.dart'
+    deferred as feedback_screen;
 import 'package:pivot/screens/models/notification_test_widget.dart';
-import 'package:pivot/screens/section2/adminstration/feedback_management_screen.dart';
-import 'package:pivot/screens/section2/super_admin_panel/upcoming_notifications_screen.dart';
+import 'package:pivot/screens/section2/adminstration/feedback_management_screen.dart'
+    deferred as feedback_management_screen;
+import 'package:pivot/screens/section2/super_admin_panel/upcoming_notifications_screen.dart'
+    deferred as upcoming_notifications_screen;
 import 'package:pivot/providers/team_provider.dart';
 import 'package:pivot/providers/teams_provider.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'web_service_worker.dart';
 import 'firebase_options.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+// Route name constants
+const String routeUserManagement = '/user-management';
+const String routeGlobalSubjectManagement = '/global-subject-management';
+const String routeEditProfile = '/edit-profile';
+const String routeFeedback = '/feedback';
+const String routeAnalytics = '/analytics';
+const String routeSectionManagement = '/section-management';
+const String routeSuperAdminPanel = '/super-admin-panel';
+const String routeFeedbackManagement = '/feedback-management';
+const String routeUpcomingNotifications = '/upcoming-notifications';
+const String routeSendNotifications = '/send-notifications';
+const String routeAddUser = '/add-user';
 
-  // Web-specific FCM setup
+void main() async {
+  debugPrint('🚀 Starting Pivot app...');
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Show a loading indicator for web before runApp
   if (kIsWeb) {
-    await _setupFirebaseMessagingWeb();
+    runApp(
+      const MaterialApp(
+        home: Scaffold(
+          backgroundColor: Colors.white,
+          body: Center(child: CircularProgressIndicator()),
+        ),
+      ),
+    );
   }
 
+  debugPrint('📱 Initializing Firebase...');
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  debugPrint('📐 Setting up orientation...');
   // Essential orientation setup (quick, non-blocking)
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
 
+  debugPrint('🌍 Initializing date formatting...');
   // Essential date formatting for Arabic
   await initializeDateFormatting('ar');
 
+  debugPrint('💾 Initializing cache...');
   // Initialize cache
   await CacheService.instance.init();
 
+  debugPrint('👤 Preparing user profile provider...');
   // Prepare user profile provider (data load deferred)
   final userProfileProvider = UserProfileProvider();
 
+  debugPrint('🎯 Running app...');
   // Run the app ASAP
   runApp(PivotWithNotifications(userProfileProvider: userProfileProvider));
 
-  // Now initialize heavy/background services
-  _initializeAppBackgroundServices(userProfileProvider);
+  // Defer heavy/background services for web until after first frame
+  if (kIsWeb) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      debugPrint('⚙️ Starting background services (web, deferred)...');
+      _initializeAppBackgroundServices(userProfileProvider);
+    });
+  } else {
+    debugPrint('⚙️ Starting background services...');
+    _initializeAppBackgroundServices(userProfileProvider);
+  }
 }
 
 Future<void> _setupFirebaseMessagingWeb() async {
+  debugPrint('🌐 Setting up Firebase Messaging for web...');
   final messaging = FirebaseMessaging.instance;
-  await messaging.requestPermission();
-  await registerServiceWorkerWeb();
 
+  // Don't await permission request - let it run in background
+  debugPrint('🌐 Requesting FCM permissions (non-blocking)...');
+  messaging.requestPermission().catchError((e) {
+    debugPrint('❌ FCM permission request failed: $e');
+  });
+
+  // Don't await service worker registration - let it run in background
+  debugPrint('🌐 Registering service worker (non-blocking)...');
+  registerServiceWorkerWeb().catchError((e) {
+    debugPrint('❌ Service worker registration failed: $e');
+  });
+
+  debugPrint('🌐 Setting up FCM message listeners...');
   FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+    debugPrint(
+      '🌐 Received foreground message: ${message.notification?.title}',
+    );
     // Handle foreground message if needed
   });
+
+  debugPrint('✅ Web FCM setup completed');
 }
 
 void _initializeAppBackgroundServices(UserProfileProvider userProfileProvider) {
+  debugPrint('🔄 Starting background services initialization...');
   // Don't await these => they run in background without blocking UI
 
-  // Remote Config
-  RemoteConfigService.instance.initialize().catchError((e) {
-    debugPrint('Remote Config init failed: $e');
-  });
+  // Web-specific FCM setup (non-blocking)
+  if (kIsWeb) {
+    debugPrint('🌐 Setting up web FCM...');
+    _setupFirebaseMessagingWeb().catchError((e) {
+      debugPrint('❌ Web FCM setup failed: $e');
+    });
+  }
 
-  // Notification service
-  NotificationService().initialize().catchError((e) {
-    debugPrint('Notification service init failed: $e');
+  // Remote Config
+  debugPrint('⚙️ Initializing Remote Config...');
+  RemoteConfigService.instance.initialize().catchError((e) {
+    debugPrint('❌ Remote Config init failed: $e');
   });
 
   // Load user profile (if logged in)
   if (FirebaseAuth.instance.currentUser != null) {
+    debugPrint('👤 Loading user profile...');
     userProfileProvider
         .loadLoggedInUserProfile()
         .timeout(const Duration(seconds: 10))
         .catchError((e) {
-          debugPrint('User profile load failed: $e');
+          debugPrint('❌ User profile load failed: $e');
         });
   }
 
   // Setup periodic jobs
+  debugPrint('⏰ Setting up periodic jobs...');
   final notificationTrigger = NotificationTriggerService();
 
   // Start batch processing
@@ -143,10 +214,13 @@ void _initializeAppBackgroundServices(UserProfileProvider userProfileProvider) {
 
   // Set Firebase persistence (web)
   if (kIsWeb) {
+    debugPrint('💾 Setting Firebase persistence...');
     FirebaseAuth.instance.setPersistence(Persistence.LOCAL).catchError((e) {
-      debugPrint('Set persistence failed: $e');
+      debugPrint('❌ Set persistence failed: $e');
     });
   }
+
+  debugPrint('✅ Background services initialization started');
 }
 
 class Pivot extends StatelessWidget {
@@ -180,39 +254,7 @@ class Pivot extends StatelessWidget {
       ],
       child: MaterialApp(
         onGenerateRoute: (settings) {
-          // Handle the dynamic "tasks" route
-          if (settings.name == EditProfile.id) {
-            if (settings.arguments is UserProfile) {
-              final userProfile = settings.arguments as UserProfile;
-              return MaterialPageRoute(
-                builder: (context) {
-                  return EditProfile(userProfile: userProfile);
-                },
-              );
-            }
-            // Fallback for when arguments are not of the correct type
-            return MaterialPageRoute(
-              builder:
-                  (_) => Scaffold(
-                    appBar: AppBar(title: const Text('Error')),
-                    body: const Center(
-                      child: Text('Error: Invalid profile data.'),
-                    ),
-                  ),
-            );
-          }
-          if (settings.name == TasksControl.id) {
-            // TasksControl screen retrieves the arguments itself using ModalRoute
-            return MaterialPageRoute(
-              builder: (context) {
-                return const TasksControl(); // No need to pass args here
-              },
-              settings:
-                  settings, // Pass settings along so TasksControl can read arguments
-            );
-          }
-          // Let the routes map handle other routes
-          // Or return null to trigger onUnknownRoute if defined
+          // Remove EditProfile and TasksControl special cases; handle via routes map and arguments
           return null;
         },
         onUnknownRoute: (settings) {
@@ -227,38 +269,137 @@ class Pivot extends StatelessWidget {
                 ),
           );
         },
-        initialRoute: AuthWrapper.id, // Set the initial route
+        initialRoute: '/auth-wrapper', // Set the initial route
         routes: {
-          AuthWrapper.id: (context) => const AuthWrapper(),
-          IntroductionWrapper.id: (context) => const IntroductionWrapper(),
-
-          FirstLandingScreen.id: (context) => const FirstLandingScreen(),
-          Signup_1.id: (context) => const Signup_1(),
-          Login.id: (context) => const Login(),
-          Landing.id: (context) => const Landing(),
-          Profile.id: (context) => const Profile(),
-          DoctorProfile.id: (context) => const DoctorProfile(),
-          AdminControl.id: (context) => const AdminControl(),
-          UserManagementPage.id: (context) => const UserManagementPage(),
-          '/section-management': (context) => const SectionManagementScreen(),
-          '/super-admin-panel': (context) => const SuperAdminPanelScreen(),
-          '/send-notifications': (context) => const SendNotificationScreen(),
-          TeamFormationScreen.id: (context) => const TeamFormationScreen(),
-          TeamsScreen.id: (context) => const TeamsScreen(),
-          GlobalSubjectManagementScreen.id:
-              (context) => const GlobalSubjectManagementScreen(),
-          AssistantProfile.id: (context) => const AssistantProfile(),
-          TasksControl.id: (context) => const TasksControl(),
-          AnalyticsScreen.id: (context) => const AnalyticsScreen(),
-          AddUserScreen.id: (context) => const AddUserScreen(),
-          FeedbackScreen.id: (context) => const FeedbackScreen(),
-          FeedbackManagementScreen.id:
-              (context) => const FeedbackManagementScreen(),
-          NotificationTestWidget.id:
-              (context) => const NotificationTestWidget(),
-          UpcomingNotificationsScreen.id:
-              (context) => const UpcomingNotificationsScreen(),
-          // NotificationsScreen.id: (context) => const NotificationsScreen(),
+          '/auth-wrapper': (context) => const AuthWrapper(),
+          '/introduction-wrapper': (context) => const IntroductionWrapper(),
+          '/first-landing': (context) => const FirstLandingScreen(),
+          '/signup-1': (context) => const Signup_1(),
+          '/login': (context) => const Login(),
+          '/landing': (context) => const Landing(),
+          '/profile': (context) => const Profile(),
+          '/doctor-profile': (context) => const DoctorProfile(),
+          '/admin-control': (context) => const AdminControl(),
+          '/assistant-profile': (context) => const AssistantProfile(),
+          '/notification-test': (context) => const NotificationTestWidget(),
+          // Deferred and custom routes
+          routeUserManagement:
+              (context) => FutureBuilder(
+                future: user_management_page.loadLibrary(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.done) {
+                    return user_management_page.UserManagementPage();
+                  }
+                  return const Center(child: CircularProgressIndicator());
+                },
+              ),
+          routeGlobalSubjectManagement:
+              (context) => FutureBuilder(
+                future: global_subject_management_screen.loadLibrary(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.done) {
+                    return global_subject_management_screen.GlobalSubjectManagementScreen();
+                  }
+                  return const Center(child: CircularProgressIndicator());
+                },
+              ),
+          routeEditProfile:
+              (context) => FutureBuilder(
+                future: edit_profile.loadLibrary(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.done) {
+                    final args = ModalRoute.of(context)?.settings.arguments;
+                    if (args is UserProfile) {
+                      return edit_profile.EditProfile(userProfile: args);
+                    }
+                    return const Scaffold(
+                      body: Center(child: Text('Error: Invalid profile data.')),
+                    );
+                  }
+                  return const Center(child: CircularProgressIndicator());
+                },
+              ),
+          routeFeedback:
+              (context) => FutureBuilder(
+                future: feedback_screen.loadLibrary(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.done) {
+                    return feedback_screen.FeedbackScreen();
+                  }
+                  return const Center(child: CircularProgressIndicator());
+                },
+              ),
+          routeAnalytics:
+              (context) => FutureBuilder(
+                future: analytics_screen.loadLibrary(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.done) {
+                    return analytics_screen.AnalyticsScreen();
+                  }
+                  return const Center(child: CircularProgressIndicator());
+                },
+              ),
+          routeSectionManagement:
+              (context) => FutureBuilder(
+                future: section_management_screen.loadLibrary(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.done) {
+                    return section_management_screen.SectionManagementScreen();
+                  }
+                  return const Center(child: CircularProgressIndicator());
+                },
+              ),
+          routeSuperAdminPanel:
+              (context) => FutureBuilder(
+                future: super_admin_panel_screen.loadLibrary(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.done) {
+                    return super_admin_panel_screen.SuperAdminPanelScreen();
+                  }
+                  return const Center(child: CircularProgressIndicator());
+                },
+              ),
+          routeFeedbackManagement:
+              (context) => FutureBuilder(
+                future: feedback_management_screen.loadLibrary(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.done) {
+                    return feedback_management_screen.FeedbackManagementScreen();
+                  }
+                  return const Center(child: CircularProgressIndicator());
+                },
+              ),
+          routeUpcomingNotifications:
+              (context) => FutureBuilder(
+                future: upcoming_notifications_screen.loadLibrary(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.done) {
+                    return upcoming_notifications_screen.UpcomingNotificationsScreen();
+                  }
+                  return const Center(child: CircularProgressIndicator());
+                },
+              ),
+          routeSendNotifications:
+              (context) => FutureBuilder(
+                future: send_notification_screen.loadLibrary(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.done) {
+                    return send_notification_screen.SendNotificationScreen();
+                  }
+                  return const Center(child: CircularProgressIndicator());
+                },
+              ),
+          routeAddUser:
+              (context) => FutureBuilder(
+                future: add_user_screen.loadLibrary(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.done) {
+                    return add_user_screen.AddUserScreen();
+                  }
+                  return const Center(child: CircularProgressIndicator());
+                },
+              ),
+          '/teams': (context) => const TeamsScreen(),
         },
         theme: ThemeData(
           colorScheme: ColorScheme.fromSwatch().copyWith(
@@ -336,6 +477,11 @@ class _PivotWithNotificationsState extends State<PivotWithNotifications> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      NotificationService().initialize(context).catchError((e) {
+        debugPrint('❌ Notification service init failed: $e');
+      });
+    });
     _startPeriodicNotifications();
   }
 

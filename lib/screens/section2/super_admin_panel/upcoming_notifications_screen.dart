@@ -8,7 +8,7 @@ import 'package:pivot/services/notification_trigger_service.dart';
 import 'package:pivot/services/notification_service.dart';
 
 class UpcomingNotificationsScreen extends StatefulWidget {
-  static const String id = 'upcoming_notifications_screen';
+  // = 'upcoming_notifications_screen';
 
   const UpcomingNotificationsScreen({super.key});
 

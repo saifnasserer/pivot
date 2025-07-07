@@ -20,7 +20,7 @@ import 'package:pivot/screens/section4/doctor/doctor_profile.dart';
 import 'package:provider/provider.dart';
 
 class Profile extends StatefulWidget {
-  static const String id = 'profile';
+  // = 'profile';
   const Profile({super.key});
 
   @override

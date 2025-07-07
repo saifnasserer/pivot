@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pivot/screens/models/schedule_item.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/services/permission_service.dart';
+import 'package:pivot/services/notification_service.dart';
 import 'package:auto_size_text/auto_size_text.dart';
 
 class SchaduleCard extends StatelessWidget {
@@ -65,7 +66,7 @@ class SchaduleCard extends StatelessWidget {
                   iconSize: Responsive.text(context) * 1.1,
                   onPressed: () async {
                     final hasPermission =
-                        await PermissionService.checkNotificationPermission();
+                        await NotificationService().areNotificationsEnabled();
                     if (!hasPermission) {
                       await PermissionService.showNotificationPermissionDialog(
                         context,

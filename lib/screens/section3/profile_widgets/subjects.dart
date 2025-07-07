@@ -174,7 +174,7 @@ class SubjectListItem extends StatelessWidget {
                                           ).context;
                                       Navigator.pushNamed(
                                         context,
-                                        DoctorProfile.id,
+                                        '/doctor-profile',
                                         arguments: professor,
                                       ).then((_) {
                                         final userProfile =

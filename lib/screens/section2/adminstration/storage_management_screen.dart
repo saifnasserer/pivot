@@ -3,7 +3,7 @@ import 'package:pivot/responsive.dart';
 import 'package:pivot/services/storage_optimization_service.dart';
 
 class StorageManagementScreen extends StatefulWidget {
-  static const String id = 'storage_management';
+  // = 'storage_management';
 
   const StorageManagementScreen({super.key});
 

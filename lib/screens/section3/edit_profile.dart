@@ -18,7 +18,7 @@ import 'package:provider/provider.dart';
 import 'package:pivot/services/permission_service.dart';
 
 class EditProfile extends StatefulWidget {
-  static const String id = 'edit_profile';
+  // = 'edit_profile';
   final UserProfile userProfile;
 
   const EditProfile({super.key, required this.userProfile});

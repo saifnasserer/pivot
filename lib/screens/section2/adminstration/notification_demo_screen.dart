@@ -3,7 +3,7 @@ import 'package:pivot/services/notification_service.dart';
 import 'package:pivot/responsive.dart';
 
 class NotificationDemoScreen extends StatefulWidget {
-  static const String id = 'notification_demo_screen';
+  // = 'notification_demo_screen';
 
   const NotificationDemoScreen({super.key});
 

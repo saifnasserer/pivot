@@ -12,6 +12,7 @@ import '../../../models/user_profile.dart';
 import '../../../services/auth_service.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import '../../../services/permission_service.dart';
+import '../../../services/notification_service.dart';
 
 class Signup_2 extends StatefulWidget {
   final String name;
@@ -76,8 +77,9 @@ class _Signup_2State extends State<Signup_2> {
     if (kIsWeb) return; // Notifications not supported on web
 
     try {
-      // Request notification permission instead of storage permission
-      bool granted = await PermissionService.requestNotificationPermission();
+      // Use the new graceful approach from NotificationService
+      final notificationService = NotificationService();
+      final granted = await notificationService.requestPermissionsExplicitly();
 
       if (!granted && mounted) {
         // Show dialog to open settings if permission denied
@@ -279,7 +281,7 @@ class _Signup_2State extends State<Signup_2> {
 
         if (mounted && userProfile != null) {
           //debugprint(
-            // '[Signup] User profile created successfully: ${userProfile.name}',
+          // '[Signup] User profile created successfully: ${userProfile.name}',
           // );
 
           // Set the user profile in the provider
@@ -290,7 +292,7 @@ class _Signup_2State extends State<Signup_2> {
           provider.setLoggedInUserProfile(userProfile);
 
           //debugprint(
-            // '[Signup] Profile set in provider, waiting for AuthWrapper to detect...',
+          // '[Signup] Profile set in provider, waiting for AuthWrapper to detect...',
           // );
 
           if (mounted) {
@@ -311,7 +313,7 @@ class _Signup_2State extends State<Signup_2> {
                 //debugprint('[Signup] Forcing navigation to Landing...');
                 Navigator.of(
                   context,
-                ).pushNamedAndRemoveUntil(Landing.id, (route) => false);
+                ).pushNamedAndRemoveUntil('/landing', (route) => false);
               }
             });
           }

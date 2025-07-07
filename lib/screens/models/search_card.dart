@@ -26,9 +26,9 @@ class UserSearchCard extends StatelessWidget {
 
   void _defaultTap(BuildContext context) {
     if (user.role.toLowerCase() == 'professor') {
-      Navigator.pushNamed(context, DoctorProfile.id, arguments: user);
+      Navigator.pushNamed(context, '/doctor-profile', arguments: user);
     } else if (user.role.toLowerCase() == 'miniprofessor') {
-      Navigator.pushNamed(context, AssistantProfile.id, arguments: user);
+      Navigator.pushNamed(context, '/assistant-profile', arguments: user);
     }
   }
 

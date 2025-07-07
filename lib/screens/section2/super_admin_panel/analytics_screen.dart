@@ -4,7 +4,7 @@ import 'package:pivot/responsive.dart';
 import 'package:provider/provider.dart';
 
 class AnalyticsScreen extends StatefulWidget {
-  static const String id = 'analytics_screen';
+  // = 'analytics_screen';
   const AnalyticsScreen({super.key});
 
   @override

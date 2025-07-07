@@ -9,7 +9,7 @@ import 'package:provider/provider.dart';
 import 'package:gradient_borders/gradient_borders.dart';
 
 class TeamsScreen extends StatefulWidget {
-  static const String id = 'teams';
+  // = 'teams';
 
   const TeamsScreen({super.key});
 
@@ -64,15 +64,15 @@ class _TeamsScreenState extends State<TeamsScreen> {
       //debugprint('User Level: $userYear');
       //debugprint('Mapped Year: $studentYear');
       //debugprint(
-        //   'Available Teams: ${teams.map((t) => "${t.name} - ${t.year}").join(", ")}',
-        // );
+      //   'Available Teams: ${teams.map((t) => "${t.name} - ${t.year}").join(", ")}',
+      // );
 
       final filteredTeams =
           teams.where((team) => team.year == studentYear).toList();
 
       //debugprint(
-        // 'Filtered Teams: ${filteredTeams.map((t) => "${t.name} - ${t.year}").join(", ")}',
-        // );
+      // 'Filtered Teams: ${filteredTeams.map((t) => "${t.name} - ${t.year}").join(", ")}',
+      // );
 
       return filteredTeams;
     }
@@ -265,6 +265,8 @@ class _TeamsScreenState extends State<TeamsScreen> {
                                   await context
                                       .read<TeamsProvider>()
                                       .toggleTeamPin(team.id, !team.isPinned);
+                                  if (!context.mounted) return;
+                                  Navigator.pop(context);
                                 } catch (e) {
                                   if (!context.mounted) return;
                                   ScaffoldMessenger.of(context).showSnackBar(

@@ -11,7 +11,7 @@ import 'package:intl/intl.dart';
 import 'package:pivot/screens/section2/super_admin_panel/upcoming_notifications_screen.dart';
 
 class SendNotificationScreen extends StatefulWidget {
-  static const String id = 'send_notification_screen';
+  // = 'send_notification_screen';
 
   const SendNotificationScreen({super.key});
 
@@ -283,7 +283,7 @@ class _SendNotificationScreenState extends State<SendNotificationScreen> {
             icon: const Icon(Icons.schedule),
             tooltip: 'الإشعارات المجدولة',
             onPressed: () {
-              Navigator.pushNamed(context, UpcomingNotificationsScreen.id);
+              Navigator.pushNamed(context, '/upcoming-notifications');
             },
           ),
         ],

@@ -5,7 +5,7 @@ import 'package:pivot/services/introduction_service.dart';
 
 class IntroductionWrapper extends StatefulWidget {
   const IntroductionWrapper({super.key});
-  static const String id = 'introduction_wrapper';
+  // = 'introduction_wrapper';
 
   @override
   State<IntroductionWrapper> createState() => _IntroductionWrapperState();

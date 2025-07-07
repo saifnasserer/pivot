@@ -13,7 +13,7 @@ import 'package:pivot/screens/models/custom_text_field.dart';
 import 'package:pivot/models/user_profile.dart';
 
 class TeamFormationScreen extends StatefulWidget {
-  static const String id = 'team_formation';
+  // = 'team_formation';
   final String? teamName;
   final String? teamYear;
 

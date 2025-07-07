@@ -8,7 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 class IntroductionScreen extends StatefulWidget {
   const IntroductionScreen({super.key});
-  static const String id = 'introduction_screen';
+  // = 'introduction_screen';
 
   @override
   State<IntroductionScreen> createState() => _IntroductionScreenState();
@@ -133,7 +133,7 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
     await IntroductionService.markIntroductionAsSeen();
 
     if (mounted) {
-      Navigator.pushReplacementNamed(context, FirstLandingScreen.id);
+      Navigator.pushReplacementNamed(context, '/first-landing');
     }
   }
 

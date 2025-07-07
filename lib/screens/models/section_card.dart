@@ -139,7 +139,7 @@ class SectionCard extends StatelessWidget {
                 onTap: () {
                   Navigator.pushNamed(
                     context,
-                    TasksControl.id,
+                    '/tasks-control',
                     arguments: section.id,
                   );
                 },
@@ -260,7 +260,10 @@ class SectionCard extends StatelessWidget {
                                 decoration: BoxDecoration(
                                   color: Colors.red.shade50,
                                   borderRadius: BorderRadius.circular(
-                                    Responsive.space(context, size: Space.large),
+                                    Responsive.space(
+                                      context,
+                                      size: Space.large,
+                                    ),
                                   ),
                                   border: Border.all(
                                     color: Colors.red.shade100,

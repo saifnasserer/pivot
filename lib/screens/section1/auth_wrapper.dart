@@ -8,7 +8,7 @@ import 'package:pivot/responsive.dart';
 import 'package:pivot/services/cache_service.dart';
 
 class AuthWrapper extends StatefulWidget {
-  static const String id = 'auth_wrapper';
+  // = 'auth_wrapper';
   const AuthWrapper({super.key});
 
   @override
@@ -68,7 +68,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
               CircularProgressIndicator(color: Colors.black),
               SizedBox(height: 24),
               Text(
-                'لحظة...',
+                ' ...لحظة',
                 style: TextStyle(
                   fontSize: 18,
                   color: Colors.black87,
@@ -103,7 +103,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
                     height: Responsive.space(context, size: Space.medium),
                   ),
                   Text(
-                    'جاري تحميل التطبيق...',
+                    ' ...لحظة',
                     style: TextStyle(
                       fontSize: Responsive.text(context, size: TextSize.medium),
                       color: Colors.black87,
@@ -150,7 +150,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
                       height: Responsive.space(context, size: Space.medium),
                     ),
                     Text(
-                      'جاري تحميل الملف الشخصي...',
+                      '... لحظة',
                       style: TextStyle(
                         fontSize: Responsive.text(
                           context,

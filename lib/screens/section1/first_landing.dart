@@ -18,7 +18,7 @@ import '../../responsive.dart';
 
 class FirstLandingScreen extends StatefulWidget {
   const FirstLandingScreen({super.key});
-  static const String id = 'first_landing_screen';
+  // = 'first_landing_screen';
 
   @override
   State<FirstLandingScreen> createState() => _FirstLandingScreenState();
@@ -78,7 +78,7 @@ class _FirstLandingScreenState extends State<FirstLandingScreen> {
 
     try {
       if (kIsWeb) {
-        Navigator.pushReplacementNamed(context, Login.id);
+        Navigator.pushReplacementNamed(context, '/login');
         return;
       }
 
@@ -88,7 +88,7 @@ class _FirstLandingScreenState extends State<FirstLandingScreen> {
 
       if (isBiometricEnabled && isSupported) {
         final isAuthenticated = await _localAuthService.authenticate(
-          'الرجاء المصادقة لتسجيل الدخول',
+          'ابصم يباشا',
         );
 
         if (isAuthenticated) {
@@ -128,7 +128,7 @@ class _FirstLandingScreenState extends State<FirstLandingScreen> {
       }
       // Fallback to manual login screen
       if (mounted) {
-        Navigator.pushReplacementNamed(context, Login.id);
+        Navigator.pushReplacementNamed(context, '/login');
       }
     } catch (e) {
       //debugprint('Biometric login error: $e');
@@ -136,7 +136,7 @@ class _FirstLandingScreenState extends State<FirstLandingScreen> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('خطأ في المصادقة: $e')));
-        Navigator.pushReplacementNamed(context, Login.id);
+        Navigator.pushReplacementNamed(context, '/login');
       }
     } finally {
       if (mounted) {
@@ -200,7 +200,7 @@ class _FirstLandingScreenState extends State<FirstLandingScreen> {
                           if (mounted) {
                             Navigator.pushReplacementNamed(
                               context,
-                              IntroductionWrapper.id,
+                              '/introduction-wrapper',
                             );
                           }
                         },
@@ -269,7 +269,7 @@ class _FirstLandingScreenState extends State<FirstLandingScreen> {
                         ),
                       ),
                       onPressed: () {
-                        Navigator.pushReplacementNamed(context, Signup_1.id);
+                        Navigator.pushReplacementNamed(context, '/signup-1');
                       },
                       child: Row(
                         children: [

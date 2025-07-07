@@ -9,7 +9,7 @@ import 'package:pivot/providers/guide_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class GlobalSubjectManagementScreen extends StatefulWidget {
-  static const String id = 'global_subject_management_screen';
+  // = 'global_subject_management_screen';
 
   const GlobalSubjectManagementScreen({super.key});
 

@@ -6,7 +6,6 @@ import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/section2/admin_control.dart';
 import 'package:pivot/screens/section2/category_section.dart';
-import 'package:pivot/screens/section2/teams.dart';
 import 'package:pivot/screens/section3/profile.dart';
 import 'package:provider/provider.dart';
 import 'package:pivot/screens/models/card_model.dart';
@@ -14,7 +13,7 @@ import 'package:pivot/screens/models/search_card.dart';
 
 class Landing extends StatefulWidget {
   const Landing({super.key});
-  static const String id = 'landing';
+  // = 'landing';
 
   @override
   State<Landing> createState() => LandingState();
@@ -177,7 +176,7 @@ class LandingState extends State<Landing> {
                     ),
                     IconButton(
                       onPressed: () {
-                        Navigator.pushNamed(context, TeamsScreen.id);
+                        Navigator.pushNamed(context, '/teams');
                       },
                       icon: const Icon(FontAwesomeIcons.magnet),
                     ),
@@ -189,7 +188,7 @@ class LandingState extends State<Landing> {
                           return IconButton(
                             icon: const Icon(Icons.add_circle_outline_rounded),
                             onPressed: () {
-                              Navigator.pushNamed(context, AdminControl.id);
+                              Navigator.pushNamed(context, '/admin-control');
                             },
                           );
                         } else {
@@ -215,7 +214,7 @@ class LandingState extends State<Landing> {
                                 '/super-admin-panel',
                               );
                             } else {
-                              Navigator.pushNamed(context, Profile.id);
+                              Navigator.pushNamed(context, '/profile');
                             }
                           },
                         );

@@ -11,7 +11,7 @@ import 'package:lottie/lottie.dart';
 
 class AdminControl extends StatefulWidget {
   const AdminControl({super.key});
-  static const String id = 'admin_id';
+  // = 'admin_id';
 
   @override
   State<AdminControl> createState() => _AdminControlState();

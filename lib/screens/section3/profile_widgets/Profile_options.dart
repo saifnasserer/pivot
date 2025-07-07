@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/screens/section1/auth_wrapper.dart';
-import 'package:pivot/screens/section2/adminstration/user_management_page.dart';
+import 'package:pivot/screens/section2/adminstration/user_management_page.dart'
+    deferred as user_management_page;
 import 'package:pivot/screens/section2/adminstration/global_subject_management_screen.dart';
 import 'package:pivot/screens/section3/edit_profile.dart' show EditProfile;
 import 'package:pivot/screens/section3/subject_selection_screen.dart';
@@ -11,6 +12,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pivot/services/permission_service.dart';
 import 'package:pivot/responsive.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:pivot/services/notification_service.dart';
 
 Future<void> profile_options(BuildContext context) async {
   final userProfileProvider = Provider.of<UserProfileProvider>(
@@ -175,21 +177,22 @@ Future<void> profile_options(BuildContext context) async {
 
   switch (result) {
     case 'user_management':
-      Navigator.pushNamed(context, UserManagementPage.id);
+      await user_management_page.loadLibrary();
+      Navigator.pushNamed(context, '/user-management');
       break;
     case 'manage_subjects':
-      Navigator.pushNamed(context, GlobalSubjectManagementScreen.id);
+      Navigator.pushNamed(context, '/global-subject-management');
       break;
     case 'edit_profile':
       if (loggedInUser != null) {
-        Navigator.pushNamed(context, EditProfile.id, arguments: loggedInUser);
+        Navigator.pushNamed(context, '/edit-profile', arguments: loggedInUser);
       }
       break;
     case 'notification_settings':
       await _showNotificationSettingsDialog(context);
       break;
     case 'feedback':
-      Navigator.pushNamed(context, FeedbackScreen.id);
+      Navigator.pushNamed(context, '/feedback');
       break;
     case 'select_subjects':
       await Navigator.push(
@@ -245,7 +248,7 @@ Future<void> _showLogoutConfirmationDialog(BuildContext context) async {
                       await FirebaseAuth.instance.signOut();
                       if (!context.mounted) return;
                       Navigator.of(context).pushNamedAndRemoveUntil(
-                        AuthWrapper.id,
+                        '/auth-wrapper',
                         (Route<dynamic> route) => false,
                       );
                     },
@@ -393,7 +396,7 @@ Future<void> _showNotificationSettingsDialog(BuildContext context) async {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     FutureBuilder<bool>(
-                      future: PermissionService.checkNotificationPermission(),
+                      future: NotificationService().areNotificationsEnabled(),
                       builder: (context, snapshot) {
                         final hasPermission = snapshot.data ?? false;
                         return Container(
@@ -441,9 +444,18 @@ Future<void> _showNotificationSettingsDialog(BuildContext context) async {
                               if (!hasPermission)
                                 TextButton(
                                   onPressed: () async {
-                                    await PermissionService.showNotificationPermissionDialog(
-                                      context,
-                                    );
+                                    // Use the new NotificationService approach
+                                    final notificationService =
+                                        NotificationService();
+                                    final granted =
+                                        await notificationService
+                                            .requestPermissionsExplicitly();
+
+                                    if (!granted) {
+                                      await PermissionService.showNotificationPermissionDialog(
+                                        context,
+                                      );
+                                    }
                                     setState(() {});
                                   },
                                   child: Text(

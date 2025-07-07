@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:pivot/responsive.dart';
 
 class FeedbackManagementScreen extends StatefulWidget {
-  static const String id = 'feedback_management_screen';
+  // = 'feedback_management_screen';
 
   const FeedbackManagementScreen({super.key});
 
@@ -166,9 +166,7 @@ class _FeedbackManagementScreenState extends State<FeedbackManagementScreen> {
                       height: Responsive.space(context, size: Space.medium),
                     ),
                   ],
-                 
-                  ],
-                
+                ],
               ),
             ),
             actions: [

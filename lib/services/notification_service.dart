@@ -8,6 +8,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pivot/models/user_notification.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'dart:html' as html;
+import 'package:flutter/foundation.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -19,7 +21,9 @@ class NotificationService {
   static const String _functionUrl =
       'https://us-central1-pivot-28563.cloudfunctions.net/send_notification';
 
-  Future<void> initialize() async {
+  Future<void> initialize(BuildContext context) async {
+    debugPrint('🔔 Initializing NotificationService...');
+
     await AwesomeNotifications()
         .initialize('resource://drawable/ic_notification', [
           NotificationChannel(
@@ -35,15 +39,38 @@ class NotificationService {
           ),
         ], debug: true);
 
-    await _requestPermissions();
+    debugPrint('🔔 Setting up permissions gracefully...');
+    // Use graceful permission request that doesn't block
+    requestPermissionsGracefully();
+
+    // Web-specific: request browser notification permission
+    if (kIsWeb) {
+      await requestWebNotificationPermission(context);
+    }
+
+    debugPrint('🔔 Configuring FCM listeners...');
     await _configureFCMListeners();
+
+    debugPrint('🔔 Getting and saving FCM token...');
     await _getAndSaveFCMToken();
+
+    debugPrint('✅ NotificationService initialized');
   }
 
   Future<void> _requestPermissions() async {
-    bool isAllowed = await AwesomeNotifications().isNotificationAllowed();
-    if (!isAllowed) {
-      await AwesomeNotifications().requestPermissionToSendNotifications();
+    // Don't block the app startup - handle permissions in background
+    try {
+      bool isAllowed = await AwesomeNotifications().isNotificationAllowed();
+      if (!isAllowed) {
+        // Request permission without awaiting - let it run in background
+        AwesomeNotifications()
+            .requestPermissionToSendNotifications()
+            .catchError((e) {
+              debugPrint('Notification permission request failed: $e');
+            });
+      }
+    } catch (e) {
+      debugPrint('Error checking notification permissions: $e');
     }
   }
 
@@ -247,6 +274,138 @@ class NotificationService {
     } catch (e) {
       return false;
     }
+  }
+
+  // New method to handle permissions gracefully without blocking
+  Future<void> requestPermissionsGracefully() async {
+    debugPrint('🔔 Checking notification permissions gracefully...');
+    // Check current permission status
+    try {
+      final settings = await _firebaseMessaging.getNotificationSettings();
+      debugPrint(
+        '🔔 FCM authorization status: ${settings.authorizationStatus}',
+      );
+
+      // Only request if not determined (first time) or denied
+      if (settings.authorizationStatus == AuthorizationStatus.notDetermined) {
+        debugPrint('🔔 Requesting FCM permissions (non-blocking)...');
+        // Request permission without blocking
+        _firebaseMessaging.requestPermission().catchError((e) {
+          debugPrint('❌ FCM permission request failed: $e');
+        });
+      }
+
+      // Also check Awesome Notifications permissions
+      bool isAllowed = await AwesomeNotifications().isNotificationAllowed();
+      debugPrint('🔔 Awesome Notifications allowed: $isAllowed');
+      if (!isAllowed) {
+        debugPrint(
+          '🔔 Requesting Awesome Notifications permissions (non-blocking)...',
+        );
+        AwesomeNotifications()
+            .requestPermissionToSendNotifications()
+            .catchError((e) {
+              debugPrint(
+                '❌ Awesome Notifications permission request failed: $e',
+              );
+            });
+      }
+    } catch (e) {
+      debugPrint('❌ Error in graceful permission request: $e');
+    }
+  }
+
+  // Method to request permissions when user explicitly wants notifications
+  Future<bool> requestPermissionsExplicitly() async {
+    try {
+      // Request FCM permissions
+      final fcmSettings = await _firebaseMessaging.requestPermission();
+
+      // Request Awesome Notifications permissions
+      final awesomeAllowed =
+          await AwesomeNotifications().requestPermissionToSendNotifications();
+
+      return fcmSettings.authorizationStatus ==
+              AuthorizationStatus.authorized &&
+          awesomeAllowed;
+    } catch (e) {
+      debugPrint('Error requesting permissions explicitly: $e');
+      return false;
+    }
+  }
+
+  // Method to check if notifications are enabled
+  Future<bool> areNotificationsEnabled() async {
+    try {
+      final fcmSettings = await _firebaseMessaging.getNotificationSettings();
+      final awesomeAllowed =
+          await AwesomeNotifications().isNotificationAllowed();
+
+      return fcmSettings.authorizationStatus ==
+              AuthorizationStatus.authorized &&
+          awesomeAllowed;
+    } catch (e) {
+      debugPrint('Error checking notification status: $e');
+      return false;
+    }
+  }
+
+  /// Web-only: Request browser notification permission and handle user feedback
+  Future<void> requestWebNotificationPermission(BuildContext context) async {
+    if (!kIsWeb) return;
+    try {
+      if (html.Notification.supported) {
+        final permission = await html.Notification.requestPermission();
+        if (permission == 'granted') {
+          debugPrint('🔔 Web notification permission granted.');
+          // Safe to call getToken() if needed
+        } else if (permission == 'denied') {
+          debugPrint('❌ Web notification permission denied.');
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('يرجى السماح بالإشعارات من إعدادات المتصفح.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        } else {
+          debugPrint('ℹ️ Web notification permission: $permission');
+        }
+      } else if (_isIOS()) {
+        debugPrint('❌ Notifications are not supported on iOS browsers.');
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'الإشعارات غير مدعومة في متصفحات iOS. إذا كنت تستخدم iOS 16.4 أو أحدث، يمكنك تثبيت التطبيق كـ PWA (إضافة إلى الشاشة الرئيسية) لتفعيل الإشعارات.',
+              ),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      } else {
+        debugPrint('❌ Notifications are not supported on this browser.');
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('الإشعارات غير مدعومة في هذا المتصفح.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ Error requesting web notification permission: $e');
+    }
+  }
+
+  /// Helper to detect iOS user agent
+  bool _isIOS() {
+    final userAgent = html.window.navigator.userAgent.toLowerCase();
+    return userAgent.contains('iphone') ||
+        userAgent.contains('ipad') ||
+        userAgent.contains('ipod');
   }
 }
 

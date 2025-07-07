@@ -2,9 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:pivot/providers/super_admin_provider.dart';
 import 'package:pivot/responsive.dart';
 
-import 'package:pivot/screens/section2/adminstration/user_management_page.dart';
-import 'package:pivot/screens/section2/adminstration/add_user_screen.dart';
-import 'package:pivot/screens/section2/adminstration/global_subject_management_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pivot/screens/section1/auth_wrapper.dart';
@@ -12,6 +9,8 @@ import 'package:pivot/services/remote_config_service.dart';
 import 'package:pivot/screens/section2/super_admin_panel/analytics_screen.dart';
 import 'package:pivot/screens/section2/adminstration/feedback_management_screen.dart';
 import 'package:pivot/screens/section2/super_admin_panel/upcoming_notifications_screen.dart';
+import 'package:pivot/screens/section2/adminstration/user_management_page.dart'
+    deferred as user_management_page;
 
 class SuperAdminPanelScreen extends StatefulWidget {
   const SuperAdminPanelScreen({super.key});
@@ -107,7 +106,7 @@ class _SuperAdminPanelScreenState extends State<SuperAdminPanelScreen> {
               children: [
                 IconButton(
                   onPressed: () {
-                    Navigator.pushNamed(context, AnalyticsScreen.id);
+                    Navigator.pushNamed(context, '/analytics');
                   },
                   icon: Icon(
                     Icons.analytics,
@@ -262,8 +261,8 @@ class _SuperAdminPanelScreenState extends State<SuperAdminPanelScreen> {
             Icons.manage_accounts,
             'إدارة أدوار المستخدمين',
             'إدارة صلاحيات وأدوار المستخدمين',
-            () {
-              Navigator.pushNamed(context, UserManagementPage.id);
+            () async {
+              Navigator.pushNamed(context, '/user-management');
             },
           ),
           _buildDivider(),
@@ -283,7 +282,7 @@ class _SuperAdminPanelScreenState extends State<SuperAdminPanelScreen> {
             'إدارة المواد',
             'إدارة المواد الدراسية والمناهج',
             () {
-              Navigator.pushNamed(context, GlobalSubjectManagementScreen.id);
+              Navigator.pushNamed(context, '/global-subject-management');
             },
           ),
           _buildDivider(),
@@ -293,7 +292,7 @@ class _SuperAdminPanelScreenState extends State<SuperAdminPanelScreen> {
             'إدارة الملاحظات',
             'عرض وإدارة ملاحظات المستخدمين',
             () {
-              Navigator.pushNamed(context, FeedbackManagementScreen.id);
+              Navigator.pushNamed(context, '/feedback-management');
             },
           ),
           _buildDivider(),
@@ -303,7 +302,7 @@ class _SuperAdminPanelScreenState extends State<SuperAdminPanelScreen> {
             'الإشعارات المجدولة',
             'إدارة الإشعارات المجدولة والقادمة',
             () {
-              Navigator.pushNamed(context, UpcomingNotificationsScreen.id);
+              Navigator.pushNamed(context, '/upcoming-notifications');
             },
           ),
         ],
@@ -383,10 +382,7 @@ class _SuperAdminPanelScreenState extends State<SuperAdminPanelScreen> {
             'إضافة مستخدم جديد',
             Colors.green,
             () async {
-              final result = await Navigator.pushNamed(
-                context,
-                AddUserScreen.id,
-              );
+              final result = await Navigator.pushNamed(context, '/add-user');
               if (result == true) {
                 // Refresh data if user was added successfully
                 Provider.of<SuperAdminProvider>(
@@ -479,7 +475,7 @@ class _SuperAdminPanelScreenState extends State<SuperAdminPanelScreen> {
                         await FirebaseAuth.instance.signOut();
                         if (!mounted) return;
                         Navigator.of(context).pushNamedAndRemoveUntil(
-                          AuthWrapper.id,
+                          '/auth-wrapper',
                           (Route<dynamic> route) => false,
                         );
                       },

@@ -95,7 +95,7 @@ class _Signup_1State extends State<Signup_1> {
             leading: IconButton(
               icon: const Icon(Icons.arrow_back),
               onPressed: () {
-                Navigator.pushReplacementNamed(context, FirstLandingScreen.id);
+                Navigator.pushReplacementNamed(context, '/first-landing');
               },
             ),
           ),

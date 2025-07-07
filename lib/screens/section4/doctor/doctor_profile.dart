@@ -15,7 +15,7 @@ import 'package:pivot/screens/section3/subject_selection_screen.dart';
 import 'package:provider/provider.dart';
 
 class DoctorProfile extends StatefulWidget {
-  static const String id = 'doctor';
+  // = 'doctor';
   const DoctorProfile({super.key});
 
   @override

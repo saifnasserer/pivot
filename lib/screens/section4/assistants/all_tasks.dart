@@ -10,7 +10,7 @@ import 'package:pivot/responsive.dart';
 import 'add_edit_task_dialog.dart';
 
 class TasksControl extends StatefulWidget {
-  static const String id = 'tasks';
+  // = 'tasks';
   const TasksControl({super.key});
 
   @override

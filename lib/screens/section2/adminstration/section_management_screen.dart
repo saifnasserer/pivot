@@ -4,7 +4,7 @@ import 'package:pivot/providers/settings_provider.dart';
 import 'package:pivot/responsive.dart';
 
 class SectionManagementScreen extends StatefulWidget {
-  static const String id = 'section_management_screen';
+  // = 'section_management_screen';
 
   const SectionManagementScreen({super.key});
 

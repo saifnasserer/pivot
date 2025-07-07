@@ -8,7 +8,7 @@ import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:provider/provider.dart';
 
 class FeedbackScreen extends StatefulWidget {
-  static const String id = 'feedback_screen';
+  // = 'feedback_screen';
 
   const FeedbackScreen({super.key});
 

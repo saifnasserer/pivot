@@ -19,12 +19,14 @@ class SettingsProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final doc = await _firestore.collection('settings').doc('registration').get();
+      final doc =
+          await _firestore.collection('settings').doc('registration').get();
       if (doc.exists && doc.data() != null) {
         final data = doc.data()!['section_counts'];
         _sectionCounts = Map<String, int>.from(data);
       }
     } catch (e) {
+      debugPrint('Failed to fetch seccccccccccccccccctions: $e');
       _error = 'Failed to fetch settings: $e';
     } finally {
       _isLoading = false;
