@@ -7,6 +7,7 @@ import 'package:pivot/services/cache_service.dart';
 import 'package:pivot/services/notification_trigger_service.dart';
 import 'package:pivot/services/storage_optimization_service.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:pivot/models/comment_data.dart';
 
 class AnnouncementProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -466,6 +467,90 @@ class AnnouncementProvider with ChangeNotifier {
     } catch (e) {
       //debugprint('Error unpinning announcement: $e');
     }
+  }
+
+  // --- Comment Section ---
+  Stream<List<CommentData>> commentsStream(String announcementId) {
+    return _firestore
+        .collection(_collectionPath)
+        .doc(announcementId)
+        .collection('comments')
+        .orderBy('timestamp', descending: false)
+        .snapshots()
+        .map(
+          (snapshot) =>
+              snapshot.docs
+                  .map((doc) => CommentData.fromFirestore(doc))
+                  .toList(),
+        );
+  }
+
+  Future<void> addComment(String announcementId, CommentData comment) async {
+    await _firestore
+        .collection(_collectionPath)
+        .doc(announcementId)
+        .collection('comments')
+        .add(comment.toJson());
+    notifyListeners();
+  }
+
+  Future<void> likeComment(
+    String announcementId,
+    String commentId,
+    String userId,
+  ) async {
+    final commentRef = _firestore
+        .collection(_collectionPath)
+        .doc(announcementId)
+        .collection('comments')
+        .doc(commentId);
+    final doc = await commentRef.get();
+    if (!doc.exists) return;
+    final data = doc.data() as Map<String, dynamic>;
+    List<String> likes = List<String>.from(data['likes'] ?? []);
+    if (likes.contains(userId)) {
+      likes.remove(userId);
+    } else {
+      likes.add(userId);
+    }
+    await commentRef.update({'likes': likes});
+    notifyListeners();
+  }
+
+  Future<void> replyToComment(
+    String announcementId,
+    String parentCommentId,
+    CommentData reply,
+  ) async {
+    await _firestore
+        .collection(_collectionPath)
+        .doc(announcementId)
+        .collection('comments')
+        .add(reply.toJson());
+    notifyListeners();
+  }
+
+  Future<void> updateComment(
+    String announcementId,
+    String commentId,
+    String newContent,
+    String userId,
+  ) async {
+    final commentRef = _firestore
+        .collection(_collectionPath)
+        .doc(announcementId)
+        .collection('comments')
+        .doc(commentId);
+    final doc = await commentRef.get();
+    if (!doc.exists) return;
+    final data = doc.data() as Map<String, dynamic>;
+    if (data['userId'] != userId) return; // Only allow editing own comment
+    await commentRef.update({
+      'content': newContent,
+      'edited': true,
+      'editedAt': DateTime.now().millisecondsSinceEpoch,
+    });
+    notifyListeners();
   }
 
   // Announcement Caching

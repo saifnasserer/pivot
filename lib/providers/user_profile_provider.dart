@@ -9,6 +9,7 @@ import 'package:pivot/services/session_management_service.dart';
 import 'package:pivot/services/storage_optimization_service.dart';
 import 'package:flutter/material.dart';
 import 'dart:io';
+import 'package:hive/hive.dart';
 
 class UserProfileProvider with ChangeNotifier {
   UserProfile? _userProfile; // The profile being viewed on a profile screen
@@ -18,6 +19,8 @@ class UserProfileProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final Map<String, UserProfile> _userProfilesCache = {};
+  final String _profilePicsBoxName = 'userProfilePicsBox';
+  Box? _profilePicsBox;
   bool _isLoading = false;
   String? _error;
 
@@ -32,7 +35,17 @@ class UserProfileProvider with ChangeNotifier {
 
   // Add method to get user profile by ID
   Future<UserProfile?> getUserProfileById(String userId) async {
+    // Try Hive cache for profile pic
+    _profilePicsBox ??= await Hive.openBox(_profilePicsBoxName);
+    String? cachedPic = _profilePicsBox?.get(userId);
     if (_userProfilesCache.containsKey(userId)) {
+      // If we have a cached UserProfile, but no profileImageUrl, update it from Hive
+      if (cachedPic != null &&
+          _userProfilesCache[userId]?.profileImageUrl != cachedPic) {
+        _userProfilesCache[userId] = _userProfilesCache[userId]!.copyWith(
+          profileImageUrl: cachedPic,
+        );
+      }
       return _userProfilesCache[userId];
     }
 
@@ -49,6 +62,11 @@ class UserProfileProvider with ChangeNotifier {
 
       final profile = UserProfile.fromJson(doc.data()!);
       _userProfilesCache[userId] = profile;
+      // Cache profile pic in Hive
+      if (profile.profileImageUrl != null &&
+          profile.profileImageUrl!.isNotEmpty) {
+        _profilePicsBox?.put(userId, profile.profileImageUrl);
+      }
       return profile;
     } catch (e) {
       //debugprint('Error fetching user profile: $e');

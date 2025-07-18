@@ -60,10 +60,10 @@ class _AssistantProfileState extends State<AssistantProfile> {
       newProfile = userProfileFromProvider;
     }
 
-    if (newProfile != null && newProfile.id != _previousProfileId) {
+    if (newProfile?.id != _previousProfileId) {
       setState(() {
         _displayedProfile = newProfile;
-        _previousProfileId = newProfile!.id;
+        _previousProfileId = newProfile?.id;
         if (!_isEditingAboutMe) {
           _aboutMeController.text = _displayedProfile?.aboutMe ?? '';
         }

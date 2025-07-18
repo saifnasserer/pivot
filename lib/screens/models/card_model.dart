@@ -1,11 +1,14 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:pivot/providers/bookmarks.dart';
 import 'package:pivot/responsive.dart';
 import 'package:provider/provider.dart';
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:pivot/providers/announcement_provider.dart';
+import 'package:pivot/widgets/comment_section.dart';
 
 class CardModel extends StatefulWidget {
   final String? id;
@@ -530,6 +533,43 @@ class _CardModelState extends State<CardModel> {
                             Share.share(shareText);
                           },
                           icon: const Icon(Icons.share),
+                          splashRadius: 24,
+                        ),
+                        SizedBox(
+                          width: Responsive.space(context, size: Space.small),
+                        ),
+                        IconButton(
+                          onPressed: () {
+                            showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.vertical(
+                                  top: Radius.circular(
+                                    Responsive.space(
+                                      context,
+                                      size: Space.large,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              builder:
+                                  (context) => DraggableScrollableSheet(
+                                    initialChildSize: 0.8,
+                                    minChildSize: 0.4,
+                                    maxChildSize: 0.95,
+                                    expand: false,
+                                    builder:
+                                        (context, scrollController) =>
+                                            CommentSection(
+                                              announcementId: widget.id!,
+                                              scrollController:
+                                                  scrollController,
+                                            ),
+                                  ),
+                            );
+                          },
+                          icon: const Icon(Icons.question_mark_rounded),
                           splashRadius: 24,
                         ),
                         SizedBox(

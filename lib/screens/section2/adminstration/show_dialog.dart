@@ -630,28 +630,24 @@ void showAddAnnouncementDialog({
                                             );
                                           },
                                         );
-                                        if (linkTitle != null) {
-                                          setState(() {
-                                            if (!links.any(
-                                              (l) => l['url'] == downloadUrl,
-                                            )) {
-                                              links.add({
-                                                'title': linkTitle,
-                                                'url': downloadUrl,
-                                              });
-                                            }
-                                          });
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                'تم رفع الملف بنجاح',
-                                              ),
-                                              backgroundColor: Colors.green,
-                                            ),
-                                          );
-                                        }
+                                        setState(() {
+                                          if (!links.any(
+                                            (l) => l['url'] == downloadUrl,
+                                          )) {
+                                            links.add({
+                                              'title': linkTitle ?? 'File',
+                                              'url': downloadUrl,
+                                            });
+                                          }
+                                        });
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text('تم رفع الملف بنجاح'),
+                                            backgroundColor: Colors.green,
+                                          ),
+                                        );
                                       }
                                     } catch (e) {
                                       if (Navigator.canPop(context)) {

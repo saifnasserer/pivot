@@ -64,8 +64,8 @@ class _DoctorProfileState extends State<DoctorProfile> {
       _aboutMeController.text = _displayedProfile?.aboutMe ?? '';
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && profileToShow != null) {
-          _fetchInitialData(profileToShow);
+        if (mounted) {
+          _fetchInitialData(profileToShow!);
         }
       });
     }

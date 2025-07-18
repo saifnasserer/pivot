@@ -6,7 +6,6 @@ import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/providers/settings_provider.dart';
 import 'package:pivot/providers/super_admin_provider.dart';
 import 'package:pivot/providers/guide_provider.dart';
-import 'package:pivot/screens/section2/team_formation_screen.dart';
 import 'package:pivot/screens/section2/teams.dart';
 import 'package:pivot/screens/section3/edit_profile.dart'
     deferred as edit_profile;
@@ -33,7 +32,6 @@ import 'package:pivot/screens/section2/super_admin_panel/super_admin_panel_scree
     deferred as super_admin_panel_screen;
 import 'package:pivot/screens/section2/landing.dart';
 import 'package:pivot/screens/section3/profile.dart';
-import 'package:pivot/screens/section4/assistants/all_tasks.dart';
 import 'package:pivot/screens/section4/assistants/assistant_profile.dart';
 import 'package:pivot/screens/section4/doctor/doctor_profile.dart';
 
@@ -71,6 +69,8 @@ import 'package:pivot/providers/teams_provider.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'web_service_worker.dart';
 import 'firebase_options.dart';
+import 'widgets/platform_service.dart';
+import 'widgets/ios_install_instructions_screen.dart';
 
 // Route name constants
 const String routeUserManagement = '/user-management';
@@ -86,7 +86,6 @@ const String routeSendNotifications = '/send-notifications';
 const String routeAddUser = '/add-user';
 
 void main() async {
-  debugPrint('🚀 Starting Pivot app...');
   WidgetsFlutterBinding.ensureInitialized();
 
   // Show a loading indicator for web before runApp
@@ -101,126 +100,61 @@ void main() async {
     );
   }
 
-  debugPrint('📱 Initializing Firebase...');
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  debugPrint('📐 Setting up orientation...');
-  // Essential orientation setup (quick, non-blocking)
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
 
-  debugPrint('🌍 Initializing date formatting...');
-  // Essential date formatting for Arabic
   await initializeDateFormatting('ar');
 
-  debugPrint('💾 Initializing cache...');
-  // Initialize cache
   await CacheService.instance.init();
 
-  debugPrint('👤 Preparing user profile provider...');
-  // Prepare user profile provider (data load deferred)
   final userProfileProvider = UserProfileProvider();
 
-  debugPrint('🎯 Running app...');
-  // Run the app ASAP
   runApp(PivotWithNotifications(userProfileProvider: userProfileProvider));
 
-  // Defer heavy/background services for web until after first frame
   if (kIsWeb) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      debugPrint('⚙️ Starting background services (web, deferred)...');
       _initializeAppBackgroundServices(userProfileProvider);
     });
   } else {
-    debugPrint('⚙️ Starting background services...');
     _initializeAppBackgroundServices(userProfileProvider);
   }
 }
 
 Future<void> _setupFirebaseMessagingWeb() async {
-  debugPrint('🌐 Setting up Firebase Messaging for web...');
   final messaging = FirebaseMessaging.instance;
-
-  // Don't await permission request - let it run in background
-  debugPrint('🌐 Requesting FCM permissions (non-blocking)...');
-  messaging.requestPermission().catchError((e) {
-    debugPrint('❌ FCM permission request failed: $e');
-  });
-
-  // Don't await service worker registration - let it run in background
-  debugPrint('🌐 Registering service worker (non-blocking)...');
-  registerServiceWorkerWeb().catchError((e) {
-    debugPrint('❌ Service worker registration failed: $e');
-  });
-
-  debugPrint('🌐 Setting up FCM message listeners...');
+  messaging.requestPermission().catchError((_) {});
+  registerServiceWorkerWeb().catchError((_) {});
   FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-    debugPrint(
-      '🌐 Received foreground message: ${message.notification?.title}',
-    );
-    // Handle foreground message if needed
+    // Optionally handle foreground message
   });
-
-  debugPrint('✅ Web FCM setup completed');
 }
 
 void _initializeAppBackgroundServices(UserProfileProvider userProfileProvider) {
-  debugPrint('🔄 Starting background services initialization...');
-  // Don't await these => they run in background without blocking UI
-
-  // Web-specific FCM setup (non-blocking)
   if (kIsWeb) {
-    debugPrint('🌐 Setting up web FCM...');
-    _setupFirebaseMessagingWeb().catchError((e) {
-      debugPrint('❌ Web FCM setup failed: $e');
-    });
+    _setupFirebaseMessagingWeb().catchError((_) {});
   }
-
-  // Remote Config
-  debugPrint('⚙️ Initializing Remote Config...');
-  RemoteConfigService.instance.initialize().catchError((e) {
-    debugPrint('❌ Remote Config init failed: $e');
-  });
-
-  // Load user profile (if logged in)
+  RemoteConfigService.instance.initialize().catchError((_) {});
   if (FirebaseAuth.instance.currentUser != null) {
-    debugPrint('👤 Loading user profile...');
     userProfileProvider
         .loadLoggedInUserProfile()
         .timeout(const Duration(seconds: 10))
-        .catchError((e) {
-          debugPrint('❌ User profile load failed: $e');
-        });
+        .catchError((_) {});
   }
-
-  // Setup periodic jobs
-  debugPrint('⏰ Setting up periodic jobs...');
   final notificationTrigger = NotificationTriggerService();
-
-  // Start batch processing
   notificationTrigger.startBatchProcessing();
-
-  // Periodic notifications check (every 15 mins)
   Timer.periodic(const Duration(minutes: 15), (_) {
     notificationTrigger.checkAndSendPeriodicNotifications();
   });
-
-  // Clean up old notifications daily
   Timer.periodic(const Duration(days: 1), (_) {
     notificationTrigger.cleanupOldNotifications();
   });
-
-  // Set Firebase persistence (web)
   if (kIsWeb) {
-    debugPrint('💾 Setting Firebase persistence...');
-    FirebaseAuth.instance.setPersistence(Persistence.LOCAL).catchError((e) {
-      debugPrint('❌ Set persistence failed: $e');
-    });
+    FirebaseAuth.instance.setPersistence(Persistence.LOCAL).catchError((_) {});
   }
-
-  debugPrint('✅ Background services initialization started');
 }
 
 class Pivot extends StatelessWidget {
@@ -269,8 +203,16 @@ class Pivot extends StatelessWidget {
                 ),
           );
         },
-        initialRoute: '/auth-wrapper', // Set the initial route
+        home:
+            PlatformService.isIOSWeb()
+                ? const IOSInstallInstructionsScreen()
+                : const AuthWrapper(),
+        // PlatformService.isIOSWeb()
+        //     ? const IOSInstallInstructionsScreen()
+        //     : const AuthWrapper(),
         routes: {
+          '/ios-install-instructions':
+              (context) => const IOSInstallInstructionsScreen(),
           '/auth-wrapper': (context) => const AuthWrapper(),
           '/introduction-wrapper': (context) => const IntroductionWrapper(),
           '/first-landing': (context) => const FirstLandingScreen(),
@@ -446,7 +388,6 @@ class Pivot extends StatelessWidget {
           ),
         ),
         debugShowCheckedModeBanner: false,
-        home: const AuthWrapper(), // Ensure AuthWrapper is the home
         builder: (context, child) {
           // Add error boundary
           return MediaQuery(

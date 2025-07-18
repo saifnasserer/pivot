@@ -74,11 +74,12 @@ dependencies:
   timeago: ^3.6.1
   firebase_app_check: ^0.3.2+7
   font_awesome_flutter: ^10.7.0
-  gradient_borders: ^1.0.0
+  gradient_borders: ^1.0.1
   fl_chart: ^0.66.2
   webview_flutter: ^4.7.0
   video_player: ^2.8.3
   crypto: ^3.0.3
+  flutter_svg: ^2.2.0
 
 flutter_launcher_icons:
   android: "launcher_icon"

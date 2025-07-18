@@ -5,6 +5,7 @@ import 'package:pivot/screens/section1/first_landing.dart';
 import 'package:pivot/services/introduction_service.dart';
 import 'package:video_player/video_player.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/foundation.dart';
 
 class IntroductionScreen extends StatefulWidget {
   const IntroductionScreen({super.key});
@@ -41,24 +42,18 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
       final videoUrl =
           'https://engseif.com/wp-content/uploads/2025/06/Pivot-intro.mp4';
 
-      //debugprint('Initializing video with URL: $videoUrl');
-
       _videoController = VideoPlayerController.networkUrl(Uri.parse(videoUrl));
 
-      //debugprint('Video controller created, initializing...');
       await _videoController.initialize().timeout(
         const Duration(seconds: 30),
         onTimeout: () {
           throw Exception('Video initialization timed out after 30 seconds');
         },
       );
-      //debugprint('Video initialized successfully');
 
-      // Add listener for video completion
       _videoController.addListener(() {
         if (_videoController.value.position >=
             _videoController.value.duration) {
-          // Video finished, seek to beginning for next play
           _videoController.seekTo(Duration.zero);
         }
       });
@@ -68,15 +63,8 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
           _isVideoInitialized = true;
           _isVideoLoading = false;
         });
-
-        // Only start playing if we're already on the video page
-        if (_currentPage == 1) {
-          _videoController.play();
-          //debugprint('Video started playing');
-        }
       }
     } catch (e) {
-      //debugprint('Error initializing video: $e');
       if (mounted) {
         setState(() {
           _hasVideoError = true;
@@ -119,11 +107,9 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
       _currentPage = index;
     });
 
-    // Play video only when on video page (index 1)
+    // Do not autoplay video on page change
     if (_isVideoInitialized && !_hasVideoError) {
-      if (index == 1) {
-        _videoController.play();
-      } else {
+      if (index != 1) {
         _videoController.pause();
       }
     }
@@ -365,6 +351,8 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
   }
 
   Widget _buildVideoPage() {
+    final videoUrl =
+        'https://engseif.com/wp-content/uploads/2025/06/Pivot-intro.mp4';
     return Container(
       width: double.infinity,
       height: double.infinity,
@@ -482,46 +470,63 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.6),
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                    child: IconButton(
-                      onPressed: () {
-                        setState(() {
-                          _videoController.value.isPlaying
-                              ? _videoController.pause()
-                              : _videoController.play();
-                        });
-                      },
-                      icon: Icon(
-                        _videoController.value.isPlaying
-                            ? Icons.pause
-                            : Icons.play_arrow,
-                        color: Colors.white,
-                        size: 32,
+                  if (!_videoController.value.isPlaying)
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.6),
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      child: IconButton(
+                        onPressed: () {
+                          setState(() {
+                            _videoController.play();
+                          });
+                        },
+                        icon: const Icon(
+                          Icons.play_arrow,
+                          color: Colors.white,
+                          size: 32,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 16),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.6),
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                    child: IconButton(
-                      onPressed: () {
-                        _videoController.seekTo(Duration.zero);
-                        _videoController.play();
-                      },
-                      icon: const Icon(
-                        Icons.replay,
-                        color: Colors.white,
-                        size: 32,
+                  if (_videoController.value.isPlaying) ...[
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.6),
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      child: IconButton(
+                        onPressed: () {
+                          setState(() {
+                            _videoController.pause();
+                          });
+                        },
+                        icon: const Icon(
+                          Icons.pause,
+                          color: Colors.white,
+                          size: 32,
+                        ),
                       ),
                     ),
-                  ),
+                    const SizedBox(width: 16),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.6),
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      child: IconButton(
+                        onPressed: () {
+                          _videoController.seekTo(Duration.zero);
+                          _videoController.pause();
+                        },
+                        icon: const Icon(
+                          Icons.replay,
+                          color: Colors.white,
+                          size: 32,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

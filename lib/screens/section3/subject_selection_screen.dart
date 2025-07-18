@@ -767,17 +767,13 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
                             throw Exception('Unknown user role: $userRole');
                           }
 
-                          if (updatedProfile != null) {
-                            await subjectProvider.fetchAndFilterSubjects(
-                              updatedProfile,
-                            );
-                            // After updating subjects, fetch the latest user profile to ensure
-                            // the UI reflects the changes upon returning to the previous screen.
-                            await userProfileProvider.loadLoggedInUserProfile();
-                            success = true;
-                          } else {
-                            throw Exception('Failed to update profile');
-                          }
+                          await subjectProvider.fetchAndFilterSubjects(
+                            updatedProfile,
+                          );
+                          // After updating subjects, fetch the latest user profile to ensure
+                          // the UI reflects the changes upon returning to the previous screen.
+                          await userProfileProvider.loadLoggedInUserProfile();
+                          success = true;
                         }
                       } catch (e) {
                         if (mounted) {

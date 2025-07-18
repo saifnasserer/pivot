@@ -63,25 +63,26 @@ class _NotificationDemoScreenState extends State<NotificationDemoScreen> {
       _isLoading = true;
     });
 
-    try {
-      // Show a local notification for instant testing
-      await _notificationService.showLocalTestNotification(
-        title: _titleController.text,
-        body: _bodyController.text,
-        payload: {'screen': 'demo_screen'},
-      );
+    // try {
+    // Show a local notification for instant testing
+    // await _notificationService.showLocalTestNotification(
+    //   title: _titleController.text,
+    //   body: _bodyController.text,
+    //   payload: {'screen': 'demo_screen'},
+    // );
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Local test notification created!'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-      );
-    } finally {
+    //   ScaffoldMessenger.of(context).showSnackBar(
+    //     const SnackBar(
+    //       content: Text('Local test notification created!'),
+    //       backgroundColor: Colors.green,
+    //     ),
+    //   );
+    // } catch (e) {
+    //   ScaffoldMessenger.of(context).showSnackBar(
+    //     SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+    //   );
+    // } finally
+    {
       setState(() {
         _isLoading = false;
       });
