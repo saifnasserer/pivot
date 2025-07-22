@@ -56,6 +56,10 @@
 		<string>Our app needs access to your photo library to let you select and upload images.</string>
 		<key>NSFaceIDUsageDescription</key>
 		<string>We use Face ID to securely log you into your account.</string>
+		<key>NSCameraUsageDescription</key>
+		<string>Our app needs access to your camera to let you take and upload photos.</string>
+		<key>NSUserNotificationUsageDescription</key>
+		<string>Our app uses notifications to keep you updated.</string>
 		<key>UIStatusBarHidden</key>
 		<false/>
 	</dict>
