@@ -1,13 +1,11 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:pivot/providers/bookmarks.dart';
 import 'package:pivot/responsive.dart';
 import 'package:provider/provider.dart';
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:pivot/providers/announcement_provider.dart';
 import 'package:pivot/widgets/comment_section.dart';
 
 class CardModel extends StatefulWidget {
@@ -309,6 +307,25 @@ class _CardModelState extends State<CardModel> {
               child: NotificationListener<OverscrollNotification>(
                 onNotification: (notification) {
                   // Let parent PageView handle the gesture at the edge
+                  const double overscrollThreshold = 200; // px buffer
+                  if (widget.pageController != null && !_isPageChanging) {
+                    if (notification.overscroll < 0 &&
+                        notification.metrics.pixels <=
+                            notification.metrics.minScrollExtent +
+                                overscrollThreshold) {
+                      // At the very top (with buffer) and user is swiping up (to previous page)
+                      _triggerPageChange(false);
+                      return true; // Consume
+                    } else if (notification.overscroll > 0 &&
+                        notification.metrics.pixels >=
+                            notification.metrics.maxScrollExtent -
+                                overscrollThreshold) {
+                      // At the very bottom (with buffer) and user is swiping down (to next page)
+                      _triggerPageChange(true);
+                      return true; // Consume
+                    }
+                  }
+                  // Default: let the notification bubble up only at edges
                   if ((notification.overscroll < 0 &&
                           notification.metrics.pixels <=
                               notification.metrics.minScrollExtent) ||

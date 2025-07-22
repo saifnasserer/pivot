@@ -6,11 +6,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:pivot/widgets/no_internet_message.dart';
 
 class FeedbackScreen extends StatefulWidget {
   // = 'feedback_screen';
 
-  const FeedbackScreen({super.key});
+  FeedbackScreen({super.key}) {
+    print('[FeedbackScreen] constructor called');
+  }
 
   @override
   State<FeedbackScreen> createState() => _FeedbackScreenState();
@@ -39,6 +42,18 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
     _feedbackController.dispose();
     _suggestionController.dispose();
     super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    print('[FeedbackScreen] initState called');
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    print('[FeedbackScreen] didChangeDependencies called');
   }
 
   String? _validateFeedback(String? value) {
@@ -128,181 +143,203 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
 
   @override
   Widget build(BuildContext context) {
+    print('[FeedbackScreen] build called');
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        appBar: AppBar(
-          title: Text(
-            'ابعت فيدباك',
-            style: TextStyle(
-              fontSize: Responsive.text(context, size: TextSize.heading),
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+      child: NoInternetMessage(
+        child: Scaffold(
           backgroundColor: Colors.white,
-          elevation: 0,
-          iconTheme: const IconThemeData(color: Colors.black),
-        ),
-        body: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            padding: Responsive.padding(context, size: Space.large),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Container(
-                  padding: Responsive.padding(context, size: Space.large),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.grey[200]!),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.withOpacity(0.1),
-                        spreadRadius: 1,
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      Text(
-                        'عايزين نسمع رأيك!',
-                        style: TextStyle(
-                          fontSize: Responsive.text(
-                            context,
-                            size: TextSize.heading,
-                          ),
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
+          appBar: AppBar(
+            title: Text(
+              'ابعت فيدباك',
+              style: TextStyle(
+                fontSize: Responsive.text(context, size: TextSize.heading),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            backgroundColor: Colors.white,
+            elevation: 0,
+            iconTheme: const IconThemeData(color: Colors.black),
+          ),
+          body: Form(
+            key: _formKey,
+            child: SingleChildScrollView(
+              padding: Responsive.padding(context, size: Space.large),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    padding: Responsive.padding(context, size: Space.large),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.grey[200]!),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.grey.withOpacity(0.1),
+                          spreadRadius: 1,
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
                         ),
-                        textAlign: TextAlign.center,
-                      ),
-                      SizedBox(
-                        height: Responsive.space(context, size: Space.small),
-                      ),
-                      Text(
-                        'ساعدنا في تحسين التطبيق من خلال إرسال ملاحظاتك واقتراحاتك',
-                        style: TextStyle(
-                          fontSize: Responsive.text(
-                            context,
-                            size: TextSize.medium,
-                          ),
-                          color: Colors.grey[600],
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                ),
-
-                SizedBox(height: Responsive.space(context, size: Space.large)),
-
-                Text(
-                  'نوع الفيدباك',
-                  style: TextStyle(
-                    fontSize: Responsive.text(context, size: TextSize.medium),
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-                SizedBox(height: Responsive.space(context, size: Space.small)),
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.grey[50],
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey[200]!),
-                  ),
-                  child: DropdownButtonFormField<String>(
-                    value: _selectedCategory,
-                    decoration: InputDecoration(
-                      border: InputBorder.none,
-                      contentPadding: Responsive.padding(
-                        context,
-                        size: Space.medium,
-                      ),
-                      prefixIcon: Icon(Icons.category, color: Colors.black87),
+                      ],
                     ),
-                    items:
-                        _categories
-                            .map(
-                              (category) => DropdownMenuItem(
-                                value: category,
-                                child: Text(category),
-                              ),
-                            )
-                            .toList(),
+                    child: Column(
+                      children: [
+                        Text(
+                          'عايزين نسمع رأيك!',
+                          style: TextStyle(
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.heading,
+                            ),
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        SizedBox(
+                          height: Responsive.space(context, size: Space.small),
+                        ),
+                        Text(
+                          'ساعدنا في تحسين التطبيق من خلال إرسال ملاحظاتك واقتراحاتك',
+                          style: TextStyle(
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.medium,
+                            ),
+                            color: Colors.grey[600],
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.large),
+                  ),
+
+                  Text(
+                    'نوع الفيدباك',
+                    style: TextStyle(
+                      fontSize: Responsive.text(context, size: TextSize.medium),
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.small),
+                  ),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey[200]!),
+                    ),
+                    child: DropdownButtonFormField<String>(
+                      value: _selectedCategory,
+                      decoration: InputDecoration(
+                        border: InputBorder.none,
+                        contentPadding: Responsive.padding(
+                          context,
+                          size: Space.medium,
+                        ),
+                        prefixIcon: Icon(Icons.category, color: Colors.black87),
+                      ),
+                      items:
+                          _categories
+                              .map(
+                                (category) => DropdownMenuItem(
+                                  value: category,
+                                  child: Text(category),
+                                ),
+                              )
+                              .toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() {
+                            _selectedCategory = value;
+                          });
+                        }
+                      },
+                    ),
+                  ),
+
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.large),
+                  ),
+
+                  Text(
+                    'رأيك',
+                    style: TextStyle(
+                      fontSize: Responsive.text(context, size: TextSize.medium),
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.small),
+                  ),
+                  CustomTextField(
+                    controller: _feedbackController,
+                    hint: 'اكتب رأيك هنا...',
+                    maxLines: 4,
+                    validator: _validateFeedback,
                     onChanged: (value) {
-                      if (value != null) {
+                      final isValidNow = _validateFeedback(value) == null;
+                      if (_isFeedbackValid != isValidNow) {
                         setState(() {
-                          _selectedCategory = value;
+                          _isFeedbackValid = isValidNow;
                         });
                       }
                     },
                   ),
-                ),
 
-                SizedBox(height: Responsive.space(context, size: Space.large)),
-
-                Text(
-                  'رأيك',
-                  style: TextStyle(
-                    fontSize: Responsive.text(context, size: TextSize.medium),
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.large),
                   ),
-                ),
-                SizedBox(height: Responsive.space(context, size: Space.small)),
-                CustomTextField(
-                  controller: _feedbackController,
-                  hint: 'اكتب رأيك هنا...',
-                  maxLines: 4,
-                  validator: _validateFeedback,
-                  onChanged: (value) {
-                    setState(() {
-                      _isFeedbackValid = _validateFeedback(value) == null;
-                    });
-                  },
-                ),
 
-                SizedBox(height: Responsive.space(context, size: Space.large)),
-
-                // Circular Send Button
-                Center(
-                  child:
-                      _isSubmitting
-                          ? Container(
-                            width:
-                                Responsive.space(context, size: Space.xlarge) *
-                                4,
-                            height:
-                                Responsive.space(context, size: Space.xlarge) *
-                                4,
-                            decoration: BoxDecoration(
-                              color: Colors.grey[200],
-                              shape: BoxShape.circle,
-                            ),
-                            child: Center(
-                              child: SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  color: Colors.black87,
-                                  strokeWidth: 2,
+                  // Circular Send Button
+                  Center(
+                    child:
+                        _isSubmitting
+                            ? Container(
+                              width:
+                                  Responsive.space(
+                                    context,
+                                    size: Space.xlarge,
+                                  ) *
+                                  4,
+                              height:
+                                  Responsive.space(
+                                    context,
+                                    size: Space.xlarge,
+                                  ) *
+                                  4,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[200],
+                                shape: BoxShape.circle,
+                              ),
+                              child: Center(
+                                child: SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.black87,
+                                    strokeWidth: 2,
+                                  ),
                                 ),
                               ),
+                            )
+                            : CircularButton(
+                              onPressed: _submitFeedback,
+                              icon: Icons.send,
+                              backgroundColor: Colors.black,
+                              iconColor: Colors.white,
                             ),
-                          )
-                          : CircularButton(
-                            onPressed: _submitFeedback,
-                            icon: Icons.send,
-                            backgroundColor: Colors.black,
-                            iconColor: Colors.white,
-                          ),
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),

@@ -5,12 +5,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
-import 'package:pivot/screens/section1/introduction_wrapper.dart';
-import 'package:pivot/screens/section1/login/login.dart';
-import 'package:pivot/screens/section1/signup/signup_page1.dart';
 import 'package:pivot/services/auth_service.dart';
 import 'package:pivot/services/local_auth_service.dart';
 import 'package:pivot/services/introduction_service.dart';
+import 'package:pivot/widgets/no_internet_message.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -166,178 +164,185 @@ class _FirstLandingScreenState extends State<FirstLandingScreen> {
         statusBarIconBrightness: Brightness.light,
         statusBarBrightness: Brightness.light,
       ),
-      child: Scaffold(
-        body: Container(
-          height: double.infinity,
-          width: double.infinity,
-          decoration: const BoxDecoration(
-            color: Color(0xff161616),
-            image: DecorationImage(
-              image: AssetImage('assets/images/Group 113.png'),
-              opacity: 0.15,
-              scale: 1.2,
+      child: NoInternetMessage(
+        child: Scaffold(
+          body: Container(
+            height: double.infinity,
+            width: double.infinity,
+            decoration: const BoxDecoration(
+              color: Color(0xff161616),
+              image: DecorationImage(
+                image: AssetImage('assets/images/Group 113.png'),
+                opacity: 0.15,
+                scale: 1.2,
+              ),
             ),
-          ),
-          child: Padding(
-            padding: Responsive.paddingHorizontal(context, size: Space.medium),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                // Debug button (only in debug mode)
-                if (kDebugMode)
-                  Align(
-                    alignment: Alignment.topLeft,
-                    child: Padding(
-                      padding: EdgeInsets.only(
-                        top: Responsive.space(context, size: Space.large),
-                      ),
-                      child: IconButton(
-                        icon: const Icon(Icons.refresh, color: Colors.white),
-                        tooltip: 'إعادة تعيين الشاشة التعريفية',
-                        onPressed: () async {
-                          await IntroductionService.resetIntroduction();
-                          if (mounted) {
-                            Navigator.pushReplacementNamed(
-                              context,
-                              '/introduction-wrapper',
-                            );
-                          }
-                        },
-                      ),
-                    ),
-                  ),
-                Expanded(
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          textAlign: TextAlign.right,
-                          '! ... واخيراً',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize:
-                                Responsive.text(
-                                  context,
-                                  size: TextSize.heading,
-                                ) *
-                                1.5,
-                          ),
+            child: Padding(
+              padding: Responsive.paddingHorizontal(
+                context,
+                size: Space.medium,
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  // Debug button (only in debug mode)
+                  if (kDebugMode)
+                    Align(
+                      alignment: Alignment.topLeft,
+                      child: Padding(
+                        padding: EdgeInsets.only(
+                          top: Responsive.space(context, size: Space.large),
                         ),
-                        Text(
-                          textAlign: TextAlign.right,
-                          'حياة جامعية منظمة',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize:
-                                Responsive.text(
-                                  context,
-                                  size: TextSize.heading,
-                                ) *
-                                2.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    SizedBox(
-                      width: Responsive.space(context, size: Space.small),
-                    ),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                            Responsive.space(context, size: Space.large),
-                          ),
-                        ),
-                        padding: EdgeInsets.symmetric(
-                          horizontal: Responsive.space(
-                            context,
-                            size: Space.large,
-                          ),
-                          vertical: Responsive.space(
-                            context,
-                            size: Space.small,
-                          ),
+                        child: IconButton(
+                          icon: const Icon(Icons.refresh, color: Colors.white),
+                          tooltip: 'إعادة تعيين الشاشة التعريفية',
+                          onPressed: () async {
+                            await IntroductionService.resetIntroduction();
+                            if (mounted) {
+                              Navigator.pushReplacementNamed(
+                                context,
+                                '/introduction-wrapper',
+                              );
+                            }
+                          },
                         ),
                       ),
-                      onPressed: () {
-                        Navigator.pushReplacementNamed(context, '/signup-1');
-                      },
-                      child: Row(
+                    ),
+                  Expanded(
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Icon(
-                            Icons.arrow_back,
-                            color: Colors.black,
-                            size: Responsive.text(
-                              context,
-                              size: TextSize.medium,
+                          Text(
+                            textAlign: TextAlign.right,
+                            '! ... واخيراً',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize:
+                                  Responsive.text(
+                                    context,
+                                    size: TextSize.heading,
+                                  ) *
+                                  1.5,
                             ),
                           ),
                           Text(
-                            ' حساب جديد',
+                            textAlign: TextAlign.right,
+                            'حياة جامعية منظمة',
                             style: TextStyle(
-                              color: Colors.black,
-                              fontSize: Responsive.text(
-                                context,
-                                size: TextSize.medium,
-                              ),
+                              color: Colors.white,
+                              fontSize:
+                                  Responsive.text(
+                                    context,
+                                    size: TextSize.heading,
+                                  ) *
+                                  2.5,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    SizedBox(
-                      width: Responsive.space(context, size: Space.medium),
-                    ),
-                    TextButton(
-                      onPressed: _isLoggingIn ? null : _handleLogin,
-                      child:
-                          _isLoggingIn
-                              ? const SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.white,
-                                  ),
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      SizedBox(
+                        width: Responsive.space(context, size: Space.small),
+                      ),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              Responsive.space(context, size: Space.large),
+                            ),
+                          ),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: Responsive.space(
+                              context,
+                              size: Space.large,
+                            ),
+                            vertical: Responsive.space(
+                              context,
+                              size: Space.small,
+                            ),
+                          ),
+                        ),
+                        onPressed: () {
+                          Navigator.pushReplacementNamed(context, '/signup-1');
+                        },
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.arrow_back,
+                              color: Colors.black,
+                              size: Responsive.text(
+                                context,
+                                size: TextSize.medium,
+                              ),
+                            ),
+                            Text(
+                              ' حساب جديد',
+                              style: TextStyle(
+                                color: Colors.black,
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.medium,
                                 ),
-                              )
-                              : Row(
-                                children: [
-                                  Icon(
-                                    Icons.arrow_forward,
-                                    color: Colors.white,
-                                    size: Responsive.text(
-                                      context,
-                                      size: TextSize.medium,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(
+                        width: Responsive.space(context, size: Space.medium),
+                      ),
+                      TextButton(
+                        onPressed: _isLoggingIn ? null : _handleLogin,
+                        child:
+                            _isLoggingIn
+                                ? const SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
                                     ),
                                   ),
-                                  Text(
-                                    ' تسجيل الدخول',
-                                    style: TextStyle(
+                                )
+                                : Row(
+                                  children: [
+                                    Icon(
+                                      Icons.arrow_forward,
                                       color: Colors.white,
-                                      fontSize: Responsive.text(
+                                      size: Responsive.text(
                                         context,
                                         size: TextSize.medium,
                                       ),
                                     ),
-                                  ),
-                                ],
-                              ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: Responsive.space(context, size: Space.xlarge)),
-              ],
+                                    Text(
+                                      ' تسجيل الدخول',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: Responsive.text(
+                                          context,
+                                          size: TextSize.medium,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.xlarge),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

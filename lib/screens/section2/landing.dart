@@ -4,12 +4,11 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:pivot/providers/announcement_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
-import 'package:pivot/screens/section2/admin_control.dart';
 import 'package:pivot/screens/section2/category_section.dart';
-import 'package:pivot/screens/section3/profile.dart';
 import 'package:provider/provider.dart';
 import 'package:pivot/screens/models/card_model.dart';
 import 'package:pivot/screens/models/search_card.dart';
+import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 
 class Landing extends StatefulWidget {
   const Landing({super.key});
@@ -23,6 +22,7 @@ class LandingState extends State<Landing> {
   String? _userDepartment;
 
   final TextEditingController _userSearchController = TextEditingController();
+  final PageController _pageController = PageController(); // Add this line
   @override
   void initState() {
     super.initState();
@@ -88,141 +88,56 @@ class LandingState extends State<Landing> {
         body: SafeArea(
           child: Column(
             children: [
+              // Category selector gets its own row
               Padding(
                 padding: EdgeInsets.symmetric(
                   vertical: Responsive.space(context, size: Space.medium),
+                  horizontal: Responsive.space(context, size: Space.small),
                 ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: CategorySection(
-                        userDepartment: normalizedDepartment,
-                        onCategoryChanged: (category) {
-                          //debugprint(
-                          // '[LANDING] Category changed to: $category',
-                          // );
-
-                          final announcementProvider =
-                              Provider.of<AnnouncementProvider>(
-                                context,
-                                listen: false,
-                              );
-
-                          String? departmentCode;
-                          String? timeFilter;
-
-                          if (category == 'SC' ||
-                              category == 'AI' ||
-                              category == 'CS' ||
-                              category == 'IS' ||
-                              category == 'General') {
-                            // Convert short format to full format for filtering
-                            departmentCode = 'اخبار قسم $category';
-                            //debugprint(
-                            // '[LANDING] Department category - Department code: $departmentCode',
-                            // );
-                          } else if (category == 'اخبار النهاردة') {
-                            timeFilter = 'today';
-                            // For today's news, we want to show announcements from user's department AND عام announcements
-                            // We'll use a special format to pass both pieces of information
-                            if (_userDepartment != null) {
-                              // Convert user department to proper format if needed
-                              String userDeptTag;
-                              if (_userDepartment!.startsWith('اخبار قسم ')) {
-                                userDeptTag = _userDepartment!;
-                              } else {
-                                userDeptTag = 'اخبار قسم $_userDepartment';
-                              }
-                              departmentCode = 'today_mixed:$userDeptTag';
-                              //debugprint(
-                              // '[LANDING] Today\'s news - User dept tag: $userDeptTag',
-                              // );
-                              //debugprint(
-                              // '[LANDING] Today\'s news - Department code: $departmentCode',
-                              // );
-                            } else {
-                              // Fallback to just عام announcements if no user department
-                              departmentCode = 'عام';
-                              //debugprint(
-                              // '[LANDING] Today\'s news - No user department, using عام',
-                              // );
-                            }
-                          } else if (category == 'عام') {
-                            // General news - filter for announcements with 'عام' tag
-                            departmentCode = 'عام';
-                            timeFilter = null;
-                            //debugprint(
-                            // '[LANDING] General category - Department code: $departmentCode',
-                            // );
-                          } else {
-                            // Default case - show all announcements
-                            departmentCode = null;
-                            timeFilter = null;
-                            //debugprint(
-                            // '[LANDING] Default category - No filters',
-                            // );
-                          }
-
-                          //debugprint(
-                          // '[LANDING] Final parameters - Department: $departmentCode, TimeFilter: $timeFilter',
-                          // );
-
-                          announcementProvider.fetchAnnouncements(
-                            department: departmentCode,
-                            timeFilter: timeFilter,
-                          );
-                        },
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () {
-                        Navigator.pushNamed(context, '/teams');
-                      },
-                      icon: const Icon(FontAwesomeIcons.magnet),
-                    ),
-                    Consumer<UserProfileProvider>(
-                      builder: (context, userProfileProvider, child) {
-                        final userRole =
-                            userProfileProvider.loggedInUserProfile?.role;
-                        if (userRole != null && userRole != 'Student') {
-                          return IconButton(
-                            icon: const Icon(Icons.add_circle_outline_rounded),
-                            onPressed: () {
-                              Navigator.pushNamed(context, '/admin-control');
-                            },
-                          );
-                        } else {
-                          return const SizedBox.shrink();
-                        }
-                      },
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.search),
-                      tooltip: 'بحث',
-                      onPressed: () => showUserSearchModal(context),
-                    ),
-
-                    Consumer<UserProfileProvider>(
-                      builder: (context, userProfileProvider, child) {
-                        return IconButton(
-                          icon: const Icon(Icons.person_outline_rounded),
-                          onPressed: () {
-                            if (userProfileProvider.loggedInUserProfile?.role ==
-                                'Super Admin') {
-                              Navigator.pushNamed(
-                                context,
-                                '/super-admin-panel',
-                              );
-                            } else {
-                              Navigator.pushNamed(context, '/profile');
-                            }
-                          },
+                child: CategorySection(
+                  userDepartment: normalizedDepartment,
+                  onCategoryChanged: (category) {
+                    final announcementProvider =
+                        Provider.of<AnnouncementProvider>(
+                          context,
+                          listen: false,
                         );
-                      },
-                    ),
-                  ],
+                    String? departmentCode;
+                    String? timeFilter;
+                    if (category == 'SC' ||
+                        category == 'AI' ||
+                        category == 'CS' ||
+                        category == 'IS' ||
+                        category == 'General') {
+                      departmentCode = 'اخبار قسم $category';
+                    } else if (category == 'اخبار النهاردة') {
+                      timeFilter = 'today';
+                      if (_userDepartment != null) {
+                        String userDeptTag;
+                        if (_userDepartment!.startsWith('اخبار قسم ')) {
+                          userDeptTag = _userDepartment!;
+                        } else {
+                          userDeptTag = 'اخبار قسم $_userDepartment';
+                        }
+                        departmentCode = 'today_mixed:$userDeptTag';
+                      } else {
+                        departmentCode = 'عام';
+                      }
+                    } else if (category == 'عام') {
+                      departmentCode = 'عام';
+                      timeFilter = null;
+                    } else {
+                      departmentCode = null;
+                      timeFilter = null;
+                    }
+                    announcementProvider.fetchAnnouncements(
+                      department: departmentCode,
+                      timeFilter: timeFilter,
+                    );
+                  },
                 ),
               ),
+              // Main content
               Expanded(
                 child: Padding(
                   padding: EdgeInsets.all(
@@ -247,8 +162,6 @@ class LandingState extends State<Landing> {
                           ),
                         );
                       }
-
-                      // Sort announcements: pinned first, then by timestamp
                       final sortedAnnouncements = List.of(
                         provider.announcements,
                       );
@@ -258,8 +171,8 @@ class LandingState extends State<Landing> {
                         }
                         return b.pinned ? 1 : -1;
                       });
-
                       return PageView.builder(
+                        controller: _pageController, // Add this line
                         itemCount: sortedAnnouncements.length,
                         scrollDirection: Axis.vertical,
                         physics: const ClampingScrollPhysics(),
@@ -278,6 +191,8 @@ class LandingState extends State<Landing> {
                               tags: announcement.tags,
                               imageUrls: announcement.imageUrls,
                               links: announcement.links,
+                              pageController:
+                                  _pageController, // Pass controller
                             ),
                           );
                         },
@@ -288,6 +203,164 @@ class LandingState extends State<Landing> {
               ),
             ],
           ),
+        ),
+        floatingActionButton: SpeedDial(
+          icon: Icons.menu,
+          activeIcon: Icons.close,
+          backgroundColor: Theme.of(context).primaryColor,
+          foregroundColor: Colors.white,
+          childPadding: EdgeInsets.all(4),
+          children: [
+            SpeedDialChild(
+              child: Icon(
+                Icons.person_outline_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
+              backgroundColor: Colors.black,
+              shape: const CircleBorder(),
+              labelWidget: Container(
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  borderRadius: BorderRadius.circular(
+                    Responsive.space(context, size: Space.large),
+                  ),
+                ),
+                alignment: Alignment.center,
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    vertical: Responsive.space(context, size: Space.small),
+                    horizontal: Responsive.space(context, size: Space.medium),
+                  ),
+                  child: Text(
+                    'حسابي',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+              onTap: () {
+                final userProfileProvider = Provider.of<UserProfileProvider>(
+                  context,
+                  listen: false,
+                );
+                if (userProfileProvider.loggedInUserProfile?.role ==
+                    'Super Admin') {
+                  Navigator.pushNamed(context, '/super-admin-panel');
+                } else {
+                  Navigator.pushNamed(context, '/profile');
+                }
+              },
+            ),
+            SpeedDialChild(
+              child: Icon(Icons.search, color: Colors.white, size: 20),
+              backgroundColor: Colors.black,
+              shape: const CircleBorder(),
+              labelWidget: Container(
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  borderRadius: BorderRadius.circular(
+                    Responsive.space(context, size: Space.large),
+                  ),
+                ),
+                alignment: Alignment.center,
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    vertical: Responsive.space(context, size: Space.small),
+                    horizontal: Responsive.space(context, size: Space.medium),
+                  ),
+                  child: Text(
+                    'بحث',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+              onTap: () => showUserSearchModal(context),
+            ),
+            SpeedDialChild(
+              child: Icon(
+                Icons.add_circle_outline_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
+              backgroundColor: Colors.black,
+              shape: const CircleBorder(),
+              labelWidget: Container(
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  borderRadius: BorderRadius.circular(
+                    Responsive.space(context, size: Space.large),
+                  ),
+                ),
+                alignment: Alignment.center,
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    vertical: Responsive.space(context, size: Space.small),
+                    horizontal: Responsive.space(context, size: Space.medium),
+                  ),
+                  child: Text(
+                    'إدارة',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+              visible:
+                  Provider.of<UserProfileProvider>(
+                    context,
+                    listen: false,
+                  ).loggedInUserProfile?.role !=
+                  'Student',
+              onTap: () {
+                Navigator.pushNamed(context, '/admin-control');
+              },
+            ),
+            SpeedDialChild(
+              child: Icon(
+                FontAwesomeIcons.handshake,
+                color: Colors.white,
+                size: 20,
+              ),
+              backgroundColor: Colors.black,
+              shape: const CircleBorder(),
+              labelWidget: Container(
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  borderRadius: BorderRadius.circular(
+                    Responsive.space(context, size: Space.large),
+                  ),
+                ),
+                alignment: Alignment.center,
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    vertical: Responsive.space(context, size: Space.small),
+                    horizontal: Responsive.space(context, size: Space.medium),
+                  ),
+                  child: Text(
+                    'تكوين فريق',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+              onTap: () {
+                Navigator.pushNamed(context, '/teams');
+              },
+            ),
+          ],
         ),
       ),
     );

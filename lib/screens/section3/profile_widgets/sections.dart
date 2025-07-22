@@ -6,7 +6,6 @@ import 'package:pivot/providers/section_provider.dart';
 import 'package:pivot/providers/subject_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
-import 'package:pivot/screens/section4/assistants/assistant_profile.dart';
 import 'package:provider/provider.dart';
 
 List<Widget> buildSectionsSlivers(BuildContext context) {

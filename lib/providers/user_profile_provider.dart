@@ -4,7 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/user_profile.dart';
-import 'package:pivot/services/cache_service.dart';
 import 'package:pivot/services/session_management_service.dart';
 import 'package:pivot/services/storage_optimization_service.dart';
 import 'package:flutter/material.dart';

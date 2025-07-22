@@ -7,7 +7,7 @@ import 'package:pivot/providers/subject_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:pivot/widgets/no_internet_message.dart';
 
 class SubjectSelectionScreen extends StatefulWidget {
   final List<String> previouslySelectedIds;
@@ -580,250 +580,253 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
   Widget build(BuildContext context) {
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        appBar: AppBar(
-          title: Text(
-            'اختار كورساتك',
-            style: TextStyle(
-              fontSize: Responsive.text(context, size: TextSize.heading),
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          centerTitle: true,
+      child: NoInternetMessage(
+        child: Scaffold(
           backgroundColor: Colors.white,
-          elevation: 0,
-          iconTheme: const IconThemeData(color: Colors.black),
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(40),
-            child: Consumer<SubjectProvider>(
-              builder: (context, subjectProvider, child) {
-                final totalHours = _calculateTotalHours();
-                final isOverLimit = totalHours > maxHours;
-                return Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.access_time,
-                        size: 16,
-                        color: isOverLimit ? Colors.red : Colors.grey[600],
-                      ),
-                      SizedBox(
-                        width: Responsive.space(context, size: Space.small),
-                      ),
-                      Text(
-                        'الساعات المختارة: $totalHours / $maxHours',
-                        style: TextStyle(
-                          fontSize: Responsive.text(
-                            context,
-                            size: TextSize.small,
-                          ),
-                          fontWeight: FontWeight.w500,
+          appBar: AppBar(
+            title: Text(
+              'اختار كورساتك',
+              style: TextStyle(
+                fontSize: Responsive.text(context, size: TextSize.heading),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            centerTitle: true,
+            backgroundColor: Colors.white,
+            elevation: 0,
+            iconTheme: const IconThemeData(color: Colors.black),
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(40),
+              child: Consumer<SubjectProvider>(
+                builder: (context, subjectProvider, child) {
+                  final totalHours = _calculateTotalHours();
+                  final isOverLimit = totalHours > maxHours;
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.access_time,
+                          size: 16,
                           color: isOverLimit ? Colors.red : Colors.grey[600],
                         ),
-                      ),
-                    ],
-                  ),
-                );
-              },
+                        SizedBox(
+                          width: Responsive.space(context, size: Space.small),
+                        ),
+                        Text(
+                          'الساعات المختارة: $totalHours / $maxHours',
+                          style: TextStyle(
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.small,
+                            ),
+                            fontWeight: FontWeight.w500,
+                            color: isOverLimit ? Colors.red : Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
             ),
-          ),
-          actions: [
-            IconButton(
-              icon: Icon(_showEnglish ? Icons.language : Icons.translate),
-              tooltip: _showEnglish ? 'عرض بالعربية' : 'Show in English',
-              onPressed: () {
-                setState(() {
-                  _showEnglish = !_showEnglish;
-                });
-              },
-            ),
-            Consumer<GuideProvider>(
-              builder: (context, guideProvider, child) {
-                final hasContent =
-                    guideProvider.guideContent != null &&
-                    guideProvider.guideContent!.guidebooks.isNotEmpty;
-                return IconButton(
-                  icon: const Icon(Icons.menu_book_outlined),
-                  tooltip: 'عرض دليل الكلية',
-                  onPressed:
-                      !hasContent
-                          ? null
-                          : () {
-                            showModalBottomSheet(
-                              context: context,
-                              isScrollControlled: true,
-                              shape: const RoundedRectangleBorder(
-                                borderRadius: BorderRadius.vertical(
-                                  top: Radius.circular(20),
-                                ),
-                              ),
-                              builder:
-                                  (_) => Directionality(
-                                    textDirection: TextDirection.rtl,
-                                    child: _buildGuideSection(),
+            actions: [
+              IconButton(
+                icon: Icon(_showEnglish ? Icons.language : Icons.translate),
+                tooltip: _showEnglish ? 'عرض بالعربية' : 'Show in English',
+                onPressed: () {
+                  setState(() {
+                    _showEnglish = !_showEnglish;
+                  });
+                },
+              ),
+              Consumer<GuideProvider>(
+                builder: (context, guideProvider, child) {
+                  final hasContent =
+                      guideProvider.guideContent != null &&
+                      guideProvider.guideContent!.guidebooks.isNotEmpty;
+                  return IconButton(
+                    icon: const Icon(Icons.menu_book_outlined),
+                    tooltip: 'عرض دليل الكلية',
+                    onPressed:
+                        !hasContent
+                            ? null
+                            : () {
+                              showModalBottomSheet(
+                                context: context,
+                                isScrollControlled: true,
+                                shape: const RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.vertical(
+                                    top: Radius.circular(20),
                                   ),
-                            );
-                          },
-                );
-              },
-            ),
-          ],
-        ),
-        body: _buildSubjectsList(),
-        floatingActionButton: Container(
-          decoration: BoxDecoration(
-            color:
-                _saveSuccess
-                    ? Colors.green
-                    : _calculateTotalHours() > maxHours
-                    ? Colors.red
-                    : Colors.black,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.2),
-                spreadRadius: 2,
-                blurRadius: 8,
-                offset: const Offset(0, 4),
+                                ),
+                                builder:
+                                    (_) => Directionality(
+                                      textDirection: TextDirection.rtl,
+                                      child: _buildGuideSection(),
+                                    ),
+                              );
+                            },
+                  );
+                },
               ),
             ],
           ),
-          child: FloatingActionButton(
-            onPressed:
-                _isSaving || _calculateTotalHours() > maxHours
-                    ? null
-                    : () async {
-                      setState(() {
-                        _isSaving = true;
-                        _saveSuccess = false;
-                      });
+          body: _buildSubjectsList(),
+          floatingActionButton: Container(
+            decoration: BoxDecoration(
+              color:
+                  _saveSuccess
+                      ? Colors.green
+                      : _calculateTotalHours() > maxHours
+                      ? Colors.red
+                      : Colors.black,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  spreadRadius: 2,
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: FloatingActionButton(
+              onPressed:
+                  _isSaving || _calculateTotalHours() > maxHours
+                      ? null
+                      : () async {
+                        setState(() {
+                          _isSaving = true;
+                          _saveSuccess = false;
+                        });
 
-                      bool success = false;
-                      try {
-                        final userProfileProvider =
-                            Provider.of<UserProfileProvider>(
-                              context,
-                              listen: false,
-                            );
-                        final subjectProvider = Provider.of<SubjectProvider>(
-                          context,
-                          listen: false,
-                        );
-
-                        final userRole =
-                            userProfileProvider.loggedInUserProfile?.role;
-                        UserProfile? updatedProfile;
-
-                        // If targetUserId is provided, Super Admin is editing another user's subjects
-                        if (widget.targetUserId != null &&
-                            userRole == 'Super Admin') {
-                          // Use the targetUserRole parameter instead of fetching from allUsers
-                          final targetUserRole = widget.targetUserRole;
-
-                          if (targetUserRole == 'Student' ||
-                              targetUserRole == 'Admin') {
-                            await userProfileProvider
-                                .updateUserEnrolledSubjects(
-                                  widget.targetUserId!,
-                                  _selectedSubjectIds.toList(),
-                                );
-                          } else if (targetUserRole == 'Professor' ||
-                              targetUserRole == 'miniProfessor' ||
-                              targetUserRole == 'Doctor') {
-                            await userProfileProvider
-                                .updateUserTeachingSubjects(
-                                  widget.targetUserId!,
-                                  _selectedSubjectIds.toList(),
-                                );
-                          } else {
-                            throw Exception(
-                              'Unknown target user role: $targetUserRole',
-                            );
-                          }
-
-                          success = true;
-                        } else {
-                          // Normal flow - user editing their own subjects
-                          if (userRole == 'Student' || userRole == 'Admin') {
-                            updatedProfile = await userProfileProvider
-                                .updateEnrolledSubjects(
-                                  _selectedSubjectIds.toList(),
-                                );
-                          } else if (userRole == 'Professor' ||
-                              userRole == 'miniProfessor' ||
-                              userRole == 'Doctor') {
-                            updatedProfile = await userProfileProvider
-                                .updateTeachingSubjects(
-                                  _selectedSubjectIds.toList(),
-                                );
-                          } else {
-                            // Handle unknown role
-                            throw Exception('Unknown user role: $userRole');
-                          }
-
-                          await subjectProvider.fetchAndFilterSubjects(
-                            updatedProfile,
+                        bool success = false;
+                        try {
+                          final userProfileProvider =
+                              Provider.of<UserProfileProvider>(
+                                context,
+                                listen: false,
+                              );
+                          final subjectProvider = Provider.of<SubjectProvider>(
+                            context,
+                            listen: false,
                           );
-                          // After updating subjects, fetch the latest user profile to ensure
-                          // the UI reflects the changes upon returning to the previous screen.
-                          await userProfileProvider.loadLoggedInUserProfile();
-                          success = true;
-                        }
-                      } catch (e) {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Failed to update subjects: $e'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                        }
-                      } finally {
-                        if (mounted) {
-                          if (success) {
-                            setState(() {
-                              _isSaving = false;
-                              _saveSuccess = true;
-                            });
-                            await Future.delayed(
-                              const Duration(milliseconds: 800),
-                            );
-                            if (mounted) {
-                              // Return true to indicate success, allowing the previous screen to react.
-                              Navigator.pop(context, true);
+
+                          final userRole =
+                              userProfileProvider.loggedInUserProfile?.role;
+                          UserProfile? updatedProfile;
+
+                          // If targetUserId is provided, Super Admin is editing another user's subjects
+                          if (widget.targetUserId != null &&
+                              userRole == 'Super Admin') {
+                            // Use the targetUserRole parameter instead of fetching from allUsers
+                            final targetUserRole = widget.targetUserRole;
+
+                            if (targetUserRole == 'Student' ||
+                                targetUserRole == 'Admin') {
+                              await userProfileProvider
+                                  .updateUserEnrolledSubjects(
+                                    widget.targetUserId!,
+                                    _selectedSubjectIds.toList(),
+                                  );
+                            } else if (targetUserRole == 'Professor' ||
+                                targetUserRole == 'miniProfessor' ||
+                                targetUserRole == 'Doctor') {
+                              await userProfileProvider
+                                  .updateUserTeachingSubjects(
+                                    widget.targetUserId!,
+                                    _selectedSubjectIds.toList(),
+                                  );
+                            } else {
+                              throw Exception(
+                                'Unknown target user role: $targetUserRole',
+                              );
                             }
+
+                            success = true;
                           } else {
-                            setState(() {
-                              _isSaving = false;
-                            });
+                            // Normal flow - user editing their own subjects
+                            if (userRole == 'Student' || userRole == 'Admin') {
+                              updatedProfile = await userProfileProvider
+                                  .updateEnrolledSubjects(
+                                    _selectedSubjectIds.toList(),
+                                  );
+                            } else if (userRole == 'Professor' ||
+                                userRole == 'miniProfessor' ||
+                                userRole == 'Doctor') {
+                              updatedProfile = await userProfileProvider
+                                  .updateTeachingSubjects(
+                                    _selectedSubjectIds.toList(),
+                                  );
+                            } else {
+                              // Handle unknown role
+                              throw Exception('Unknown user role: $userRole');
+                            }
+
+                            await subjectProvider.fetchAndFilterSubjects(
+                              updatedProfile,
+                            );
+                            // After updating subjects, fetch the latest user profile to ensure
+                            // the UI reflects the changes upon returning to the previous screen.
+                            await userProfileProvider.loadLoggedInUserProfile();
+                            success = true;
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Failed to update subjects: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        } finally {
+                          if (mounted) {
+                            if (success) {
+                              setState(() {
+                                _isSaving = false;
+                                _saveSuccess = true;
+                              });
+                              await Future.delayed(
+                                const Duration(milliseconds: 800),
+                              );
+                              if (mounted) {
+                                // Return true to indicate success, allowing the previous screen to react.
+                                Navigator.pop(context, true);
+                              }
+                            } else {
+                              setState(() {
+                                _isSaving = false;
+                              });
+                            }
                           }
                         }
-                      }
-                    },
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            child:
-                _isSaving || _calculateTotalHours() > maxHours
-                    ? const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
-                    )
-                    : _saveSuccess
-                    ? const Icon(Icons.done_all, color: Colors.white)
-                    : const Icon(Icons.check_rounded, color: Colors.white),
+                      },
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              child:
+                  _isSaving || _calculateTotalHours() > maxHours
+                      ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                      : _saveSuccess
+                      ? const Icon(Icons.done_all, color: Colors.white)
+                      : const Icon(Icons.check_rounded, color: Colors.white),
+            ),
           ),
+          floatingActionButtonLocation:
+              FloatingActionButtonLocation.centerFloat,
         ),
-        floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       ),
     );
   }

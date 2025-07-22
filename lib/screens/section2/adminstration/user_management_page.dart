@@ -5,6 +5,7 @@ import 'package:pivot/responsive.dart';
 import 'package:provider/provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:pivot/widgets/no_internet_message.dart';
 
 class UserManagementPage extends StatefulWidget {
   // = 'user_management_page';
@@ -437,149 +438,159 @@ class _UserManagementPageState extends State<UserManagementPage> {
 
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        appBar: AppBar(
-          title:
-              showSearchBar
-                  ? TextField(
-                    controller: _searchController,
-                    autofocus: true,
-                    decoration: InputDecoration(
-                      hintText: 'ابحث بالاسم أو البريد الإلكتروني',
-                      border: InputBorder.none,
-                      hintStyle: TextStyle(
-                        color: Colors.grey[400],
+      child: NoInternetMessage(
+        child: Scaffold(
+          backgroundColor: Colors.white,
+          appBar: AppBar(
+            title:
+                showSearchBar
+                    ? TextField(
+                      controller: _searchController,
+                      autofocus: true,
+                      decoration: InputDecoration(
+                        hintText: 'ابحث بالاسم أو البريد الإلكتروني',
+                        border: InputBorder.none,
+                        hintStyle: TextStyle(
+                          color: Colors.grey[400],
+                          fontSize: Responsive.text(
+                            context,
+                            size: TextSize.medium,
+                          ),
+                        ),
+                      ),
+                      style: TextStyle(
                         fontSize: Responsive.text(
                           context,
                           size: TextSize.medium,
                         ),
+                        color: Colors.black87,
                       ),
-                    ),
-                    style: TextStyle(
-                      fontSize: Responsive.text(context, size: TextSize.medium),
-                      color: Colors.black87,
-                    ),
-                    onChanged: (value) {
-                      setState(() {
-                        _filterUsers();
-                      });
-                    },
-                  )
-                  : Text(
-                    'إدارة أدوار المستخدمين',
-                    style: TextStyle(
-                      fontSize: Responsive.text(
-                        context,
-                        size: TextSize.heading,
-                      ),
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-          backgroundColor: Colors.white,
-          elevation: 0,
-          iconTheme: const IconThemeData(color: Colors.black),
-          actions: [
-            IconButton(
-              icon: Icon(showSearchBar ? Icons.close : Icons.search),
-              onPressed: () {
-                setState(() {
-                  showSearchBar = !showSearchBar;
-                  if (!showSearchBar) {
-                    _searchController.clear();
-                    _filterUsers();
-                  }
-                });
-              },
-            ),
-            if (_selectedUsers.isNotEmpty)
-              Container(
-                margin: EdgeInsets.only(
-                  right: Responsive.space(context, size: Space.medium),
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: TextButton.icon(
-                  onPressed: _bulkUpdateRoles,
-                  icon: Icon(Icons.edit, color: Colors.white, size: 16),
-                  label: Text(
-                    'تحديث ${_selectedUsers.length}',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: Responsive.text(context, size: TextSize.small),
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-        body: RefreshIndicator(
-          onRefresh: _fetchUsers,
-          child: Column(
-            children: [
-              // Search and Filter Section
-
-              // Users List
-              Expanded(
-                child:
-                    _isLoading
-                        ? const Center(child: CircularProgressIndicator())
-                        : _filteredUsers.isEmpty
-                        ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.people_outline,
-                                size: 64,
-                                color: Colors.grey[400],
-                              ),
-                              SizedBox(
-                                height: Responsive.space(
-                                  context,
-                                  size: Space.medium,
-                                ),
-                              ),
-                              Text(
-                                'لا يوجد مستخدمين مطابقين للبحث',
-                                style: TextStyle(
-                                  fontSize: Responsive.text(
-                                    context,
-                                    size: TextSize.medium,
-                                  ),
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                            ],
-                          ),
-                        )
-                        : ListView.builder(
-                          padding: Responsive.padding(
-                            context,
-                            size: Space.medium,
-                          ),
-                          itemCount: _filteredUsers.length,
-                          itemBuilder: (context, index) {
-                            final user = _filteredUsers[index];
-                            final selectedRole = _selectedRoles[user.id];
-                            final hasChanged =
-                                selectedRole != null &&
-                                selectedRole != user.role;
-                            final isSelected = _selectedUsers.contains(user.id);
-
-                            return _buildUserCard(
-                              user,
-                              selectedRole,
-                              hasChanged,
-                              isSelected,
-                            );
-                          },
+                      onChanged: (value) {
+                        setState(() {
+                          _filterUsers();
+                        });
+                      },
+                    )
+                    : Text(
+                      'إدارة أدوار المستخدمين',
+                      style: TextStyle(
+                        fontSize: Responsive.text(
+                          context,
+                          size: TextSize.heading,
                         ),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+            backgroundColor: Colors.white,
+            elevation: 0,
+            iconTheme: const IconThemeData(color: Colors.black),
+            actions: [
+              IconButton(
+                icon: Icon(showSearchBar ? Icons.close : Icons.search),
+                onPressed: () {
+                  setState(() {
+                    showSearchBar = !showSearchBar;
+                    if (!showSearchBar) {
+                      _searchController.clear();
+                      _filterUsers();
+                    }
+                  });
+                },
               ),
+              if (_selectedUsers.isNotEmpty)
+                Container(
+                  margin: EdgeInsets.only(
+                    right: Responsive.space(context, size: Space.medium),
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: TextButton.icon(
+                    onPressed: _bulkUpdateRoles,
+                    icon: Icon(Icons.edit, color: Colors.white, size: 16),
+                    label: Text(
+                      'تحديث ${_selectedUsers.length}',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: Responsive.text(
+                          context,
+                          size: TextSize.small,
+                        ),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
             ],
+          ),
+          body: RefreshIndicator(
+            onRefresh: _fetchUsers,
+            child: Column(
+              children: [
+                // Search and Filter Section
+
+                // Users List
+                Expanded(
+                  child:
+                      _isLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : _filteredUsers.isEmpty
+                          ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.people_outline,
+                                  size: 64,
+                                  color: Colors.grey[400],
+                                ),
+                                SizedBox(
+                                  height: Responsive.space(
+                                    context,
+                                    size: Space.medium,
+                                  ),
+                                ),
+                                Text(
+                                  'لا يوجد مستخدمين مطابقين للبحث',
+                                  style: TextStyle(
+                                    fontSize: Responsive.text(
+                                      context,
+                                      size: TextSize.medium,
+                                    ),
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                          : ListView.builder(
+                            padding: Responsive.padding(
+                              context,
+                              size: Space.medium,
+                            ),
+                            itemCount: _filteredUsers.length,
+                            itemBuilder: (context, index) {
+                              final user = _filteredUsers[index];
+                              final selectedRole = _selectedRoles[user.id];
+                              final hasChanged =
+                                  selectedRole != null &&
+                                  selectedRole != user.role;
+                              final isSelected = _selectedUsers.contains(
+                                user.id,
+                              );
+
+                              return _buildUserCard(
+                                user,
+                                selectedRole,
+                                hasChanged,
+                                isSelected,
+                              );
+                            },
+                          ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

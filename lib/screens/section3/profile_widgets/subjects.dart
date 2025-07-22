@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/models/subject_model.dart';
-import 'package:pivot/screens/section4/doctor/doctor_profile.dart';
 
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/providers/user_profile_provider.dart';

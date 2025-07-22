@@ -4,7 +4,7 @@ import 'package:pivot/screens/models/circular_button.dart';
 import 'package:pivot/data/form_options.dart';
 import 'package:pivot/providers/settings_provider.dart';
 import 'package:pivot/screens/models/custom_dropdown.dart';
-import 'package:pivot/screens/section2/landing.dart';
+import 'package:pivot/widgets/no_internet_message.dart';
 import '../../../../responsive.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/user_profile_provider.dart';
@@ -108,132 +108,146 @@ class _Signup_2State extends State<Signup_2> {
       onTap: () {
         FocusScope.of(context).unfocus();
       },
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        body: SafeArea(
-          child: Form(
-            key: _formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  Padding(
-                    padding: Responsive.paddingHorizontal(
-                      context,
-                      size: Space.xlarge,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        SizedBox(
-                          height: Responsive.space(context, size: Space.xlarge),
-                        ),
-                        Text(
-                          'تفاصيل الكلية',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: Responsive.text(
+      child: NoInternetMessage(
+        child: Scaffold(
+          backgroundColor: Colors.white,
+          body: SafeArea(
+            child: Form(
+              key: _formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: Responsive.paddingHorizontal(
+                        context,
+                        size: Space.xlarge,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            height: Responsive.space(
                               context,
-                              size: TextSize.heading,
+                              size: Space.xlarge,
                             ),
-                            fontWeight: FontWeight.bold,
                           ),
-                        ),
-                        SizedBox(
-                          height: Responsive.space(context, size: Space.xlarge),
-                        ),
-                        CustomDropdown(
-                          value: selectedYear,
-                          items: FormOptions.academicYears,
-                          hint: 'اختر الفرقة',
-                          onChanged: (String? newValue) {
-                            setState(() {
-                              selectedYear = newValue;
-
-                              // Reset and update dependent dropdowns
-                              selectedDepartment = null;
-                              selectedSection = null;
-
-                              _availableDepartments =
-                                  FormOptions.getDepartmentsForYear(newValue);
-                              _availableSections = [];
-                            });
-                            WidgetsBinding.instance.addPostFrameCallback((_) {
-                              FocusScope.of(
+                          Text(
+                            'تفاصيل الكلية',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: Responsive.text(
                                 context,
-                              ).requestFocus(_departmentFocus);
-                            });
-                          },
-                        ),
-                        SizedBox(
-                          height: Responsive.space(context, size: Space.medium),
-                        ),
-                        CustomDropdown(
-                          value: selectedDepartment,
-                          items: _availableDepartments,
-                          hint: 'اختر القسم',
-                          onChanged: (String? newValue) {
-                            setState(() {
-                              selectedDepartment = newValue;
-                              selectedSection = null;
-
-                              // Get section count from settings provider
-                              if (selectedDepartment != null &&
-                                  settingsProvider.sectionCounts.containsKey(
-                                    selectedDepartment,
-                                  )) {
-                                final sectionCount =
-                                    settingsProvider
-                                        .sectionCounts[selectedDepartment] ??
-                                    0;
-                                _availableSections = List<String>.generate(
-                                  sectionCount,
-                                  (i) => '${i + 1}',
-                                );
-                              } else {
-                                _availableSections = [];
-                              }
-                            });
-                            WidgetsBinding.instance.addPostFrameCallback((_) {
-                              FocusScope.of(
-                                context,
-                              ).requestFocus(_sectionFocus);
-                            });
-                          },
-                        ),
-                        SizedBox(
-                          height: Responsive.space(context, size: Space.medium),
-                        ),
-                        CustomDropdown(
-                          value: selectedSection,
-                          items: _availableSections,
-                          hint: 'اختر السكشن',
-                          onChanged: (String? newValue) {
-                            setState(() {
-                              selectedSection = newValue;
-                            });
-                            FocusScope.of(context).unfocus();
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(
-                    height: Responsive.space(context, size: Space.xlarge) * 4,
-                  ),
-                  Padding(
-                    padding: Responsive.paddingHorizontal(
-                      context,
-                      size: Space.large,
-                    ),
-                    child:
-                        _isLoading
-                            ? const Center(child: CircularProgressIndicator())
-                            : CircularButton(
-                              onPressed: _submitForm,
-                              icon: Icons.check,
+                                size: TextSize.heading,
+                              ),
+                              fontWeight: FontWeight.bold,
                             ),
-                  ),
-                ],
+                          ),
+                          SizedBox(
+                            height: Responsive.space(
+                              context,
+                              size: Space.xlarge,
+                            ),
+                          ),
+                          CustomDropdown(
+                            value: selectedYear,
+                            items: FormOptions.academicYears,
+                            hint: 'اختر الفرقة',
+                            onChanged: (String? newValue) {
+                              setState(() {
+                                selectedYear = newValue;
+
+                                // Reset and update dependent dropdowns
+                                selectedDepartment = null;
+                                selectedSection = null;
+
+                                _availableDepartments =
+                                    FormOptions.getDepartmentsForYear(newValue);
+                                _availableSections = [];
+                              });
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                FocusScope.of(
+                                  context,
+                                ).requestFocus(_departmentFocus);
+                              });
+                            },
+                          ),
+                          SizedBox(
+                            height: Responsive.space(
+                              context,
+                              size: Space.medium,
+                            ),
+                          ),
+                          CustomDropdown(
+                            value: selectedDepartment,
+                            items: _availableDepartments,
+                            hint: 'اختر القسم',
+                            onChanged: (String? newValue) {
+                              setState(() {
+                                selectedDepartment = newValue;
+                                selectedSection = null;
+
+                                // Get section count from settings provider
+                                if (selectedDepartment != null &&
+                                    settingsProvider.sectionCounts.containsKey(
+                                      selectedDepartment,
+                                    )) {
+                                  final sectionCount =
+                                      settingsProvider
+                                          .sectionCounts[selectedDepartment] ??
+                                      0;
+                                  _availableSections = List<String>.generate(
+                                    sectionCount,
+                                    (i) => '${i + 1}',
+                                  );
+                                } else {
+                                  _availableSections = [];
+                                }
+                              });
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                FocusScope.of(
+                                  context,
+                                ).requestFocus(_sectionFocus);
+                              });
+                            },
+                          ),
+                          SizedBox(
+                            height: Responsive.space(
+                              context,
+                              size: Space.medium,
+                            ),
+                          ),
+                          CustomDropdown(
+                            value: selectedSection,
+                            items: _availableSections,
+                            hint: 'اختر السكشن',
+                            onChanged: (String? newValue) {
+                              setState(() {
+                                selectedSection = newValue;
+                              });
+                              FocusScope.of(context).unfocus();
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.xlarge) * 4,
+                    ),
+                    Padding(
+                      padding: Responsive.paddingHorizontal(
+                        context,
+                        size: Space.large,
+                      ),
+                      child:
+                          _isLoading
+                              ? const Center(child: CircularProgressIndicator())
+                              : CircularButton(
+                                onPressed: _submitForm,
+                                icon: Icons.check,
+                              ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

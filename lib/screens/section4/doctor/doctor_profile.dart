@@ -13,6 +13,7 @@ import 'package:pivot/screens/models/material_links_widget.dart';
 import 'package:pivot/screens/section3/profile_widgets/Profile_options.dart';
 import 'package:pivot/screens/section3/subject_selection_screen.dart';
 import 'package:provider/provider.dart';
+import 'package:pivot/widgets/no_internet_message.dart';
 
 class DoctorProfile extends StatefulWidget {
   // = 'doctor';
@@ -465,49 +466,53 @@ class _DoctorProfileState extends State<DoctorProfile> {
     );
 
     if (userProfile == null) {
-      return Scaffold(
-        appBar: appBar,
-        body: const Center(child: CircularProgressIndicator()),
+      return NoInternetMessage(
+        child: Scaffold(
+          appBar: appBar,
+          body: const Center(child: CircularProgressIndicator()),
+        ),
       );
     }
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      floatingActionButton:
-          loggedInUser?.role != 'Student' &&
-                  loggedInUser?.role != 'miniProfessor' &&
-                  _currentCategory == 'المواد'
-              ? FloatingActionButton(
-                onPressed: _showAddLectureDialog,
-                backgroundColor: Colors.black,
-                child: const Icon(Icons.add),
-              )
-              : null,
-      appBar: appBar,
-      body: Padding(
-        padding: Responsive.paddingHorizontal(context),
-        child: CustomScrollView(
-          controller: _scrollController,
-          slivers: [
-            SliverToBoxAdapter(
-              child: Container(
-                key: _profileDetailsKey,
-                child: DoctorDetails(userProfile: userProfile),
+    return NoInternetMessage(
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        floatingActionButton:
+            loggedInUser?.role != 'Student' &&
+                    loggedInUser?.role != 'miniProfessor' &&
+                    _currentCategory == '\u0627\u0644\u0645\u0648\u0627\u062f'
+                ? FloatingActionButton(
+                  onPressed: _showAddLectureDialog,
+                  backgroundColor: Colors.black,
+                  child: const Icon(Icons.add),
+                )
+                : null,
+        appBar: appBar,
+        body: Padding(
+          padding: Responsive.paddingHorizontal(context),
+          child: CustomScrollView(
+            controller: _scrollController,
+            slivers: [
+              SliverToBoxAdapter(
+                child: Container(
+                  key: _profileDetailsKey,
+                  child: DoctorDetails(userProfile: userProfile),
+                ),
               ),
-            ),
-            SliverToBoxAdapter(
-              child: SizedBox(
-                height: Responsive.space(context, size: Space.large),
+              SliverToBoxAdapter(
+                child: SizedBox(
+                  height: Responsive.space(context, size: Space.large),
+                ),
               ),
-            ),
-            SliverToBoxAdapter(
-              child: DoctorCategories(
-                onCategoryChanged: _onMainCategoryChanged,
+              SliverToBoxAdapter(
+                child: DoctorCategories(
+                  onCategoryChanged: _onMainCategoryChanged,
+                ),
               ),
-            ),
-            const SliverToBoxAdapter(child: Divider(indent: 4, endIndent: 1)),
-            ..._getCategoryContentSlivers(context),
-          ],
+              const SliverToBoxAdapter(child: Divider(indent: 4, endIndent: 1)),
+              ..._getCategoryContentSlivers(context),
+            ],
+          ),
         ),
       ),
     );

@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:pivot/screens/section1/first_landing.dart';
 import 'package:pivot/screens/section1/login/forgot_password_screen.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
-import 'package:pivot/screens/section2/landing.dart';
 import 'package:pivot/screens/models/circular_button.dart';
 import 'package:pivot/screens/models/custom_text_field.dart';
 import 'package:provider/provider.dart';
@@ -17,6 +15,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../services/permission_service.dart';
 import '../../../services/notification_service.dart';
+import 'package:pivot/widgets/no_internet_message.dart';
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -315,138 +314,144 @@ class _LoginState extends State<Login> {
         SystemNavigator.pop();
         return true;
       },
-      child: Scaffold(
-        appBar: AppBar(
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () {
-              Navigator.pushReplacementNamed(context, '/first-landing');
-            },
+      child: NoInternetMessage(
+        child: Scaffold(
+          appBar: AppBar(
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () {
+                Navigator.pushReplacementNamed(context, '/first-landing');
+              },
+            ),
           ),
-        ),
-        body: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: Responsive.paddingHorizontal(
-                  context,
-                  size: Space.xlarge,
-                ),
-                child: Form(
-                  key: _formKey,
-                  child: AutofillGroup(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'تسجيل الدخول',
-                          style: TextStyle(
-                            fontSize: Responsive.text(
-                              context,
-                              size: TextSize.heading,
-                            ),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(
-                          height:
-                              Responsive.space(context, size: Space.xlarge) * 2,
-                        ),
-                        Padding(
-                          padding: Responsive.paddingVertical(
-                            context,
-                            size: Space.small,
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              CustomTextField(
-                                controller: _emailController,
-                                focusNode: _emailFocus,
-                                hint: 'الايميل الجامعي',
-                                keyboardType: TextInputType.emailAddress,
-                                validator: _validateEmail,
-                                isValid: _isEmailValid,
-                                onChanged: (value) => _email = value,
-                              ),
-                            ],
-                          ),
-                        ),
-                        Padding(
-                          padding: Responsive.paddingVertical(
-                            context,
-                            size: Space.small,
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              CustomTextField(
-                                controller: _passwordController,
-                                focusNode: _passwordFocus,
-                                hint: 'الباسورد',
-                                validator: _validatePassword,
-                                obscureText: !_isPasswordVisible,
-                                isValid: _isPasswordValid,
-                                onChanged: (value) => _password = value,
-                                suffixIcon: IconButton(
-                                  icon: Icon(
-                                    _isPasswordVisible
-                                        ? Icons.visibility_off
-                                        : Icons.visibility,
-                                    size: Responsive.text(
-                                      context,
-                                      size: TextSize.medium,
-                                    ),
-                                    color: Colors.grey,
-                                  ),
-                                  onPressed: () {
-                                    setState(() {
-                                      _isPasswordVisible = !_isPasswordVisible;
-                                    });
-                                  },
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Padding(
-                          padding: Responsive.paddingVertical(
-                            context,
-                            size: Space.small,
-                          ),
-                          child: TextButton(
-                            onPressed: () {
-                              Navigator.push(
+          body: SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: Responsive.paddingHorizontal(
+                    context,
+                    size: Space.xlarge,
+                  ),
+                  child: Form(
+                    key: _formKey,
+                    child: AutofillGroup(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'تسجيل الدخول',
+                            style: TextStyle(
+                              fontSize: Responsive.text(
                                 context,
-                                MaterialPageRoute(
-                                  builder: (context) => ForgotPasswordScreen(),
+                                size: TextSize.heading,
+                              ),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          SizedBox(
+                            height:
+                                Responsive.space(context, size: Space.xlarge) *
+                                2,
+                          ),
+                          Padding(
+                            padding: Responsive.paddingVertical(
+                              context,
+                              size: Space.small,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                CustomTextField(
+                                  controller: _emailController,
+                                  focusNode: _emailFocus,
+                                  hint: 'الايميل الجامعي',
+                                  keyboardType: TextInputType.emailAddress,
+                                  validator: _validateEmail,
+                                  isValid: _isEmailValid,
+                                  onChanged: (value) => _email = value,
                                 ),
-                              );
-                            },
-                            child: Text(
-                              'نسيت الباسورد ؟',
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: Responsive.text(
+                              ],
+                            ),
+                          ),
+                          Padding(
+                            padding: Responsive.paddingVertical(
+                              context,
+                              size: Space.small,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                CustomTextField(
+                                  controller: _passwordController,
+                                  focusNode: _passwordFocus,
+                                  hint: 'الباسورد',
+                                  validator: _validatePassword,
+                                  obscureText: !_isPasswordVisible,
+                                  isValid: _isPasswordValid,
+                                  onChanged: (value) => _password = value,
+                                  suffixIcon: IconButton(
+                                    icon: Icon(
+                                      _isPasswordVisible
+                                          ? Icons.visibility_off
+                                          : Icons.visibility,
+                                      size: Responsive.text(
+                                        context,
+                                        size: TextSize.medium,
+                                      ),
+                                      color: Colors.grey,
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        _isPasswordVisible =
+                                            !_isPasswordVisible;
+                                      });
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Padding(
+                            padding: Responsive.paddingVertical(
+                              context,
+                              size: Space.small,
+                            ),
+                            child: TextButton(
+                              onPressed: () {
+                                Navigator.push(
                                   context,
-                                  size: TextSize.small,
+                                  MaterialPageRoute(
+                                    builder:
+                                        (context) => ForgotPasswordScreen(),
+                                  ),
+                                );
+                              },
+                              child: Text(
+                                'نسيت الباسورد ؟',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.small,
+                                  ),
+                                  fontWeight: FontWeight.w500,
                                 ),
-                                fontWeight: FontWeight.w500,
                               ),
                             ),
                           ),
-                        ),
-                        SizedBox(
-                          height:
-                              Responsive.space(context, size: Space.xlarge) * 2,
-                        ),
-                        _isLoading
-                            ? const Center(child: CircularProgressIndicator())
-                            : CircularButton(
-                              onPressed: _login,
-                              icon: Icons.check,
-                            ),
-                      ],
+                          SizedBox(
+                            height:
+                                Responsive.space(context, size: Space.xlarge) *
+                                2,
+                          ),
+                          _isLoading
+                              ? const Center(child: CircularProgressIndicator())
+                              : CircularButton(
+                                onPressed: _login,
+                                icon: Icons.check,
+                              ),
+                        ],
+                      ),
                     ),
                   ),
                 ),

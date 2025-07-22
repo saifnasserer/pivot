@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:pivot/screens/section1/first_landing.dart';
 import 'package:pivot/screens/section1/signup/signup_page2.dart';
 import 'package:pivot/data/form_options.dart';
 import 'package:pivot/screens/models/circular_button.dart';
 import 'package:pivot/screens/models/custom_dropdown.dart';
 import 'package:pivot/screens/models/custom_text_field.dart';
 import '../../../responsive.dart';
+import 'package:pivot/widgets/no_internet_message.dart';
 
 class Signup_1 extends StatefulWidget {
   const Signup_1({super.key});
@@ -90,164 +90,171 @@ class _Signup_1State extends State<Signup_1> {
         onTap: () {
           FocusScope.of(context).unfocus();
         },
-        child: Scaffold(
-          appBar: AppBar(
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () {
-                Navigator.pushReplacementNamed(context, '/first-landing');
-              },
+        child: NoInternetMessage(
+          child: Scaffold(
+            appBar: AppBar(
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () {
+                  Navigator.pushReplacementNamed(context, '/first-landing');
+                },
+              ),
             ),
-          ),
-          backgroundColor: Colors.white,
-          body: SafeArea(
-            child: Form(
-              key: _formKey,
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    Padding(
-                      padding: Responsive.paddingHorizontal(
-                        context,
-                        size: Space.xlarge,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          SizedBox(
-                            height: Responsive.space(
-                              context,
-                              size: Space.xlarge,
-                            ),
-                          ),
-                          Text(
-                            'البيانات الاساسية',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: Responsive.text(
+            backgroundColor: Colors.white,
+            body: SafeArea(
+              child: Form(
+                key: _formKey,
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: Responsive.paddingHorizontal(
+                          context,
+                          size: Space.xlarge,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              height: Responsive.space(
                                 context,
-                                size: TextSize.heading,
+                                size: Space.xlarge,
                               ),
-                              fontWeight: FontWeight.bold,
                             ),
-                          ),
-                          SizedBox(
-                            height: Responsive.space(
-                              context,
-                              size: Space.xlarge,
-                            ),
-                          ),
-                          CustomTextField(
-                            controller: _nameController,
-                            focusNode: _nameFocus,
-                            hint: 'الاسم (يفضل ثنائي و بالعربي)',
-                            validator: _validateName,
-                            onEditingComplete: () {
-                              FocusScope.of(context).requestFocus(_emailFocus);
-                            },
-                          ),
-                          SizedBox(
-                            height: Responsive.space(
-                              context,
-                              size: Space.medium,
-                            ),
-                          ),
-                          CustomTextField(
-                            controller: _emailController,
-                            focusNode: _emailFocus,
-                            hint: 'الايميل الجامعي',
-                            validator: _validateEmail,
-                            keyboardType: TextInputType.emailAddress,
-                            onEditingComplete: () {
-                              FocusScope.of(context).requestFocus(_phoneFocus);
-                            },
-                          ),
-                          SizedBox(
-                            height: Responsive.space(
-                              context,
-                              size: Space.medium,
-                            ),
-                          ),
-                          CustomTextField(
-                            controller: _phoneController,
-                            focusNode: _phoneFocus,
-                            hint: 'رقم الموبيل',
-                            validator: _validatePhone,
-                            keyboardType: TextInputType.phone,
-                            onEditingComplete: () {
-                              FocusScope.of(
-                                context,
-                              ).requestFocus(_passwordFocus);
-                            },
-                          ),
-                          SizedBox(
-                            height: Responsive.space(
-                              context,
-                              size: Space.medium,
-                            ),
-                          ),
-                          CustomTextField(
-                            controller: _passwordController,
-                            focusNode: _passwordFocus,
-                            hint: 'الباسورد',
-                            validator: _validatePassword,
-                            textInputAction: TextInputAction.done,
-                            obscureText: !_isPasswordVisible,
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _isPasswordVisible
-                                    ? Icons.visibility_off
-                                    : Icons.visibility,
-                                size: Responsive.text(
+                            Text(
+                              'البيانات الاساسية',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: Responsive.text(
                                   context,
-                                  size: TextSize.medium,
+                                  size: TextSize.heading,
                                 ),
-                                color: Colors.grey,
+                                fontWeight: FontWeight.bold,
                               ),
-                              onPressed: () {
-                                setState(() {
-                                  _isPasswordVisible = !_isPasswordVisible;
-                                });
+                            ),
+                            SizedBox(
+                              height: Responsive.space(
+                                context,
+                                size: Space.xlarge,
+                              ),
+                            ),
+                            CustomTextField(
+                              controller: _nameController,
+                              focusNode: _nameFocus,
+                              hint: 'الاسم (يفضل ثنائي و بالعربي)',
+                              validator: _validateName,
+                              onEditingComplete: () {
+                                FocusScope.of(
+                                  context,
+                                ).requestFocus(_emailFocus);
                               },
                             ),
-                            onEditingComplete: () {
-                              FocusScope.of(context).unfocus();
-                            },
-                          ),
-                          SizedBox(
-                            height: Responsive.space(
-                              context,
-                              size: Space.medium,
+                            SizedBox(
+                              height: Responsive.space(
+                                context,
+                                size: Space.medium,
+                              ),
                             ),
-                          ),
-                          CustomDropdown(
-                            hint: 'النوع',
-                            value: _gender,
-                            items: FormOptions.genders,
-                            onChanged: (String? newValue) {
-                              setState(() {
-                                _gender = newValue!;
-                              });
-                            },
-                            isValid: true,
-                          ),
-                        ],
+                            CustomTextField(
+                              controller: _emailController,
+                              focusNode: _emailFocus,
+                              hint: 'الايميل الجامعي',
+                              validator: _validateEmail,
+                              keyboardType: TextInputType.emailAddress,
+                              onEditingComplete: () {
+                                FocusScope.of(
+                                  context,
+                                ).requestFocus(_phoneFocus);
+                              },
+                            ),
+                            SizedBox(
+                              height: Responsive.space(
+                                context,
+                                size: Space.medium,
+                              ),
+                            ),
+                            CustomTextField(
+                              controller: _phoneController,
+                              focusNode: _phoneFocus,
+                              hint: 'رقم الموبيل',
+                              validator: _validatePhone,
+                              keyboardType: TextInputType.phone,
+                              onEditingComplete: () {
+                                FocusScope.of(
+                                  context,
+                                ).requestFocus(_passwordFocus);
+                              },
+                            ),
+                            SizedBox(
+                              height: Responsive.space(
+                                context,
+                                size: Space.medium,
+                              ),
+                            ),
+                            CustomTextField(
+                              controller: _passwordController,
+                              focusNode: _passwordFocus,
+                              hint: 'الباسورد',
+                              validator: _validatePassword,
+                              textInputAction: TextInputAction.done,
+                              obscureText: !_isPasswordVisible,
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _isPasswordVisible
+                                      ? Icons.visibility_off
+                                      : Icons.visibility,
+                                  size: Responsive.text(
+                                    context,
+                                    size: TextSize.medium,
+                                  ),
+                                  color: Colors.grey,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _isPasswordVisible = !_isPasswordVisible;
+                                  });
+                                },
+                              ),
+                              onEditingComplete: () {
+                                FocusScope.of(context).unfocus();
+                              },
+                            ),
+                            SizedBox(
+                              height: Responsive.space(
+                                context,
+                                size: Space.medium,
+                              ),
+                            ),
+                            CustomDropdown(
+                              hint: 'النوع',
+                              value: _gender,
+                              items: FormOptions.genders,
+                              onChanged: (String? newValue) {
+                                setState(() {
+                                  _gender = newValue!;
+                                });
+                              },
+                              isValid: true,
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    SizedBox(
-                      height: Responsive.space(context, size: Space.xlarge) * 4,
-                    ),
-                    Padding(
-                      padding: Responsive.paddingHorizontal(
-                        context,
-                        size: Space.large,
+                      SizedBox(
+                        height:
+                            Responsive.space(context, size: Space.xlarge) * 4,
                       ),
-                      child: CircularButton(
-                        onPressed: _submitPage1,
-                        icon: Icons.arrow_forward,
+                      Padding(
+                        padding: Responsive.paddingHorizontal(
+                          context,
+                          size: Space.large,
+                        ),
+                        child: CircularButton(
+                          onPressed: _submitPage1,
+                          icon: Icons.arrow_forward,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

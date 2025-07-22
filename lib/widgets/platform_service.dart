@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import '../responsive.dart';
 
 // Conditional import for web-only code
 import 'platform_service_web.dart'

@@ -179,7 +179,7 @@ class _UserSearchModalContentState extends State<_UserSearchModalContent> {
 
     // Debugging: print current user and token
     final user = FirebaseAuth.instance.currentUser;
-    print('Current user: ' + (user?.uid ?? 'null'));
+    print('Current user: ${user?.uid ?? 'null'}');
     if (user != null) {
       final token = await user.getIdToken();
       print('User token: $token');

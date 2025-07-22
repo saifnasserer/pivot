@@ -71,7 +71,7 @@ class _WeekTasksState extends State<WeekTasks> {
             )
             .map((section) => section.id)
             .toSet();
-    print('[WeekTasks] relevantSectionIds: \\${relevantSectionIds}');
+    print('[WeekTasks] relevantSectionIds: \\$relevantSectionIds');
 
     final filteredTasks =
         allTasks.where((task) {

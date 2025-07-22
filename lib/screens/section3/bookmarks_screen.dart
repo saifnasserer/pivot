@@ -5,6 +5,7 @@ import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/section2/adminstration/models/announcement_data.dart';
 import 'package:pivot/screens/section3/profile_widgets/bookmark_card.dart';
 import 'package:provider/provider.dart';
+import 'package:pivot/widgets/no_internet_message.dart';
 
 class BookmarksScreen extends StatelessWidget {
   const BookmarksScreen({super.key});
@@ -51,78 +52,83 @@ class BookmarksScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<Bookmarks>(
-      builder: (context, bookmarksProvider, child) {
-        // Reverse the list of IDs to show the most recently bookmarked first.
-        final bookmarkIds = bookmarksProvider.bookmarkIds.reversed.toList();
+    return NoInternetMessage(
+      child: Consumer<Bookmarks>(
+        builder: (context, bookmarksProvider, child) {
+          // Reverse the list of IDs to show the most recently bookmarked first.
+          final bookmarkIds = bookmarksProvider.bookmarkIds.reversed.toList();
 
-        if (bookmarkIds.isEmpty) {
-          return Center(
-            child: Text(
-              'مفيش محفوظات',
-              style: TextStyle(
-                fontSize: Responsive.text(context, size: TextSize.heading),
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[600],
-              ),
-              textDirection: TextDirection.rtl,
-            ),
-          );
-        }
-
-        return FutureBuilder<List<AnnouncementData>>(
-          future: _fetchBookmarkedAnnouncements(bookmarkIds),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError) {
-              return Center(
-                child: Text(
-                  'حدث خطأ أثناء تحميل المحفوظات',
-                  style: TextStyle(
-                    color: Colors.red,
-                    fontSize: Responsive.text(context, size: TextSize.medium),
-                  ),
-                  textDirection: TextDirection.rtl,
+          if (bookmarkIds.isEmpty) {
+            return Center(
+              child: Text(
+                'مفيش محفوظات',
+                style: TextStyle(
+                  fontSize: Responsive.text(context, size: TextSize.heading),
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[600],
                 ),
-              );
-            }
-            if (!snapshot.hasData || snapshot.data!.isEmpty) {
-              return Center(
-                child: Text(
-                  'مفيش محفوظات',
-                  style: TextStyle(
-                    fontSize: Responsive.text(context, size: TextSize.heading),
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[600],
-                  ),
-                  textDirection: TextDirection.rtl,
-                ),
-              );
-            }
-
-            final bookmarkedItems = snapshot.data!;
-            return ListView.builder(
-              padding: EdgeInsets.symmetric(
-                vertical: Responsive.space(context, size: Space.medium),
+                textDirection: TextDirection.rtl,
               ),
-              itemCount: bookmarkedItems.length,
-              itemBuilder: (context, index) {
-                final bookmark = bookmarkedItems[index];
-                return BookmarkCard(
-                  bookmark: bookmark,
-                  onRemove: () {
-                    if (bookmark.id != null) {
-                      bookmarksProvider.toggleBookmark(bookmark.id!);
-                    }
-                  },
-                );
-              },
             );
-          },
-        );
-      },
+          }
+
+          return FutureBuilder<List<AnnouncementData>>(
+            future: _fetchBookmarkedAnnouncements(bookmarkIds),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (snapshot.hasError) {
+                return Center(
+                  child: Text(
+                    'حدث خطأ أثناء تحميل المحفوظات',
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontSize: Responsive.text(context, size: TextSize.medium),
+                    ),
+                    textDirection: TextDirection.rtl,
+                  ),
+                );
+              }
+              if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                return Center(
+                  child: Text(
+                    'مفيش محفوظات',
+                    style: TextStyle(
+                      fontSize: Responsive.text(
+                        context,
+                        size: TextSize.heading,
+                      ),
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[600],
+                    ),
+                    textDirection: TextDirection.rtl,
+                  ),
+                );
+              }
+
+              final bookmarkedItems = snapshot.data!;
+              return ListView.builder(
+                padding: EdgeInsets.symmetric(
+                  vertical: Responsive.space(context, size: Space.medium),
+                ),
+                itemCount: bookmarkedItems.length,
+                itemBuilder: (context, index) {
+                  final bookmark = bookmarkedItems[index];
+                  return BookmarkCard(
+                    bookmark: bookmark,
+                    onRemove: () {
+                      if (bookmark.id != null) {
+                        bookmarksProvider.toggleBookmark(bookmark.id!);
+                      }
+                    },
+                  );
+                },
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }

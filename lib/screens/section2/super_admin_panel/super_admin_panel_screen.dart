@@ -4,13 +4,8 @@ import 'package:pivot/responsive.dart';
 
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:pivot/screens/section1/auth_wrapper.dart';
 import 'package:pivot/services/remote_config_service.dart';
-import 'package:pivot/screens/section2/super_admin_panel/analytics_screen.dart';
-import 'package:pivot/screens/section2/adminstration/feedback_management_screen.dart';
-import 'package:pivot/screens/section2/super_admin_panel/upcoming_notifications_screen.dart';
-import 'package:pivot/screens/section2/adminstration/user_management_page.dart'
-    deferred as user_management_page;
+import 'package:pivot/widgets/no_internet_message.dart';
 
 class SuperAdminPanelScreen extends StatefulWidget {
   const SuperAdminPanelScreen({super.key});
@@ -38,57 +33,59 @@ class _SuperAdminPanelScreenState extends State<SuperAdminPanelScreen> {
   Widget build(BuildContext context) {
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        appBar: AppBar(
-          title: Text(
-            'لوحة الإدارة',
-            style: TextStyle(
-              fontSize: Responsive.text(context, size: TextSize.heading),
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+      child: NoInternetMessage(
+        child: Scaffold(
           backgroundColor: Colors.white,
-          elevation: 0,
-          iconTheme: const IconThemeData(color: Colors.black),
-        ),
-        body: Consumer<SuperAdminProvider>(
-          builder: (context, provider, child) {
-            if (provider.isLoading) {
-              return Center(
-                child: CircularProgressIndicator(color: Colors.black),
-              );
-            }
-            return RefreshIndicator(
-              onRefresh: () => provider.fetchDashboardData(),
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: Responsive.padding(context, size: Space.large),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Analytics Section (Collapsible)
-                    _buildAnalyticsSection(provider),
-                    SizedBox(
-                      height: Responsive.space(context, size: Space.large),
-                    ),
-                    _buildSectionTitle(context, 'إجراءات سريعة'),
-                    _buildQuickActionsCard(),
-                    SizedBox(
-                      height: Responsive.space(context, size: Space.large),
-                    ),
-                    _buildSectionTitle(context, 'إدارة'),
-                    _buildManagementCard(),
-                    SizedBox(
-                      height: Responsive.space(context, size: Space.large),
-                    ),
-                    _buildSectionTitle(context, 'إعدادات التطبيق'),
-                    _buildSettingsCard(provider),
-                  ],
-                ),
+          appBar: AppBar(
+            title: Text(
+              'لوحة الإدارة',
+              style: TextStyle(
+                fontSize: Responsive.text(context, size: TextSize.heading),
+                fontWeight: FontWeight.bold,
               ),
-            );
-          },
+            ),
+            backgroundColor: Colors.white,
+            elevation: 0,
+            iconTheme: const IconThemeData(color: Colors.black),
+          ),
+          body: Consumer<SuperAdminProvider>(
+            builder: (context, provider, child) {
+              if (provider.isLoading) {
+                return Center(
+                  child: CircularProgressIndicator(color: Colors.black),
+                );
+              }
+              return RefreshIndicator(
+                onRefresh: () => provider.fetchDashboardData(),
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: Responsive.padding(context, size: Space.large),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Analytics Section (Collapsible)
+                      _buildAnalyticsSection(provider),
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.large),
+                      ),
+                      _buildSectionTitle(context, 'إجراءات سريعة'),
+                      _buildQuickActionsCard(),
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.large),
+                      ),
+                      _buildSectionTitle(context, 'إدارة'),
+                      _buildManagementCard(),
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.large),
+                      ),
+                      _buildSectionTitle(context, 'إعدادات التطبيق'),
+                      _buildSettingsCard(provider),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
         ),
       ),
     );

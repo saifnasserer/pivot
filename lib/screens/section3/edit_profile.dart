@@ -19,9 +19,9 @@ import 'package:pivot/services/permission_service.dart';
 
 class EditProfile extends StatefulWidget {
   // = 'edit_profile';
-  final UserProfile userProfile;
-
-  const EditProfile({super.key, required this.userProfile});
+  EditProfile({super.key}) {
+    print('[EditProfile] constructor called');
+  }
 
   @override
   State<EditProfile> createState() => _EditProfileState();
@@ -67,13 +67,15 @@ class _EditProfileState extends State<EditProfile> {
   @override
   void initState() {
     super.initState();
-    final user = widget.userProfile;
-    _nameController = TextEditingController(text: user.name);
+    print('[EditProfile] initState called');
+    final user =
+        Provider.of<UserProfileProvider>(context, listen: false).userProfile;
+    _nameController = TextEditingController(text: user?.name ?? '');
 
-    _year = user.level;
-    _department = user.department;
-    _section = user.section;
-    _gender = user.gender;
+    _year = user?.level;
+    _department = user?.department;
+    _section = user?.section;
+    _gender = user?.gender;
 
     _availableDepartments = FormOptions.getDepartmentsForYear(_year);
     _availableSections = [];
@@ -83,7 +85,7 @@ class _EditProfileState extends State<EditProfile> {
     if (!_availableSections.contains(_section)) _section = null;
     if (!FormOptions.genders.contains(_gender)) _gender = null;
 
-    _isNameValid = _validateName(user.name) == null;
+    _isNameValid = _validateName(user?.name) == null;
     _isYearValid = _year != null;
     _isDepartmentValid = _department != null;
     _isSectionValid = _section != null;
@@ -96,6 +98,12 @@ class _EditProfileState extends State<EditProfile> {
         listen: false,
       ).fetchSectionCounts();
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    print('[EditProfile] didChangeDependencies called');
   }
 
   @override
@@ -230,6 +238,7 @@ class _EditProfileState extends State<EditProfile> {
 
   @override
   Widget build(BuildContext context) {
+    print('[EditProfile] build called');
     final settingsProvider = context.watch<SettingsProvider>();
     final sectionCounts = settingsProvider.sectionCounts;
 
@@ -332,8 +341,16 @@ class _EditProfileState extends State<EditProfile> {
       return kIsWeb
           ? CachedNetworkImageProvider(_imageFile!.path)
           : FileImage(File(_imageFile!.path));
-    } else if (widget.userProfile.profileImageUrl != null &&
-        widget.userProfile.profileImageUrl!.isNotEmpty) {
+    } else if (Provider.of<UserProfileProvider>(
+              context,
+              listen: false,
+            ).userProfile?.profileImageUrl !=
+            null &&
+        Provider.of<UserProfileProvider>(
+              context,
+              listen: false,
+            ).userProfile?.profileImageUrl?.isNotEmpty ==
+            true) {
       // Return null initially, will be handled by FutureBuilder
       return null;
     }
@@ -343,12 +360,25 @@ class _EditProfileState extends State<EditProfile> {
   Widget? _getProfileImageChild() {
     if (_imageFile != null) {
       return null; // Show the picked image
-    } else if (widget.userProfile.profileImageUrl != null &&
-        widget.userProfile.profileImageUrl!.isNotEmpty) {
+    } else if (Provider.of<UserProfileProvider>(
+              context,
+              listen: false,
+            ).userProfile?.profileImageUrl !=
+            null &&
+        Provider.of<UserProfileProvider>(
+              context,
+              listen: false,
+            ).userProfile?.profileImageUrl?.isNotEmpty ==
+            true) {
       // Directly show the image
       return ClipOval(
         child: CachedNetworkImage(
-          imageUrl: widget.userProfile.profileImageUrl!,
+          imageUrl:
+              Provider.of<UserProfileProvider>(
+                context,
+                listen: false,
+              ).userProfile?.profileImageUrl ??
+              '',
           width: Responsive.space(context, size: Space.large) * 10,
           height: Responsive.space(context, size: Space.large) * 10,
           fit: BoxFit.cover,
@@ -769,7 +799,11 @@ class _EditProfileState extends State<EditProfile> {
                             await context
                                 .read<UserProfileProvider>()
                                 .updateUserProfileData(
-                                  widget.userProfile.id,
+                                  Provider.of<UserProfileProvider>(
+                                        context,
+                                        listen: false,
+                                      ).userProfile?.id ??
+                                      '',
                                   updatedData,
                                   imageFile:
                                       _imageFile == null

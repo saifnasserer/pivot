@@ -516,6 +516,12 @@ class _CommentTileState extends State<CommentTile>
                                 widget.comment.content,
                               ),
                             ),
+                            SizedBox(
+                              height: Responsive.space(
+                                context,
+                                size: Space.medium,
+                              ),
+                            ),
                             Row(
                               children: [
                                 if (widget.userRole != 'Student')
@@ -574,16 +580,6 @@ class _CommentTileState extends State<CommentTile>
                                             widget.comment.id,
                                             widget.comment.userName,
                                           ),
-                                      icon: Icon(
-                                        Icons.reply,
-                                        size: Responsive.space(
-                                          context,
-                                          size: Space.small,
-                                        ),
-                                        color: Colors.blueGrey,
-                                        semanticLabel:
-                                            'رد على ${widget.comment.userName}',
-                                      ),
                                       label: Text(
                                         'رد',
                                         style: TextStyle(
@@ -594,6 +590,16 @@ class _CommentTileState extends State<CommentTile>
                                           ),
                                           fontWeight: FontWeight.w500,
                                         ),
+                                      ),
+                                      icon: Icon(
+                                        Icons.reply,
+                                        size: Responsive.space(
+                                          context,
+                                          size: Space.small,
+                                        ),
+                                        color: Colors.blueGrey,
+                                        semanticLabel:
+                                            'رد على ${widget.comment.userName}',
                                       ),
                                     ),
                                   ),
@@ -899,7 +905,7 @@ class _ExpandableTextState extends State<_ExpandableText> {
     } else {
       String shortText = widget.text;
       if (widget.text.length > widget.trimChars) {
-        shortText = widget.text.substring(0, widget.trimChars) + '...';
+        shortText = '${widget.text.substring(0, widget.trimChars)}...';
       }
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -956,7 +962,7 @@ class _CommentSectionState extends State<CommentSection> {
   String? _editingCommentId;
   TextEditingController? _editController;
   bool _isSavingEdit = false;
-  Map<String, bool> _expandedReplies = {};
+  final Map<String, bool> _expandedReplies = {};
   List<CommentData>? _cachedComments;
   // In _CommentSectionState, cache the user role
   late String? _userRole;
@@ -1120,43 +1126,46 @@ class _CommentSectionState extends State<CommentSection> {
       builder: (context, provider, _) {
         return Directionality(
           textDirection: TextDirection.rtl,
-          child: Stack(
-            children: [
-              // Blurred header overlay
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.vertical(
-                    top: Radius.circular(
-                      Responsive.space(context, size: Space.large),
+          child: Scaffold(
+            resizeToAvoidBottomInset: true,
+            body: Stack(
+              children: [
+                // Blurred header overlay
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(
+                        Responsive.space(context, size: Space.large),
+                      ),
                     ),
-                  ),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                    child: Container(
-                      height: Responsive.space(context, size: Space.large),
-                      color: Colors.white.withOpacity(0.7),
-                      alignment: Alignment.center,
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
                       child: Container(
-                        padding: EdgeInsets.symmetric(
-                          vertical: Responsive.space(
-                            context,
-                            size: Space.medium,
-                          ),
-                          horizontal: Responsive.space(
-                            context,
-                            size: Space.large,
-                          ),
-                        ),
-                        child: Text(
-                          'التعليقات',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: Responsive.text(
+                        height: Responsive.space(context, size: Space.large),
+                        color: Colors.white.withOpacity(0.7),
+                        alignment: Alignment.center,
+                        child: Container(
+                          padding: EdgeInsets.symmetric(
+                            vertical: Responsive.space(
                               context,
-                              size: TextSize.heading,
+                              size: Space.medium,
+                            ),
+                            horizontal: Responsive.space(
+                              context,
+                              size: Space.large,
+                            ),
+                          ),
+                          child: Text(
+                            'التعليقات',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: Responsive.text(
+                                context,
+                                size: TextSize.heading,
+                              ),
                             ),
                           ),
                         ),
@@ -1164,359 +1173,320 @@ class _CommentSectionState extends State<CommentSection> {
                     ),
                   ),
                 ),
-              ),
-              // Main content
-              Padding(
-                padding: EdgeInsets.only(
-                  top: Responsive.space(context, size: Space.large),
-                ),
-                child: Column(
-                  children: [
-                    // NOTE: The StreamBuilder below will rebuild the entire comment list
-                    // whenever Firestore data changes (e.g., a like is added/removed),
-                    // which is standard for real-time collaborative apps. For very large
-                    // lists, consider advanced optimizations (e.g., local cache, paging).
-                    Expanded(
-                      child: StreamBuilder<List<CommentData>>(
-                        stream: provider.commentsStream(widget.announcementId),
-                        initialData: _cachedComments,
-                        builder: (context, snapshot) {
-                          // Update cache if new data is available
-                          if (snapshot.hasData && snapshot.data != null) {
-                            _cachedComments = snapshot.data;
-                          }
-                          final comments =
-                              snapshot.data ?? _cachedComments ?? [];
-                          final rootComments =
-                              comments
-                                  .where((c) => c.parentId == null)
-                                  .toList();
-                          if ((!snapshot.hasData &&
-                                  (_cachedComments == null ||
-                                      _cachedComments!.isEmpty)) ||
-                              (snapshot.connectionState ==
-                                      ConnectionState.waiting &&
-                                  (_cachedComments == null ||
-                                      _cachedComments!.isEmpty))) {
-                            // Skeleton loader (simple shimmer effect)
-                            return ListView.builder(
-                              itemCount: 3,
-                              padding: EdgeInsets.symmetric(
-                                vertical: Responsive.space(
-                                  context,
-                                  size: Space.large,
+                // Main content
+                Padding(
+                  padding: EdgeInsets.only(
+                    top: Responsive.space(context, size: Space.large),
+                  ),
+                  child: StreamBuilder<List<CommentData>>(
+                    stream: provider.commentsStream(widget.announcementId),
+                    initialData: _cachedComments,
+                    builder: (context, snapshot) {
+                      // Update cache if new data is available
+                      if (snapshot.hasData && snapshot.data != null) {
+                        _cachedComments = snapshot.data;
+                      }
+                      final comments = snapshot.data ?? _cachedComments ?? [];
+                      final rootComments =
+                          comments.where((c) => c.parentId == null).toList();
+                      if ((!snapshot.hasData &&
+                              (_cachedComments == null ||
+                                  _cachedComments!.isEmpty)) ||
+                          (snapshot.connectionState ==
+                                  ConnectionState.waiting &&
+                              (_cachedComments == null ||
+                                  _cachedComments!.isEmpty))) {
+                        // Skeleton loader (simple shimmer effect)
+                        return ListView.builder(
+                          itemCount: 3,
+                          padding: EdgeInsets.symmetric(
+                            vertical: Responsive.space(
+                              context,
+                              size: Space.large,
+                            ),
+                          ),
+                          itemBuilder:
+                              (context, i) => Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: Responsive.space(
+                                    context,
+                                    size: Space.large,
+                                  ),
+                                  vertical: Responsive.space(
+                                    context,
+                                    size: Space.small,
+                                  ),
                                 ),
-                              ),
-                              itemBuilder:
-                                  (context, i) => Padding(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: Responsive.space(
+                                child: Container(
+                                  height:
+                                      Responsive.space(
                                         context,
                                         size: Space.large,
-                                      ),
-                                      vertical: Responsive.space(
-                                        context,
-                                        size: Space.small,
-                                      ),
-                                    ),
-                                    child: Container(
-                                      height:
-                                          Responsive.space(
-                                            context,
-                                            size: Space.large,
-                                          ) *
-                                          2,
-                                      decoration: BoxDecoration(
-                                        color: Colors.grey[200],
-                                        borderRadius: BorderRadius.circular(
-                                          Responsive.space(
-                                            context,
-                                            size: Space.large,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                            );
-                          }
-                          if (rootComments.isEmpty) {
-                            return Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  SizedBox(
-                                    height: Responsive.space(
-                                      context,
-                                      size: Space.xlarge,
-                                    ),
-                                    child: Lottie.asset(
-                                      'assets/animation/empty.json',
-                                      repeat: false,
-                                    ),
-                                  ),
-                                  SizedBox(
-                                    height: Responsive.space(
-                                      context,
-                                      size: Space.large,
-                                    ),
-                                  ),
-                                  Text(
-                                    'لا توجد تعليقات بعد. كن أول من يعلق!',
-                                    style: TextStyle(
-                                      fontSize: Responsive.text(
-                                        context,
-                                        size: TextSize.heading,
-                                      ),
-                                      color: Colors.grey[700],
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          }
-                          final visibleRootComments =
-                              rootComments.take(_rootCommentsLimit).toList();
-                          return ListView.builder(
-                            controller: widget.scrollController,
-                            padding: EdgeInsets.only(
-                              bottom: Responsive.space(
-                                context,
-                                size: Space.large,
-                              ),
-                              top: 0,
-                            ),
-                            itemCount:
-                                visibleRootComments.length +
-                                (rootComments.length > _rootCommentsLimit
-                                    ? 1
-                                    : 0),
-                            itemBuilder: (context, i) {
-                              if (i < visibleRootComments.length) {
-                                return CommentTile(
-                                  key: PageStorageKey(
-                                    'comment-${visibleRootComments[i].id}',
-                                  ),
-                                  comment: visibleRootComments[i],
-                                  allComments: comments,
-                                  provider: provider,
-                                  announcementId: widget.announcementId,
-                                  userId:
-                                      Provider.of<UserProfileProvider>(
-                                        context,
-                                        listen: false,
-                                      ).loggedInUserProfile?.id ??
-                                      '',
-                                  canEdit:
-                                      Provider.of<UserProfileProvider>(
-                                        context,
-                                        listen: false,
-                                      ).loggedInUserProfile?.id ==
-                                      visibleRootComments[i].userId,
-                                  isOwnComment:
-                                      Provider.of<UserProfileProvider>(
-                                        context,
-                                        listen: false,
-                                      ).loggedInUserProfile?.id ==
-                                      visibleRootComments[i].userId,
-                                  isReply: false,
-                                  editController: _editController,
-                                  onEditStart: (id, controller) {
-                                    setState(() {
-                                      _editingCommentId = id;
-                                      _editController = controller;
-                                    });
-                                  },
-                                  isEditing:
-                                      _editingCommentId ==
-                                      visibleRootComments[i].id,
-                                  isSavingEdit: _isSavingEdit,
-                                  onEditSave: (id, newText) async {
-                                    setState(() => _isSavingEdit = true);
-                                    await provider.updateComment(
-                                      widget.announcementId,
-                                      id,
-                                      newText,
-                                      Provider.of<UserProfileProvider>(
-                                            context,
-                                            listen: false,
-                                          ).loggedInUserProfile?.id ??
-                                          '',
-                                    );
-                                    setState(() {
-                                      _editingCommentId = null;
-                                      _isSavingEdit = false;
-                                    });
-                                  },
-                                  onEditCancel:
-                                      () => setState(
-                                        () => _editingCommentId = null,
-                                      ),
-                                  isExpanded:
-                                      _expandedReplies[visibleRootComments[i]
-                                          .id] ??
-                                      false,
-                                  onToggleExpanded: () {
-                                    setState(() {
-                                      _expandedReplies[visibleRootComments[i]
-                                              .id] =
-                                          !(_expandedReplies[visibleRootComments[i]
-                                                  .id] ??
-                                              false);
-                                    });
-                                  },
-                                  userRole: _userRole ?? '',
-                                  onReply: (commentId, userName) {
-                                    setState(() {
-                                      _replyToCommentId = commentId;
-                                      _replyToUserName = userName;
-                                    });
-                                    _inputFocusNode.requestFocus();
-                                  },
-                                  nestingLevel: 0,
-                                );
-                              } else {
-                                // Load More button
-                                return Padding(
-                                  padding: EdgeInsets.symmetric(
-                                    vertical: Responsive.space(
-                                      context,
-                                      size: Space.medium,
-                                    ),
-                                  ),
-                                  child: Center(
-                                    child: ElevatedButton(
-                                      onPressed: () {
-                                        setState(() {
-                                          _rootCommentsLimit += 30;
-                                        });
-                                      },
-                                      child: Text('تحميل المزيد'),
-                                    ),
-                                  ),
-                                );
-                              }
-                            },
-                          );
-                        },
-                      ),
-                    ),
-                    // Sticky input bar
-                    Container(
-                      margin: EdgeInsets.only(
-                        top: Responsive.space(context, size: Space.small),
-                      ),
-                      padding: EdgeInsets.symmetric(
-                        horizontal: Responsive.space(
-                          context,
-                          size: Space.medium,
-                        ),
-                        vertical: Responsive.space(context, size: Space.small),
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black12,
-                            blurRadius: Responsive.space(
-                              context,
-                              size: Space.small,
-                            ),
-                            offset: Offset(
-                              0,
-                              -Responsive.space(context, size: Space.tiny),
-                            ),
-                          ),
-                        ],
-                        borderRadius: BorderRadius.vertical(
-                          top: Radius.circular(
-                            Responsive.space(context, size: Space.large),
-                          ),
-                        ),
-                      ),
-                      child: SafeArea(
-                        top: false,
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                controller: _controller,
-                                focusNode: _inputFocusNode,
-                                textAlign: TextAlign.right,
-                                maxLength: _maxCommentLength,
-                                decoration: InputDecoration(
-                                  hintText:
-                                      _replyToUserName != null
-                                          ? 'الرد على $_replyToUserName'
-                                          : 'تحب تسأل عن حاجة ؟',
-                                  filled: true,
-                                  fillColor: Colors.grey[100],
-                                  contentPadding: EdgeInsets.symmetric(
-                                    horizontal: Responsive.space(
-                                      context,
-                                      size: Space.medium,
-                                    ),
-                                    vertical: Responsive.space(
-                                      context,
-                                      size: Space.small,
-                                    ),
-                                  ),
-                                  border: OutlineInputBorder(
+                                      ) *
+                                      2,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[200],
                                     borderRadius: BorderRadius.circular(
                                       Responsive.space(
                                         context,
                                         size: Space.large,
                                       ),
                                     ),
-                                    borderSide: BorderSide.none,
                                   ),
-                                  counterText:
-                                      '${_controller.text.length}/$_maxCommentLength',
-                                  errorText:
-                                      _controller.text.length >
-                                              _maxCommentLength
-                                          ? 'تجاوزت الحد الأقصى لعدد الأحرف'
-                                          : null,
                                 ),
-                                minLines: 1,
-                                maxLines: 3,
-                                autofocus: _replyToUserName != null,
-                                onChanged: (_) => setState(() {}),
                               ),
+                        );
+                      }
+                      if (rootComments.isEmpty) {
+                        return Center(
+                          child: SizedBox(
+                            width: Responsive.width(context) * 0.6,
+                            height: Responsive.height(context) * 0.35,
+                            child: Stack(
+                              alignment: Alignment.topCenter,
+                              children: [
+                                Lottie.asset(
+                                  'assets/animation/nothing.json',
+                                  repeat: true,
+                                  width: Responsive.width(context) * 0.6,
+                                  height: Responsive.height(context) * 0.3,
+                                ),
+                                Positioned(
+                                  top: Responsive.height(context) * 0.25 + 5,
+                                  left: 0,
+                                  right: 0,
+                                  child: Center(
+                                    child: Text(
+                                      'لا توجد اي اسألة بعد.',
+                                      style: TextStyle(
+                                        fontSize: Responsive.text(
+                                          context,
+                                          size: TextSize.heading,
+                                        ),
+                                        color: Colors.grey[700],
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                            SizedBox(
-                              width: Responsive.space(
-                                context,
-                                size: Space.small,
-                              ),
-                            ),
-                            IconButton(
-                              icon: const Icon(
-                                Icons.send,
-                                color: Colors.blue,
-                                semanticLabel: 'إرسال التعليق',
-                              ),
-                              onPressed:
-                                  _canSend ? () => _sendComment(context) : null,
-                              splashRadius: Responsive.space(
-                                context,
-                                size: Space.large,
-                              ),
-                              constraints: BoxConstraints(
-                                minWidth: 48,
-                                minHeight: 48,
-                              ),
-                            ),
-                          ],
+                          ),
+                        );
+                      }
+                      final visibleRootComments =
+                          rootComments.take(_rootCommentsLimit).toList();
+                      return ListView.builder(
+                        controller: widget.scrollController,
+                        padding: EdgeInsets.only(
+                          bottom: Responsive.space(context, size: Space.large),
+                          top: 0,
                         ),
+                        itemCount:
+                            visibleRootComments.length +
+                            (rootComments.length > _rootCommentsLimit ? 1 : 0),
+                        itemBuilder: (context, i) {
+                          if (i < visibleRootComments.length) {
+                            return CommentTile(
+                              key: PageStorageKey(
+                                'comment-${visibleRootComments[i].id}',
+                              ),
+                              comment: visibleRootComments[i],
+                              allComments: comments,
+                              provider: provider,
+                              announcementId: widget.announcementId,
+                              userId:
+                                  Provider.of<UserProfileProvider>(
+                                    context,
+                                    listen: false,
+                                  ).loggedInUserProfile?.id ??
+                                  '',
+                              canEdit:
+                                  Provider.of<UserProfileProvider>(
+                                    context,
+                                    listen: false,
+                                  ).loggedInUserProfile?.id ==
+                                  visibleRootComments[i].userId,
+                              isOwnComment:
+                                  Provider.of<UserProfileProvider>(
+                                    context,
+                                    listen: false,
+                                  ).loggedInUserProfile?.id ==
+                                  visibleRootComments[i].userId,
+                              isReply: false,
+                              editController: _editController,
+                              onEditStart: (id, controller) {
+                                setState(() {
+                                  _editingCommentId = id;
+                                  _editController = controller;
+                                });
+                              },
+                              isEditing:
+                                  _editingCommentId ==
+                                  visibleRootComments[i].id,
+                              isSavingEdit: _isSavingEdit,
+                              onEditSave: (id, newText) async {
+                                setState(() => _isSavingEdit = true);
+                                await provider.updateComment(
+                                  widget.announcementId,
+                                  id,
+                                  newText,
+                                  Provider.of<UserProfileProvider>(
+                                        context,
+                                        listen: false,
+                                      ).loggedInUserProfile?.id ??
+                                      '',
+                                );
+                                setState(() {
+                                  _editingCommentId = null;
+                                  _isSavingEdit = false;
+                                });
+                              },
+                              onEditCancel:
+                                  () =>
+                                      setState(() => _editingCommentId = null),
+                              isExpanded:
+                                  _expandedReplies[visibleRootComments[i].id] ??
+                                  false,
+                              onToggleExpanded: () {
+                                setState(() {
+                                  _expandedReplies[visibleRootComments[i].id] =
+                                      !(_expandedReplies[visibleRootComments[i]
+                                              .id] ??
+                                          false);
+                                });
+                              },
+                              userRole: _userRole ?? '',
+                              onReply: (commentId, userName) {
+                                setState(() {
+                                  _replyToCommentId = commentId;
+                                  _replyToUserName = userName;
+                                });
+                                _inputFocusNode.requestFocus();
+                              },
+                              nestingLevel: 0,
+                            );
+                          } else {
+                            // Load More button
+                            return Padding(
+                              padding: EdgeInsets.symmetric(
+                                vertical: Responsive.space(
+                                  context,
+                                  size: Space.medium,
+                                ),
+                              ),
+                              child: Center(
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      _rootCommentsLimit += 30;
+                                    });
+                                  },
+                                  child: Text('تحميل المزيد'),
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+            bottomNavigationBar: Container(
+              margin: EdgeInsets.only(
+                top: Responsive.space(context, size: Space.small),
+              ),
+              padding: EdgeInsets.symmetric(
+                horizontal: Responsive.space(context, size: Space.medium),
+                vertical: Responsive.space(context, size: Space.small),
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: Responsive.space(context, size: Space.small),
+                    offset: Offset(
+                      0,
+                      -Responsive.space(context, size: Space.tiny),
+                    ),
+                  ),
+                ],
+                borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(
+                    Responsive.space(context, size: Space.large),
+                  ),
+                ),
+              ),
+              child: SafeArea(
+                top: false,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _controller,
+                        focusNode: _inputFocusNode,
+                        textAlign: TextAlign.right,
+                        maxLength: _maxCommentLength,
+                        decoration: InputDecoration(
+                          hintText:
+                              _replyToUserName != null
+                                  ? 'الرد على $_replyToUserName'
+                                  : 'تحب تسأل عن حاجة ؟',
+                          filled: true,
+                          fillColor: Colors.grey[100],
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: Responsive.space(
+                              context,
+                              size: Space.medium,
+                            ),
+                            vertical: Responsive.space(
+                              context,
+                              size: Space.small,
+                            ),
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(
+                              Responsive.space(context, size: Space.large),
+                            ),
+                            borderSide: BorderSide.none,
+                          ),
+                          counterText:
+                              '${_controller.text.length}/$_maxCommentLength',
+                          errorText:
+                              _controller.text.length > _maxCommentLength
+                                  ? 'تجاوزت الحد الأقصى لعدد الأحرف'
+                                  : null,
+                        ),
+                        minLines: 1,
+                        maxLines: 3,
+                        autofocus: _replyToUserName != null,
+                        onChanged: (_) => setState(() {}),
                       ),
+                    ),
+                    SizedBox(
+                      width: Responsive.space(context, size: Space.small),
+                    ),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.send,
+                        color: Colors.blue,
+                        semanticLabel: 'إرسال التعليق',
+                      ),
+                      onPressed: _canSend ? () => _sendComment(context) : null,
+                      splashRadius: Responsive.space(
+                        context,
+                        size: Space.large,
+                      ),
+                      constraints: BoxConstraints(minWidth: 48, minHeight: 48),
                     ),
                   ],
                 ),
               ),
-
-              // Replying to bar (above input)
-            ],
+            ),
           ),
         );
       },

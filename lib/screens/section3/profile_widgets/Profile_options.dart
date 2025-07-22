@@ -1,18 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
-import 'package:pivot/screens/section1/auth_wrapper.dart';
-import 'package:pivot/screens/section2/adminstration/user_management_page.dart'
-    deferred as user_management_page;
-import 'package:pivot/screens/section2/adminstration/global_subject_management_screen.dart';
-import 'package:pivot/screens/section3/edit_profile.dart' show EditProfile;
 import 'package:pivot/screens/section3/subject_selection_screen.dart';
-import 'package:pivot/screens/section3/feedback_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pivot/services/permission_service.dart';
 import 'package:pivot/responsive.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pivot/services/notification_service.dart';
+import 'package:pivot/screens/section2/adminstration/user_management_page.dart'
+    deferred as user_management_page;
 
 Future<void> profile_options(BuildContext context) async {
   final userProfileProvider = Provider.of<UserProfileProvider>(
@@ -131,7 +127,7 @@ Future<void> profile_options(BuildContext context) async {
             children: [
               Icon(Icons.school, color: Colors.white),
               SizedBox(width: Responsive.space(context, size: Space.small)),
-              Text('المواد الدراسية', style: TextStyle(color: Colors.white)),
+              Text('تسجيل المواد', style: TextStyle(color: Colors.white)),
             ],
           ),
         ),
@@ -178,15 +174,14 @@ Future<void> profile_options(BuildContext context) async {
   switch (result) {
     case 'user_management':
       await user_management_page.loadLibrary();
+      if (!context.mounted) return;
       Navigator.pushNamed(context, '/user-management');
       break;
     case 'manage_subjects':
       Navigator.pushNamed(context, '/global-subject-management');
       break;
     case 'edit_profile':
-      if (loggedInUser != null) {
-        Navigator.pushNamed(context, '/edit-profile', arguments: loggedInUser);
-      }
+      Navigator.pushNamed(context, '/edit-profile');
       break;
     case 'notification_settings':
       await _showNotificationSettingsDialog(context);

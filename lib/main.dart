@@ -34,6 +34,7 @@ import 'package:pivot/screens/section2/landing.dart';
 import 'package:pivot/screens/section3/profile.dart';
 import 'package:pivot/screens/section4/assistants/assistant_profile.dart';
 import 'package:pivot/screens/section4/doctor/doctor_profile.dart';
+import 'package:pivot/screens/section4/assistants/all_tasks.dart';
 
 import 'package:provider/provider.dart';
 import 'package:pivot/providers/announcement_provider.dart';
@@ -250,13 +251,7 @@ class Pivot extends StatelessWidget {
                 future: edit_profile.loadLibrary(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.done) {
-                    final args = ModalRoute.of(context)?.settings.arguments;
-                    if (args is UserProfile) {
-                      return edit_profile.EditProfile(userProfile: args);
-                    }
-                    return const Scaffold(
-                      body: Center(child: Text('Error: Invalid profile data.')),
-                    );
+                    return edit_profile.EditProfile();
                   }
                   return const Center(child: CircularProgressIndicator());
                 },
@@ -342,6 +337,13 @@ class Pivot extends StatelessWidget {
                 },
               ),
           '/teams': (context) => const TeamsScreen(),
+          '/tasks-control': (context) {
+            final sectionId =
+                ModalRoute.of(context)?.settings.arguments as String?;
+            return TasksControl(
+              key: UniqueKey(),
+            ); // sectionId is accessed inside TasksControl
+          },
         },
         theme: ThemeData(
           colorScheme: ColorScheme.fromSwatch().copyWith(
