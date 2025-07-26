@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/models/circular_button.dart';
 import 'package:pivot/screens/section2/adminstration/announcement_card.dart';
-import 'package:pivot/screens/section2/adminstration/show_dialog.dart';
+import 'package:pivot/screens/section2/adminstration/add_announcement_screen.dart';
+import 'package:pivot/screens/section2/adminstration/animated_route.dart';
 import 'package:provider/provider.dart';
 import 'package:pivot/providers/announcement_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
@@ -860,13 +861,13 @@ class _AdminControlState extends State<AdminControl> {
                   left: 0,
                   right: 0,
                   bottom: Responsive.space(context),
-                  child: CircularButton(
+                  child: AnimatedAddButton(
                     onPressed: () {
-                      showAddAnnouncementDialog(
-                        context: context,
-                        onSave: (newAnnouncement) {
-                          announcementProvider.addAnnouncement(newAnnouncement);
-                        },
+                      Navigator.of(context).push(
+                        AnimatedAddRoute(
+                          startPosition: Offset.zero,
+                          child: AddAnnouncementScreen(),
+                        ),
                       );
                     },
                     icon: Icons.add_rounded,
@@ -882,14 +883,14 @@ class _AdminControlState extends State<AdminControl> {
   }
 
   void _editAnnouncement(AnnouncementData announcement) {
-    final provider = Provider.of<AnnouncementProvider>(context, listen: false);
-    showAddAnnouncementDialog(
-      context: context,
-      isEditing: true,
-      announcement: announcement,
-      onSave: (newAnnouncement) {
-        provider.updateAnnouncement(newAnnouncement);
-      },
+    Navigator.of(context).push(
+      AnimatedAddRoute(
+        startPosition: Offset.zero,
+        child: AddAnnouncementScreen(
+          isEditing: true,
+          announcement: announcement,
+        ),
+      ),
     );
   }
 

@@ -214,7 +214,7 @@ class _ProfileState extends State<Profile> with TickerProviderStateMixin {
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout, color: Colors.black),
+            icon: const Icon(Icons.logout, color: Colors.red),
             onPressed: _showLogoutConfirmationDialog,
             tooltip: 'تسجيل الخروج',
           ),

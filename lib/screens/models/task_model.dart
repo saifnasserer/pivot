@@ -7,7 +7,8 @@ import 'package:provider/provider.dart';
 import 'package:pivot/screens/section3/profile_widgets/task_details_dialog.dart';
 import 'task.dart'; // Import the Task data model
 
-class TaskModel extends StatelessWidget {
+/// Enhanced TaskModel with subtle design using white/black palette
+class TaskModel extends StatefulWidget {
   final Task task;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
@@ -23,15 +24,64 @@ class TaskModel extends StatelessWidget {
     this.admin = false,
   });
 
-  // Helper to get color based on importance
+  @override
+  State<TaskModel> createState() => _TaskModelState();
+}
+
+class _TaskModelState extends State<TaskModel>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _opacityAnimation;
+  bool _isHovered = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 200),
+      vsync: this,
+    );
+
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.01).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+
+    _opacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
+
+    // Start entrance animation
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  // Helper to get subtle color based on importance
   Color _getImportanceColor(TaskImportance importance) {
     switch (importance) {
       case TaskImportance.high:
-        return Colors.red.shade300;
+        return Colors.red.shade400;
       case TaskImportance.mid:
-        return Colors.amber.shade400;
+        return Colors.orange.shade400;
       case TaskImportance.low:
-        return Colors.green.shade300;
+        return Colors.green.shade400;
+    }
+  }
+
+  // Helper to get importance label in Arabic
+  String _getImportanceLabel(TaskImportance importance) {
+    switch (importance) {
+      case TaskImportance.high:
+        return 'عالية';
+      case TaskImportance.mid:
+        return 'متوسطة';
+      case TaskImportance.low:
+        return 'منخفضة';
     }
   }
 
@@ -45,180 +95,432 @@ class TaskModel extends StatelessWidget {
 
     // Determine completion status for the current user
     final bool isCompleted =
-        userId != null ? task.isCompletedFor(userId) : false;
+        userId != null ? widget.task.isCompletedFor(userId) : false;
     final bool isOverdue =
-        !isCompleted && task.dueDate.isBefore(DateTime.now());
+        !isCompleted && widget.task.dueDate.isBefore(DateTime.now());
 
     // Format date and day of the week in Arabic
     final String formattedDayOfWeek = DateFormat(
       'EEEE',
       'ar',
-    ).format(task.dueDate);
+    ).format(widget.task.dueDate);
     final String formattedDate = DateFormat(
       'dd MMM',
       'ar',
-    ).format(task.dueDate);
+    ).format(widget.task.dueDate);
     final String fullFormattedDate = '$formattedDayOfWeek، $formattedDate';
-    final Color importanceColor = _getImportanceColor(task.importance);
+    final Color importanceColor = _getImportanceColor(widget.task.importance);
 
-    // Compute contrasting text color based on completion status
-    final Color textColor = isCompleted ? Colors.grey : Colors.black87;
-    final Color primaryColor = isCompleted ? Colors.grey : importanceColor;
+    // Compute colors based on completion status
+    final Color textColor = isCompleted ? Colors.grey.shade500 : Colors.black87;
     final Color borderColor =
         isOverdue
-            ? Colors.red.shade700
-            : (task.isPersonal ? Colors.blue.shade300 : primaryColor);
+            ? Colors.red.shade400
+            : (widget.task.isPersonal ? Colors.blue.shade400 : importanceColor);
+
     final IconData checkboxIcon =
         isCompleted
-            ? Icons.check_box_rounded
-            : Icons.check_box_outline_blank_rounded;
+            ? Icons.check_circle_rounded
+            : Icons.radio_button_unchecked_rounded;
 
-    return GestureDetector(
-      onTap: () {
-        showDialog(
-          context: context,
-          builder: (_) => TaskDetailsDialog(task: task),
+    // Reduce size for completed tasks
+    final double cardPadding =
+        isCompleted
+            ? Responsive.space(context, size: Space.medium)
+            : Responsive.space(context, size: Space.large);
+    final double titleFontSize =
+        isCompleted
+            ? Responsive.text(context, size: TextSize.small)
+            : Responsive.text(context, size: TextSize.medium) * 1.1;
+
+    return AnimatedBuilder(
+      animation: _animationController,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: _scaleAnimation.value,
+          child: Opacity(
+            opacity: _opacityAnimation.value,
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: Responsive.space(context, size: Space.small),
+                vertical: Responsive.space(context, size: Space.small),
+              ),
+              child: Material(
+                elevation: _isHovered ? 6 : 2,
+                borderRadius: BorderRadius.circular(
+                  Responsive.space(context, size: Space.large),
+                ),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(
+                    Responsive.space(context, size: Space.large),
+                  ),
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (_) => TaskDetailsDialog(task: widget.task),
+                    );
+                  },
+                  onHover: (hovered) {
+                    setState(() {
+                      _isHovered = hovered;
+                    });
+                    if (hovered) {
+                      _animationController.forward();
+                    } else {
+                      _animationController.reverse();
+                    }
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color:
+                          isCompleted
+                              ? Colors.grey.shade50
+                              : _isHovered
+                              ? Colors.grey.shade100
+                              : Colors.white,
+                      borderRadius: BorderRadius.circular(
+                        Responsive.space(context, size: Space.large),
+                      ),
+                      border: Border.all(
+                        color:
+                            _isHovered
+                                ? borderColor
+                                : borderColor.withOpacity(0.6),
+                        width:
+                            isOverdue
+                                ? 2.5
+                                : _isHovered
+                                ? 2.0
+                                : 1.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: borderColor.withOpacity(
+                            _isHovered ? 0.3 : 0.1,
+                          ),
+                          blurRadius: _isHovered ? 12 : 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Padding(
+                      padding: EdgeInsets.all(cardPadding),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Main content row
+                          Row(
+                            children: [
+                              // Enhanced checkbox with glow effect
+                              Container(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color:
+                                      isCompleted
+                                          ? Colors.green.shade500
+                                          : borderColor,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: (isCompleted
+                                              ? Colors.green
+                                              : borderColor)
+                                          .withOpacity(0.4),
+                                      blurRadius: _isHovered ? 15 : 8,
+                                      spreadRadius: _isHovered ? 2 : 1,
+                                    ),
+                                  ],
+                                  border: Border.all(
+                                    color:
+                                        _isHovered
+                                            ? borderColor
+                                            : Colors.grey.shade300,
+                                    width: 2,
+                                  ),
+                                ),
+                                child: IconButton(
+                                  onPressed: widget.onStatusChanged,
+                                  icon: Icon(
+                                    checkboxIcon,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
+                                  tooltip:
+                                      isCompleted
+                                          ? 'إلغاء الإكمال'
+                                          : 'إكمال المهمة',
+                                  style: IconButton.styleFrom(
+                                    padding: EdgeInsets.all(
+                                      Responsive.space(
+                                        context,
+                                        size: Space.small,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+
+                              SizedBox(
+                                width: Responsive.space(
+                                  context,
+                                  size: Space.medium,
+                                ),
+                              ),
+
+                              // Task content
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    // Task title
+                                    AutoSizeText(
+                                      widget.task.title,
+                                      minFontSize: Responsive.text(
+                                        context,
+                                        size: TextSize.small,
+                                      ),
+                                      textAlign: TextAlign.right,
+                                      maxLines: isCompleted ? 1 : 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        decoration:
+                                            isCompleted
+                                                ? TextDecoration.lineThrough
+                                                : TextDecoration.none,
+                                        fontSize: titleFontSize,
+                                        fontWeight:
+                                            isCompleted
+                                                ? FontWeight.w400
+                                                : FontWeight.w600,
+                                        color: textColor,
+                                      ),
+                                    ),
+
+                                    if (!isCompleted) ...[
+                                      SizedBox(
+                                        height: Responsive.space(
+                                          context,
+                                          size: Space.small,
+                                        ),
+                                      ),
+
+                                      // Task info chips (only for non-completed tasks)
+                                      Wrap(
+                                        spacing: Responsive.space(
+                                          context,
+                                          size: Space.small,
+                                        ),
+                                        runSpacing: Responsive.space(
+                                          context,
+                                          size: Space.tiny,
+                                        ),
+                                        alignment: WrapAlignment.end,
+                                        children: [
+                                          // Importance chip
+                                          _buildInfoChip(
+                                            _getImportanceLabel(
+                                              widget.task.importance,
+                                            ),
+                                            importanceColor,
+                                            Icons.priority_high,
+                                          ),
+
+                                          // Personal task indicator
+                                          if (widget.task.isPersonal)
+                                            _buildInfoChip(
+                                              'شخصية',
+                                              Colors.blue.shade400,
+                                              Icons.person,
+                                            ),
+
+                                          // Overdue indicator
+                                          if (isOverdue)
+                                            _buildInfoChip(
+                                              'متأخرة',
+                                              Colors.red.shade400,
+                                              Icons.warning,
+                                            ),
+                                        ],
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          if (!isCompleted) ...[
+                            SizedBox(
+                              height: Responsive.space(
+                                context,
+                                size: Space.medium,
+                              ),
+                            ),
+
+                            // Due date section (only for non-completed tasks)
+                            Container(
+                              width: double.infinity,
+                              padding: EdgeInsets.symmetric(
+                                horizontal: Responsive.space(
+                                  context,
+                                  size: Space.medium,
+                                ),
+                                vertical: Responsive.space(
+                                  context,
+                                  size: Space.small,
+                                ),
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade50,
+                                borderRadius: BorderRadius.circular(
+                                  Responsive.space(context, size: Space.medium),
+                                ),
+                                border: Border.all(
+                                  color: borderColor.withOpacity(0.3),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  Icon(
+                                    Icons.schedule,
+                                    color: borderColor,
+                                    size: 16,
+                                  ),
+                                  SizedBox(
+                                    width: Responsive.space(
+                                      context,
+                                      size: Space.small,
+                                    ),
+                                  ),
+                                  Text(
+                                    'آخر موعد للتسليم: $fullFormattedDate',
+                                    textAlign: TextAlign.right,
+                                    style: TextStyle(
+                                      fontSize: Responsive.text(
+                                        context,
+                                        size: TextSize.small,
+                                      ),
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.grey.shade700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+
+                          // Admin actions
+                          if (widget.admin) ...[
+                            SizedBox(
+                              height: Responsive.space(
+                                context,
+                                size: Space.medium,
+                              ),
+                            ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                _buildActionButton(
+                                  icon: Icons.edit_outlined,
+                                  color: Colors.grey.shade600,
+                                  tooltip: 'تعديل المهمة',
+                                  onPressed: widget.onEdit,
+                                ),
+                                SizedBox(
+                                  width: Responsive.space(
+                                    context,
+                                    size: Space.small,
+                                  ),
+                                ),
+                                _buildActionButton(
+                                  icon: Icons.delete_outline,
+                                  color: Colors.red.shade400,
+                                  tooltip: 'حذف المهمة',
+                                  onPressed: widget.onDelete,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
         );
       },
-      child: Padding(
-        padding: EdgeInsets.only(
-          top: Responsive.space(context, size: Space.medium),
+    );
+  }
+
+  Widget _buildInfoChip(String label, Color color, IconData icon) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: Responsive.space(context, size: Space.small),
+        vertical: Responsive.space(context, size: Space.tiny),
+      ),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(
+          Responsive.space(context, size: Space.small),
         ),
-        child: Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: isOverdue ? Colors.red.withOpacity(0.05) : Colors.white,
-            borderRadius: BorderRadius.circular(
-              Responsive.space(context, size: Space.large),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.15),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
-              ),
-            ],
-            border: Border.all(
-              color: borderColor, // Use the new borderColor
-              width: isOverdue ? 2.0 : 1.5,
-            ), // Thicker border for overdue tasks
+        border: Border.all(color: color.withOpacity(0.4)),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
           ),
-          child: Padding(
-            padding: EdgeInsets.all(
-              Responsive.space(context, size: Space.large),
-            ),
-            child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start, // Align content to start
-              children: [
-                Row(
-                  mainAxisAlignment:
-                      MainAxisAlignment.end, // Space out elements
-                  children: [
-                    Expanded(
-                      child: AutoSizeText(
-                        task.title,
-                        minFontSize: Responsive.text(
-                          context,
-                          size: TextSize.small,
-                        ),
-                        textAlign: TextAlign.end,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          decoration:
-                              isCompleted
-                                  ? TextDecoration.lineThrough
-                                  : TextDecoration.none,
-                          fontSize:
-                              Responsive.text(context, size: TextSize.medium) *
-                              1.1,
-                          fontWeight: FontWeight.w500,
-                          color: textColor,
-                        ),
-                      ),
-                    ),
-                    SizedBox(
-                      width: Responsive.space(context, size: Space.small),
-                    ),
-                    // Checkbox
-                    Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: primaryColor,
-                      ),
-                      child: IconButton(
-                        onPressed: onStatusChanged,
-                        icon: Icon(checkboxIcon, color: Colors.white),
-                        tooltip:
-                            isCompleted
-                                ? 'Mark as incomplete'
-                                : 'Mark as complete',
-                      ),
-                    ),
-                  ],
-                ),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      right: Responsive.space(context, size: Space.large) * 2.0,
-                      top: Responsive.space(context, size: Space.small),
-                    ),
-                    child: Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: Responsive.space(
-                          context,
-                          size: Space.small,
-                        ),
-                        vertical:
-                            Responsive.space(context, size: Space.small) * 0.5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: primaryColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(
-                          Responsive.space(context, size: Space.large),
-                        ),
-                      ),
-                      child: Text(
-                        'اخر معاد للتسليم : $fullFormattedDate', // Use combined date and day
-                        textAlign: TextAlign.end,
-                        style: TextStyle(
-                          fontSize: Responsive.text(
-                            context,
-                            size: TextSize.small,
-                          ),
-                          color: Colors.black,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                if (admin)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      IconButton(
-                        icon: const Icon(
-                          Icons.edit_outlined,
-                          color: Colors.blueGrey,
-                        ),
-                        onPressed: onEdit,
-                        tooltip: 'Edit Task',
-                      ),
-                      IconButton(
-                        icon: const Icon(
-                          Icons.delete_outline,
-                          color: Colors.redAccent,
-                        ),
-                        onPressed: onDelete,
-                        tooltip: 'Delete Task',
-                      ),
-                    ],
-                  ),
-              ],
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 12),
+          SizedBox(width: Responsive.space(context, size: Space.tiny)),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: Responsive.text(context, size: TextSize.small),
+              fontWeight: FontWeight.w500,
+              color: color,
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required Color color,
+    required String tooltip,
+    required VoidCallback onPressed,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(
+          Responsive.space(context, size: Space.small),
+        ),
+        border: Border.all(color: color.withOpacity(0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: IconButton(
+        icon: Icon(icon, color: color, size: 18),
+        onPressed: onPressed,
+        tooltip: tooltip,
+        style: IconButton.styleFrom(
+          padding: EdgeInsets.all(Responsive.space(context, size: Space.small)),
         ),
       ),
     );

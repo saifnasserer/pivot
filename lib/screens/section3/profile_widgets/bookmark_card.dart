@@ -5,11 +5,58 @@ import 'package:pivot/screens/models/card_model.dart';
 import 'package:pivot/screens/section2/adminstration/models/announcement_data.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-class BookmarkCard extends StatelessWidget {
+/// Enhanced BookmarkCard with animations and improved design
+class BookmarkCard extends StatefulWidget {
   final AnnouncementData bookmark;
   final VoidCallback? onRemove;
+  final VoidCallback? onShare;
+  final bool showRemoveButton;
 
-  const BookmarkCard({super.key, required this.bookmark, this.onRemove});
+  const BookmarkCard({
+    super.key,
+    required this.bookmark,
+    this.onRemove,
+    this.onShare,
+    this.showRemoveButton = true,
+  });
+
+  @override
+  State<BookmarkCard> createState() => _BookmarkCardState();
+}
+
+class _BookmarkCardState extends State<BookmarkCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _opacityAnimation;
+  bool _isHovered = false;
+  bool _isPressed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.02).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+
+    _opacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
+
+    // Start entrance animation
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
 
   void _showBookmarkBadge(BuildContext context) {
     showDialog(
@@ -30,9 +77,9 @@ class BookmarkCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.07),
-                      blurRadius: 24,
-                      offset: const Offset(0, 8),
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 32,
+                      offset: const Offset(0, 12),
                     ),
                   ],
                 ),
@@ -41,10 +88,17 @@ class BookmarkCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.end,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Header with color and icon
+                    // Enhanced header with gradient
                     Container(
                       decoration: BoxDecoration(
-                        color: bookmark.color.withOpacity(0.13),
+                        gradient: LinearGradient(
+                          colors: [
+                            widget.bookmark.color.withOpacity(0.2),
+                            widget.bookmark.color.withOpacity(0.1),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
                         borderRadius: const BorderRadius.vertical(
                           top: Radius.circular(24),
                         ),
@@ -58,28 +112,42 @@ class BookmarkCard extends StatelessWidget {
                       ),
                       child: Row(
                         children: [
-                          if (onRemove != null)
-                            Material(
-                              color: Colors.transparent,
-                              child: IconButton(
-                                icon: Icon(
-                                  Icons.bookmark_remove,
-                                  color: Colors.redAccent,
-                                  size: 26,
-                                ),
-                                tooltip: 'إزالة من المحفظات',
-                                onPressed: () {
-                                  onRemove!();
-                                  Navigator.of(context).pop();
-                                },
+                          // Action buttons
+                          if (widget.showRemoveButton &&
+                              widget.onRemove != null)
+                            _buildActionButton(
+                              icon: Icons.bookmark_remove,
+                              color: Colors.red.shade400,
+                              tooltip: 'إزالة من المحفظات',
+                              onPressed: () {
+                                widget.onRemove!();
+                                Navigator.of(context).pop();
+                              },
+                            ),
+
+                          if (widget.onShare != null) ...[
+                            SizedBox(
+                              width: Responsive.space(
+                                context,
+                                size: Space.small,
                               ),
                             ),
+                            _buildActionButton(
+                              icon: Icons.share,
+                              color: Colors.blue.shade400,
+                              tooltip: 'مشاركة',
+                              onPressed: widget.onShare!,
+                            ),
+                          ],
+
                           SizedBox(
                             width: Responsive.space(context, size: Space.small),
                           ),
+
+                          // Title
                           Expanded(
                             child: Text(
-                              bookmark.title,
+                              widget.bookmark.title,
                               textAlign: TextAlign.right,
                               style: TextStyle(
                                 fontSize:
@@ -95,172 +163,116 @@ class BookmarkCard extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
+                        ],
+                      ),
+                    ),
 
-                          // Remove button (future use)
-                        ],
-                      ),
-                    ),
-                    Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: Responsive.space(
-                          context,
-                          size: Space.large,
+                    // Content area
+                    Flexible(
+                      child: SingleChildScrollView(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: Responsive.space(
+                            context,
+                            size: Space.large,
+                          ),
+                          vertical: Responsive.space(
+                            context,
+                            size: Space.medium,
+                          ),
                         ),
-                        vertical: Responsive.space(context, size: Space.medium),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              Icon(
-                                Icons.calendar_today,
-                                size: 18,
-                                color: Colors.grey[600],
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            // Date with enhanced styling
+                            _buildDateSection(),
+
+                            SizedBox(
+                              height: Responsive.space(
+                                context,
+                                size: Space.small,
                               ),
-                              SizedBox(
-                                width: Responsive.space(
+                            ),
+                            Divider(thickness: 1, color: Colors.grey.shade200),
+                            SizedBox(
+                              height: Responsive.space(
+                                context,
+                                size: Space.small,
+                              ),
+                            ),
+
+                            // Description
+                            Text(
+                              widget.bookmark.description,
+                              style: TextStyle(
+                                fontSize: Responsive.text(
                                   context,
-                                  size: Space.tiny,
+                                  size: TextSize.medium,
+                                ),
+                                color: Colors.black.withOpacity(0.85),
+                                height: 1.5,
+                              ),
+                              textAlign: TextAlign.right,
+                            ),
+
+                            // Images
+                            if (widget.bookmark.imageUrls.isNotEmpty) ...[
+                              SizedBox(
+                                height: Responsive.space(
+                                  context,
+                                  size: Space.medium,
                                 ),
                               ),
-                              Text(
-                                bookmark.date,
-                                style: TextStyle(
-                                  fontSize: Responsive.text(
-                                    context,
-                                    size: TextSize.small,
-                                  ),
-                                  color: Colors.grey[700],
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
+                              _buildImageGallery(context),
                             ],
-                          ),
-                          SizedBox(
-                            height: Responsive.space(
-                              context,
-                              size: Space.small,
-                            ),
-                          ),
-                          Divider(thickness: 1, color: Colors.grey[200]),
-                          SizedBox(
-                            height: Responsive.space(
-                              context,
-                              size: Space.small,
-                            ),
-                          ),
-                          Text(
-                            bookmark.description,
-                            style: TextStyle(
-                              fontSize: Responsive.text(
-                                context,
-                                size: TextSize.medium,
+
+                            // Links
+                            if (widget.bookmark.links.isNotEmpty) ...[
+                              SizedBox(
+                                height: Responsive.space(
+                                  context,
+                                  size: Space.medium,
+                                ),
                               ),
-                              color: Colors.black.withOpacity(0.85),
-                            ),
-                            textAlign: TextAlign.right,
-                          ),
-                          if (bookmark.imageUrls.isNotEmpty) ...[
+                              _buildLinksList(context),
+                            ],
+
+                            // Tags
+                            if (widget.bookmark.tags.isNotEmpty) ...[
+                              SizedBox(
+                                height: Responsive.space(
+                                  context,
+                                  size: Space.medium,
+                                ),
+                              ),
+                              _buildTagsSection(),
+                            ],
+
                             SizedBox(
                               height: Responsive.space(
-                                context,
-                                size: Space.medium,
-                              ),
-                            ),
-                            _buildImageGallery(context),
-                          ],
-                          if (bookmark.links.isNotEmpty) ...[
-                            SizedBox(
-                              height: Responsive.space(
-                                context,
-                                size: Space.medium,
-                              ),
-                            ),
-                            _buildLinksList(context),
-                          ],
-                          if (bookmark.tags.isNotEmpty) ...[
-                            SizedBox(
-                              height: Responsive.space(
-                                context,
-                                size: Space.medium,
-                              ),
-                            ),
-                            Wrap(
-                              spacing: Responsive.space(
                                 context,
                                 size: Space.small,
                               ),
-                              runSpacing: Responsive.space(
-                                context,
-                                size: Space.small,
-                              ),
-                              alignment: WrapAlignment.end,
-                              children:
-                                  bookmark.tags.map((tag) {
-                                    return Container(
-                                      padding: EdgeInsets.symmetric(
-                                        horizontal:
-                                            Responsive.space(
-                                              context,
-                                              size: Space.small,
-                                            ) *
-                                            1.5,
-                                        vertical:
-                                            Responsive.space(
-                                              context,
-                                              size: Space.small,
-                                            ) *
-                                            0.5,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: bookmark.color.withOpacity(0.08),
-                                        borderRadius: BorderRadius.circular(16),
-                                        border: Border.all(
-                                          color: bookmark.color.withOpacity(
-                                            0.3,
-                                          ),
-                                          width: 1,
-                                        ),
-                                      ),
-                                      child: Text(
-                                        tag,
-                                        style: TextStyle(
-                                          fontSize:
-                                              Responsive.text(
-                                                context,
-                                                size: TextSize.small,
-                                              ) *
-                                              0.95,
-                                          fontWeight: FontWeight.w500,
-                                          color: Colors.black.withOpacity(0.8),
-                                        ),
-                                      ),
-                                    );
-                                  }).toList(),
                             ),
                           ],
-                        ],
+                        ),
                       ),
-                    ),
-                    SizedBox(
-                      height: Responsive.space(context, size: Space.small),
                     ),
                   ],
                 ),
               ),
-              // Floating close button
+
+              // Enhanced close button
               Positioned(
                 top: 8,
                 right: 8,
                 child: Material(
                   color: Colors.white,
                   shape: const CircleBorder(),
-                  elevation: 2,
+                  elevation: 4,
                   child: IconButton(
                     icon: const Icon(Icons.close, color: Colors.black87),
                     onPressed: () => Navigator.of(context).pop(),
+                    tooltip: 'إغلاق',
                   ),
                 ),
               ),
@@ -271,237 +283,432 @@ class BookmarkCard extends StatelessWidget {
     );
   }
 
-  Widget _buildLinksList(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        top: Responsive.space(context, size: Space.medium),
+  Widget _buildActionButton({
+    required IconData icon,
+    required Color color,
+    required String tooltip,
+    required VoidCallback onPressed,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(
+          Responsive.space(context, size: Space.small),
+        ),
+        border: Border.all(color: color.withOpacity(0.3)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children:
-            bookmark.links.map((link) {
-              return Padding(
-                padding: const EdgeInsets.only(top: 4.0),
-                child: InkWell(
-                  onTap: () async {
-                    final urlString = link['url'];
-                    if (urlString == null || urlString.isEmpty) return;
-
-                    // Ensure the URL has a scheme (https preferred, convert http to https)
-                    String formattedUrl = urlString;
-                    if (!formattedUrl.startsWith('https://')) {
-                      formattedUrl = formattedUrl.replaceFirst(
-                        RegExp(r'^http://'),
-                        'https://',
-                      );
-                      if (!formattedUrl.startsWith('https://')) {
-                        formattedUrl = 'https://$formattedUrl';
-                      }
-                    }
-
-                    //debugprint('Attempting to launch URL: $formattedUrl');
-                    final url = Uri.parse(formattedUrl);
-
-                    if (await canLaunchUrl(url)) {
-                      await launchUrl(
-                        url,
-                        mode: LaunchMode.externalApplication,
-                      );
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('تعذر فتح الرابط: $urlString')),
-                      );
-                    }
-                  },
-                  borderRadius: BorderRadius.circular(20),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: bookmark.color.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Text(
-                          link['title'] ?? 'رابط',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w500,
-                            color: Colors.black.withOpacity(0.8),
-                          ),
-                        ),
-                        SizedBox(
-                          width: Responsive.space(context, size: Space.small),
-                        ),
-                        Icon(
-                          Icons.link,
-                          color: Colors.black.withOpacity(0.6),
-                          size: 18,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
+      child: IconButton(
+        icon: Icon(icon, color: color, size: 20),
+        onPressed: onPressed,
+        tooltip: tooltip,
+        style: IconButton.styleFrom(
+          padding: EdgeInsets.all(Responsive.space(context, size: Space.small)),
+        ),
       ),
     );
   }
 
-  Widget _buildImageGallery(BuildContext context) {
-    if (bookmark.imageUrls.isEmpty) {
-      return const SizedBox.shrink();
-    }
+  Widget _buildDateSection() {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: Responsive.space(context, size: Space.medium),
+        vertical: Responsive.space(context, size: Space.small),
+      ),
+      decoration: BoxDecoration(
+        color: widget.bookmark.color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(
+          Responsive.space(context, size: Space.medium),
+        ),
+        border: Border.all(color: widget.bookmark.color.withOpacity(0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          Icon(Icons.calendar_today, size: 16, color: widget.bookmark.color),
+          SizedBox(width: Responsive.space(context, size: Space.small)),
+          Text(
+            widget.bookmark.date,
+            style: TextStyle(
+              fontSize: Responsive.text(context, size: TextSize.small),
+              color: widget.bookmark.color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-    return SizedBox(
-      height: Responsive.space(context, size: Space.large) * 3,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        reverse: true,
-        itemCount: bookmark.imageUrls.length,
-        itemBuilder: (context, index) {
-          final imageUrl = bookmark.imageUrls[index];
-          return Container(
-            margin: const EdgeInsets.only(left: 8.0),
-            width: Responsive.space(context, size: Space.large) * 3,
-            height: Responsive.space(context, size: Space.large) * 3,
-            child: GestureDetector(
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder:
-                        (context) => FullScreenImageViewer(imageUrl: imageUrl),
+  Widget _buildTagsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Text(
+          'العلامات:',
+          style: TextStyle(
+            fontSize: Responsive.text(context, size: TextSize.small),
+            fontWeight: FontWeight.w600,
+            color: Colors.grey.shade700,
+          ),
+        ),
+        SizedBox(height: Responsive.space(context, size: Space.small)),
+        Wrap(
+          spacing: Responsive.space(context, size: Space.small),
+          runSpacing: Responsive.space(context, size: Space.small),
+          alignment: WrapAlignment.end,
+          children:
+              widget.bookmark.tags.map((tag) {
+                return Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal:
+                        Responsive.space(context, size: Space.small) * 1.5,
+                    vertical:
+                        Responsive.space(context, size: Space.small) * 0.5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: widget.bookmark.color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: widget.bookmark.color.withOpacity(0.4),
+                      width: 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: widget.bookmark.color.withOpacity(0.1),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                  child: Text(
+                    tag,
+                    style: TextStyle(
+                      fontSize:
+                          Responsive.text(context, size: TextSize.small) * 0.95,
+                      fontWeight: FontWeight.w500,
+                      color: widget.bookmark.color,
+                    ),
                   ),
                 );
+              }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLinksList(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Text(
+          'الروابط:',
+          style: TextStyle(
+            fontSize: Responsive.text(context, size: TextSize.small),
+            fontWeight: FontWeight.w600,
+            color: Colors.grey.shade700,
+          ),
+        ),
+        SizedBox(height: Responsive.space(context, size: Space.small)),
+        ...widget.bookmark.links.map((link) {
+          return Padding(
+            padding: const EdgeInsets.only(top: 4.0),
+            child: InkWell(
+              onTap: () async {
+                final urlString = link['url'];
+                if (urlString == null || urlString.isEmpty) return;
+
+                String formattedUrl = urlString;
+                if (!formattedUrl.startsWith('https://')) {
+                  formattedUrl = formattedUrl.replaceFirst(
+                    RegExp(r'^http://'),
+                    'https://',
+                  );
+                  if (!formattedUrl.startsWith('https://')) {
+                    formattedUrl = 'https://$formattedUrl';
+                  }
+                }
+
+                final url = Uri.parse(formattedUrl);
+
+                if (await canLaunchUrl(url)) {
+                  await launchUrl(url, mode: LaunchMode.externalApplication);
+                } else {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('تعذر فتح الرابط: $urlString')),
+                    );
+                  }
+                }
               },
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12.0),
-                child: Hero(
-                  tag: imageUrl,
-                  child: CachedNetworkImage(
-                    imageUrl: imageUrl,
-                    fit: BoxFit.cover,
-                    width: Responsive.space(context, size: Space.large) * 3,
-                    height: Responsive.space(context, size: Space.large) * 3,
-                    placeholder:
-                        (context, url) => Container(
-                          width:
-                              Responsive.space(context, size: Space.large) * 3,
-                          height:
-                              Responsive.space(context, size: Space.large) * 3,
-                          color: Colors.grey[200],
-                          child: const Center(
-                            child: CircularProgressIndicator(),
-                          ),
-                        ),
-                    errorWidget:
-                        (context, url, error) => Container(
-                          width:
-                              Responsive.space(context, size: Space.large) * 3,
-                          height:
-                              Responsive.space(context, size: Space.large) * 3,
-                          color: Colors.grey[200],
-                          child: const Icon(
-                            Icons.broken_image,
-                            color: Colors.grey,
-                          ),
-                        ),
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: widget.bookmark.color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: widget.bookmark.color.withOpacity(0.3),
                   ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Text(
+                      link['title'] ?? 'رابط',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w500,
+                        color: widget.bookmark.color,
+                      ),
+                    ),
+                    SizedBox(
+                      width: Responsive.space(context, size: Space.small),
+                    ),
+                    Icon(Icons.link, color: widget.bookmark.color, size: 18),
+                  ],
                 ),
               ),
             ),
           );
-        },
-      ),
+        }).toList(),
+      ],
+    );
+  }
+
+  Widget _buildImageGallery(BuildContext context) {
+    if (widget.bookmark.imageUrls.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Text(
+          'الصور:',
+          style: TextStyle(
+            fontSize: Responsive.text(context, size: TextSize.small),
+            fontWeight: FontWeight.w600,
+            color: Colors.grey.shade700,
+          ),
+        ),
+        SizedBox(height: Responsive.space(context, size: Space.small)),
+        SizedBox(
+          height: Responsive.space(context, size: Space.large) * 3,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            reverse: true,
+            itemCount: widget.bookmark.imageUrls.length,
+            itemBuilder: (context, index) {
+              final imageUrl = widget.bookmark.imageUrls[index];
+              return Container(
+                margin: const EdgeInsets.only(left: 8.0),
+                width: Responsive.space(context, size: Space.large) * 3,
+                height: Responsive.space(context, size: Space.large) * 3,
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder:
+                            (context) =>
+                                FullScreenImageViewer(imageUrl: imageUrl),
+                      ),
+                    );
+                  },
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12.0),
+                    child: Hero(
+                      tag: imageUrl,
+                      child: CachedNetworkImage(
+                        imageUrl: imageUrl,
+                        fit: BoxFit.cover,
+                        width: Responsive.space(context, size: Space.large) * 3,
+                        height:
+                            Responsive.space(context, size: Space.large) * 3,
+                        placeholder:
+                            (context, url) => Container(
+                              width:
+                                  Responsive.space(context, size: Space.large) *
+                                  3,
+                              height:
+                                  Responsive.space(context, size: Space.large) *
+                                  3,
+                              color: Colors.grey.shade200,
+                              child: const Center(
+                                child: CircularProgressIndicator(),
+                              ),
+                            ),
+                        errorWidget:
+                            (context, url, error) => Container(
+                              width:
+                                  Responsive.space(context, size: Space.large) *
+                                  3,
+                              height:
+                                  Responsive.space(context, size: Space.large) *
+                                  3,
+                              color: Colors.grey.shade200,
+                              child: const Icon(
+                                Icons.broken_image,
+                                color: Colors.grey,
+                              ),
+                            ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => _showBookmarkBadge(context),
-      child: Container(
-        margin: EdgeInsets.symmetric(
-          vertical: Responsive.space(context, size: Space.small),
-          horizontal: Responsive.space(context, size: Space.medium),
-        ),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              bookmark.color.withOpacity(0.4),
-              bookmark.color.withOpacity(0.1),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(
-            Responsive.space(context, size: Space.medium),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: bookmark.color.withOpacity(0.2),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: EdgeInsets.all(
-            Responsive.space(context, size: Space.medium),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                bookmark.title,
-                style: TextStyle(
-                  fontSize: Responsive.text(context, size: TextSize.heading),
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black.withOpacity(0.8),
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              SizedBox(height: Responsive.space(context, size: Space.small)),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: Responsive.space(context, size: Space.small),
-                      vertical:
-                          Responsive.space(context, size: Space.small) * 0.5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      bookmark.date,
-                      style: TextStyle(
-                        fontSize: Responsive.text(
-                          context,
-                          size: TextSize.small,
+    return AnimatedBuilder(
+      animation: _animationController,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: _scaleAnimation.value,
+          child: Opacity(
+            opacity: _opacityAnimation.value,
+            child: GestureDetector(
+              onTap: () => _showBookmarkBadge(context),
+              onTapDown: (_) => setState(() => _isPressed = true),
+              onTapUp: (_) => setState(() => _isPressed = false),
+              onTapCancel: () => setState(() => _isPressed = false),
+              child: MouseRegion(
+                onEnter: (_) {
+                  setState(() => _isHovered = true);
+                  _animationController.forward();
+                },
+                onExit: (_) {
+                  setState(() => _isHovered = false);
+                  _animationController.reverse();
+                },
+                child: Container(
+                  margin: EdgeInsets.symmetric(
+                    vertical: Responsive.space(context, size: Space.small),
+                    horizontal: Responsive.space(context, size: Space.medium),
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        widget.bookmark.color.withOpacity(
+                          _isHovered ? 0.5 : 0.4,
                         ),
-                        fontWeight: FontWeight.w500,
-                        color: Colors.black.withOpacity(0.6),
+                        widget.bookmark.color.withOpacity(
+                          _isHovered ? 0.2 : 0.1,
+                        ),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(
+                      Responsive.space(context, size: Space.medium),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: widget.bookmark.color.withOpacity(
+                          _isHovered ? 0.3 : 0.2,
+                        ),
+                        blurRadius: _isHovered ? 12 : 8,
+                        offset: Offset(0, _isHovered ? 6 : 4),
                       ),
+                    ],
+                    border: Border.all(
+                      color: widget.bookmark.color.withOpacity(
+                        _isHovered ? 0.4 : 0.2,
+                      ),
+                      width: _isHovered ? 2 : 1,
                     ),
                   ),
-                  Icon(
-                    Icons.bookmark,
-                    color: bookmark.color.withValues(alpha: 0.6),
+                  child: Padding(
+                    padding: EdgeInsets.all(
+                      Responsive.space(context, size: Space.medium),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          widget.bookmark.title,
+                          style: TextStyle(
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.heading,
+                            ),
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black.withOpacity(0.8),
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        SizedBox(
+                          height: Responsive.space(context, size: Space.small),
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: Responsive.space(
+                                  context,
+                                  size: Space.small,
+                                ),
+                                vertical:
+                                    Responsive.space(
+                                      context,
+                                      size: Space.small,
+                                    ) *
+                                    0.5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.3),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.5),
+                                ),
+                              ),
+                              child: Text(
+                                widget.bookmark.date,
+                                style: TextStyle(
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.small,
+                                  ),
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.black.withOpacity(0.6),
+                                ),
+                              ),
+                            ),
+                            SizedBox(
+                              width: Responsive.space(
+                                context,
+                                size: Space.small,
+                              ),
+                            ),
+                            Icon(
+                              Icons.bookmark,
+                              color: widget.bookmark.color.withValues(
+                                alpha: 0.8,
+                              ),
+                              size: _isHovered ? 24 : 20,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ],
+                ),
               ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
