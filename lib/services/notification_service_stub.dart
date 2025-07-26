@@ -1,0 +1,29 @@
+import 'package:flutter/material.dart';
+
+class NotificationService {
+  static final NotificationService _instance = NotificationService._internal();
+  factory NotificationService() => _instance;
+  NotificationService._internal();
+
+  Future<void> initialize(BuildContext context) async {}
+  Future<void> requestWebNotificationPermission(BuildContext context) async {}
+  Future<String?> getUserFCMToken(String userId) async => null;
+  Future<bool> sendNotification({
+    required String targetToken,
+    required String title,
+    required String body,
+    String? userId,
+    Map<String, String>? data,
+    String? icon,
+    String? color,
+    String? sound,
+    String? imageUrl,
+  }) async => false;
+  Future<bool> requestPermissionsExplicitly() async => false;
+  Future<bool> areNotificationsEnabled() async => false;
+  Future<String?> getToken() async => null;
+  Future<void> saveTokenToFirestore(String token) async {}
+  Future<List<String>> getAllUserFCMTokens() async => <String>[];
+  Future<List<String>> getMultipleUserFCMTokens(List<String> userIds) async =>
+      <String>[];
+}

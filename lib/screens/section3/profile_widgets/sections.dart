@@ -1,0 +1,749 @@
+import 'package:flutter/material.dart';
+import 'package:pivot/models/section_model.dart';
+import 'package:pivot/models/subject_model.dart';
+import 'package:pivot/models/user_profile.dart';
+import 'package:pivot/providers/section_provider.dart';
+import 'package:pivot/providers/subject_provider.dart';
+import 'package:pivot/providers/user_profile_provider.dart';
+import 'package:pivot/responsive.dart';
+import 'package:provider/provider.dart';
+
+/// Enhanced sections builder with better structure and animations
+class SectionsBuilder {
+  /// Builds a complete sections list with enhanced features
+  static List<Widget> buildSectionsSlivers(
+    BuildContext context, {
+    bool enableAnimations = true,
+  }) {
+    final userProfileProvider = Provider.of<UserProfileProvider>(context);
+    final sectionProvider = Provider.of<SectionProvider>(context);
+    final subjectProvider = Provider.of<SubjectProvider>(context);
+
+    if (userProfileProvider.isLoading || sectionProvider.isLoading) {
+      return [_buildLoadingState(context)];
+    }
+
+    final userProfile = userProfileProvider.userProfile;
+    final allSections = sectionProvider.sections;
+    final enrolledSubjects = subjectProvider.filteredSubjects;
+
+    if (userProfile == null) {
+      return [_buildErrorState(context)];
+    }
+
+    final userSectionName = userProfile.section;
+    final enrolledSubjectIds = enrolledSubjects.map((s) => s.id).toSet();
+
+    final relevantSections =
+        allSections.where((section) {
+          return enrolledSubjectIds.contains(section.subjectId) &&
+              section.name.contains(userSectionName);
+        }).toList();
+
+    if (relevantSections.isEmpty) {
+      return [_buildEmptyState(context)];
+    }
+
+    final subjectMap = {
+      for (var subject in enrolledSubjects) subject.id: subject,
+    };
+
+    return [
+      _buildSectionsList(
+        context,
+        relevantSections,
+        subjectMap,
+        enableAnimations,
+      ),
+    ];
+  }
+
+  /// Builds loading state
+  static Widget _buildLoadingState(BuildContext context) {
+    return const SliverFillRemaining(
+      child: Center(child: CircularProgressIndicator()),
+    );
+  }
+
+  /// Builds error state
+  static Widget _buildErrorState(BuildContext context) {
+    return const SliverFillRemaining(
+      child: Center(child: Text('User not found')),
+    );
+  }
+
+  /// Builds empty state with enhanced design
+  static Widget _buildEmptyState(BuildContext context) {
+    return SliverFillRemaining(
+      hasScrollBody: false,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: EdgeInsets.all(
+                Responsive.space(context, size: Space.large),
+              ),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.calendar_today_outlined,
+                size: 48,
+                color: Colors.grey.shade400,
+              ),
+            ),
+            SizedBox(height: Responsive.space(context, size: Space.medium)),
+            Text(
+              'لا توجد سكاشن مسجلة لك حالياً',
+              style: TextStyle(
+                fontSize: Responsive.text(context, size: TextSize.medium),
+                fontWeight: FontWeight.w500,
+                color: Colors.black87,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: Responsive.space(context, size: Space.small)),
+            Text(
+              'سيتم إضافة السكاشن قريباً',
+              style: TextStyle(
+                fontSize: Responsive.text(context, size: TextSize.small),
+                color: Colors.grey.shade600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Builds sections list with enhanced styling
+  static Widget _buildSectionsList(
+    BuildContext context,
+    List<Section> sections,
+    Map<String, Subject> subjectMap,
+    bool enableAnimations,
+  ) {
+    return SliverPadding(
+      padding: EdgeInsets.symmetric(
+        horizontal: Responsive.space(context, size: Space.medium),
+        vertical: Responsive.space(context, size: Space.small),
+      ),
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate((context, index) {
+          final section = sections[index];
+          final subject = subjectMap[section.subjectId];
+          if (subject == null) {
+            return const SizedBox.shrink();
+          }
+
+          return AnimatedContainer(
+            duration:
+                enableAnimations
+                    ? Duration(milliseconds: 300 + (index * 50))
+                    : Duration.zero,
+            curve: Curves.easeInOut,
+            child: EnhancedSectionListItem(
+              section: section,
+              subject: subject,
+              index: index,
+            ),
+          );
+        }, childCount: sections.length),
+      ),
+    );
+  }
+}
+
+/// Enhanced section list item with better design and functionality
+class EnhancedSectionListItem extends StatefulWidget {
+  const EnhancedSectionListItem({
+    super.key,
+    required this.section,
+    required this.subject,
+    required this.index,
+  });
+
+  final Section section;
+  final Subject subject;
+  final int index;
+
+  @override
+  State<EnhancedSectionListItem> createState() =>
+      _EnhancedSectionListItemState();
+}
+
+class _EnhancedSectionListItemState extends State<EnhancedSectionListItem>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+  late Animation<double> _scaleAnimation;
+  bool _isHovered = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 200),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.02).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  void _onTap() {
+    final instructors =
+        Provider.of<SubjectProvider>(
+          context,
+          listen: false,
+        ).instructorsBySubject[widget.subject.id];
+    final assistants =
+        instructors?.where((prof) => prof.role == 'miniProfessor').toList() ??
+        [];
+    _showEnhancedSectionDetails(
+      context,
+      widget.subject,
+      widget.section,
+      assistants,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _scaleAnimation,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: _scaleAnimation.value,
+          child: Padding(
+            padding: EdgeInsets.only(
+              bottom: Responsive.space(context, size: Space.small),
+            ),
+            child: Material(
+              elevation: _isHovered ? 4 : 0.5,
+              borderRadius: BorderRadius.circular(
+                Responsive.space(context, size: Space.large),
+              ),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(
+                  Responsive.space(context, size: Space.large),
+                ),
+                onTap: _onTap,
+                onHover: (hovered) {
+                  setState(() {
+                    _isHovered = hovered;
+                  });
+                  if (hovered) {
+                    _animationController.forward();
+                  } else {
+                    _animationController.reverse();
+                  }
+                },
+                child: Container(
+                  padding: Responsive.padding(context, size: Space.medium),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(
+                      Responsive.space(context, size: Space.large),
+                    ),
+                    border: Border.all(
+                      color:
+                          _isHovered
+                              ? Colors.black.withOpacity(0.2)
+                              : Colors.grey.shade200,
+                    ),
+                    gradient:
+                        _isHovered
+                            ? LinearGradient(
+                              colors: [Colors.grey.shade50, Colors.white],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            )
+                            : null,
+                  ),
+                  child: Row(
+                    children: [
+                      // Arrow icon (RTL - on the left)
+                      Icon(
+                        Icons.arrow_back_ios,
+                        color: _isHovered ? Colors.black : Colors.grey.shade400,
+                        size: 16,
+                      ),
+
+                      // Section info
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              widget.subject.name,
+                              style: TextStyle(
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.medium,
+                                ),
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.right,
+                            ),
+                            SizedBox(
+                              height: Responsive.space(
+                                context,
+                                size: Space.small,
+                              ),
+                            ),
+                            Wrap(
+                              spacing: Responsive.space(
+                                context,
+                                size: Space.small,
+                              ),
+                              runSpacing: Responsive.space(
+                                context,
+                                size: Space.tiny,
+                              ),
+                              alignment: WrapAlignment.end,
+                              children: [
+                                _buildInfoChip(
+                                  context,
+                                  widget.section.name,
+                                  Colors.blue,
+                                ),
+                                _buildInfoChip(
+                                  context,
+                                  widget.section.location,
+                                  Colors.green,
+                                ),
+                                _buildInfoChip(
+                                  context,
+                                  widget.section.days,
+                                  Colors.orange,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      SizedBox(
+                        width: Responsive.space(context, size: Space.medium),
+                      ),
+
+                      // Section icon (RTL - on the right)
+                      Container(
+                        padding: EdgeInsets.all(
+                          Responsive.space(context, size: Space.small),
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(
+                            Responsive.space(context, size: Space.medium),
+                          ),
+                        ),
+                        child: Icon(
+                          Icons.class_,
+                          color: Colors.black,
+                          size: Responsive.text(context, size: TextSize.medium),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildInfoChip(BuildContext context, String text, Color color) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: Responsive.space(context, size: Space.small),
+        vertical: Responsive.space(context, size: Space.tiny),
+      ),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(
+          Responsive.space(context, size: Space.small),
+        ),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: Responsive.text(context, size: TextSize.small),
+          color: color,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+
+  void _showEnhancedSectionDetails(
+    BuildContext context,
+    Subject subject,
+    Section section,
+    List<UserProfile> assistants,
+  ) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => Directionality(
+            textDirection: TextDirection.rtl,
+            child: Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(
+                  Responsive.space(context, size: Space.large),
+                ),
+              ),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.8,
+                  maxWidth: MediaQuery.of(context).size.width * 0.9,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Header
+                    Container(
+                      padding: Responsive.padding(context, size: Space.large),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(
+                            Responsive.space(context, size: Space.large),
+                          ),
+                          topRight: Radius.circular(
+                            Responsive.space(context, size: Space.large),
+                          ),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: EdgeInsets.all(
+                              Responsive.space(context, size: Space.small),
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(
+                                Responsive.space(context, size: Space.small),
+                              ),
+                            ),
+                            child: Icon(Icons.class_, color: Colors.black),
+                          ),
+                          SizedBox(
+                            width: Responsive.space(
+                              context,
+                              size: Space.medium,
+                            ),
+                          ),
+                          Expanded(
+                            child: Text(
+                              subject.name,
+                              style: TextStyle(
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.heading,
+                                ),
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Scrollable Content
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: Responsive.padding(context, size: Space.large),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildEnhancedDetailSection(context, section),
+                            if (assistants.isNotEmpty) ...[
+                              SizedBox(
+                                height: Responsive.space(
+                                  context,
+                                  size: Space.large,
+                                ),
+                              ),
+                              _buildAssistantsSection(context, assistants),
+                            ] else ...[
+                              SizedBox(
+                                height: Responsive.space(
+                                  context,
+                                  size: Space.large,
+                                ),
+                              ),
+                              _buildNoAssistantsSection(context),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    // Actions
+                    Container(
+                      padding: Responsive.padding(context, size: Space.medium),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.only(
+                          bottomLeft: Radius.circular(
+                            Responsive.space(context, size: Space.large),
+                          ),
+                          bottomRight: Radius.circular(
+                            Responsive.space(context, size: Space.large),
+                          ),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            child: Text(
+                              'إغلاق',
+                              style: TextStyle(
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.medium,
+                                ),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+    );
+  }
+
+  Widget _buildEnhancedDetailSection(BuildContext context, Section section) {
+    return Container(
+      padding: Responsive.padding(context, size: Space.medium),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.grey.shade50, Colors.white],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(
+          Responsive.space(context, size: Space.medium),
+        ),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        children: [
+          _buildEnhancedDetailRow(
+            context,
+            'السكاشن',
+            section.name,
+            Icons.class_,
+            Colors.blue,
+          ),
+          SizedBox(height: Responsive.space(context, size: Space.small)),
+          _buildEnhancedDetailRow(
+            context,
+            'المكان',
+            section.location,
+            Icons.location_on_outlined,
+            Colors.green,
+          ),
+          SizedBox(height: Responsive.space(context, size: Space.small)),
+          _buildEnhancedDetailRow(
+            context,
+            'الأيام',
+            section.days,
+            Icons.calendar_today,
+            Colors.orange,
+          ),
+          SizedBox(height: Responsive.space(context, size: Space.small)),
+          _buildEnhancedDetailRow(
+            context,
+            'الوقت',
+            section.time,
+            Icons.access_time,
+            Colors.purple,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEnhancedDetailRow(
+    BuildContext context,
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
+    return Row(
+      children: [
+        Container(
+          padding: EdgeInsets.all(Responsive.space(context, size: Space.small)),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(
+              Responsive.space(context, size: Space.small),
+            ),
+          ),
+          child: Icon(icon, color: color, size: 18),
+        ),
+        SizedBox(width: Responsive.space(context, size: Space.medium)),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: Responsive.text(context, size: TextSize.small),
+                  color: Colors.grey.shade600,
+                ),
+              ),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: Responsive.text(context, size: TextSize.medium),
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAssistantsSection(
+    BuildContext context,
+    List<UserProfile> assistants,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'المعيدين',
+          style: TextStyle(
+            fontSize: Responsive.text(context, size: TextSize.medium),
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        SizedBox(height: Responsive.space(context, size: Space.small)),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(
+              Responsive.space(context, size: Space.medium),
+            ),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: ListView.separated(
+            shrinkWrap: true,
+            physics: NeverScrollableScrollPhysics(),
+            itemCount: assistants.length,
+            separatorBuilder:
+                (context, index) =>
+                    Divider(height: 1, color: Colors.grey.shade200),
+            itemBuilder: (context, index) {
+              final assistant = assistants[index];
+              return _buildAssistantTile(context, assistant);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAssistantTile(BuildContext context, UserProfile assistant) {
+    return ListTile(
+      leading: CircleAvatar(
+        backgroundColor: Colors.black.withOpacity(0.1),
+        child: Icon(Icons.person, color: Colors.black),
+      ),
+      title: Text(
+        assistant.name,
+        style: TextStyle(
+          fontSize: Responsive.text(context, size: TextSize.medium),
+          fontWeight: FontWeight.w600,
+          color: Colors.black87,
+        ),
+      ),
+      subtitle: Text(
+        'معيد',
+        style: TextStyle(
+          fontSize: Responsive.text(context, size: TextSize.small),
+          color: Colors.grey.shade600,
+        ),
+      ),
+      trailing: Icon(
+        Icons.arrow_forward_ios,
+        color: Colors.grey.shade400,
+        size: 16,
+      ),
+      onTap: () {
+        Navigator.of(context).pop();
+        Navigator.pushNamed(
+          context,
+          '/assistant-profile',
+          arguments: assistant,
+        );
+      },
+    );
+  }
+
+  Widget _buildNoAssistantsSection(BuildContext context) {
+    return Container(
+      padding: Responsive.padding(context, size: Space.medium),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(
+          Responsive.space(context, size: Space.medium),
+        ),
+        border: Border.all(color: Colors.orange.shade200),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline, color: Colors.orange.shade700, size: 24),
+          SizedBox(width: Responsive.space(context, size: Space.medium)),
+          Expanded(
+            child: Text(
+              'لا يوجد معيدين مسجلين لهذه المادة بعد',
+              style: TextStyle(
+                fontSize: Responsive.text(context, size: TextSize.small),
+                color: Colors.orange.shade700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Keep the original function for backward compatibility
+List<Widget> buildSectionsSlivers(BuildContext context) {
+  return SectionsBuilder.buildSectionsSlivers(context, enableAnimations: true);
+}

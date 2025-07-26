@@ -1,0 +1,707 @@
+import 'package:flutter/material.dart';
+import 'package:pivot/responsive.dart';
+import 'package:pivot/models/subject_model.dart';
+import 'package:pivot/models/user_profile.dart';
+import 'package:pivot/providers/user_profile_provider.dart';
+import 'package:pivot/providers/subject_provider.dart';
+import 'package:provider/provider.dart';
+
+/// Enhanced subjects builder with better UX and performance
+class SubjectsBuilder {
+  /// Builds a complete subjects list with enhanced features
+  static List<Widget> buildSubjectsSlivers(
+    BuildContext context,
+    List<Subject> subjects,
+    Map<String, List<UserProfile>> instructorsMap, {
+    bool enableAnimations = true,
+  }) {
+    if (subjects.isEmpty) {
+      return [_buildEmptyState(context)];
+    }
+
+    return [
+      _buildSubjectsList(context, subjects, instructorsMap, enableAnimations),
+    ];
+  }
+
+  /// Builds enhanced empty state
+  static Widget _buildEmptyState(BuildContext context) {
+    return SliverFillRemaining(
+      hasScrollBody: false,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: EdgeInsets.all(
+                Responsive.space(context, size: Space.large),
+              ),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.menu_book_rounded,
+                size: Responsive.text(context, size: TextSize.heading) * 1.5,
+                color: Colors.grey.shade400,
+              ),
+            ),
+            SizedBox(height: Responsive.space(context, size: Space.large)),
+            Text(
+              'لا توجد مواد دراسية',
+              style: TextStyle(
+                fontSize: Responsive.text(context, size: TextSize.heading),
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: Responsive.space(context, size: Space.small)),
+            Text(
+              'سيتم إضافة المواد الدراسية قريباً',
+              style: TextStyle(
+                fontSize: Responsive.text(context, size: TextSize.medium),
+                color: Colors.grey.shade600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Builds subjects list with enhanced styling
+  static Widget _buildSubjectsList(
+    BuildContext context,
+    List<Subject> subjects,
+    Map<String, List<UserProfile>> instructorsMap,
+    bool enableAnimations,
+  ) {
+    return SliverPadding(
+      padding: EdgeInsets.symmetric(
+        horizontal: Responsive.space(context, size: Space.medium),
+        vertical: Responsive.space(context, size: Space.small),
+      ),
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate((context, index) {
+          final subject = subjects[index];
+          final instructors = instructorsMap[subject.id];
+
+          return AnimatedContainer(
+            duration:
+                enableAnimations
+                    ? Duration(milliseconds: 300 + (index * 50))
+                    : Duration.zero,
+            curve: Curves.easeInOut,
+            child: EnhancedSubjectListItem(
+              subject: subject,
+              instructors: instructors,
+              index: index,
+            ),
+          );
+        }, childCount: subjects.length),
+      ),
+    );
+  }
+}
+
+/// Enhanced subject list item with better design and functionality
+class EnhancedSubjectListItem extends StatefulWidget {
+  const EnhancedSubjectListItem({
+    super.key,
+    required this.subject,
+    this.instructors,
+    required this.index,
+  });
+
+  final Subject subject;
+  final List<UserProfile>? instructors;
+  final int index;
+
+  @override
+  State<EnhancedSubjectListItem> createState() =>
+      _EnhancedSubjectListItemState();
+}
+
+class _EnhancedSubjectListItemState extends State<EnhancedSubjectListItem>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+  late Animation<double> _scaleAnimation;
+  bool _isHovered = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 200),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.02).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  void _onTap() {
+    _showEnhancedSubjectDetails(context, widget.subject, _getProfessors());
+  }
+
+  List<UserProfile> _getProfessors() {
+    return widget.instructors
+            ?.where((prof) => prof.role.toLowerCase() == 'professor')
+            .toList() ??
+        [];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final professors = _getProfessors();
+
+    return AnimatedBuilder(
+      animation: _scaleAnimation,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: _scaleAnimation.value,
+          child: Container(
+            margin: EdgeInsets.only(
+              bottom: Responsive.space(context, size: Space.small),
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(
+                  Responsive.space(context, size: Space.large),
+                ),
+                onTap: _onTap,
+                onHover: (hovered) {
+                  setState(() => _isHovered = hovered);
+                  if (hovered) {
+                    _animationController.forward();
+                  } else {
+                    _animationController.reverse();
+                  }
+                },
+                child: Container(
+                  padding: Responsive.padding(context, size: Space.medium),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(
+                      Responsive.space(context, size: Space.large),
+                    ),
+                    border: Border.all(
+                      color: _isHovered ? Colors.black : Colors.grey.shade200,
+                      width: _isHovered ? 2 : 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(
+                          _isHovered ? 0.1 : 0.05,
+                        ),
+                        blurRadius: _isHovered ? 8 : 4,
+                        offset: Offset(0, _isHovered ? 4 : 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      // Arrow icon (RTL - on the left)
+                      Icon(
+                        Icons.arrow_back_ios,
+                        color: _isHovered ? Colors.black : Colors.grey.shade400,
+                        size: 16,
+                      ),
+
+                      // Subject info
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              widget.subject.name,
+                              style: TextStyle(
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.medium,
+                                ),
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.right,
+                            ),
+                            SizedBox(
+                              height: Responsive.space(
+                                context,
+                                size: Space.tiny,
+                              ),
+                            ),
+                            Wrap(
+                              spacing: Responsive.space(
+                                context,
+                                size: Space.small,
+                              ),
+                              runSpacing: Responsive.space(
+                                context,
+                                size: Space.tiny,
+                              ),
+                              alignment: WrapAlignment.end,
+                              children: [
+                                _buildInfoChip(
+                                  context,
+                                  'الترم ${widget.subject.year}',
+                                  Colors.blue,
+                                ),
+                                _buildInfoChip(
+                                  context,
+                                  '${widget.subject.hours} ساعة',
+                                  Colors.green,
+                                ),
+                                if (professors.isNotEmpty)
+                                  _buildInfoChip(
+                                    context,
+                                    '${professors.length} دكتور',
+                                    Colors.orange,
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      SizedBox(
+                        width: Responsive.space(context, size: Space.medium),
+                      ),
+
+                      // Subject icon (RTL - on the right)
+                      Container(
+                        padding: EdgeInsets.all(
+                          Responsive.space(context, size: Space.small),
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(
+                            Responsive.space(context, size: Space.medium),
+                          ),
+                        ),
+                        child: Icon(
+                          Icons.menu_book_rounded,
+                          color: Colors.black,
+                          size: Responsive.text(context, size: TextSize.medium),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildInfoChip(BuildContext context, String label, Color color) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: Responsive.space(context, size: Space.small),
+        vertical: Responsive.space(context, size: Space.tiny),
+      ),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(
+          Responsive.space(context, size: Space.small),
+        ),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: Responsive.text(context, size: TextSize.small),
+          color: color,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+
+  void _showEnhancedSubjectDetails(
+    BuildContext context,
+    Subject subject,
+    List<UserProfile> professors,
+  ) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => Directionality(
+            textDirection: TextDirection.rtl,
+            child: Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(
+                  Responsive.space(context, size: Space.large),
+                ),
+              ),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.8,
+                  maxWidth: MediaQuery.of(context).size.width * 0.9,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Header
+                    Container(
+                      padding: Responsive.padding(context, size: Space.large),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(
+                            Responsive.space(context, size: Space.large),
+                          ),
+                          topRight: Radius.circular(
+                            Responsive.space(context, size: Space.large),
+                          ),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: EdgeInsets.all(
+                              Responsive.space(context, size: Space.small),
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(
+                                Responsive.space(context, size: Space.small),
+                              ),
+                            ),
+                            child: Icon(
+                              Icons.menu_book_rounded,
+                              color: Colors.black,
+                            ),
+                          ),
+                          SizedBox(
+                            width: Responsive.space(
+                              context,
+                              size: Space.medium,
+                            ),
+                          ),
+                          Expanded(
+                            child: Text(
+                              subject.name,
+                              style: TextStyle(
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.heading,
+                                ),
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Scrollable Content
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: Responsive.padding(context, size: Space.large),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildEnhancedDetailSection(context, subject),
+                            if (professors.isNotEmpty) ...[
+                              SizedBox(
+                                height: Responsive.space(
+                                  context,
+                                  size: Space.large,
+                                ),
+                              ),
+                              _buildProfessorsSection(context, professors),
+                            ] else ...[
+                              SizedBox(
+                                height: Responsive.space(
+                                  context,
+                                  size: Space.large,
+                                ),
+                              ),
+                              _buildNoProfessorsSection(context),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    // Actions
+                    Container(
+                      padding: Responsive.padding(context, size: Space.medium),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.only(
+                          bottomLeft: Radius.circular(
+                            Responsive.space(context, size: Space.large),
+                          ),
+                          bottomRight: Radius.circular(
+                            Responsive.space(context, size: Space.large),
+                          ),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            child: Text(
+                              'إغلاق',
+                              style: TextStyle(
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.medium,
+                                ),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+    );
+  }
+
+  Widget _buildEnhancedDetailSection(BuildContext context, Subject subject) {
+    return Container(
+      padding: Responsive.padding(context, size: Space.medium),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.grey.shade50, Colors.white],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(
+          Responsive.space(context, size: Space.medium),
+        ),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        children: [
+          _buildEnhancedDetailRow(
+            context,
+            'القسم',
+            subject.departments.join(', '),
+            Icons.business,
+            Colors.blue,
+          ),
+          SizedBox(height: Responsive.space(context, size: Space.small)),
+          _buildEnhancedDetailRow(
+            context,
+            'الترم',
+            subject.year.toString(),
+            Icons.school,
+            Colors.green,
+          ),
+          SizedBox(height: Responsive.space(context, size: Space.small)),
+          _buildEnhancedDetailRow(
+            context,
+            'الساعات',
+            subject.hours.toString(),
+            Icons.tag,
+            Colors.orange,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEnhancedDetailRow(
+    BuildContext context,
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
+    return Row(
+      children: [
+        Container(
+          padding: EdgeInsets.all(Responsive.space(context, size: Space.small)),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(
+              Responsive.space(context, size: Space.small),
+            ),
+          ),
+          child: Icon(icon, color: color, size: 18),
+        ),
+        SizedBox(width: Responsive.space(context, size: Space.medium)),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: Responsive.text(context, size: TextSize.small),
+                  color: Colors.grey.shade600,
+                ),
+              ),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: Responsive.text(context, size: TextSize.medium),
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProfessorsSection(
+    BuildContext context,
+    List<UserProfile> professors,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'دكاترة المادة',
+          style: TextStyle(
+            fontSize: Responsive.text(context, size: TextSize.medium),
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        SizedBox(height: Responsive.space(context, size: Space.small)),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(
+              Responsive.space(context, size: Space.medium),
+            ),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: ListView.separated(
+            shrinkWrap: true,
+            physics: NeverScrollableScrollPhysics(),
+            itemCount: professors.length,
+            separatorBuilder:
+                (context, index) =>
+                    Divider(height: 1, color: Colors.grey.shade200),
+            itemBuilder: (context, index) {
+              final professor = professors[index];
+              return _buildProfessorTile(context, professor);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProfessorTile(BuildContext context, UserProfile professor) {
+    return ListTile(
+      leading: CircleAvatar(
+        backgroundColor: Colors.black.withOpacity(0.1),
+        child: Icon(Icons.person, color: Colors.black),
+      ),
+      title: Text(
+        professor.name,
+        style: TextStyle(
+          fontSize: Responsive.text(context, size: TextSize.medium),
+          fontWeight: FontWeight.w600,
+          color: Colors.black87,
+        ),
+      ),
+      subtitle: Text(
+        'دكتور',
+        style: TextStyle(
+          fontSize: Responsive.text(context, size: TextSize.small),
+          color: Colors.grey.shade600,
+        ),
+      ),
+      trailing: Icon(
+        Icons.arrow_forward_ios,
+        color: Colors.grey.shade400,
+        size: 16,
+      ),
+      onTap: () {
+        Navigator.of(context).pop();
+        Navigator.pushNamed(context, '/doctor-profile', arguments: professor);
+      },
+    );
+  }
+
+  Widget _buildNoProfessorsSection(BuildContext context) {
+    return Container(
+      padding: Responsive.padding(context, size: Space.medium),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(
+          Responsive.space(context, size: Space.medium),
+        ),
+        border: Border.all(color: Colors.orange.shade200),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline, color: Colors.orange.shade700, size: 24),
+          SizedBox(width: Responsive.space(context, size: Space.medium)),
+          Expanded(
+            child: Text(
+              'لا يوجد دكاترة مسجلين لهذه المادة بعد',
+              style: TextStyle(
+                fontSize: Responsive.text(context, size: TextSize.medium),
+                color: Colors.orange.shade700,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Keep the original function for backward compatibility
+List<Widget> buildSubjectsSlivers(
+  BuildContext context,
+  List<Subject> subjects,
+  Map<String, List<UserProfile>> instructorsMap,
+) {
+  return SubjectsBuilder.buildSubjectsSlivers(
+    context,
+    subjects,
+    instructorsMap,
+    enableAnimations: true,
+  );
+}
+
+// Keep the original class for backward compatibility
+class SubjectListItem extends StatelessWidget {
+  const SubjectListItem({super.key, required this.subject, this.instructors});
+
+  final Subject subject;
+  final List<UserProfile>? instructors;
+
+  @override
+  Widget build(BuildContext context) {
+    return EnhancedSubjectListItem(
+      subject: subject,
+      instructors: instructors,
+      index: 0,
+    );
+  }
+}

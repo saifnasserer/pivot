@@ -1,0 +1,226 @@
+import 'package:auto_size_text/auto_size_text.dart';
+import 'package:flutter/material.dart';
+import 'package:pivot/providers/user_profile_provider.dart';
+import 'package:pivot/responsive.dart';
+import 'package:intl/intl.dart'; // For date formatting
+import 'package:provider/provider.dart';
+import 'package:pivot/screens/section3/profile_widgets/task_details_dialog.dart';
+import 'task.dart'; // Import the Task data model
+
+class TaskModel extends StatelessWidget {
+  final Task task;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+  final VoidCallback onStatusChanged;
+  final bool admin;
+
+  const TaskModel({
+    super.key,
+    required this.task,
+    required this.onEdit,
+    required this.onDelete,
+    required this.onStatusChanged,
+    this.admin = false,
+  });
+
+  // Helper to get color based on importance
+  Color _getImportanceColor(TaskImportance importance) {
+    switch (importance) {
+      case TaskImportance.high:
+        return Colors.red.shade300;
+      case TaskImportance.mid:
+        return Colors.amber.shade400;
+      case TaskImportance.low:
+        return Colors.green.shade300;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final userProfileProvider = Provider.of<UserProfileProvider>(
+      context,
+      listen: false,
+    );
+    final userId = userProfileProvider.userProfile?.id;
+
+    // Determine completion status for the current user
+    final bool isCompleted =
+        userId != null ? task.isCompletedFor(userId) : false;
+    final bool isOverdue =
+        !isCompleted && task.dueDate.isBefore(DateTime.now());
+
+    // Format date and day of the week in Arabic
+    final String formattedDayOfWeek = DateFormat(
+      'EEEE',
+      'ar',
+    ).format(task.dueDate);
+    final String formattedDate = DateFormat(
+      'dd MMM',
+      'ar',
+    ).format(task.dueDate);
+    final String fullFormattedDate = '$formattedDayOfWeek، $formattedDate';
+    final Color importanceColor = _getImportanceColor(task.importance);
+
+    // Compute contrasting text color based on completion status
+    final Color textColor = isCompleted ? Colors.grey : Colors.black87;
+    final Color primaryColor = isCompleted ? Colors.grey : importanceColor;
+    final Color borderColor =
+        isOverdue
+            ? Colors.red.shade700
+            : (task.isPersonal ? Colors.blue.shade300 : primaryColor);
+    final IconData checkboxIcon =
+        isCompleted
+            ? Icons.check_box_rounded
+            : Icons.check_box_outline_blank_rounded;
+
+    return GestureDetector(
+      onTap: () {
+        showDialog(
+          context: context,
+          builder: (_) => TaskDetailsDialog(task: task),
+        );
+      },
+      child: Padding(
+        padding: EdgeInsets.only(
+          top: Responsive.space(context, size: Space.medium),
+        ),
+        child: Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: isOverdue ? Colors.red.withOpacity(0.05) : Colors.white,
+            borderRadius: BorderRadius.circular(
+              Responsive.space(context, size: Space.large),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.15),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+            border: Border.all(
+              color: borderColor, // Use the new borderColor
+              width: isOverdue ? 2.0 : 1.5,
+            ), // Thicker border for overdue tasks
+          ),
+          child: Padding(
+            padding: EdgeInsets.all(
+              Responsive.space(context, size: Space.large),
+            ),
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start, // Align content to start
+              children: [
+                Row(
+                  mainAxisAlignment:
+                      MainAxisAlignment.end, // Space out elements
+                  children: [
+                    Expanded(
+                      child: AutoSizeText(
+                        task.title,
+                        minFontSize: Responsive.text(
+                          context,
+                          size: TextSize.small,
+                        ),
+                        textAlign: TextAlign.end,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          decoration:
+                              isCompleted
+                                  ? TextDecoration.lineThrough
+                                  : TextDecoration.none,
+                          fontSize:
+                              Responsive.text(context, size: TextSize.medium) *
+                              1.1,
+                          fontWeight: FontWeight.w500,
+                          color: textColor,
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      width: Responsive.space(context, size: Space.small),
+                    ),
+                    // Checkbox
+                    Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: primaryColor,
+                      ),
+                      child: IconButton(
+                        onPressed: onStatusChanged,
+                        icon: Icon(checkboxIcon, color: Colors.white),
+                        tooltip:
+                            isCompleted
+                                ? 'Mark as incomplete'
+                                : 'Mark as complete',
+                      ),
+                    ),
+                  ],
+                ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      right: Responsive.space(context, size: Space.large) * 2.0,
+                      top: Responsive.space(context, size: Space.small),
+                    ),
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: Responsive.space(
+                          context,
+                          size: Space.small,
+                        ),
+                        vertical:
+                            Responsive.space(context, size: Space.small) * 0.5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: primaryColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(
+                          Responsive.space(context, size: Space.large),
+                        ),
+                      ),
+                      child: Text(
+                        'اخر معاد للتسليم : $fullFormattedDate', // Use combined date and day
+                        textAlign: TextAlign.end,
+                        style: TextStyle(
+                          fontSize: Responsive.text(
+                            context,
+                            size: TextSize.small,
+                          ),
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                if (admin)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      IconButton(
+                        icon: const Icon(
+                          Icons.edit_outlined,
+                          color: Colors.blueGrey,
+                        ),
+                        onPressed: onEdit,
+                        tooltip: 'Edit Task',
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          color: Colors.redAccent,
+                        ),
+                        onPressed: onDelete,
+                        tooltip: 'Delete Task',
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
