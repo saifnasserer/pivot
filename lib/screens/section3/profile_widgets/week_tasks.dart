@@ -371,12 +371,9 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
                       ),
 
                       // Task List
-                      ...tasks
-                          .map(
-                            (task) =>
-                                _buildEnhancedTaskItem(task, taskProvider),
-                          )
-                          .toList(),
+                      ...tasks.map(
+                        (task) => _buildEnhancedTaskItem(task, taskProvider),
+                      ),
                     ],
                   ),
                 ),
@@ -423,8 +420,8 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
                   ),
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(true),
-                    child: const Text('حذف'),
                     style: TextButton.styleFrom(foregroundColor: Colors.red),
+                    child: const Text('حذف'),
                   ),
                 ],
               ),

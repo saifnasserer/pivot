@@ -165,6 +165,11 @@ class SubjectProvider with ChangeNotifier {
     _checkDisposed();
     if (userProfile == null) return;
 
+    print(
+      'fetchAndFilterSubjects called for user: ${userProfile.name} (${userProfile.role})',
+    );
+    print('User teaching subjects: ${userProfile.teachingSubjects}');
+
     _isLoading = true;
     _error = null;
     if (!_disposed) {
@@ -173,25 +178,85 @@ class SubjectProvider with ChangeNotifier {
 
     try {
       _allSubjects = await _subjectService.getSubjects();
+      print('All subjects count: ${_allSubjects.length}');
+      print(
+        'All subjects: ${_allSubjects.map((s) => '${s.id}:${s.name}').toList()}',
+      );
 
-      List<String> userSubjectIds = [];
-      if (userProfile.role == 'Student' || userProfile.role == 'Admin') {
-        userSubjectIds = userProfile.enrolledSubjects;
-      } else if (userProfile.role.toLowerCase() == 'professor' ||
-          userProfile.role.toLowerCase() == 'miniprofessor' ||
-          userProfile.role.toLowerCase() == 'doctor') {
-        userSubjectIds = userProfile.teachingSubjects;
-      }
-
-      if (userSubjectIds.isNotEmpty) {
-        _filteredSubjects =
-            _allSubjects
-                .where((subject) => userSubjectIds.contains(subject.id))
-                .toList();
+      // For admin users or when we want to show all subjects, don't filter
+      if (userProfile.role == 'Admin' || userProfile.role == 'Super Admin') {
+        print('User is admin, showing all subjects');
+        _filteredSubjects = _allSubjects;
       } else {
-        // If the user has no subjects, show an empty list.
-        _filteredSubjects = [];
+        List<String> userSubjectIds = [];
+        print(
+          'User role: "${userProfile.role}" (length: ${userProfile.role.length})',
+        );
+        print('Role comparison tests:');
+        print('  professor: ${userProfile.role.toLowerCase() == 'professor'}');
+        print(
+          '  miniprofessor: ${userProfile.role.toLowerCase() == 'miniprofessor'}',
+        );
+        print('  doctor: ${userProfile.role.toLowerCase() == 'doctor'}');
+        print('  student: ${userProfile.role == 'Student'}');
+
+        if (userProfile.role == 'Student') {
+          userSubjectIds = userProfile.enrolledSubjects;
+          print('User is student, enrolled subjects: $userSubjectIds');
+        } else if (userProfile.role.toLowerCase() == 'professor' ||
+            userProfile.role.toLowerCase() == 'miniprofessor' ||
+            userProfile.role.toLowerCase() == 'doctor' ||
+            userProfile.role.toLowerCase() == 'mini professor' ||
+            userProfile.role.toLowerCase() == 'mini-professor' ||
+            userProfile.role.toLowerCase() == 'mini_professor') {
+          userSubjectIds = userProfile.teachingSubjects;
+          print('User is professor/doctor, teaching subjects: $userSubjectIds');
+        } else {
+          print('User role not recognized: ${userProfile.role}');
+          print(
+            'Available roles for filtering: professor, miniprofessor, doctor, student',
+          );
+        }
+
+        print('Final userSubjectIds: $userSubjectIds');
+
+        if (userSubjectIds.isNotEmpty) {
+          _filteredSubjects =
+              _allSubjects
+                  .where((subject) => userSubjectIds.contains(subject.id))
+                  .toList();
+          print('Filtered subjects count: ${_filteredSubjects.length}');
+          print(
+            'Filtered subjects: ${_filteredSubjects.map((s) => '${s.id}:${s.name}').toList()}',
+          );
+        } else {
+          // If the user has no subjects, show an empty list.
+          print('User has no subjects, showing empty list');
+          _filteredSubjects = [];
+        }
       }
+    } catch (e) {
+      _error = 'Failed to fetch subjects: ${e.toString()}';
+      print('Error in fetchAndFilterSubjects: $e');
+    } finally {
+      _isLoading = false;
+      if (!_disposed) {
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<void> fetchAllSubjectsWithoutFilter() async {
+    _checkDisposed();
+    _isLoading = true;
+    _error = null;
+    if (!_disposed) {
+      notifyListeners();
+    }
+
+    try {
+      _allSubjects = await _subjectService.getSubjects();
+      _filteredSubjects = _allSubjects; // Show all subjects
     } catch (e) {
       _error = 'Failed to fetch subjects: ${e.toString()}';
     } finally {

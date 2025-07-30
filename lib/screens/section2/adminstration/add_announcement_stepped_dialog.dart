@@ -67,7 +67,7 @@ class _AddAnnouncementSteppedDialogState
   String _description = '';
   Color _selectedColor = availableColors[0];
   List<String> _selectedTags = [];
-  List<XFile> _pickedImages = [];
+  final List<XFile> _pickedImages = [];
   List<Map<String, String>> _links = [];
   DateTime? _publishAt;
   DateTime? _expireAt;

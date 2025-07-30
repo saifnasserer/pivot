@@ -245,18 +245,24 @@ class UserProfileProvider with ChangeNotifier {
   }
 
   Future<void> updateAboutMe(String userId, String aboutMe) async {
+    print('updateAboutMe called for user: $userId with about: $aboutMe');
     try {
       await _firestore.collection('users').doc(userId).update({
         'aboutMe': aboutMe,
       });
 
+      print('Firestore update successful');
+
       if (_userProfile?.id == userId) {
         _userProfile = _userProfile!.copyWith(aboutMe: aboutMe);
+        print('Updated _userProfile aboutMe');
       }
       if (_loggedInUserProfile?.id == userId) {
         _loggedInUserProfile = _loggedInUserProfile!.copyWith(aboutMe: aboutMe);
+        print('Updated _loggedInUserProfile aboutMe');
       }
       notifyListeners();
+      print('updateAboutMe completed successfully');
       // Log profile update
       // await ActivityLogService().logAction(
       //   action: 'Profile updated',
@@ -264,6 +270,33 @@ class UserProfileProvider with ChangeNotifier {
       // );
     } catch (e) {
       print('Failed to update about me: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> updateSocialMediaLinks(
+    String userId,
+    List<SocialMediaLink> socialMediaLinks,
+  ) async {
+    try {
+      await _firestore.collection('users').doc(userId).update({
+        'socialMediaLinks':
+            socialMediaLinks.map((link) => link.toJson()).toList(),
+      });
+
+      if (_userProfile?.id == userId) {
+        _userProfile = _userProfile!.copyWith(
+          socialMediaLinks: socialMediaLinks,
+        );
+      }
+      if (_loggedInUserProfile?.id == userId) {
+        _loggedInUserProfile = _loggedInUserProfile!.copyWith(
+          socialMediaLinks: socialMediaLinks,
+        );
+      }
+      notifyListeners();
+    } catch (e) {
+      print('Failed to update social media links: $e');
       rethrow;
     }
   }

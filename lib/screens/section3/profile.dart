@@ -6,11 +6,9 @@ import 'package:pivot/providers/subject_provider.dart';
 import 'package:pivot/providers/task_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
-import 'package:pivot/screens/section3/add_edit_schedule_dialog.dart';
 import 'package:pivot/screens/section3/bookmarks_screen.dart';
 import 'package:pivot/screens/section3/profile_details.dart';
 import 'package:pivot/screens/section3/profile_widgets/week_tasks.dart';
-import 'package:pivot/screens/section3/profile_widgets/Profile_options.dart';
 import 'package:pivot/screens/section3/profile_widgets/schadule.dart';
 import 'package:pivot/screens/section3/profile_widgets/sections.dart';
 import 'package:pivot/screens/section3/profile_widgets/subjects.dart';
@@ -88,7 +86,7 @@ class _ProfileState extends State<Profile> with TickerProviderStateMixin {
           .then((_) {
             if (!mounted) return;
             subjectProvider.buildInstructorsMap(userProfileProvider.allUsers);
-            subjectProvider.fetchAndFilterSubjects(userProfile).then((_) {
+            subjectProvider.fetchAllSubjectsWithoutFilter().then((_) {
               if (!mounted) return;
               final subjectIds =
                   subjectProvider.filteredSubjects.map((s) => s.id).toList();

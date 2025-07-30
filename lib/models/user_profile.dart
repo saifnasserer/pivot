@@ -3,6 +3,50 @@ import 'package:hive/hive.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 part 'user_profile.g.dart';
 
+@HiveType(typeId: 1)
+class SocialMediaLink {
+  @HiveField(0)
+  final String platform;
+
+  @HiveField(1)
+  final String url;
+
+  @HiveField(2)
+  final String? displayName;
+
+  SocialMediaLink({
+    required this.platform,
+    required this.url,
+    this.displayName,
+  });
+
+  factory SocialMediaLink.fromJson(Map<String, dynamic> json) {
+    return SocialMediaLink(
+      platform: json['platform'] as String,
+      url: json['url'] as String,
+      displayName: json['displayName'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {'platform': platform, 'url': url, 'displayName': displayName};
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is SocialMediaLink &&
+        other.platform == platform &&
+        other.url == url &&
+        other.displayName == displayName;
+  }
+
+  @override
+  int get hashCode {
+    return Object.hash(platform, url, displayName);
+  }
+}
+
 @HiveType(typeId: 0)
 class UserProfile extends HiveObject {
   @HiveField(0)
@@ -50,6 +94,9 @@ class UserProfile extends HiveObject {
   @HiveField(14)
   NotificationPreferences notificationPreferences;
 
+  @HiveField(15)
+  List<SocialMediaLink> socialMediaLinks;
+
   UserProfile({
     required this.id,
     required this.name,
@@ -66,6 +113,7 @@ class UserProfile extends HiveObject {
     this.fcmToken,
     this.lastTokenUpdate,
     NotificationPreferences? notificationPreferences,
+    this.socialMediaLinks = const [],
   }) : notificationPreferences =
            notificationPreferences ?? NotificationPreferences();
 
@@ -86,6 +134,7 @@ class UserProfile extends HiveObject {
     String? fcmToken,
     DateTime? lastTokenUpdate,
     NotificationPreferences? notificationPreferences,
+    List<SocialMediaLink>? socialMediaLinks,
   }) {
     return UserProfile(
       id: id ?? this.id,
@@ -104,6 +153,7 @@ class UserProfile extends HiveObject {
       lastTokenUpdate: lastTokenUpdate ?? this.lastTokenUpdate,
       notificationPreferences:
           notificationPreferences ?? this.notificationPreferences,
+      socialMediaLinks: socialMediaLinks ?? [...this.socialMediaLinks],
     );
   }
 
@@ -140,6 +190,14 @@ class UserProfile extends HiveObject {
       notificationPreferences: NotificationPreferences.fromJson(
         json['notificationPreferences'] ?? {},
       ),
+      socialMediaLinks:
+          (json['socialMediaLinks'] as List<dynamic>?)
+              ?.map(
+                (link) =>
+                    SocialMediaLink.fromJson(link as Map<String, dynamic>),
+              )
+              .toList() ??
+          [],
     );
   }
 
@@ -161,6 +219,8 @@ class UserProfile extends HiveObject {
       'fcmToken': fcmToken,
       'lastTokenUpdate': lastTokenUpdate?.millisecondsSinceEpoch,
       'notificationPreferences': notificationPreferences.toJson(),
+      'socialMediaLinks':
+          socialMediaLinks.map((link) => link.toJson()).toList(),
     };
   }
 
@@ -183,7 +243,8 @@ class UserProfile extends HiveObject {
         other.gender == gender &&
         other.fcmToken == fcmToken &&
         other.lastTokenUpdate == lastTokenUpdate &&
-        other.notificationPreferences == notificationPreferences;
+        other.notificationPreferences == notificationPreferences &&
+        listEquals(other.socialMediaLinks, socialMediaLinks);
   }
 
   @override
@@ -203,7 +264,8 @@ class UserProfile extends HiveObject {
       gender,
       fcmToken,
       lastTokenUpdate,
-      notificationPreferences.hashCode,
+      notificationPreferences,
+      Object.hashAll(socialMediaLinks),
     );
   }
 }

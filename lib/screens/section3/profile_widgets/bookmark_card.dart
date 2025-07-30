@@ -474,7 +474,7 @@ class _BookmarkCardState extends State<BookmarkCard>
               ),
             ),
           );
-        }).toList(),
+        }),
       ],
     );
   }

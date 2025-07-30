@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:pivot/responsive.dart';
 import 'package:video_player/video_player.dart';
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:pivot/services/introduction_service.dart';
 import 'package:pivot/widgets/no_internet_message.dart';
 
 class IntroductionScreen extends StatefulWidget {
@@ -91,7 +91,7 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
       );
     } else {
       // Mark onboarding as seen
-      await _setOnboardingSeen();
+      await IntroductionService.markIntroductionAsSeen();
       // Go to main app
       if (mounted) {
         Navigator.pushNamedAndRemoveUntil(
@@ -101,11 +101,6 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
         );
       }
     }
-  }
-
-  Future<void> _setOnboardingSeen() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('onboardingSeen', true);
   }
 
   Widget _buildPageIndicator(int pageCount) {

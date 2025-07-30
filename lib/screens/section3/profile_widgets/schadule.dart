@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/responsive.dart';
-import 'package:pivot/screens/models/category_model.dart';
 import 'package:pivot/screens/models/schadule_card.dart';
 import 'package:pivot/screens/models/schedule_item.dart';
 import 'package:pivot/screens/section3/add_edit_schedule_dialog.dart';
