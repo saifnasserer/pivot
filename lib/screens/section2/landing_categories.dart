@@ -75,7 +75,7 @@ class _LandingCategoriesState extends State<LandingCategories>
       _tabController = TabController(
         length: categories.length,
         vsync: this,
-        initialIndex: 0,
+        initialIndex: 0, // Start from first tab for proper scroll position
       );
     }
 
@@ -97,7 +97,11 @@ class _LandingCategoriesState extends State<LandingCategories>
 
     // Trigger initial category selection
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _onCategorySelected(0);
+      // First select the last category for content
+      _onCategorySelected(categories.length - 1);
+
+      // Then animate to the last tab to show it as selected
+      _tabController.animateTo(categories.length - 1);
     });
   }
 
