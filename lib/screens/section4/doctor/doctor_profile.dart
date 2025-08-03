@@ -165,7 +165,7 @@ class _DoctorProfileState extends State<DoctorProfile>
         length: subjects.length,
         vsync: this,
         initialIndex:
-            subjects.length > 0
+            subjects.isNotEmpty
                 ? subjects.length - 1
                 : 0, // Start with last tab (rightmost)
       );
@@ -190,7 +190,7 @@ class _DoctorProfileState extends State<DoctorProfile>
         length: subjects.length,
         vsync: this,
         initialIndex:
-            subjects.length > 0
+            subjects.isNotEmpty
                 ? subjects.length - 1
                 : 0, // Start with last tab
       );

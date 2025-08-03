@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/models/section_model.dart';
 import 'package:pivot/responsive.dart';
-import 'package:pivot/screens/models/category_model.dart';
 import 'package:pivot/screens/models/section_card.dart';
 import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/models/user_profile.dart';
@@ -30,26 +29,26 @@ List<Widget> buildAssistantSubjects({
     SliverToBoxAdapter(
       child: SizedBox(height: Responsive.space(context, size: Space.medium)),
     ),
-    SliverToBoxAdapter(
-      child: SizedBox(
-        height: Responsive.space(context, size: Space.xlarge) * 1.4,
-        child: ListView.builder(
-          scrollDirection: Axis.horizontal,
-          physics: const BouncingScrollPhysics(),
-          reverse: true,
-          itemCount: subjects.length,
-          itemBuilder: (context, index) {
-            return CategoryButton(
-              selected: validIndex == index,
-              title: subjects[index].name, // Use subject name
-              onSelected: () {
-                onCategorySelected(index);
-              },
-            );
-          },
-        ),
-      ),
-    ),
+    // SliverToBoxAdapter(
+    //   child: SizedBox(
+    //     height: Responsive.space(context, size: Space.xlarge) * 1.4,
+    //     child: ListView.builder(
+    //       scrollDirection: Axis.horizontal,
+    //       physics: const BouncingScrollPhysics(),
+    //       reverse: true,
+    //       itemCount: subjects.length,
+    //       itemBuilder: (context, index) {
+    //         return CategoryButton(
+    //           selected: validIndex == index,
+    //           title: subjects[index].name, // Use subject name
+    //           onSelected: () {
+    //             onCategorySelected(index);
+    //           },
+    //         );
+    //       },
+    //     ),
+    //   ),
+    // ),
     SliverToBoxAdapter(
       child: SizedBox(height: Responsive.space(context, size: Space.medium)),
     ),
@@ -58,7 +57,8 @@ List<Widget> buildAssistantSubjects({
       delegate: SliverChildBuilderDelegate((context, index) {
         final section = sections[index];
         final sectionNumberFromName = section.name.split(' ').last;
-        final bool isCurrentUserSection = loggedInUser.section.isNotEmpty &&
+        final bool isCurrentUserSection =
+            loggedInUser.section.isNotEmpty &&
             loggedInUser.section.toLowerCase() ==
                 sectionNumberFromName.toLowerCase();
         return SectionCard(

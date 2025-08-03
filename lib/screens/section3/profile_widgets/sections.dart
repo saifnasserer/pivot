@@ -27,6 +27,32 @@ class SectionsBuilder {
     final allSections = sectionProvider.sections;
     final enrolledSubjects = subjectProvider.filteredSubjects;
 
+    if (sectionProvider.error != null) {
+      return [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline, color: Colors.red, size: 48),
+                SizedBox(height: Responsive.space(context, size: Space.medium)),
+                Text(
+                  sectionProvider.error!,
+                  style: TextStyle(color: Colors.red, fontSize: Responsive.text(context, size: TextSize.medium)),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: Responsive.space(context, size: Space.medium)),
+                ElevatedButton(
+                  onPressed: () => sectionProvider.fetchSectionsForUserSubjects(enrolledSubjects.map((s) => s.id).toList()),
+                  child: Text('إعادة المحاولة'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ];
+    }
     if (userProfile == null) {
       return [_buildErrorState(context)];
     }

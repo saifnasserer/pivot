@@ -1,5 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:pivot/responsive.dart';
 import 'package:intl/intl.dart';
@@ -156,7 +154,9 @@ class _AddAnnouncementScreenState extends State<AddAnnouncementScreen>
   bool _canProceedToNextStep() {
     switch (_currentStep) {
       case 0: // Basic Info
-        return _title.trim().isNotEmpty && _description.trim().isNotEmpty;
+        return _title.trim().isNotEmpty &&
+            _description.trim().isNotEmpty &&
+            _title.length <= 50;
       case 1: // Attachments
         return true; // Optional step
       case 2: // Styling
@@ -389,8 +389,29 @@ class _AddAnnouncementScreenState extends State<AddAnnouncementScreen>
                 if (value == null || value.isEmpty) {
                   return 'الرجاء إدخال العنوان';
                 }
+                if (value.length > 50) {
+                  return 'العنوان طويل جداً (الحد الأقصى 50 حرف)';
+                }
                 return null;
               },
+            ),
+            SizedBox(height: Responsive.space(context, size: Space.small)),
+
+            // Character count indicator
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '${_titleController.text.length}/50',
+                style: TextStyle(
+                  fontSize: Responsive.text(context, size: TextSize.small),
+                  color:
+                      _titleController.text.length > 45
+                          ? Colors.orange
+                          : _titleController.text.length > 50
+                          ? Colors.red
+                          : Colors.grey[600],
+                ),
+              ),
             ),
             SizedBox(height: Responsive.space(context, size: Space.medium)),
 

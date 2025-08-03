@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:pivot/providers/bookmarks.dart';
 import 'package:pivot/responsive.dart';
 import 'package:provider/provider.dart';
@@ -22,7 +23,6 @@ class CardModel extends StatefulWidget {
   final List<Map<String, String>> links;
   final DateTime? publishAt;
   final DateTime? expireAt;
-  final PageController? pageController;
 
   const CardModel({
     super.key,
@@ -39,7 +39,6 @@ class CardModel extends StatefulWidget {
     this.links = const [],
     this.publishAt,
     this.expireAt,
-    this.pageController,
   });
 
   @override
@@ -47,54 +46,351 @@ class CardModel extends StatefulWidget {
 }
 
 class _CardModelState extends State<CardModel> {
-  bool _isTitleExpanded = false;
-  final ScrollController _scrollController = ScrollController();
-  bool _isPageChanging = false;
+  // State variables
+  int _currentPage = 0;
+  List<Widget> _contentPages = [];
+  double _availableHeight = 0;
+  bool _isExpanded = false;
+  bool _isLinksExpanded = false;
+  bool _isImagesExpanded = false;
+  final PageController _cardPageController = PageController();
 
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(() {
-      debugPrint(
-        '[CardModel] ScrollController position: '
-        'pixels: ${_scrollController.position.pixels}, '
-        'min: ${_scrollController.position.minScrollExtent}, '
-        'max: ${_scrollController.position.maxScrollExtent}',
-      );
+    _cardPageController.addListener(() {
+      final page = _cardPageController.page?.round() ?? 0;
+      if (page != _currentPage && mounted) {
+        setState(() {
+          _currentPage = page;
+        });
+      }
     });
   }
 
   @override
   void dispose() {
-    _scrollController.dispose();
+    _cardPageController.dispose();
     super.dispose();
   }
 
-  void _triggerPageChange(bool next) {
-    if (_isPageChanging || widget.pageController == null) return;
-    setState(() {
-      _isPageChanging = true;
-    });
-    if (next) {
-      widget.pageController!.nextPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.ease,
+  void _generateContentPages(double availableHeight) {
+    _contentPages.clear();
+    _availableHeight = availableHeight;
+
+    debugPrint('CardModel: Available height for content: $availableHeight');
+
+    // Calculate fixed elements heights (title is in main layout, date is in content)
+    final titleHeight = _calculateTitleHeight();
+    final dateHeight = _calculateDateHeight();
+    final footerHeight = _calculateFooterHeight();
+    final padding =
+        Responsive.space(context, size: Space.large) * 2; // Card padding
+
+    // Calculate available space for content (date is now part of content distribution)
+    final contentHeight =
+        availableHeight - titleHeight - footerHeight - padding;
+
+    debugPrint(
+      'CardModel: Fixed elements - Title: $titleHeight, Footer: $footerHeight, Padding: $padding',
+    );
+    debugPrint('CardModel: Available content height: $contentHeight');
+
+    // Create ONLY variable content widgets (description, images, links) + date
+    final List<Widget> variableContentWidgets = [];
+
+    // Description (variable height - this is what we distribute)
+    variableContentWidgets.add(_buildDescription());
+
+    // Images
+    if (widget.imageUrls.isNotEmpty) {
+      variableContentWidgets.add(
+        SizedBox(height: Responsive.space(context, size: Space.medium)),
       );
-    } else {
-      widget.pageController!.previousPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.ease,
-      );
+      variableContentWidgets.add(_buildImageGallery(context));
     }
-    Future.delayed(const Duration(milliseconds: 350), () {
-      if (mounted) setState(() => _isPageChanging = false);
-    });
+
+    // Links
+    if (widget.links.isNotEmpty) {
+      variableContentWidgets.add(
+        SizedBox(height: Responsive.space(context, size: Space.medium)),
+      );
+      variableContentWidgets.add(_buildLinksList(context));
+    }
+
+    // Date widget (now part of content distribution)
+    variableContentWidgets.add(
+      SizedBox(height: Responsive.space(context, size: Space.small)),
+    );
+    variableContentWidgets.add(_buildDate());
+
+    // Distribute ONLY variable content using the calculated content height
+    final variableContentPages = _distributeContentWithFixedHeight(
+      variableContentWidgets,
+      contentHeight,
+    );
+
+    // Create final pages with ONLY variable content (no title/date)
+    _contentPages =
+        variableContentPages.map((variableContentPage) {
+          return _buildFullPage(variableContentPage);
+        }).toList();
+
+    debugPrint(
+      'CardModel: Generated ${_contentPages.length} pages for card ${widget.id}',
+    );
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Widget _buildFullPage(Widget variableContent) {
+    return Container(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Only variable content (description, images, links) - date is already included in variableContent
+          Expanded(
+            child: SingleChildScrollView(
+              physics:
+                  const NeverScrollableScrollPhysics(), // Disable scrolling within page
+              child: variableContent,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  double _calculateTitleHeight() {
+    // Title has max 2 lines
+    final fontSize = Responsive.text(context, size: TextSize.heading);
+    final lineHeight = fontSize * 1.2; // Approximate line height
+    final maxLines = 2;
+    return lineHeight * maxLines +
+        Responsive.space(context, size: Space.medium);
+  }
+
+  double _calculateDateHeight() {
+    // Date container has fixed height
+    return Responsive.space(context, size: Space.large) * 1.5;
+  }
+
+  double _calculateFooterHeight() {
+    // Footer now only includes buttons since page indicator moved to header
+    final buttonsHeight = Responsive.space(context, size: Space.large) * 2.5;
+    final footerPadding = Responsive.space(context, size: Space.medium);
+    final bottomMargin = Responsive.space(context, size: Space.large);
+    return buttonsHeight + footerPadding + bottomMargin;
+  }
+
+  List<Widget> _distributeContentWithFixedHeight(
+    List<Widget> widgets,
+    double maxContentHeight,
+  ) {
+    if (widgets.isEmpty) return [];
+
+    final List<Widget> pages = [];
+    final List<Widget> currentPageWidgets = [];
+    double currentHeight = 0;
+
+    // Use a larger safety margin to prevent overflow
+    final safetyMargin = Responsive.space(context, size: Space.large);
+    final effectiveMaxHeight = maxContentHeight - safetyMargin;
+
+    debugPrint(
+      'CardModel: Distributing content with maxContentHeight: $maxContentHeight, effectiveMaxHeight: $effectiveMaxHeight',
+    );
+
+    for (int i = 0; i < widgets.length; i++) {
+      final widget = widgets[i];
+      final widgetHeight = _calculateWidgetHeight(widget);
+
+      debugPrint(
+        'CardModel: Widget $i height: $widgetHeight, currentHeight: $currentHeight',
+      );
+
+      // If adding this widget would exceed the content height, start a new page
+      if (currentHeight + widgetHeight > effectiveMaxHeight &&
+          currentPageWidgets.isNotEmpty) {
+        debugPrint(
+          'CardModel: Starting new page at widget $i, currentHeight: $currentHeight',
+        );
+        pages.add(_buildContentPage(currentPageWidgets));
+        currentPageWidgets.clear();
+        currentHeight = 0;
+      }
+
+      currentPageWidgets.add(widget);
+      currentHeight += widgetHeight;
+    }
+
+    // Add the last page
+    if (currentPageWidgets.isNotEmpty) {
+      debugPrint(
+        'CardModel: Adding final page with ${currentPageWidgets.length} widgets, height: $currentHeight',
+      );
+      pages.add(_buildContentPage(currentPageWidgets));
+    }
+
+    // Ensure we always have at least one page
+    if (pages.isEmpty) {
+      debugPrint(
+        'CardModel: No pages created, creating single page with all widgets',
+      );
+      pages.add(_buildContentPage(widgets));
+    }
+
+    debugPrint('CardModel: Created ${pages.length} pages');
+    return pages;
+  }
+
+  double _calculateWidgetHeight(Widget widget) {
+    if (widget is SizedBox) {
+      return widget.height ?? 0;
+    } else if (widget is Text) {
+      // Calculate text height based on content
+      final text = widget.data ?? '';
+      final fontSize = Responsive.text(context, size: TextSize.medium);
+      final maxWidth =
+          Responsive.width(context) -
+          (Responsive.space(context, size: Space.large) * 4);
+
+      final textSpan = TextSpan(
+        text: text,
+        style: TextStyle(
+          fontSize: fontSize,
+          fontWeight: widget.style?.fontWeight ?? FontWeight.normal,
+        ),
+      );
+
+      final textPainter = TextPainter(
+        text: textSpan,
+        textDirection: TextDirection.rtl,
+        maxLines: null,
+      );
+
+      textPainter.layout(maxWidth: maxWidth);
+      return textPainter.height + Responsive.space(context, size: Space.small);
+    } else if (widget is Container) {
+      return Responsive.space(context, size: Space.large) * 1.2;
+    } else if (widget is Column) {
+      return Responsive.space(context, size: Space.large) * 1.5;
+    } else if (widget is Row) {
+      return Responsive.space(context, size: Space.large) * 0.8;
+    } else if (widget is ListView) {
+      return Responsive.space(context, size: Space.large) * 1.5;
+    } else {
+      return Responsive.space(context, size: Space.large) * 0.6;
+    }
+  }
+
+  Widget _buildContentPage(List<Widget> widgets) {
+    return Container(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children:
+            widgets.map((widget) {
+              return Padding(
+                padding: EdgeInsets.only(
+                  bottom: Responsive.space(context, size: Space.small),
+                ),
+                child: widget,
+              );
+            }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildTitle() {
+    return Container(
+      decoration: BoxDecoration(
+        // color: Colors.black.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(
+          Responsive.space(context, size: Space.large),
+        ),
+        border: Border.all(color: Colors.black, width: 1),
+      ),
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: Responsive.space(context, size: Space.small),
+          vertical: Responsive.space(context, size: Space.small) / 2,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            if (_contentPages.length > 1)
+              Container(
+                margin: EdgeInsets.only(
+                  bottom: Responsive.space(context, size: Space.small),
+                ),
+                child: _buildUltraCompactPageIndicator(),
+              ),
+
+            AutoSizeText(
+              widget.title,
+              textAlign: TextAlign.right,
+              maxLines: 2,
+              minFontSize: Responsive.text(context, size: TextSize.small),
+              style: TextStyle(
+                fontSize: Responsive.text(context, size: TextSize.heading),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDate() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        // Date text bar flowing out from calendar
+        Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: Responsive.space(context, size: Space.small) * 1.5,
+            vertical: Responsive.space(context, size: Space.small) * 0.8,
+          ),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(
+              Responsive.space(context, size: Space.large),
+            ),
+          ),
+          child: Text(
+            widget.date,
+            style: TextStyle(
+              color: Colors.black.withValues(alpha: 0.8),
+              fontSize: Responsive.text(context, size: TextSize.small) * 0.9,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+
+        // Large calendar icon
+      ],
+    );
+  }
+
+  Widget _buildDescription() {
+    return Text(
+      widget.description,
+      textAlign: TextAlign.right,
+      style: TextStyle(
+        fontSize: Responsive.text(context, size: TextSize.medium),
+      ),
+    );
   }
 
   // Builds the horizontally scrolling image gallery
   Widget _buildImageGallery(BuildContext context) {
     return Container(
-      height: Responsive.space(context, size: Space.large) * 3,
+      height: Responsive.space(context, size: Space.large) * 2,
       margin: EdgeInsets.only(
         top: Responsive.space(context, size: Space.medium),
       ),
@@ -125,8 +421,8 @@ class _CardModelState extends State<CardModel> {
                   tag: imageUrl,
                   child: CachedNetworkImage(
                     imageUrl: imageUrl,
-                    width: Responsive.space(context, size: Space.large) * 3,
-                    height: Responsive.space(context, size: Space.large) * 3,
+                    width: Responsive.space(context, size: Space.large) * 2,
+                    height: Responsive.space(context, size: Space.large) * 2,
                     fit: BoxFit.cover,
                     placeholder:
                         (context, url) => Container(
@@ -188,7 +484,6 @@ class _CardModelState extends State<CardModel> {
                       }
                     }
 
-                    //debugprint('Attempting to launch URL: $formattedUrl');
                     final url = Uri.parse(formattedUrl);
 
                     if (await canLaunchUrl(url)) {
@@ -248,6 +543,50 @@ class _CardModelState extends State<CardModel> {
     );
   }
 
+  // Alternative: Ultra-compact indicator (uncomment to use)
+  Widget _buildUltraCompactPageIndicator() {
+    if (_contentPages.length <= 1) return const SizedBox.shrink();
+
+    return Container(
+      margin: EdgeInsets.symmetric(
+        vertical: Responsive.space(context, size: Space.small) * 0.5,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Page text (left side for RTL)
+
+          // Dots only (right side for RTL) - reversed order
+          ...List.generate(_contentPages.length, (index) {
+            final reversedIndex = _contentPages.length - 1 - index;
+            return Container(
+              margin: EdgeInsets.symmetric(horizontal: 2),
+              width: _currentPage == reversedIndex ? 8 : 4,
+              height: 4,
+              decoration: BoxDecoration(
+                color:
+                    _currentPage == reversedIndex
+                        ? Colors.black
+                        : Colors.grey.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            );
+          }),
+          SizedBox(width: Responsive.space(context, size: Space.small)),
+
+          Text(
+            '${_currentPage + 1}/${_contentPages.length}',
+            style: TextStyle(
+              fontSize: Responsive.text(context, size: TextSize.small) * 0.7,
+              fontWeight: FontWeight.w500,
+              color: Colors.black.withValues(alpha: 0.6),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
@@ -266,359 +605,352 @@ class _CardModelState extends State<CardModel> {
                 ? Colors.grey.withOpacity(0.15)
                 : widget.color.withValues(alpha: 0.15),
       ),
-      child: Padding(
-        padding: EdgeInsets.all(Responsive.space(context, size: Space.large)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Visual indicator for scheduled/expired
-            if (isScheduled)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Icon(Icons.schedule, color: Colors.blue, size: 18),
-                  SizedBox(width: Responsive.space(context, size: Space.small)),
-                  Text(
-                    'مجدول',
-                    style: TextStyle(
-                      color: Colors.blue,
-                      fontSize: Responsive.text(context, size: TextSize.small),
-                    ),
-                  ),
-                ],
-              ),
-            if (isExpired)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Icon(Icons.event_busy, color: Colors.grey, size: 18),
-                  SizedBox(width: Responsive.space(context, size: Space.small)),
-                  Text(
-                    'منتهي',
-                    style: TextStyle(
-                      color: Colors.grey,
-                      fontSize: Responsive.text(context, size: TextSize.small),
-                    ),
-                  ),
-                ],
-              ),
-            // Scrollable content area
-            Expanded(
-              child: NotificationListener<OverscrollNotification>(
-                onNotification: (notification) {
-                  // Let parent PageView handle the gesture at the edge
-                  const double overscrollThreshold = 200; // px buffer
-                  if (widget.pageController != null && !_isPageChanging) {
-                    if (notification.overscroll < 0 &&
-                        notification.metrics.pixels <=
-                            notification.metrics.minScrollExtent +
-                                overscrollThreshold) {
-                      // At the very top (with buffer) and user is swiping up (to previous page)
-                      _triggerPageChange(false);
-                      return true; // Consume
-                    } else if (notification.overscroll > 0 &&
-                        notification.metrics.pixels >=
-                            notification.metrics.maxScrollExtent -
-                                overscrollThreshold) {
-                      // At the very bottom (with buffer) and user is swiping down (to next page)
-                      _triggerPageChange(true);
-                      return true; // Consume
-                    }
-                  }
-                  // Default: let the notification bubble up only at edges
-                  if ((notification.overscroll < 0 &&
-                          notification.metrics.pixels <=
-                              notification.metrics.minScrollExtent) ||
-                      (notification.overscroll > 0 &&
-                          notification.metrics.pixels >=
-                              notification.metrics.maxScrollExtent)) {
-                    return false; // Let the notification bubble up
-                  }
-                  return true; // Consume other notifications
-                },
-                child: SingleChildScrollView(
-                  controller: _scrollController,
-                  physics: const ClampingScrollPhysics(),
-                  primary: false,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      _isTitleExpanded
-                          ? Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                widget.title,
-                                textAlign: TextAlign.right,
-                                style: TextStyle(
-                                  fontSize:
-                                      Responsive.text(
-                                        context,
-                                        size: TextSize.medium,
-                                      ) *
-                                      1.2,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: Responsive.height(context) * 0.8, // 80% of screen height
+        ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // Calculate available height as 80% of screen height
+            final screenHeight = Responsive.height(context);
+            final totalCardHeight = screenHeight * 0.8;
 
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              InkWell(
-                                onTap:
-                                    () => setState(
-                                      () => _isTitleExpanded = false,
-                                    ),
-                                child: Text(
-                                  'عرض أقل',
-                                  style: TextStyle(
-                                    fontSize: Responsive.text(
-                                      context,
-                                      size: TextSize.small,
-                                    ),
-                                    fontWeight: FontWeight.normal,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          )
-                          : AutoSizeText(
-                            widget.title,
-                            textAlign: TextAlign.right,
-                            maxLines: 2,
-                            minFontSize: Responsive.text(
+            // Calculate available height for content area
+            final cardPadding =
+                Responsive.space(context, size: Space.large) * 2;
+            final headerHeight =
+                Responsive.space(context, size: Space.large) * 2;
+            final pageIndicatorHeight =
+                _contentPages.length > 1
+                    ? Responsive.space(context, size: Space.large)
+                    : 0;
+            final footerHeight =
+                Responsive.space(context, size: Space.large) * 3;
+            final safetyMargin = Responsive.space(context, size: Space.large);
+
+            final availableHeight =
+                totalCardHeight -
+                cardPadding -
+                headerHeight -
+                pageIndicatorHeight -
+                footerHeight -
+                safetyMargin;
+
+            debugPrint(
+              'CardModel: Screen height: $screenHeight, Total card height: $totalCardHeight, Available height: $availableHeight',
+            );
+
+            // Generate content pages if not already generated or if height changed
+            if (_contentPages.isEmpty || _availableHeight != availableHeight) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  _generateContentPages(availableHeight);
+                }
+              });
+            }
+
+            return Padding(
+              padding: EdgeInsets.all(
+                Responsive.space(context, size: Space.large),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Visual indicator for scheduled/expired
+                  if (isScheduled)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Icon(Icons.schedule, color: Colors.blue, size: 18),
+                        SizedBox(
+                          width: Responsive.space(context, size: Space.small),
+                        ),
+                        Text(
+                          'مجدول',
+                          style: TextStyle(
+                            color: Colors.blue,
+                            fontSize: Responsive.text(
                               context,
                               size: TextSize.small,
                             ),
-                            style: TextStyle(
-                              fontSize: Responsive.text(
-                                context,
-                                size: TextSize.heading,
-                              ),
-                              fontWeight: FontWeight.bold,
-                            ),
-                            overflowReplacement: Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  widget.title,
-                                  textAlign: TextAlign.right,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: Responsive.text(
-                                      context,
-                                      size: TextSize.medium,
-                                    ),
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                InkWell(
-                                  onTap:
-                                      () => setState(
-                                        () => _isTitleExpanded = true,
-                                      ),
-                                  child: Text(
-                                    '...عرض المزيد',
-                                    style: TextStyle(
-                                      fontSize: Responsive.text(
-                                        context,
-                                        size: TextSize.small,
-                                      ),
-                                      fontWeight: FontWeight.normal,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
                           ),
-                      SizedBox(
-                        height: Responsive.space(context, size: Space.medium),
-                      ),
-                      Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: Responsive.space(
-                            context,
-                            size: Space.small,
-                          ),
-                          vertical: Responsive.space(
-                            context,
-                            size: Space.small,
-                          ),
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.7),
-                          borderRadius: BorderRadius.circular(
-                            Responsive.space(context, size: Space.large),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.calendar_today,
-                              size: Responsive.text(
-                                context,
-                                size: TextSize.small,
-                              ),
-                              color: Colors.white,
-                            ),
-                            SizedBox(
-                              width: Responsive.space(
-                                context,
-                                size: Space.small,
-                              ),
-                            ),
-                            Text(
-                              widget.date,
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize:
-                                    Responsive.text(
-                                      context,
-                                      size: TextSize.small,
-                                    ) *
-                                    0.9,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(
-                        height: Responsive.space(context, size: Space.small),
-                      ),
-                      Text(
-                        widget.description,
-                        textAlign: TextAlign.right,
-                        style: TextStyle(
-                          fontSize: Responsive.text(
-                            context,
-                            size: TextSize.medium,
-                          ),
-                        ),
-                      ),
-                      // Image Gallery
-                      if (widget.imageUrls.isNotEmpty)
-                        _buildImageGallery(context),
-                      // Links List
-                      if (widget.links.isNotEmpty) _buildLinksList(context),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            // Static footer area
-            SizedBox(height: Responsive.space(context, size: Space.medium)),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(
-                      Responsive.space(context, size: Space.large),
-                    ),
-                    color: Colors.white,
-                    border: Border.all(color: Colors.black),
-                  ),
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: Responsive.space(context, size: Space.medium),
-                      vertical: Responsive.space(context, size: Space.small),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          onPressed: () {
-                            String shareText = '';
-                            shareText += '\n\n${widget.title}';
-
-                            if (widget.description.isNotEmpty) {
-                              shareText += '\n\n${widget.description}';
-                            }
-
-                            if (widget.links.isNotEmpty) {
-                              shareText += '\n\nالروابط:';
-                              for (var link in widget.links) {
-                                shareText +=
-                                    '\n- ${link['title']}: ${link['url']}';
-                              }
-                            }
-
-                            Share.share(shareText);
-                          },
-                          icon: const Icon(Icons.share),
-                          splashRadius: 24,
-                        ),
-                        SizedBox(
-                          width: Responsive.space(context, size: Space.small),
-                        ),
-                        IconButton(
-                          onPressed: () {
-                            showModalBottomSheet(
-                              context: context,
-                              isScrollControlled: true,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.vertical(
-                                  top: Radius.circular(
-                                    Responsive.space(
-                                      context,
-                                      size: Space.large,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              builder:
-                                  (context) => DraggableScrollableSheet(
-                                    initialChildSize: 0.8,
-                                    minChildSize: 0.4,
-                                    maxChildSize: 0.95,
-                                    expand: false,
-                                    builder:
-                                        (context, scrollController) =>
-                                            CommentSection(
-                                              announcementId: widget.id!,
-                                              scrollController:
-                                                  scrollController,
-                                            ),
-                                  ),
-                            );
-                          },
-                          icon: const Icon(Icons.question_mark_rounded),
-                          splashRadius: 24,
-                        ),
-                        SizedBox(
-                          width: Responsive.space(context, size: Space.small),
-                        ),
-                        Consumer<Bookmarks>(
-                          builder: (context, bookmarks, child) {
-                            final bool isBookmarked = bookmarks.isBookmarked(
-                              widget.id!,
-                            );
-                            return IconButton(
-                              onPressed: () {
-                                // Optimize bookmark toggle with immediate feedback
-                                bookmarks.toggleBookmark(widget.id!);
-                              },
-                              icon: Icon(
-                                isBookmarked
-                                    ? Icons.bookmark
-                                    : Icons.bookmark_border,
-                                color: Colors.black,
-                              ),
-                              splashRadius: 24,
-                            );
-                          },
                         ),
                       ],
                     ),
+                  if (isExpired)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Icon(Icons.event_busy, color: Colors.grey, size: 18),
+                        SizedBox(
+                          width: Responsive.space(context, size: Space.small),
+                        ),
+                        Text(
+                          'منتهي',
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.small,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                  // Title and Date (fixed elements)
+                  _buildTitle(),
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.medium),
                   ),
-                ),
-              ],
-            ),
-          ],
+                  // Date moved to end of content
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.small),
+                  ),
+
+                  // Horizontal paging content area
+                  Expanded(
+                    child:
+                        _contentPages.isEmpty
+                            ? const Center(child: CircularProgressIndicator())
+                            : PageView(
+                              controller: _cardPageController,
+                              scrollDirection: Axis.horizontal,
+                              reverse: true, // RTL support
+                              children: _contentPages,
+                            ),
+                  ),
+
+                  // Static footer area
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.medium),
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(
+                            Responsive.space(context, size: Space.large),
+                          ),
+                          color: Colors.white,
+                          border: Border.all(color: Colors.black),
+                        ),
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: Responsive.space(
+                              context,
+                              size: Space.medium,
+                            ),
+                            vertical: Responsive.space(
+                              context,
+                              size: Space.small,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                onPressed: () async {
+                                  if (!mounted) return;
+
+                                  String shareText = '';
+                                  shareText += '\n\n${widget.title}';
+
+                                  if (widget.description.isNotEmpty) {
+                                    shareText += '\n\n${widget.description}';
+                                  }
+
+                                  if (widget.links.isNotEmpty) {
+                                    shareText += '\n\nالروابط:';
+                                    for (var link in widget.links) {
+                                      shareText +=
+                                          '\n- ${link['title']}: ${link['url']}';
+                                    }
+                                  }
+
+                                  if (mounted) {
+                                    await Share.share(shareText);
+                                  }
+                                },
+                                icon: const Icon(Icons.share),
+                                splashRadius: 24,
+                              ),
+                              SizedBox(
+                                width: Responsive.space(
+                                  context,
+                                  size: Space.small,
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: () {
+                                  if (!mounted) return;
+
+                                  showModalBottomSheet(
+                                    context: context,
+                                    isScrollControlled: true,
+                                    enableDrag: true,
+                                    isDismissible: true,
+                                    backgroundColor: Colors.transparent,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.vertical(
+                                        top: Radius.circular(
+                                          Responsive.space(
+                                            context,
+                                            size: Space.large,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    builder:
+                                        (context) => DraggableScrollableSheet(
+                                          initialChildSize: 0.9,
+                                          minChildSize: 0.5,
+                                          maxChildSize: 0.95,
+                                          expand: false,
+                                          builder:
+                                              (context, scrollController) =>
+                                                  CommentSection(
+                                                    announcementId: widget.id!,
+                                                    scrollController:
+                                                        scrollController,
+                                                  ),
+                                        ),
+                                  );
+                                },
+                                icon: const Icon(Icons.question_mark_rounded),
+                                splashRadius: 24,
+                              ),
+                              SizedBox(
+                                width: Responsive.space(
+                                  context,
+                                  size: Space.small,
+                                ),
+                              ),
+                              Builder(
+                                builder: (context) {
+                                  // Check if widget is mounted first
+                                  if (!mounted) {
+                                    return IconButton(
+                                      onPressed: null,
+                                      icon: const Icon(
+                                        Icons.bookmark_border,
+                                        color: Colors.grey,
+                                      ),
+                                      splashRadius: 24,
+                                    );
+                                  }
+
+                                  // Try to access the provider safely
+                                  Bookmarks? bookmarks;
+                                  try {
+                                    bookmarks = Provider.of<Bookmarks>(
+                                      context,
+                                      listen: false,
+                                    );
+                                  } catch (e) {
+                                    debugPrint(
+                                      'Bookmarks provider not available: $e',
+                                    );
+                                    return IconButton(
+                                      onPressed: null,
+                                      icon: const Icon(
+                                        Icons.bookmark_border,
+                                        color: Colors.grey,
+                                      ),
+                                      splashRadius: 24,
+                                    );
+                                  }
+
+                                  // If provider is null or disposed, return fallback
+                                  if (bookmarks == null) {
+                                    return IconButton(
+                                      onPressed: null,
+                                      icon: const Icon(
+                                        Icons.bookmark_border,
+                                        color: Colors.grey,
+                                      ),
+                                      splashRadius: 24,
+                                    );
+                                  }
+
+                                  // Use Consumer only if provider is available
+                                  return Consumer<Bookmarks>(
+                                    builder: (
+                                      context,
+                                      bookmarksConsumer,
+                                      child,
+                                    ) {
+                                      // Final mounted check
+                                      if (!mounted) {
+                                        return IconButton(
+                                          onPressed: null,
+                                          icon: const Icon(
+                                            Icons.bookmark_border,
+                                            color: Colors.grey,
+                                          ),
+                                          splashRadius: 24,
+                                        );
+                                      }
+
+                                      try {
+                                        final bool isBookmarked =
+                                            bookmarksConsumer.isBookmarked(
+                                              widget.id!,
+                                            );
+
+                                        return IconButton(
+                                          onPressed: () {
+                                            // Final mounted check before action
+                                            if (!mounted) return;
+
+                                            try {
+                                              bookmarksConsumer.toggleBookmark(
+                                                widget.id!,
+                                              );
+                                            } catch (e) {
+                                              debugPrint(
+                                                'Bookmarks toggle error: $e',
+                                              );
+                                            }
+                                          },
+                                          icon: Icon(
+                                            isBookmarked
+                                                ? Icons.bookmark
+                                                : Icons.bookmark_border,
+                                            color: Colors.black,
+                                          ),
+                                          splashRadius: 24,
+                                        );
+                                      } catch (e) {
+                                        debugPrint(
+                                          'Bookmarks consumer error: $e',
+                                        );
+                                        return IconButton(
+                                          onPressed: null,
+                                          icon: const Icon(
+                                            Icons.bookmark_border,
+                                            color: Colors.grey,
+                                          ),
+                                          splashRadius: 24,
+                                        );
+                                      }
+                                    },
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );
@@ -650,7 +982,7 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer>
       duration: const Duration(milliseconds: 200),
     );
     _animationController.addListener(() {
-      if (_animation != null) {
+      if (_animation != null && mounted) {
         setState(() {
           _dragOffset = _animation!.value;
         });
@@ -667,7 +999,7 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer>
 
   void _onVerticalDragUpdate(DragUpdateDetails details) {
     // Only allow dragging when not scaled
-    if (_transformationController.value.getMaxScaleOnAxis() <= 1.0) {
+    if (_transformationController.value.getMaxScaleOnAxis() <= 1.0 && mounted) {
       setState(() {
         _dragOffset += details.delta;
       });

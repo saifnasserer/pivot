@@ -10,13 +10,16 @@ class SectionService {
     }
 
     try {
-      final QuerySnapshot snapshot = await _sectionsCollection
-          .where('subjectId', whereIn: subjectIds)
-          .get();
-
-      return snapshot.docs
-          .map((doc) => Section.fromFirestore(doc))
-          .toList();
+      List<Section> allSections = [];
+      // Firestore whereIn supports up to 30 items
+      for (var i = 0; i < subjectIds.length; i += 30) {
+        final chunk = subjectIds.sublist(i, i + 30 > subjectIds.length ? subjectIds.length : i + 30);
+        final QuerySnapshot snapshot = await _sectionsCollection
+            .where('subjectId', whereIn: chunk)
+            .get();
+        allSections.addAll(snapshot.docs.map((doc) => Section.fromFirestore(doc)));
+      }
+      return allSections;
     } catch (e) {
       print('Error fetching sections: $e');
       rethrow;

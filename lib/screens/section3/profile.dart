@@ -511,18 +511,22 @@ class _ProfileState extends State<Profile> with TickerProviderStateMixin {
   }
 
   Future<void> _navigateToSubjectSelection(
-    List<String> previouslySelectedIds,
-  ) async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder:
-            (context) => SubjectSelectionScreen(
-              previouslySelectedIds: previouslySelectedIds,
-            ),
+  List<String> previouslySelectedIds,
+) async {
+  await Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => SubjectSelectionScreen(
+        previouslySelectedIds: previouslySelectedIds,
       ),
-    );
+    ),
+  );
+  // Reset subject filter after returning
+  final userProfile = Provider.of<UserProfileProvider>(context, listen: false).userProfile;
+  if (userProfile != null) {
+    Provider.of<SubjectProvider>(context, listen: false).fetchAndFilterSubjects(userProfile);
   }
+}
 
   Future<void> _showNotificationSettingsDialog() async {
     final user = FirebaseAuth.instance.currentUser;
@@ -818,9 +822,13 @@ class _ProfileState extends State<Profile> with TickerProviderStateMixin {
           return Center(child: Text('Error: ${subjectProvider.error}'));
         }
 
+        // Filter subjects to only those registered/enrolled by the user
+        final userProfile = Provider.of<UserProfileProvider>(context, listen: false).userProfile;
+        final enrolledIds = userProfile?.enrolledSubjects ?? [];
+        final registeredSubjects = subjectProvider.filteredSubjects.where((s) => enrolledIds.contains(s.id)).toList();
         final subjectSlivers = buildSubjectsSlivers(
           context,
-          subjectProvider.filteredSubjects,
+          registeredSubjects,
           subjectProvider.instructorsBySubject,
         );
 

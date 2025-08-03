@@ -197,43 +197,17 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
     return SliverFillRemaining(
       hasScrollBody: false,
       child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: EdgeInsets.all(
-                Responsive.space(context, size: Space.large),
-              ),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.task_alt_outlined,
-                size: 64,
-                color: Colors.grey.shade400,
-              ),
-            ),
-            SizedBox(height: Responsive.space(context, size: Space.medium)),
-            Text(
-              'لا توجد مهام هذا الأسبوع',
-              style: TextStyle(
-                fontSize: Responsive.text(context, size: TextSize.medium),
-                fontWeight: FontWeight.w500,
-                color: Colors.black87,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: Responsive.space(context, size: Space.small)),
-            Text(
-              'اضغط على الزر أدناه لإضافة مهمة جديدة',
-              style: TextStyle(
-                fontSize: Responsive.text(context, size: TextSize.small),
-                color: Colors.grey.shade600,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
+        child: Container(
+          padding: EdgeInsets.all(Responsive.space(context, size: Space.large)),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            Icons.task_alt_outlined,
+            size: 64,
+            color: Colors.green.shade400,
+          ),
         ),
       ),
     );

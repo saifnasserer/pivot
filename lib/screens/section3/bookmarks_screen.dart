@@ -323,8 +323,10 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
                     }
 
                     final bookmarkedItems = snapshot.data!;
+                    // Defensive: filter out nulls (should not happen, but just in case)
+                    final filteredBookmarks = bookmarkedItems.where((b) => b != null).toList();
                     return _buildBookmarksList(
-                      bookmarkedItems,
+                      filteredBookmarks,
                       bookmarksProvider,
                     );
                   },

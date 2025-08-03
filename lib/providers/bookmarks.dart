@@ -11,6 +11,7 @@ class Bookmarks extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
   DateTime? _lastUpdated;
+  bool _disposed = false;
 
   // Getters
   List<String> get bookmarkIds => List.unmodifiable(_bookmarkIds);
@@ -22,12 +23,19 @@ class Bookmarks extends ChangeNotifier {
 
   Bookmarks() {
     _auth.authStateChanges().listen((user) {
+      if (_disposed) return; // Don't proceed if disposed
       if (user != null) {
         _loadBookmarks();
       } else {
         _clearBookmarks();
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
   }
 
   /// Checks if a specific announcement is bookmarked by its ID.
@@ -37,6 +45,8 @@ class Bookmarks extends ChangeNotifier {
 
   /// Loads the current user's bookmark IDs from their user document in Firestore.
   Future<void> _loadBookmarks() async {
+    if (_disposed) return; // Don't proceed if disposed
+
     final user = _auth.currentUser;
     if (user == null) return;
 
@@ -45,6 +55,8 @@ class Bookmarks extends ChangeNotifier {
 
     try {
       final doc = await _firestore.collection('users').doc(user.uid).get();
+
+      if (_disposed) return; // Check again after async operation
 
       if (doc.exists && doc.data()!.containsKey('bookmarks')) {
         final ids = List<String>.from(doc.data()!['bookmarks'] as List);
@@ -55,18 +67,23 @@ class Bookmarks extends ChangeNotifier {
         _lastUpdated = DateTime.now();
       }
 
-      notifyListeners();
+      _safeNotifyListeners();
     } catch (e) {
+      if (_disposed) return; // Check again after async operation
       _setError('فشل في تحميل المحفظات: $e');
       _bookmarkIds = []; // Reset on error
-      notifyListeners();
+      _safeNotifyListeners();
     } finally {
-      _setLoading(false);
+      if (!_disposed) {
+        _setLoading(false);
+      }
     }
   }
 
   /// Toggles a bookmark's state for the current user using Firestore's array operators.
   Future<bool> toggleBookmark(String announcementId) async {
+    if (_disposed) return false; // Don't proceed if disposed
+
     final user = _auth.currentUser;
     if (user == null) {
       _setError('يجب تسجيل الدخول أولاً');
@@ -83,7 +100,7 @@ class Bookmarks extends ChangeNotifier {
       _bookmarkIds.add(announcementId);
     }
     _lastUpdated = DateTime.now();
-    notifyListeners();
+    _safeNotifyListeners();
 
     // Handle Firestore operation in background
     try {
@@ -107,24 +124,30 @@ class Bookmarks extends ChangeNotifier {
         // );
       }
 
-      _clearError();
+      if (!_disposed) {
+        _clearError();
+      }
       return true;
     } catch (e) {
       // Revert local state if Firestore operation fails
-      _setError('فشل في تحديث المحفظات: $e');
+      if (!_disposed) {
+        _setError('فشل في تحديث المحفظات: $e');
 
-      if (isCurrentlyBookmarked) {
-        _bookmarkIds.add(announcementId);
-      } else {
-        _bookmarkIds.remove(announcementId);
+        if (isCurrentlyBookmarked) {
+          _bookmarkIds.add(announcementId);
+        } else {
+          _bookmarkIds.remove(announcementId);
+        }
+        _safeNotifyListeners();
       }
-      notifyListeners();
       return false;
     }
   }
 
   /// Bulk add multiple bookmarks
   Future<bool> addMultipleBookmarks(List<String> announcementIds) async {
+    if (_disposed) return false; // Don't proceed if disposed
+
     final user = _auth.currentUser;
     if (user == null) {
       _setError('يجب تسجيل الدخول أولاً');
@@ -144,25 +167,33 @@ class Bookmarks extends ChangeNotifier {
         }
       }
       _lastUpdated = DateTime.now();
-      notifyListeners();
+      _safeNotifyListeners();
 
       // Update Firestore
       await userDocRef.set({
         'bookmarks': FieldValue.arrayUnion(announcementIds),
       }, SetOptions(merge: true));
 
-      _clearError();
+      if (!_disposed) {
+        _clearError();
+      }
       return true;
     } catch (e) {
-      _setError('فشل في إضافة المحفظات: $e');
+      if (!_disposed) {
+        _setError('فشل في إضافة المحفظات: $e');
+      }
       return false;
     } finally {
-      _setLoading(false);
+      if (!_disposed) {
+        _setLoading(false);
+      }
     }
   }
 
   /// Bulk remove multiple bookmarks
   Future<bool> removeMultipleBookmarks(List<String> announcementIds) async {
+    if (_disposed) return false; // Don't proceed if disposed
+
     final user = _auth.currentUser;
     if (user == null) {
       _setError('يجب تسجيل الدخول أولاً');
@@ -180,25 +211,33 @@ class Bookmarks extends ChangeNotifier {
         _bookmarkIds.remove(id);
       }
       _lastUpdated = DateTime.now();
-      notifyListeners();
+      _safeNotifyListeners();
 
       // Update Firestore
       await userDocRef.update({
         'bookmarks': FieldValue.arrayRemove(announcementIds),
       });
 
-      _clearError();
+      if (!_disposed) {
+        _clearError();
+      }
       return true;
     } catch (e) {
-      _setError('فشل في إزالة المحفظات: $e');
+      if (!_disposed) {
+        _setError('فشل في إزالة المحفظات: $e');
+      }
       return false;
     } finally {
-      _setLoading(false);
+      if (!_disposed) {
+        _setLoading(false);
+      }
     }
   }
 
   /// Clear all bookmarks
   Future<bool> clearAllBookmarks() async {
+    if (_disposed) return false; // Don't proceed if disposed
+
     final user = _auth.currentUser;
     if (user == null) {
       _setError('يجب تسجيل الدخول أولاً');
@@ -214,23 +253,30 @@ class Bookmarks extends ChangeNotifier {
       // Clear local state
       _bookmarkIds.clear();
       _lastUpdated = DateTime.now();
-      notifyListeners();
+      _safeNotifyListeners();
 
       // Update Firestore
       await userDocRef.update({'bookmarks': []});
 
-      _clearError();
+      if (!_disposed) {
+        _clearError();
+      }
       return true;
     } catch (e) {
-      _setError('فشل في مسح المحفظات: $e');
+      if (!_disposed) {
+        _setError('فشل في مسح المحفظات: $e');
+      }
       return false;
     } finally {
-      _setLoading(false);
+      if (!_disposed) {
+        _setLoading(false);
+      }
     }
   }
 
   /// Refresh bookmarks from server
   Future<void> refreshBookmarks() async {
+    if (_disposed) return; // Don't proceed if disposed
     await _loadBookmarks();
   }
 
@@ -276,25 +322,36 @@ class Bookmarks extends ChangeNotifier {
 
   // Private helper methods
   void _setLoading(bool loading) {
+    if (_disposed) return;
     _isLoading = loading;
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   void _setError(String error) {
+    if (_disposed) return;
     _error = error;
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   void _clearError() {
+    if (_disposed) return;
     _error = null;
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   void _clearBookmarks() {
+    if (_disposed) return;
     _bookmarkIds.clear();
     _error = null;
     _isLoading = false;
     _lastUpdated = null;
-    notifyListeners();
+    _safeNotifyListeners();
+  }
+
+  /// Safe way to call notifyListeners() that checks if the provider is disposed
+  void _safeNotifyListeners() {
+    if (!_disposed) {
+      notifyListeners();
+    }
   }
 }
