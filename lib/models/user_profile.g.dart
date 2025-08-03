@@ -66,15 +66,14 @@ class UserProfileAdapter extends TypeAdapter<UserProfile> {
       profileImageUrl: fields[6] as String?,
       role: fields[7] as String,
       aboutMe: fields[8] as String,
-      teachingSubjects: (fields[9] as List?)?.cast<String>() ?? [],
-      enrolledSubjects: (fields[10] as List?)?.cast<String>() ?? [],
+      teachingSubjects: (fields[9] as List).cast<String>(),
+      enrolledSubjects: (fields[10] as List).cast<String>(),
       gender: fields[11] as String,
       fcmToken: fields[12] as String?,
       lastTokenUpdate: fields[13] as DateTime?,
-      notificationPreferences:
-          fields[14] as NotificationPreferences? ?? NotificationPreferences(),
-      socialMediaLinks: (fields[15] as List?)?.cast<SocialMediaLink>() ?? [],
-      assistantPreferences: (fields[16] as Map?)?.cast<String, String>() ?? {},
+      notificationPreferences: fields[14] as NotificationPreferences?,
+      socialMediaLinks: (fields[15] as List).cast<SocialMediaLink>(),
+      assistantPreferences: (fields[16] as Map).cast<String, String>(),
     );
   }
 

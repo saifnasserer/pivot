@@ -142,7 +142,7 @@ class _TaskModelState extends State<TaskModel>
             opacity: _opacityAnimation.value,
             child: Padding(
               padding: EdgeInsets.symmetric(
-                horizontal: Responsive.space(context, size: Space.small),
+                horizontal: Responsive.space(context, size: Space.tiny),
                 vertical: Responsive.space(context, size: Space.small),
               ),
               child: Material(
@@ -205,7 +205,10 @@ class _TaskModelState extends State<TaskModel>
                       ],
                     ),
                     child: Padding(
-                      padding: EdgeInsets.all(cardPadding),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: cardPadding * 0.8,
+                        vertical: cardPadding,
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -263,7 +266,7 @@ class _TaskModelState extends State<TaskModel>
                               SizedBox(
                                 width: Responsive.space(
                                   context,
-                                  size: Space.medium,
+                                  size: Space.small,
                                 ),
                               ),
 
@@ -308,7 +311,7 @@ class _TaskModelState extends State<TaskModel>
                                       Wrap(
                                         spacing: Responsive.space(
                                           context,
-                                          size: Space.small,
+                                          size: Space.tiny,
                                         ),
                                         runSpacing: Responsive.space(
                                           context,
@@ -391,7 +394,7 @@ class _TaskModelState extends State<TaskModel>
                                   SizedBox(
                                     width: Responsive.space(
                                       context,
-                                      size: Space.small,
+                                      size: Space.tiny,
                                     ),
                                   ),
                                   Text(
@@ -431,7 +434,7 @@ class _TaskModelState extends State<TaskModel>
                                 SizedBox(
                                   width: Responsive.space(
                                     context,
-                                    size: Space.small,
+                                    size: Space.tiny,
                                   ),
                                 ),
                                 _buildActionButton(
@@ -459,7 +462,7 @@ class _TaskModelState extends State<TaskModel>
   Widget _buildInfoChip(String label, Color color, IconData icon) {
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: Responsive.space(context, size: Space.small),
+        horizontal: Responsive.space(context, size: Space.tiny),
         vertical: Responsive.space(context, size: Space.tiny),
       ),
       decoration: BoxDecoration(
@@ -520,7 +523,7 @@ class _TaskModelState extends State<TaskModel>
         onPressed: onPressed,
         tooltip: tooltip,
         style: IconButton.styleFrom(
-          padding: EdgeInsets.all(Responsive.space(context, size: Space.small)),
+          padding: EdgeInsets.all(Responsive.space(context, size: Space.tiny)),
         ),
       ),
     );

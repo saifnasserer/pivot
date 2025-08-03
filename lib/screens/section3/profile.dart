@@ -29,10 +29,21 @@ class Profile extends StatefulWidget {
   State<Profile> createState() => _ProfileState();
 }
 
-class _ProfileState extends State<Profile> with TickerProviderStateMixin {
+class _ProfileState extends State<Profile>
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   late TabController _tabController;
   int _selectedDayIndex = 0;
   UserProfile? _previousUserProfile;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final userProfile = Provider.of<UserProfileProvider>(context).userProfile;
+    if (userProfile != null && userProfile != _previousUserProfile) {
+      _previousUserProfile = userProfile;
+      _fetchProfileData(userProfile);
+    }
+  }
 
   @override
   void initState() {
@@ -44,21 +55,25 @@ class _ProfileState extends State<Profile> with TickerProviderStateMixin {
       vsync: this,
       initialIndex: initialIndex,
     );
+    WidgetsBinding.instance.addObserver(this);
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final userProfile = Provider.of<UserProfileProvider>(context).userProfile;
-    if (userProfile != null && userProfile != _previousUserProfile) {
-      _previousUserProfile = userProfile;
-      _fetchProfileData(userProfile);
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      // Reset filters when app is resumed (user returns from another screen)
+      final userProfile = Provider.of<UserProfileProvider>(context).userProfile;
+      if (userProfile != null) {
+        _fetchProfileData(userProfile);
+      }
     }
   }
 
@@ -84,8 +99,11 @@ class _ProfileState extends State<Profile> with TickerProviderStateMixin {
         listen: false,
       );
 
+      // Reset all providers first
       scheduleProvider.fetchSchedule();
       taskProvider.fetchTasks();
+
+      // Fetch all users and then filter subjects for current user
       userProfileProvider
           .fetchAllUsers(
             forceAll: true,
@@ -94,11 +112,29 @@ class _ProfileState extends State<Profile> with TickerProviderStateMixin {
           .then((_) {
             if (!mounted) return;
             subjectProvider.buildInstructorsMap(userProfileProvider.allUsers);
+
+            // Fetch all subjects first, then filter for current user
             subjectProvider.fetchAllSubjectsWithoutFilter().then((_) {
               if (!mounted) return;
-              final subjectIds =
-                  subjectProvider.filteredSubjects.map((s) => s.id).toList();
-              sectionProvider.fetchSectionsForUserSubjects(subjectIds);
+
+              // Filter subjects for the current user based on their role
+              if (userProfile.role == 'Student') {
+                // For students, use enrolled subjects
+                final enrolledIds = userProfile.enrolledSubjects ?? [];
+                subjectProvider.fetchAndFilterSubjects(userProfile);
+                sectionProvider.fetchSectionsForUserSubjects(enrolledIds);
+              } else if (userProfile.role == 'Professor' ||
+                  userProfile.role == 'miniProfessor') {
+                // For professors/assistants, use teaching subjects
+                final teachingIds = userProfile.teachingSubjects ?? [];
+                subjectProvider.fetchAndFilterSubjects(userProfile);
+                sectionProvider.fetchSectionsForUserSubjects(teachingIds);
+              } else {
+                // For admins, show all subjects
+                final allSubjectIds =
+                    subjectProvider.filteredSubjects.map((s) => s.id).toList();
+                sectionProvider.fetchSectionsForUserSubjects(allSubjectIds);
+              }
             });
           });
     });
@@ -183,6 +219,15 @@ class _ProfileState extends State<Profile> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final userProfile = Provider.of<UserProfileProvider>(context).userProfile;
+
+    // Reset filters when user profile changes (e.g., when returning from another profile)
+    if (userProfile != null && userProfile != _previousUserProfile) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _fetchProfileData(userProfile);
+        }
+      });
+    }
 
     if (userProfile != null) {
       final lowerCaseRole = userProfile.role.toLowerCase();

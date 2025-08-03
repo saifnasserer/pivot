@@ -9,17 +9,20 @@ class Section extends HiveObject {
   @HiveField(1)
   final String name;
   @HiveField(2)
-  final String subjectId;
+  final String assistantId; // Changed from subjectId - sections belong to assistants
   @HiveField(3)
-  final String days;
+  final String subjectId; // Now a reference field - which subject this section is for
   @HiveField(4)
-  final String time;
+  final String days;
   @HiveField(5)
+  final String time;
+  @HiveField(6)
   final String location;
 
   Section({
     required this.id,
     required this.name,
+    required this.assistantId,
     required this.subjectId,
     required this.days,
     required this.time,
@@ -31,6 +34,7 @@ class Section extends HiveObject {
     return Section(
       id: doc.id,
       name: data['name'] ?? '',
+      assistantId: data['assistantId'] ?? '',
       subjectId: data['subjectId'] ?? '',
       days: data['days'] ?? '',
       time: data['time'] ?? '',
@@ -41,6 +45,7 @@ class Section extends HiveObject {
   Map<String, dynamic> toJson() {
     return {
       'name': name,
+      'assistantId': assistantId,
       'subjectId': subjectId,
       'days': days,
       'time': time,

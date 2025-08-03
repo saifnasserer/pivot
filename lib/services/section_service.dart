@@ -2,7 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pivot/models/section_model.dart';
 
 class SectionService {
-  final CollectionReference _sectionsCollection = FirebaseFirestore.instance.collection('sections');
+  final CollectionReference _sectionsCollection = FirebaseFirestore.instance
+      .collection('sections');
 
   Future<List<Section>> getSectionsForSubjects(List<String> subjectIds) async {
     if (subjectIds.isEmpty) {
@@ -13,11 +14,15 @@ class SectionService {
       List<Section> allSections = [];
       // Firestore whereIn supports up to 30 items
       for (var i = 0; i < subjectIds.length; i += 30) {
-        final chunk = subjectIds.sublist(i, i + 30 > subjectIds.length ? subjectIds.length : i + 30);
-        final QuerySnapshot snapshot = await _sectionsCollection
-            .where('subjectId', whereIn: chunk)
-            .get();
-        allSections.addAll(snapshot.docs.map((doc) => Section.fromFirestore(doc)));
+        final chunk = subjectIds.sublist(
+          i,
+          i + 30 > subjectIds.length ? subjectIds.length : i + 30,
+        );
+        final QuerySnapshot snapshot =
+            await _sectionsCollection.where('subjectId', whereIn: chunk).get();
+        allSections.addAll(
+          snapshot.docs.map((doc) => Section.fromFirestore(doc)),
+        );
       }
       return allSections;
     } catch (e) {
@@ -26,13 +31,37 @@ class SectionService {
     }
   }
 
+  Future<List<Section>> getSectionsForAssistant(String assistantId) async {
+    if (assistantId.isEmpty) {
+      return [];
+    }
+
+    try {
+      final QuerySnapshot snapshot =
+          await _sectionsCollection
+              .where('assistantId', isEqualTo: assistantId)
+              .get();
+
+      final sections =
+          snapshot.docs.map((doc) => Section.fromFirestore(doc)).toList();
+
+      return sections;
+    } catch (e) {
+      print('Error fetching sections for assistant: $e');
+      rethrow;
+    }
+  }
+
   Future<Section> addSection(Section section) async {
     try {
-      final docRef = await _sectionsCollection.add(section.toJson());
+      final sectionData = section.toJson();
+
+      final docRef = await _sectionsCollection.add(sectionData);
       // Return a new Section object with the ID from the created document
       return Section(
         id: docRef.id,
         name: section.name,
+        assistantId: section.assistantId,
         subjectId: section.subjectId,
         days: section.days,
         time: section.time,

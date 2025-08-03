@@ -149,7 +149,8 @@ class SectionCard extends StatelessWidget {
                       return AddEditSectionDialog(
                         subjects: subjects,
                         sectionToEdit: section,
-                        initialSubjectId: section.subjectId,
+                        autoSelectedSubjectId: section.subjectId,
+                        targetAssistantId: section.assistantId,
                       );
                     },
                   );

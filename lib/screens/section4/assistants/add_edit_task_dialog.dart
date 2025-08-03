@@ -4,6 +4,7 @@ import 'package:intl/intl.dart' as intl;
 import 'package:pivot/providers/section_provider.dart';
 import 'package:pivot/providers/subject_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
+import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/screens/models/custom_text_field.dart';
 import 'package:pivot/screens/models/task.dart';
 import 'package:provider/provider.dart';
@@ -21,28 +22,23 @@ Future<void> showAddTaskDialog({
   String? initialSectionId,
   Task? task,
 }) async {
+  // Get current user from provider
+  final userProfileProvider = Provider.of<UserProfileProvider>(
+    context,
+    listen: false,
+  );
+  final currentUser = userProfileProvider.userProfile;
+
   return showDialog<void>(
     context: context,
     barrierDismissible: false,
     builder: (BuildContext dialogContext) {
-      return MultiProvider(
-        providers: [
-          ChangeNotifierProvider.value(
-            value: Provider.of<SubjectProvider>(context),
-          ),
-          ChangeNotifierProvider.value(
-            value: Provider.of<SectionProvider>(context),
-          ),
-          ChangeNotifierProvider.value(
-            value: Provider.of<UserProfileProvider>(context),
-          ),
-        ],
-        child: _AddEditTaskDialogContent(
-          onSave: onSave,
-          task: task,
-          subjectId: subjectId,
-          initialSectionId: initialSectionId,
-        ),
+      return _AddEditTaskDialogContent(
+        onSave: onSave,
+        task: task,
+        subjectId: subjectId,
+        initialSectionId: initialSectionId,
+        currentUser: currentUser,
       );
     },
   );
@@ -53,11 +49,13 @@ class _AddEditTaskDialogContent extends StatefulWidget {
   final Task? task;
   final String subjectId;
   final String? initialSectionId;
+  final UserProfile? currentUser;
   const _AddEditTaskDialogContent({
     required this.onSave,
     this.task,
     required this.subjectId,
     this.initialSectionId,
+    this.currentUser,
   });
   @override
   State<_AddEditTaskDialogContent> createState() =>
@@ -106,21 +104,37 @@ class _AddEditTaskDialogContentState extends State<_AddEditTaskDialogContent> {
   }
 
   Future<void> _fetchInitialData() async {
-    final sectionProvider = Provider.of<SectionProvider>(
-      context,
-      listen: false,
-    );
-    await sectionProvider.fetchSectionsForUserSubjects([_selectedSubjectId!]);
-    if (sectionProvider.sections.isNotEmpty) {
-      // Only set _selectedSectionId if it is not already set or not found in the list
-      final found = sectionProvider.sections.any(
-        (s) => s.id == _selectedSectionId,
+    if (!mounted) return;
+
+    try {
+      final sectionProvider = Provider.of<SectionProvider>(
+        context,
+        listen: false,
       );
-      if (!found) {
-        setState(() => _selectedSectionId = sectionProvider.sections.first.id);
+      await sectionProvider.fetchSectionsForUserSubjects([_selectedSubjectId!]);
+
+      if (!mounted) return;
+
+      if (sectionProvider.sections.isNotEmpty) {
+        // Only set _selectedSectionId if it is not already set or not found in the list
+        final found = sectionProvider.sections.any(
+          (s) => s.id == _selectedSectionId,
+        );
+        if (!found) {
+          setState(
+            () => _selectedSectionId = sectionProvider.sections.first.id,
+          );
+        }
+      }
+      if (mounted) {
+        setState(() => _isLoadingSections = false);
+      }
+    } catch (e) {
+      print('Error fetching initial data: $e');
+      if (mounted) {
+        setState(() => _isLoadingSections = false);
       }
     }
-    setState(() => _isLoadingSections = false);
   }
 
   void _onSectionChanged(String? newSectionId) {
@@ -153,11 +167,17 @@ class _AddEditTaskDialogContentState extends State<_AddEditTaskDialogContent> {
       }
 
       // Get the current user (assistant) ID
-      final userProfileProvider = Provider.of<UserProfileProvider>(
+      final currentUser = widget.currentUser;
+
+      // Get the section to find its assistant ID
+      final sectionProvider = Provider.of<SectionProvider>(
         context,
         listen: false,
       );
-      final currentUser = userProfileProvider.userProfile;
+      final section = sectionProvider.sections.firstWhere(
+        (s) => s.id == _selectedSectionId,
+        orElse: () => throw Exception('Section not found'),
+      );
 
       final newTask = Task(
         id: widget.task?.id,
@@ -168,7 +188,8 @@ class _AddEditTaskDialogContentState extends State<_AddEditTaskDialogContent> {
         subjectId: _selectedSubjectId!,
         sectionId: _selectedSectionId!,
         assistantId:
-            currentUser?.id, // Set the assistant ID to the current user
+            section
+                .assistantId, // Set the assistant ID to the section's assistant
         attachments: attachments,
       );
       widget.onSave(newTask);
@@ -229,224 +250,199 @@ class _AddEditTaskDialogContentState extends State<_AddEditTaskDialogContent> {
       color: Colors.black87,
     );
 
-    return Consumer2<SectionProvider, UserProfileProvider>(
-      builder: (context, sectionProvider, userProfileProvider, child) {
-        return Directionality(
-          textDirection: TextDirection.rtl,
-          child: AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: borderRadius),
-            title: Text(
-              _isEditing ? 'تعديل التاسك' : 'اضافة تاسك جديد',
-              textAlign: TextAlign.center,
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            contentPadding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-            content: SingleChildScrollView(
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                    Text(
-                      'عنوان التاسك:',
-                      style: labelStyle,
-                      textAlign: TextAlign.right,
-                    ),
-                    SizedBox(
-                      height: Responsive.space(context, size: Space.small),
-                    ),
-                    TextFormField(
-                      controller: _titleController,
-                      decoration: commonDecoration.copyWith(
-                        hintText: 'اكتب اسم التاسك',
-                      ),
-                      textAlign: TextAlign.right,
-                      validator:
-                          (value) =>
-                              (value == null || value.trim().isEmpty)
-                                  ? 'اكتب اسم التاسك'
-                                  : null,
-                    ),
-                    SizedBox(
-                      height: Responsive.space(context, size: Space.medium),
-                    ),
-                    Text(
-                      'تفاصيل التاسك:',
-                      style: labelStyle,
-                      textAlign: TextAlign.right,
-                    ),
-                    SizedBox(
-                      height: Responsive.space(context, size: Space.small),
-                    ),
-                    TextFormField(
-                      controller: _descriptionController,
-                      decoration: commonDecoration.copyWith(
-                        hintText: 'أى تفاصيل إضافية...',
-                      ),
-                      textAlign: TextAlign.right,
-                      maxLines: 2,
-                    ),
-                    SizedBox(
-                      height: Responsive.space(context, size: Space.medium),
-                    ),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                'آخر ميعاد للتسليم:',
-                                style: labelStyle,
-                                textAlign: TextAlign.right,
-                              ),
-                              SizedBox(
-                                height: Responsive.space(
-                                  context,
-                                  size: Space.small,
-                                ),
-                              ),
-                              InkWell(
-                                onTap: () => _selectDate(context),
-                                borderRadius: borderRadius,
-                                child: InputDecorator(
-                                  decoration: commonDecoration,
-                                  child: Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          intl.DateFormat(
-                                            'dd/MM/yyyy',
-                                            'ar',
-                                          ).format(_selectedDate),
-                                          style: Theme.of(
-                                            context,
-                                          ).textTheme.bodyLarge?.copyWith(
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.black87,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                          textAlign: TextAlign.right,
-                                        ),
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: borderRadius),
+        title: Text(
+          _isEditing ? 'تعديل التاسك' : 'اضافة تاسك جديد',
+          textAlign: TextAlign.center,
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        contentPadding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+        content: SingleChildScrollView(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Text(
+                  'عنوان التاسك:',
+                  style: labelStyle,
+                  textAlign: TextAlign.right,
+                ),
+                SizedBox(height: Responsive.space(context, size: Space.small)),
+                TextFormField(
+                  controller: _titleController,
+                  decoration: commonDecoration.copyWith(
+                    hintText: 'اكتب اسم التاسك',
+                  ),
+                  textAlign: TextAlign.right,
+                  validator:
+                      (value) =>
+                          (value == null || value.trim().isEmpty)
+                              ? 'اكتب اسم التاسك'
+                              : null,
+                ),
+                SizedBox(height: Responsive.space(context, size: Space.medium)),
+                Text(
+                  'تفاصيل التاسك:',
+                  style: labelStyle,
+                  textAlign: TextAlign.right,
+                ),
+                SizedBox(height: Responsive.space(context, size: Space.small)),
+                TextFormField(
+                  controller: _descriptionController,
+                  decoration: commonDecoration.copyWith(
+                    hintText: 'أى تفاصيل إضافية...',
+                  ),
+                  textAlign: TextAlign.right,
+                  maxLines: 2,
+                ),
+                SizedBox(height: Responsive.space(context, size: Space.medium)),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            'آخر ميعاد للتسليم:',
+                            style: labelStyle,
+                            textAlign: TextAlign.right,
+                          ),
+                          SizedBox(
+                            height: Responsive.space(
+                              context,
+                              size: Space.small,
+                            ),
+                          ),
+                          InkWell(
+                            onTap: () => _selectDate(context),
+                            borderRadius: borderRadius,
+                            child: InputDecorator(
+                              decoration: commonDecoration,
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      intl.DateFormat(
+                                        'dd/MM/yyyy',
+                                        'ar',
+                                      ).format(_selectedDate),
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.bodyLarge?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black87,
                                       ),
-                                      Icon(
-                                        Icons.calendar_month_rounded,
-                                        color: Theme.of(context).primaryColor,
-                                      ),
-                                    ],
+                                      overflow: TextOverflow.ellipsis,
+                                      textAlign: TextAlign.right,
+                                    ),
                                   ),
-                                ),
+                                  Icon(
+                                    Icons.calendar_month_rounded,
+                                    color: Theme.of(context).primaryColor,
+                                  ),
+                                ],
                               ),
-                            ],
+                            ),
                           ),
-                        ),
-                        SizedBox(
-                          width: Responsive.space(context, size: Space.medium),
-                        ),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                'الأهمية:',
-                                style: labelStyle,
-                                textAlign: TextAlign.right,
-                              ),
-                              SizedBox(
-                                height: Responsive.space(
-                                  context,
-                                  size: Space.small,
-                                ),
-                              ),
-                              DropdownButtonFormField<TaskImportance>(
-                                value: _selectedImportance,
-                                decoration: commonDecoration,
-                                items:
-                                    TaskImportance.values.map((
-                                      TaskImportance importance,
-                                    ) {
-                                      return DropdownMenuItem<TaskImportance>(
-                                        value: importance,
-                                        child: Text(
-                                          _importanceLabels[importance] ??
-                                              'N/A',
-                                          style:
-                                              Theme.of(
-                                                context,
-                                              ).textTheme.bodyLarge,
-                                          textAlign: TextAlign.right,
-                                        ),
-                                      );
-                                    }).toList(),
-                                onChanged: (TaskImportance? newValue) {
-                                  if (newValue != null) {
-                                    setState(
-                                      () => _selectedImportance = newValue,
-                                    );
-                                  }
-                                },
-                                isExpanded: true,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                     SizedBox(
-                      height: Responsive.space(context, size: Space.medium),
+                      width: Responsive.space(context, size: Space.medium),
                     ),
-                    _AttachmentSection(
-                      attachments: attachments,
-                      onAddAttachment:
-                          (att) => setState(() => attachments.add(att)),
-                      onRemoveAttachment:
-                          (i) => setState(() => attachments.removeAt(i)),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            'الأهمية:',
+                            style: labelStyle,
+                            textAlign: TextAlign.right,
+                          ),
+                          SizedBox(
+                            height: Responsive.space(
+                              context,
+                              size: Space.small,
+                            ),
+                          ),
+                          DropdownButtonFormField<TaskImportance>(
+                            value: _selectedImportance,
+                            decoration: commonDecoration,
+                            items:
+                                TaskImportance.values.map((
+                                  TaskImportance importance,
+                                ) {
+                                  return DropdownMenuItem<TaskImportance>(
+                                    value: importance,
+                                    child: Text(
+                                      _importanceLabels[importance] ?? 'N/A',
+                                      style:
+                                          Theme.of(context).textTheme.bodyLarge,
+                                      textAlign: TextAlign.right,
+                                    ),
+                                  );
+                                }).toList(),
+                            onChanged: (TaskImportance? newValue) {
+                              if (newValue != null) {
+                                setState(() => _selectedImportance = newValue);
+                              }
+                            },
+                            isExpanded: true,
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
-              ),
+                SizedBox(height: Responsive.space(context, size: Space.medium)),
+                _AttachmentSection(
+                  attachments: attachments,
+                  onAddAttachment:
+                      (att) => setState(() => attachments.add(att)),
+                  onRemoveAttachment:
+                      (i) => setState(() => attachments.removeAt(i)),
+                ),
+              ],
             ),
-            actions: <Widget>[
-              TextButton(
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.grey.shade700,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 10,
-                  ),
-                  shape: RoundedRectangleBorder(borderRadius: borderRadius),
-                ),
-                child: const Text('إلغاء'),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-              ElevatedButton.icon(
-                icon: Icon(
-                  _isEditing
-                      ? Icons.save_alt_rounded
-                      : Icons.add_circle_outline_rounded,
-                ),
-                label: Text(_isEditing ? 'حفظ التعديلات' : 'إضافة التاسك'),
-                style: ElevatedButton.styleFrom(
-                  shape: RoundedRectangleBorder(borderRadius: borderRadius),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 12,
-                  ),
-                  backgroundColor: Theme.of(context).primaryColor,
-                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                  elevation: 2,
-                ),
-                onPressed: _saveTask,
-              ),
-            ],
           ),
-        );
-      },
+        ),
+        actions: <Widget>[
+          TextButton(
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.grey.shade700,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: borderRadius),
+            ),
+            child: const Text('إلغاء'),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          ElevatedButton.icon(
+            icon: Icon(
+              _isEditing
+                  ? Icons.save_alt_rounded
+                  : Icons.add_circle_outline_rounded,
+            ),
+            label: Text(_isEditing ? 'حفظ التعديلات' : 'إضافة التاسك'),
+            style: ElevatedButton.styleFrom(
+              shape: RoundedRectangleBorder(borderRadius: borderRadius),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              backgroundColor: Theme.of(context).primaryColor,
+              foregroundColor: Theme.of(context).colorScheme.onPrimary,
+              elevation: 2,
+            ),
+            onPressed: _saveTask,
+          ),
+        ],
+      ),
     );
   }
 }

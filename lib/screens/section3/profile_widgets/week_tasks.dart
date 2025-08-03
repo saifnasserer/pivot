@@ -6,6 +6,7 @@ import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/models/task.dart';
 import 'package:pivot/screens/models/task_model.dart';
+import 'package:pivot/models/section_model.dart';
 import 'package:provider/provider.dart';
 
 import 'add_edit_task_dialog.dart';
@@ -151,14 +152,32 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
     final assistantPreferences = userProfile.assistantPreferences;
 
     // Get relevant sections that match user's enrolled subjects and section
-    final relevantSections =
-        sectionProvider.sections.where((section) {
-          return userEnrolledSubjectIds.contains(section.subjectId) &&
+    // Only check sections belonging to the default instructor for each subject
+    final relevantSections = <Section>[];
+
+    for (final subjectId in userEnrolledSubjectIds) {
+      final selectedAssistantId = assistantPreferences[subjectId];
+
+      if (selectedAssistantId != null) {
+        // Get sections for this subject that belong to the selected assistant
+        final subjectSections =
+            sectionProvider.sections.where((section) {
+              return section.subjectId == subjectId &&
+                  section.assistantId == selectedAssistantId;
+            }).toList();
+
+        // Find sections that match the user's section number
+        for (final section in subjectSections) {
+          final sectionMatch =
               userSection != null &&
-              section.name.trim().toLowerCase().contains(
-                userSection.trim().toLowerCase(),
-              );
-        }).toList();
+              _matchesUserSectionNumber(section.name, userSection);
+
+          if (sectionMatch) {
+            relevantSections.add(section);
+          }
+        }
+      }
+    }
 
     // Create a map of subjectId to selected assistantId
     final subjectToAssistantMap = <String, String>{};
@@ -199,22 +218,35 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
     // Filter tasks based on assistant preferences
     final filteredTasks =
         allTasks.where((task) {
-          if (task.isPersonal) return true;
+          if (task.isPersonal) {
+            return true;
+          }
 
           // Only include tasks that belong to sections with selected assistants
-          if (sectionProvider.sections.isEmpty) return false;
+          if (sectionProvider.sections.isEmpty) {
+            return false;
+          }
 
-          final section = sectionProvider.sections.firstWhere(
-            (s) => s.id == task.sectionId,
-            orElse: () => sectionProvider.sections.first,
-          );
+          // Check if the task's section exists
+          final taskSection =
+              sectionProvider.sections
+                  .where((s) => s.id == task.sectionId)
+                  .firstOrNull;
 
-          final subjectId = section.subjectId;
-          final selectedAssistantId = subjectToAssistantMap[subjectId];
+          if (taskSection == null) {
+            return false;
+          }
 
-          // Include task if it belongs to the selected assistant
-          return selectedAssistantId != null &&
-              task.assistantId == selectedAssistantId;
+          final subjectId = taskSection.subjectId;
+          final sectionAssistantId = taskSection.assistantId;
+
+          // Include task if it belongs to the assistant who owns the section
+          // OR if the task's assistant ID is null (for backward compatibility)
+          final shouldInclude =
+              task.assistantId == sectionAssistantId ||
+              task.assistantId == null;
+
+          return shouldInclude;
         }).toList();
 
     final userId = userProfile.id;
@@ -678,6 +710,87 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
     } else {
       taskProvider.deleteTask(task.id);
     }
+  }
+
+  /// Check if section name matches user's section
+  bool _matchesUserSection(String sectionName, String userSection) {
+    final cleanSectionName = sectionName.trim().toLowerCase();
+    final cleanUserSection = userSection.trim().toLowerCase();
+
+    // Try different patterns to match the section
+    final patterns = [
+      // Pattern 1: "سكشن A" or "Section A"
+      cleanUserSection,
+      // Pattern 2: "A" (just the letter)
+      cleanUserSection,
+      // Pattern 3: "سكشن" + userSection
+      'سكشن $cleanUserSection',
+      // Pattern 4: "section" + userSection
+      'section $cleanUserSection',
+    ];
+
+    // Check if any pattern matches
+    for (int i = 0; i < patterns.length; i++) {
+      final pattern = patterns[i];
+      final matches = cleanSectionName.contains(pattern);
+      if (matches) {
+        return true;
+      }
+    }
+
+    // Additional check: if section name ends with the user section
+    final endsWithMatch = cleanSectionName.endsWith(cleanUserSection);
+    if (endsWithMatch) {
+      return true;
+    }
+
+    // Additional check: if section name contains the user section as a word
+    final words = cleanSectionName.split(RegExp(r'[\s\-_]+'));
+    final wordMatch = words.contains(cleanUserSection);
+    if (wordMatch) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /// Check if section number matches user's section number
+  bool _matchesUserSectionNumber(String sectionName, String userSection) {
+    // Extract number from section name (e.g., "سكشن 1" -> "1", "Section A" -> "A")
+    final sectionNumber = _extractSectionNumber(sectionName);
+
+    // Clean user section
+    final cleanUserSection = userSection.trim();
+
+    // Compare the numbers
+    final matches = sectionNumber == cleanUserSection;
+
+    return matches;
+  }
+
+  /// Extract section number from section name
+  String _extractSectionNumber(String sectionName) {
+    // Remove common prefixes and extract the number/letter
+    final cleanName = sectionName.trim().toLowerCase();
+
+    // Try to extract number after "سكشن" or "section"
+    final arabicMatch = RegExp(r'سكشن\s*(\w+)').firstMatch(cleanName);
+    if (arabicMatch != null) {
+      return arabicMatch.group(1) ?? '';
+    }
+
+    final englishMatch = RegExp(r'section\s*(\w+)').firstMatch(cleanName);
+    if (englishMatch != null) {
+      return englishMatch.group(1) ?? '';
+    }
+
+    // If no prefix found, try to extract the last word/number
+    final words = cleanName.split(RegExp(r'[\s\-_]+'));
+    if (words.isNotEmpty) {
+      return words.last;
+    }
+
+    return '';
   }
 
   /// Build completed tasks section with enhanced design

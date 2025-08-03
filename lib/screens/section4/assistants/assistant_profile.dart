@@ -97,27 +97,33 @@ class _AssistantProfileState extends State<AssistantProfile>
           context,
           listen: false,
         );
-
-        subjectProvider.fetchAndFilterSubjects(_displayedProfile!).then((_) {
-          if (mounted) {
-            try {
-              final subjects = subjectProvider.filteredSubjects;
-              setState(() {
-                _localFilteredSubjects = subjects;
-              });
-
-              if (subjects.isNotEmpty) {
-                _updateSubjectTabController(subjects);
-                _onSubjectSelected(0);
-              }
-            } catch (e) {
-              print('Provider access error in callback: $e');
-            }
-          }
-        });
-        sectionProvider.fetchSectionsForUserSubjects(
-          _displayedProfile!.teachingSubjects,
+        final userProfileProvider = Provider.of<UserProfileProvider>(
+          context,
+          listen: false,
         );
+
+        // Fetch all users for admin functionality
+        userProfileProvider.fetchAllUsers(forceAll: true).then((_) {
+          subjectProvider.fetchAndFilterSubjects(_displayedProfile!).then((_) {
+            if (mounted) {
+              try {
+                final subjects = subjectProvider.filteredSubjects;
+                setState(() {
+                  _localFilteredSubjects = subjects;
+                });
+
+                if (subjects.isNotEmpty) {
+                  _updateSubjectTabController(subjects);
+                  _onSubjectSelected(0);
+                }
+              } catch (e) {
+                print('Provider access error in callback: $e');
+              }
+            }
+          });
+        });
+        // Fetch sections for this specific assistant
+        sectionProvider.fetchSectionsForAssistant(_displayedProfile!.id);
       } catch (e) {
         print('Provider access error: $e');
       }
@@ -232,9 +238,14 @@ class _AssistantProfileState extends State<AssistantProfile>
     SectionProvider sectionProvider,
     UserProfile? loggedInUser,
   ) {
+    // Filter sections that belong to this assistant AND are for this subject
     final sectionsForSubject =
         sectionProvider.sections
-            .where((s) => s.subjectId == subject.id)
+            .where(
+              (s) =>
+                  s.assistantId == _displayedProfile?.id &&
+                  s.subjectId == subject.id,
+            )
             .toList();
 
     if (sectionProvider.isLoading) {
@@ -636,13 +647,15 @@ class _AssistantProfileState extends State<AssistantProfile>
                 onPressed: () {
                   final subjects = _localFilteredSubjects;
                   if (subjects.isNotEmpty &&
-                      _selectedSubjectIndex < subjects.length) {
+                      _subjectTabController.index < subjects.length) {
                     showDialog(
                       context: context,
                       builder: (BuildContext context) {
                         return AddEditSectionDialog(
                           subjects: subjects,
-                          initialSubjectId: subjects[_selectedSubjectIndex].id,
+                          autoSelectedSubjectId:
+                              subjects[_subjectTabController.index].id,
+                          targetAssistantId: _displayedProfile?.id,
                         );
                       },
                     );
