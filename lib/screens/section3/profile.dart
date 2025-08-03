@@ -21,7 +21,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pivot/services/notification_service.dart';
 
 class Profile extends StatefulWidget {
-  const Profile({super.key});
+  final int? initialTabIndex;
+
+  const Profile({super.key, this.initialTabIndex});
 
   @override
   State<Profile> createState() => _ProfileState();
@@ -35,7 +37,13 @@ class _ProfileState extends State<Profile> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 6, vsync: this, initialIndex: 5);
+    final initialIndex =
+        widget.initialTabIndex ?? 5; // Default to week tasks tab
+    _tabController = TabController(
+      length: 6,
+      vsync: this,
+      initialIndex: initialIndex,
+    );
   }
 
   @override
@@ -511,22 +519,27 @@ class _ProfileState extends State<Profile> with TickerProviderStateMixin {
   }
 
   Future<void> _navigateToSubjectSelection(
-  List<String> previouslySelectedIds,
-) async {
-  await Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (context) => SubjectSelectionScreen(
-        previouslySelectedIds: previouslySelectedIds,
+    List<String> previouslySelectedIds,
+  ) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (context) => SubjectSelectionScreen(
+              previouslySelectedIds: previouslySelectedIds,
+            ),
       ),
-    ),
-  );
-  // Reset subject filter after returning
-  final userProfile = Provider.of<UserProfileProvider>(context, listen: false).userProfile;
-  if (userProfile != null) {
-    Provider.of<SubjectProvider>(context, listen: false).fetchAndFilterSubjects(userProfile);
+    );
+    // Reset subject filter after returning
+    final userProfile =
+        Provider.of<UserProfileProvider>(context, listen: false).userProfile;
+    if (userProfile != null) {
+      Provider.of<SubjectProvider>(
+        context,
+        listen: false,
+      ).fetchAndFilterSubjects(userProfile);
+    }
   }
-}
 
   Future<void> _showNotificationSettingsDialog() async {
     final user = FirebaseAuth.instance.currentUser;
@@ -823,9 +836,16 @@ class _ProfileState extends State<Profile> with TickerProviderStateMixin {
         }
 
         // Filter subjects to only those registered/enrolled by the user
-        final userProfile = Provider.of<UserProfileProvider>(context, listen: false).userProfile;
+        final userProfile =
+            Provider.of<UserProfileProvider>(
+              context,
+              listen: false,
+            ).userProfile;
         final enrolledIds = userProfile?.enrolledSubjects ?? [];
-        final registeredSubjects = subjectProvider.filteredSubjects.where((s) => enrolledIds.contains(s.id)).toList();
+        final registeredSubjects =
+            subjectProvider.filteredSubjects
+                .where((s) => enrolledIds.contains(s.id))
+                .toList();
         final subjectSlivers = buildSubjectsSlivers(
           context,
           registeredSubjects,

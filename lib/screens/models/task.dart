@@ -12,6 +12,7 @@ class Task {
   TaskImportance importance;
   String? subjectId; // To associate task with a specific subject
   String? sectionId; // To associate task with a specific section
+  String? assistantId; // To associate task with a specific assistant
   List<String> completedBy; // List of user IDs who completed the task
   bool isPersonal;
   List<Map<String, String>>? attachments;
@@ -24,6 +25,7 @@ class Task {
     this.importance = TaskImportance.mid,
     this.subjectId,
     this.sectionId,
+    this.assistantId,
     this.completedBy = const [],
     this.isPersonal = false,
     this.attachments,
@@ -45,6 +47,7 @@ class Task {
           importance.toString().split('.').last, // Store enum as string
       'subjectId': subjectId,
       'sectionId': sectionId,
+      'assistantId': assistantId,
       'completedBy': completedBy,
       'isPersonal': isPersonal,
       'attachments': attachments,
@@ -64,6 +67,7 @@ class Task {
       ),
       subjectId: map['subjectId'],
       sectionId: map['sectionId'],
+      assistantId: map['assistantId'],
       completedBy: List<String>.from(map['completedBy'] ?? []),
       isPersonal: map['isPersonal'] ?? false,
       attachments:
@@ -86,6 +90,7 @@ class Task {
     TaskImportance? importance,
     String? subjectId,
     String? sectionId,
+    String? assistantId,
     List<String>? completedBy,
     bool? isPersonal,
     List<Map<String, String>>? attachments,
@@ -98,6 +103,7 @@ class Task {
       importance: importance ?? this.importance,
       subjectId: subjectId ?? this.subjectId,
       sectionId: sectionId ?? this.sectionId,
+      assistantId: assistantId ?? this.assistantId,
       completedBy: completedBy ?? this.completedBy,
       isPersonal: isPersonal ?? this.isPersonal,
       attachments: attachments ?? this.attachments,

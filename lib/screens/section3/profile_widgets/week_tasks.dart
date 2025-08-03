@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/providers/section_provider.dart';
+import 'package:pivot/providers/subject_provider.dart';
 import 'package:pivot/providers/task_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
@@ -137,46 +138,107 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
     final taskProvider = Provider.of<TaskProvider>(context);
     final userProfileProvider = Provider.of<UserProfileProvider>(context);
     final sectionProvider = Provider.of<SectionProvider>(context);
+    final subjectProvider = Provider.of<SubjectProvider>(context);
     final userProfile = userProfileProvider.userProfile;
     final allTasks = [...taskProvider.tasks, ..._personalTasks];
 
-    final userEnrolledSubjectIds = userProfile?.enrolledSubjects ?? [];
-    final userSection = userProfile?.section;
-    final relevantSectionIds =
-        sectionProvider.sections
-            .where(
-              (section) =>
-                  userEnrolledSubjectIds.contains(section.subjectId) &&
-                  userSection != null &&
-                  section.name.trim().toLowerCase().contains(
-                    userSection.trim().toLowerCase(),
-                  ),
-            )
-            .map((section) => section.id)
-            .toSet();
+    if (userProfile == null) {
+      return Scaffold(body: Center(child: Text('User profile not found')));
+    }
 
+    final userEnrolledSubjectIds = userProfile.enrolledSubjects;
+    final userSection = userProfile.section;
+    final assistantPreferences = userProfile.assistantPreferences;
+
+    // Get relevant sections that match user's enrolled subjects and section
+    final relevantSections =
+        sectionProvider.sections.where((section) {
+          return userEnrolledSubjectIds.contains(section.subjectId) &&
+              userSection != null &&
+              section.name.trim().toLowerCase().contains(
+                userSection.trim().toLowerCase(),
+              );
+        }).toList();
+
+    // Create a map of subjectId to selected assistantId
+    final subjectToAssistantMap = <String, String>{};
+    final subjectsWithoutAssistant = <String>[];
+
+    for (final section in relevantSections) {
+      final subjectId = section.subjectId;
+      final selectedAssistantId = assistantPreferences[subjectId];
+
+      if (selectedAssistantId != null) {
+        subjectToAssistantMap[subjectId] = selectedAssistantId;
+      } else {
+        // Check if there's only one assistant for this subject
+        final assistants =
+            subjectProvider.instructorsBySubject[subjectId]
+                ?.where((prof) => prof.role == 'miniProfessor')
+                .toList() ??
+            [];
+
+        if (assistants.length == 1) {
+          // Auto-select the only assistant
+          subjectToAssistantMap[subjectId] = assistants.first.id;
+          // Update the preference
+          userProfileProvider.updateAssistantPreferences({
+            ...assistantPreferences,
+            subjectId: assistants.first.id,
+          });
+        } else if (assistants.isEmpty) {
+          // No assistants available
+          subjectsWithoutAssistant.add(subjectId);
+        } else {
+          // Multiple assistants but none selected
+          subjectsWithoutAssistant.add(subjectId);
+        }
+      }
+    }
+
+    // Filter tasks based on assistant preferences
     final filteredTasks =
         allTasks.where((task) {
           if (task.isPersonal) return true;
-          return relevantSectionIds.contains(task.sectionId);
+
+          // Only include tasks that belong to sections with selected assistants
+          if (sectionProvider.sections.isEmpty) return false;
+
+          final section = sectionProvider.sections.firstWhere(
+            (s) => s.id == task.sectionId,
+            orElse: () => sectionProvider.sections.first,
+          );
+
+          final subjectId = section.subjectId;
+          final selectedAssistantId = subjectToAssistantMap[subjectId];
+
+          // Include task if it belongs to the selected assistant
+          return selectedAssistantId != null &&
+              task.assistantId == selectedAssistantId;
         }).toList();
 
-    final userId = userProfile?.id;
+    final userId = userProfile.id;
     final pendingTasks =
-        filteredTasks
-            .where((t) => userId == null || !t.isCompletedFor(userId))
-            .toList();
+        filteredTasks.where((t) => !t.isCompletedFor(userId)).toList();
     final completedTasks =
-        filteredTasks
-            .where((t) => userId != null && t.isCompletedFor(userId))
-            .toList();
+        filteredTasks.where((t) => t.isCompletedFor(userId)).toList();
 
     final groupedTasks = _groupTasks(pendingTasks);
 
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          if (pendingTasks.isEmpty && completedTasks.isEmpty)
+          // Show assistant selection prompts if needed
+          if (subjectsWithoutAssistant.isNotEmpty)
+            _buildAssistantSelectionPrompts(
+              context,
+              subjectsWithoutAssistant,
+              subjectProvider,
+            ),
+
+          if (pendingTasks.isEmpty &&
+              completedTasks.isEmpty &&
+              subjectsWithoutAssistant.isEmpty)
             _buildEmptyState()
           else ...[
             // Grouped Task Lists
@@ -189,6 +251,166 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
         ],
       ),
       floatingActionButton: _buildFloatingActionButton(),
+    );
+  }
+
+  /// Build assistant selection prompts for subjects without selected assistants
+  Widget _buildAssistantSelectionPrompts(
+    BuildContext context,
+    List<String> subjectsWithoutAssistant,
+    SubjectProvider subjectProvider,
+  ) {
+    return SliverToBoxAdapter(
+      child: Container(
+        margin: EdgeInsets.symmetric(
+          horizontal: Responsive.space(context, size: Space.medium),
+          vertical: Responsive.space(context, size: Space.small),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: Responsive.padding(context, size: Space.medium),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(
+                  Responsive.space(context, size: Space.medium),
+                ),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        color: Colors.orange.shade700,
+                        size: 24,
+                      ),
+                      SizedBox(
+                        width: Responsive.space(context, size: Space.small),
+                      ),
+                      Expanded(
+                        child: Text(
+                          'اختر معيدك الافتراضي',
+                          style: TextStyle(
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.medium,
+                            ),
+                            fontWeight: FontWeight.bold,
+                            color: Colors.orange.shade700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.small),
+                  ),
+                  Text(
+                    'لمعرفة المهام الخاصة بك، يجب عليك اختيار معيد افتراضي لكل مادة مسجل فيها.',
+                    style: TextStyle(
+                      fontSize: Responsive.text(context, size: TextSize.small),
+                      color: Colors.orange.shade700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: Responsive.space(context, size: Space.small)),
+            ...subjectsWithoutAssistant.map((subjectId) {
+              final subject = subjectProvider.filteredSubjects.firstWhere(
+                (s) => s.id == subjectId,
+              );
+              final assistants =
+                  subjectProvider.instructorsBySubject[subjectId]
+                      ?.where((prof) => prof.role == 'miniProfessor')
+                      .toList() ??
+                  [];
+
+              return Container(
+                margin: EdgeInsets.only(
+                  bottom: Responsive.space(context, size: Space.small),
+                ),
+                padding: Responsive.padding(context, size: Space.medium),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(
+                    Responsive.space(context, size: Space.medium),
+                  ),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            subject.name,
+                            style: TextStyle(
+                              fontSize: Responsive.text(
+                                context,
+                                size: TextSize.medium,
+                              ),
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          SizedBox(
+                            height: Responsive.space(context, size: Space.tiny),
+                          ),
+                          Text(
+                            assistants.isEmpty
+                                ? 'لا يوجد معيدين متاحين'
+                                : '${assistants.length} معيد متاح',
+                            style: TextStyle(
+                              fontSize: Responsive.text(
+                                context,
+                                size: TextSize.small,
+                              ),
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    ElevatedButton(
+                      onPressed:
+                          assistants.isNotEmpty
+                              ? () {
+                                // Navigate to profile screen and switch to sections tab (index 2)
+                                Navigator.pushNamed(
+                                  context,
+                                  '/profile',
+                                  arguments: 2,
+                                );
+                              }
+                              : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor:
+                            assistants.isNotEmpty ? Colors.blue : Colors.grey,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: Text(
+                        assistants.isNotEmpty ? 'اختيار معيد' : 'غير متاح',
+                        style: TextStyle(
+                          fontSize: Responsive.text(
+                            context,
+                            size: TextSize.small,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ],
+        ),
+      ),
     );
   }
 

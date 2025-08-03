@@ -151,6 +151,14 @@ class _AddEditTaskDialogContentState extends State<_AddEditTaskDialogContent> {
         ).showSnackBar(const SnackBar(content: Text('من فضلك اختر المادة')));
         return;
       }
+
+      // Get the current user (assistant) ID
+      final userProfileProvider = Provider.of<UserProfileProvider>(
+        context,
+        listen: false,
+      );
+      final currentUser = userProfileProvider.userProfile;
+
       final newTask = Task(
         id: widget.task?.id,
         title: _titleController.text.trim(),
@@ -159,6 +167,8 @@ class _AddEditTaskDialogContentState extends State<_AddEditTaskDialogContent> {
         importance: _selectedImportance,
         subjectId: _selectedSubjectId!,
         sectionId: _selectedSectionId!,
+        assistantId:
+            currentUser?.id, // Set the assistant ID to the current user
         attachments: attachments,
       );
       widget.onSave(newTask);

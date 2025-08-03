@@ -97,6 +97,9 @@ class UserProfile extends HiveObject {
   @HiveField(15)
   List<SocialMediaLink> socialMediaLinks;
 
+  @HiveField(16)
+  Map<String, String> assistantPreferences; // subjectId -> assistantId
+
   UserProfile({
     required this.id,
     required this.name,
@@ -114,6 +117,7 @@ class UserProfile extends HiveObject {
     this.lastTokenUpdate,
     NotificationPreferences? notificationPreferences,
     this.socialMediaLinks = const [],
+    this.assistantPreferences = const {},
   }) : notificationPreferences =
            notificationPreferences ?? NotificationPreferences();
 
@@ -135,6 +139,7 @@ class UserProfile extends HiveObject {
     DateTime? lastTokenUpdate,
     NotificationPreferences? notificationPreferences,
     List<SocialMediaLink>? socialMediaLinks,
+    Map<String, String>? assistantPreferences,
   }) {
     return UserProfile(
       id: id ?? this.id,
@@ -146,14 +151,15 @@ class UserProfile extends HiveObject {
       profileImageUrl: profileImageUrl ?? this.profileImageUrl,
       role: role ?? this.role,
       aboutMe: aboutMe ?? this.aboutMe,
-      teachingSubjects: teachingSubjects ?? [...this.teachingSubjects],
-      enrolledSubjects: enrolledSubjects ?? [...this.enrolledSubjects],
+      teachingSubjects: teachingSubjects ?? this.teachingSubjects,
+      enrolledSubjects: enrolledSubjects ?? this.enrolledSubjects,
       gender: gender ?? this.gender,
       fcmToken: fcmToken ?? this.fcmToken,
       lastTokenUpdate: lastTokenUpdate ?? this.lastTokenUpdate,
       notificationPreferences:
           notificationPreferences ?? this.notificationPreferences,
-      socialMediaLinks: socialMediaLinks ?? [...this.socialMediaLinks],
+      socialMediaLinks: socialMediaLinks ?? this.socialMediaLinks,
+      assistantPreferences: assistantPreferences ?? this.assistantPreferences,
     );
   }
 
@@ -182,8 +188,10 @@ class UserProfile extends HiveObject {
       profileImageUrl: json['profileImageUrl'] as String?,
       role: json['role'] as String? ?? 'Student',
       aboutMe: json['aboutMe'] as String? ?? '',
-      teachingSubjects: List<String>.from(json['teachingSubjects'] ?? []),
-      enrolledSubjects: List<String>.from(json['enrolledSubjects'] ?? []),
+      teachingSubjects:
+          (json['teachingSubjects'] as List<dynamic>?)?.cast<String>() ?? [],
+      enrolledSubjects:
+          (json['enrolledSubjects'] as List<dynamic>?)?.cast<String>() ?? [],
       gender: json['gender'] as String? ?? 'ذكر',
       fcmToken: json['fcmToken'] as String?,
       lastTokenUpdate: parseLastTokenUpdate(json['lastTokenUpdate']),
@@ -198,6 +206,11 @@ class UserProfile extends HiveObject {
               )
               .toList() ??
           [],
+      assistantPreferences:
+          (json['assistantPreferences'] as Map<String, dynamic>?)?.map(
+            (key, value) => MapEntry(key, value as String),
+          ) ??
+          {},
     );
   }
 
@@ -221,6 +234,7 @@ class UserProfile extends HiveObject {
       'notificationPreferences': notificationPreferences.toJson(),
       'socialMediaLinks':
           socialMediaLinks.map((link) => link.toJson()).toList(),
+      'assistantPreferences': assistantPreferences,
     };
   }
 
@@ -244,7 +258,8 @@ class UserProfile extends HiveObject {
         other.fcmToken == fcmToken &&
         other.lastTokenUpdate == lastTokenUpdate &&
         other.notificationPreferences == notificationPreferences &&
-        listEquals(other.socialMediaLinks, socialMediaLinks);
+        listEquals(other.socialMediaLinks, socialMediaLinks) &&
+        other.assistantPreferences == assistantPreferences;
   }
 
   @override
@@ -266,6 +281,7 @@ class UserProfile extends HiveObject {
       lastTokenUpdate,
       notificationPreferences,
       Object.hashAll(socialMediaLinks),
+      Object.hashAll(assistantPreferences.entries),
     );
   }
 }

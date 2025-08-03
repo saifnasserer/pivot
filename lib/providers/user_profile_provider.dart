@@ -162,6 +162,29 @@ class UserProfileProvider with ChangeNotifier {
     return null;
   }
 
+  Future<UserProfile?> updateAssistantPreferences(
+    Map<String, String> assistantPreferences,
+  ) async {
+    final user = _auth.currentUser;
+    if (_loggedInUserProfile != null && user != null) {
+      try {
+        await _firestore.collection('users').doc(user.uid).update({
+          'assistantPreferences': assistantPreferences,
+        });
+
+        _loggedInUserProfile = _loggedInUserProfile!.copyWith(
+          assistantPreferences: assistantPreferences,
+        );
+        notifyListeners();
+        return _loggedInUserProfile;
+      } catch (e) {
+        print('Failed to update assistant preferences: $e');
+        rethrow;
+      }
+    }
+    return null;
+  }
+
   Future<void> fetchAllUsers({
     bool forceAll = false,
     List<String>? roleFilter,

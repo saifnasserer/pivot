@@ -219,7 +219,11 @@ class Pivot extends StatelessWidget {
           '/signup-1': (context) => const Signup_1(),
           '/login': (context) => const Login(),
           '/landing': (context) => const Landing(),
-          '/profile': (context) => const Profile(),
+          '/profile': (context) {
+            final args = ModalRoute.of(context)?.settings.arguments;
+            final initialTabIndex = args is int ? args : null;
+            return Profile(initialTabIndex: initialTabIndex);
+          },
           '/doctor-profile': (context) => const DoctorProfile(),
           '/admin-control': (context) => const AdminControl(),
           '/assistant-profile': (context) => const AssistantProfile(),

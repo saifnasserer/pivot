@@ -2,17 +2,133 @@ rules_version='2'
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user is accessing their own data
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    // Helper function to check if user is super admin
+    function isSuperAdmin() {
+      return isAuthenticated() && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin';
+    }
+    
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return isAuthenticated() && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Helper function to check if user is employee
+    function isEmployee() {
+      return isAuthenticated() && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'employee';
+    }
+
+    // Users collection - users can read/write their own profile
+    match /users/{userId} {
+      allow read, write: if isAuthenticated() && isOwner(userId);
+      // Super admins can read all users
+      allow read: if isSuperAdmin();
+      // Super admins can create/update users
+      allow create, update: if isSuperAdmin();
+    }
+    
+    // Users index collection - for quick user lookups
+    match /usersIndex/{userId} {
+      allow read, write: if isAuthenticated() && isOwner(userId);
+      allow read: if isSuperAdmin();
+      allow create, update: if isSuperAdmin();
+    }
+
+    // Companies collection - only super admins can manage companies
+    match /companies/{companyId} {
+      allow read: if isAuthenticated();
+      allow write: if isSuperAdmin();
+    }
+
+    // Tasks collection - based on user role and company
+    match /tasks/{taskId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAuthenticated() && (
+        isSuperAdmin() || 
+        isAdmin() || 
+        isEmployee()
+      );
+    }
+
+    // Sections collection - based on user role and company
+    match /sections/{sectionId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAuthenticated() && (
+        isSuperAdmin() || 
+        isAdmin()
+      );
+    }
+
+    // Subjects collection - based on user role and company
+    match /subjects/{subjectId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAuthenticated() && (
+        isSuperAdmin() || 
+        isAdmin()
+      );
+    }
+
+    // Announcements collection - based on user role and company
+    match /announcements/{announcementId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAuthenticated() && (
+        isSuperAdmin() || 
+        isAdmin()
+      );
+    }
+
+    // Attendance collection - based on user role and company
+    match /attendance/{attendanceId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAuthenticated() && (
+        isSuperAdmin() || 
+        isAdmin() || 
+        isEmployee()
+      );
+    }
+
+    // Paydays collection - based on user role and company
+    match /paydays/{paydayId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAuthenticated() && (
+        isSuperAdmin() || 
+        isAdmin()
+      );
+    }
+
+    // Bonuses collection - based on user role and company
+    match /bonuses/{bonusId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAuthenticated() && (
+        isSuperAdmin() || 
+        isAdmin()
+      );
+    }
+
+    // Notifications collection - users can read their own notifications
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && isOwner(resource.data.userId);
+      allow create, update, delete: if isAuthenticated() && (
+        isSuperAdmin() || 
+        isAdmin()
+      );
+    }
+
+    // Default rule - deny all other operations
     match /{document=**} {
-      // This rule allows anyone with your database reference to view, edit,
-      // and delete all data in your database. It is useful for getting
-      // started, but it is configured to expire after 30 days because it
-      // leaves your app open to attackers. At that time, all client
-      // requests to your database will be denied.
-      //
-      // Make sure to write security rules for your app before that time, or
-      // else all client requests to your database will be denied until you
-      // update your rules.
-      allow read, write: if request.time < timestamp.date(2025, 7, 13);
+      allow read, write: if false;
     }
   }
 }

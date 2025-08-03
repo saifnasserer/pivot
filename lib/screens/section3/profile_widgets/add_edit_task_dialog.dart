@@ -72,6 +72,7 @@ class _AddEditTaskDialogState extends State<AddEditTaskDialog> {
         completedBy: widget.task?.completedBy ?? [],
         sectionId: widget.task?.sectionId,
         subjectId: widget.task?.subjectId,
+        assistantId: widget.task?.assistantId,
         attachments: attachments,
       );
       Navigator.of(context).pop(newTask);
