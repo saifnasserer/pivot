@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/responsive.dart';
+import 'package:pivot/widgets/unified_dialog.dart';
 
 class AddSubjectLinkDialog extends StatefulWidget {
   final List<Subject> subjects;
@@ -47,146 +48,81 @@ class _AddSubjectLinkDialogState extends State<AddSubjectLinkDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final borderRadius = BorderRadius.circular(
-      Responsive.space(context, size: Space.large),
-    );
-    final commonDecoration = InputDecoration(
-      border: OutlineInputBorder(
-        borderRadius: borderRadius,
-        borderSide: BorderSide(color: Colors.grey.shade300),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: borderRadius,
-        borderSide: BorderSide(color: Colors.grey.shade400),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: borderRadius,
-        borderSide: const BorderSide(color: Colors.teal, width: 2),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: borderRadius,
-        borderSide: const BorderSide(color: Colors.red, width: 1.5),
-      ),
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 16.0,
-        vertical: 12.0,
-      ),
-      fillColor: Colors.grey.shade100,
-      filled: true,
-      labelStyle: TextStyle(color: Colors.grey.shade700),
-      hintStyle: TextStyle(color: Colors.grey.shade500),
-    );
-
-    return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: borderRadius),
-      title: Text(
-        'إضافة محاضرة جديدة',
-        textAlign: TextAlign.center,
-        style: Theme.of(
-          context,
-        ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-      ),
+    return UnifiedDialog(
+      title: 'إضافة محاضرة جديدة',
+      subtitle: 'أدخل معلومات المحاضرة',
       content: Form(
         key: _formKey,
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Directionality(
-              textDirection: TextDirection.rtl,
-              child: TextFormField(
-                controller: _titleController,
-                decoration: commonDecoration.copyWith(
-                  labelText: 'العنوان',
-
-                  alignLabelWithHint: true,
-                ),
-                textAlign: TextAlign.right,
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'يرجى إدخال العنوان';
-                  }
-                  return null;
-                },
-              ),
+            UnifiedFormField(
+              controller: _titleController,
+              label: 'العنوان',
+              hint: 'أدخل عنوان المحاضرة',
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'يرجى إدخال العنوان';
+                }
+                return null;
+              },
             ),
-            SizedBox(height: Responsive.space(context, size: Space.small)),
+            SizedBox(height: Responsive.space(context, size: Space.medium)),
             if (widget.subjects.isEmpty)
-              const Text('لا يوجد مواد متاحة للإضافة')
-            else
-              Directionality(
-                textDirection: TextDirection.rtl,
-                child: DropdownButtonFormField<String>(
-                  value: _selectedSubjectId,
-                  decoration: commonDecoration.copyWith(
-                    labelText: 'المادة',
-                    alignLabelWithHint: true,
-                  ),
-                  items:
-                      widget.subjects.map((Subject subject) {
-                        return DropdownMenuItem<String>(
-                          value: subject.id,
-                          child: Align(
-                            alignment: Alignment.centerRight,
-                            child: Text(
-                              subject.name,
-                              textAlign: TextAlign.right,
-                            ),
+              Container(
+                padding: Responsive.padding(context, size: Space.medium),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.warning,
+                      color: Colors.orange,
+                      size: Responsive.text(context, size: TextSize.medium),
+                    ),
+                    SizedBox(
+                      width: Responsive.space(context, size: Space.small),
+                    ),
+                    Expanded(
+                      child: Text(
+                        'لا يوجد مواد متاحة للإضافة',
+                        style: TextStyle(
+                          fontSize: Responsive.text(
+                            context,
+                            size: TextSize.medium,
                           ),
-                        );
-                      }).toList(),
-                  onChanged: (String? newValue) {
-                    setState(() {
-                      _selectedSubjectId = newValue;
-                    });
-                  },
-                  validator:
-                      (value) => value == null ? 'يرجى إختيار المادة' : null,
-                  borderRadius: BorderRadius.circular(
-                    Responsive.space(context, size: Space.large),
-                  ),
-                  selectedItemBuilder:
-                      (context) =>
-                          widget.subjects.map((subject) {
-                            return Align(
-                              alignment: Alignment.centerRight,
-                              child: Text(
-                                subject.name,
-                                textAlign: TextAlign.right,
-                              ),
-                            );
-                          }).toList(),
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
+              )
+            else
+              UnifiedDropdownField<String>(
+                value: _selectedSubjectId,
+                items: widget.subjects.map((subject) => subject.id).toList(),
+                itemToString:
+                    (subjectId) =>
+                        widget.subjects
+                            .firstWhere((s) => s.id == subjectId)
+                            .name,
+                hint: 'اختر المادة',
+                label: 'المادة',
+                onChanged: (String? newValue) {
+                  setState(() {
+                    _selectedSubjectId = newValue;
+                  });
+                },
+                validator:
+                    (value) => value == null ? 'يرجى إختيار المادة' : null,
               ),
           ],
         ),
       ),
-      actionsPadding: EdgeInsets.symmetric(
-        horizontal: Responsive.space(context, size: Space.medium),
-        vertical: Responsive.space(context, size: Space.small),
-      ),
-      actionsAlignment: MainAxisAlignment.spaceBetween,
-      actions: <Widget>[
-        TextButton(
-          style: TextButton.styleFrom(foregroundColor: Colors.grey.shade700),
-          child: const Text('إلغاء'),
-          onPressed: () {
-            Navigator.of(context).pop();
-          },
-        ),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            shape: RoundedRectangleBorder(borderRadius: borderRadius),
-            padding: EdgeInsets.symmetric(
-              horizontal: Responsive.space(context, size: Space.medium),
-              vertical: Responsive.space(context, size: Space.small),
-            ),
-            backgroundColor: Theme.of(context).primaryColor,
-            foregroundColor: Theme.of(context).colorScheme.onPrimary,
-          ),
-          onPressed: _submit,
-          child: const Text('إضافة'),
-        ),
-      ],
+      confirmText: 'إضافة',
+      confirmIcon: Icons.add,
+      onConfirm: _submit,
+      onCancel: () => Navigator.of(context).pop(),
     );
   }
 }

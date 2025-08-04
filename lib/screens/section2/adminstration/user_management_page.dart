@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/services/auth_service.dart';
 import 'package:pivot/responsive.dart';
+import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:provider/provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -142,76 +143,32 @@ class _UserManagementPageState extends State<UserManagementPage> {
     final confirm = await showDialog<bool>(
       context: context,
       builder:
-          (context) => Directionality(
-            textDirection: TextDirection.rtl,
-            child: AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              title: Text(
-                'تأكيد الحذف',
-                style: TextStyle(
-                  fontSize: Responsive.text(context, size: TextSize.heading),
-                  fontWeight: FontWeight.bold,
+          (context) => UnifiedDialog(
+            title: 'تأكيد الحذف',
+            subtitle: 'لا يمكن التراجع عن هذا الإجراء',
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.warning_amber_rounded,
+                  size: Responsive.space(context, size: Space.large) * 2,
+                  color: Colors.red,
                 ),
-              ),
-              content: Text(
-                'هل أنت متأكد أنك تريد حذف المستخدم ${user.name}? لا يمكن التراجع عن هذا الإجراء.',
-                style: TextStyle(
-                  fontSize: Responsive.text(context, size: TextSize.medium),
-                ),
-              ),
-              actions: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: TextButton(
-                        onPressed: () => Navigator.of(context).pop(true),
-                        child: Text(
-                          'حذف',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: Responsive.text(
-                              context,
-                              size: TextSize.medium,
-                            ),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(
-                      width: Responsive.space(context, size: Space.medium),
-                    ),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.grey[200],
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: TextButton(
-                        onPressed: () => Navigator.of(context).pop(false),
-                        child: Text(
-                          'إلغاء',
-                          style: TextStyle(
-                            color: Colors.black87,
-                            fontSize: Responsive.text(
-                              context,
-                              size: TextSize.medium,
-                            ),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                SizedBox(height: Responsive.space(context, size: Space.medium)),
+                Text(
+                  'هل أنت متأكد أنك تريد حذف المستخدم ${user.name}?',
+                  style: TextStyle(
+                    fontSize: Responsive.text(context, size: TextSize.medium),
+                    color: Colors.black87,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
               ],
             ),
+            confirmText: 'حذف',
+            confirmIcon: Icons.delete_forever,
+            onConfirm: () => Navigator.of(context).pop(true),
+            onCancel: () => Navigator.of(context).pop(false),
           ),
     );
 
@@ -257,103 +214,76 @@ class _UserManagementPageState extends State<UserManagementPage> {
     final result = await showDialog<String>(
       context: context,
       builder:
-          (context) => Directionality(
-            textDirection: TextDirection.rtl,
-            child: AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              title: Text(
-                'تحديث الأدوار',
-                style: TextStyle(
-                  fontSize: Responsive.text(context, size: TextSize.heading),
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'اختر الدور الجديد للمستخدمين المحددين (${_selectedUsers.length})',
-                    style: TextStyle(
-                      fontSize: Responsive.text(context, size: TextSize.medium),
-                    ),
-                  ),
-                  SizedBox(
-                    height: Responsive.space(context, size: Space.medium),
-                  ),
-                  DropdownButtonFormField<String>(
-                    decoration: InputDecoration(
-                      labelText: 'الدور الجديد',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    items:
-                        roles
-                            .map(
-                              (role) => DropdownMenuItem(
-                                value: role,
-                                child: Text(role),
-                              ),
-                            )
-                            .toList(),
-                    onChanged: (value) => selectedRole = value,
-                  ),
-                ],
-              ),
-              actions: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+          (context) => StatefulBuilder(
+            builder: (context, setState) {
+              return UnifiedDialog(
+                title: 'تحديث الأدوار',
+                subtitle: 'اختر الدور الجديد للمستخدمين المحددين',
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
+                    // Selected users count
                     Container(
-                      decoration: BoxDecoration(
-                        color: Colors.blue,
-                        borderRadius: BorderRadius.circular(12),
+                      padding: EdgeInsets.all(
+                        Responsive.space(context, size: Space.medium),
                       ),
-                      child: TextButton(
-                        onPressed:
-                            () => Navigator.of(context).pop(selectedRole),
-                        child: Text(
-                          'تحديث',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: Responsive.text(
-                              context,
-                              size: TextSize.medium,
-                            ),
-                            fontWeight: FontWeight.bold,
-                          ),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(
+                          Responsive.space(context, size: Space.large),
                         ),
+                        border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.people,
+                            color: Colors.blue,
+                            size: Responsive.space(context, size: Space.medium),
+                          ),
+                          SizedBox(
+                            width: Responsive.space(context, size: Space.small),
+                          ),
+                          Expanded(
+                            child: Text(
+                              '${_selectedUsers.length} مستخدم محدد',
+                              style: TextStyle(
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.medium,
+                                ),
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     SizedBox(
-                      width: Responsive.space(context, size: Space.medium),
+                      height: Responsive.space(context, size: Space.medium),
                     ),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.grey[200],
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: TextButton(
-                        onPressed: () => Navigator.of(context).pop(null),
-                        child: Text(
-                          'إلغاء',
-                          style: TextStyle(
-                            color: Colors.black87,
-                            fontSize: Responsive.text(
-                              context,
-                              size: TextSize.medium,
-                            ),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
+
+                    // Role selection
+                    UnifiedDropdownField<String>(
+                      hint: 'اختر الدور الجديد',
+                      value: selectedRole,
+                      items: roles,
+                      itemToString: (item) => item,
+                      onChanged: (value) {
+                        setState(() {
+                          selectedRole = value;
+                        });
+                      },
                     ),
                   ],
                 ),
-              ],
-            ),
+                confirmText: 'تحديث',
+                confirmIcon: Icons.update,
+                onConfirm: () => Navigator.of(context).pop(selectedRole),
+                onCancel: () => Navigator.of(context).pop(null),
+              );
+            },
           ),
     );
 

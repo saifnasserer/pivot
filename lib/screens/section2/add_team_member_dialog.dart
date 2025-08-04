@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/models/team_member.dart';
 import 'package:pivot/models/user_profile.dart';
-import 'package:pivot/screens/models/custom_text_field.dart';
+import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:pivot/responsive.dart';
 import 'package:uuid/uuid.dart';
 
@@ -25,374 +25,281 @@ Future<void> showAddTeamMemberDialog(
   await showDialog(
     context: context,
     builder:
-        (context) => Directionality(
-          textDirection: TextDirection.rtl,
-          child: AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(
-                Responsive.space(context, size: Space.large),
-              ),
-            ),
-            title: Text(
-              'ضيف نفسك',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: Responsive.text(context, size: TextSize.heading),
-              ),
-            ),
-            content: Form(
-              key: formKey,
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    // Team Name Dropdown
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(
-                          Responsive.space(context, size: Space.large),
-                        ),
-                        border: Border.all(color: Colors.grey[300]!),
-                      ),
-                      child: DropdownButtonFormField<String>(
-                        decoration: InputDecoration(
-                          hintText: 'اختر اسم الفريق',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(
-                              Responsive.space(context, size: Space.large),
-                            ),
-                            borderSide: BorderSide(color: Color(0xFFF7F7F7)),
-                          ),
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                        ),
+        (context) => StatefulBuilder(
+          builder: (context, setState) {
+            return UnifiedDialog(
+              title: 'ضيف نفسك',
+              subtitle: 'أدخل بياناتك للانضمام للفريق',
+              content: Form(
+                key: formKey,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Team Name Dropdown
+                      UnifiedDropdownField<String>(
+                        hint: 'اختر اسم الفريق',
                         value: newTeamName.isEmpty ? null : newTeamName,
-                        items:
-                            purposes
-                                .map(
-                                  (p) => DropdownMenuItem(
-                                    value: p['name'],
-                                    child: Align(
-                                      alignment: Alignment.centerRight,
-                                      child: Text(
-                                        p['name']!,
-                                        textDirection: TextDirection.rtl,
-                                        textAlign: TextAlign.right,
-                                      ),
-                                    ),
-                                  ),
-                                )
-                                .toList(),
+                        items: purposes.map((p) => p['name']!).toList(),
+                        itemToString: (item) => item,
                         onChanged:
                             preselectedTeamName != null
                                 ? null
-                                : (v) => newTeamName = v ?? '',
+                                : (v) {
+                                  setState(() {
+                                    newTeamName = v ?? '';
+                                  });
+                                },
                         validator:
                             (v) => v == null || v.isEmpty ? 'مطلوب' : null,
-                        isExpanded: true,
-                        alignment: Alignment.centerRight,
-                        borderRadius: BorderRadius.circular(
-                          Responsive.space(context, size: Space.large),
-                        ),
                       ),
-                    ),
-                    SizedBox(
-                      height: Responsive.space(context, size: Space.small),
-                    ),
-                    // Skills
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(
-                          Responsive.space(context, size: Space.large),
-                        ),
-                        border: Border.all(color: Colors.grey[300]!),
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.medium),
                       ),
-                      child: Row(
+
+                      // Skills Section
+                      UnifiedSectionHeader(
+                        title: 'المهارات',
+                        icon: Icons.psychology,
+                      ),
+
+                      // Skills Input
+                      Row(
                         children: [
                           Expanded(
-                            child: TextFormField(
+                            child: UnifiedFormField(
+                              hint: 'أضف مهارة',
                               controller: skillController,
-                              textDirection: TextDirection.rtl,
-                              textAlign: TextAlign.right,
-                              decoration: InputDecoration(
-                                hintText: 'أضف مهارة',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(
-                                    Responsive.space(
-                                      context,
-                                      size: Space.large,
-                                    ),
-                                  ),
-                                  borderSide: BorderSide(
-                                    color: Color(0xFFF7F7F7),
-                                  ),
-                                ),
-                                contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
-                                ),
-                              ),
+                              onChanged: (v) {},
                               onFieldSubmitted: (v) {
                                 if (v.trim().isNotEmpty &&
                                     !newSkills.contains(v.trim())) {
-                                  newSkills.add(v.trim());
-                                  skillController.clear();
+                                  setState(() {
+                                    newSkills.add(v.trim());
+                                    skillController.clear();
+                                  });
                                 }
                               },
                             ),
                           ),
+                          SizedBox(
+                            width: Responsive.space(context, size: Space.small),
+                          ),
                           IconButton(
-                            icon: Icon(Icons.add),
+                            icon: Icon(Icons.add, color: Colors.black),
                             onPressed: () {
                               final v = skillController.text;
                               if (v.trim().isNotEmpty &&
                                   !newSkills.contains(v.trim())) {
-                                newSkills.add(v.trim());
-                                skillController.clear();
+                                setState(() {
+                                  newSkills.add(v.trim());
+                                  skillController.clear();
+                                });
                               }
                             },
                           ),
                         ],
                       ),
-                    ),
-                    SizedBox(
-                      height: Responsive.space(context, size: Space.small),
-                    ),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      alignment: WrapAlignment.end,
-                      children:
-                          newSkills
-                              .map(
-                                (skill) => Chip(
-                                  label: Text(skill),
-                                  onDeleted: () => newSkills.remove(skill),
-                                ),
-                              )
-                              .toList(),
-                    ),
-                    // Previous Projects
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(
-                          Responsive.space(context, size: Space.large),
-                        ),
-                        border: Border.all(color: Colors.grey[300]!),
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.small),
                       ),
-                      child: Row(
+
+                      // Skills Chips
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        alignment: WrapAlignment.end,
+                        children:
+                            newSkills
+                                .map(
+                                  (skill) => UnifiedChip(
+                                    label: skill,
+                                    onDelete: () {
+                                      setState(() {
+                                        newSkills.remove(skill);
+                                      });
+                                    },
+                                  ),
+                                )
+                                .toList(),
+                      ),
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.medium),
+                      ),
+
+                      // Previous Projects Section
+                      UnifiedSectionHeader(
+                        title: 'المشاريع السابقة',
+                        icon: Icons.work,
+                      ),
+
+                      // Projects Input
+                      Row(
                         children: [
                           Expanded(
-                            child: TextFormField(
+                            child: UnifiedFormField(
+                              hint: 'رابط مشروع سابق',
                               controller: projectLinkController,
-                              textDirection: TextDirection.rtl,
-                              textAlign: TextAlign.right,
-                              decoration: InputDecoration(
-                                hintText: 'رابط مشروع سابق',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(
-                                    Responsive.space(
-                                      context,
-                                      size: Space.large,
-                                    ),
-                                  ),
-                                  borderSide: BorderSide(
-                                    color: Color(0xFFF7F7F7),
-                                  ),
-                                ),
-                                contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
-                                ),
-                              ),
+                              onChanged: (v) {},
                               onFieldSubmitted: (v) {
                                 if (Uri.tryParse(v)?.hasAbsolutePath == true &&
                                     !newPreviousProjects.contains(v)) {
-                                  newPreviousProjects.add(v);
-                                  projectLinkController.clear();
+                                  setState(() {
+                                    newPreviousProjects.add(v);
+                                    projectLinkController.clear();
+                                  });
                                 }
                               },
                             ),
                           ),
+                          SizedBox(
+                            width: Responsive.space(context, size: Space.small),
+                          ),
                           IconButton(
-                            icon: Icon(Icons.add),
+                            icon: Icon(Icons.add, color: Colors.black),
                             onPressed: () {
                               final v = projectLinkController.text;
                               if (Uri.tryParse(v)?.hasAbsolutePath == true &&
                                   !newPreviousProjects.contains(v)) {
-                                newPreviousProjects.add(v);
-                                projectLinkController.clear();
+                                setState(() {
+                                  newPreviousProjects.add(v);
+                                  projectLinkController.clear();
+                                });
                               }
                             },
                           ),
                         ],
                       ),
-                    ),
-                    SizedBox(
-                      height: Responsive.space(context, size: Space.small),
-                    ),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      alignment: WrapAlignment.end,
-                      children:
-                          newPreviousProjects
-                              .map(
-                                (link) => Chip(
-                                  label: Text(
-                                    link,
-                                    style: TextStyle(
-                                      fontSize: Responsive.text(
-                                        context,
-                                        size: TextSize.small,
-                                      ),
-                                    ),
-                                  ),
-                                  onDeleted:
-                                      () => newPreviousProjects.remove(link),
-                                ),
-                              )
-                              .toList(),
-                    ),
-                    // Purpose Dropdown
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(
-                          Responsive.space(context, size: Space.large),
-                        ),
-                        border: Border.all(color: Colors.grey[300]!),
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.small),
                       ),
-                      child: DropdownButtonFormField<String>(
-                        decoration: InputDecoration(
-                          hintText: 'بتدور علي تيم ايه؟',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(
-                              Responsive.space(context, size: Space.large),
-                            ),
-                            borderSide: BorderSide(color: Color(0xFFF7F7F7)),
-                          ),
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                        ),
-                        value: newPurpose.isEmpty ? null : newPurpose,
-                        items:
-                            purposes
+
+                      // Projects Chips
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        alignment: WrapAlignment.end,
+                        children:
+                            newPreviousProjects
                                 .map(
-                                  (p) => DropdownMenuItem(
-                                    value: p['name'],
-                                    child: Align(
-                                      alignment: Alignment.centerRight,
-                                      child: Text(
-                                        p['name']!,
-                                        textDirection: TextDirection.rtl,
-                                        textAlign: TextAlign.right,
-                                      ),
-                                    ),
+                                  (link) => UnifiedChip(
+                                    label: link,
+                                    onDelete: () {
+                                      setState(() {
+                                        newPreviousProjects.remove(link);
+                                      });
+                                    },
                                   ),
                                 )
                                 .toList(),
-                        onChanged: (v) => newPurpose = v ?? '',
+                      ),
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.medium),
+                      ),
+
+                      // Purpose Dropdown
+                      UnifiedDropdownField<String>(
+                        hint: 'بتدور علي تيم ايه؟',
+                        value: newPurpose.isEmpty ? null : newPurpose,
+                        items: purposes.map((p) => p['name']!).toList(),
+                        itemToString: (item) => item,
+                        onChanged: (v) {
+                          setState(() {
+                            newPurpose = v ?? '';
+                          });
+                        },
                         validator:
                             (v) => v == null || v.isEmpty ? 'مطلوب' : null,
-                        isExpanded: true,
-                        alignment: Alignment.centerRight,
-                        borderRadius: BorderRadius.circular(
-                          Responsive.space(context, size: Space.large),
+                      ),
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.medium),
+                      ),
+
+                      // WhatsApp
+                      UnifiedFormField(
+                        hint: 'رقم واتساب',
+                        suffixIcon: Icon(Icons.phone, color: Colors.black),
+                        onChanged: (v) => newWhatsapp = v,
+                        validator:
+                            (v) => v == null || v.isEmpty ? 'مطلوب' : null,
+                        keyboardType: TextInputType.phone,
+                      ),
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.medium),
+                      ),
+
+                      // LinkedIn (optional)
+                      UnifiedFormField(
+                        hint: 'رابط لينكدإن (اختياري)',
+                        onChanged: (v) => newLinkedin = v,
+                        validator:
+                            (v) =>
+                                v != null &&
+                                        v.isNotEmpty &&
+                                        !v.startsWith('http')
+                                    ? 'رابط غير صحيح'
+                                    : null,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              confirmText: 'إضافة',
+              confirmIcon: Icons.person_add,
+              onConfirm: () async {
+                if (formKey.currentState!.validate()) {
+                  final user = currentUserProfile;
+                  if (user == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('يجب تسجيل الدخول أولاً'),
+                        backgroundColor: Colors.red,
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            Responsive.space(context, size: Space.large),
+                          ),
                         ),
                       ),
-                    ),
-                    SizedBox(height: Responsive.space(context)),
-                    // WhatsApp
-                    CustomTextField(
-                      hint: 'رقم واتساب',
-                      suffixIcon: Icon(Icons.phone),
-                      onChanged: (v) => newWhatsapp = v,
-                      validator: (v) => v == null || v.isEmpty ? 'مطلوب' : null,
-                      keyboardType: TextInputType.phone,
-                    ),
-                    SizedBox(height: Responsive.space(context)),
-                    // LinkedIn (optional)
-                    CustomTextField(
-                      hint: 'رابط لينكدإن (اختياري)',
-                      onChanged: (v) => newLinkedin = v,
-                      validator:
-                          (v) =>
-                              v != null && v.isNotEmpty && !v.startsWith('http')
-                                  ? 'رابط غير صحيح'
-                                  : null,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            actions: [
-              Center(
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(
-                        Responsive.space(context, size: Space.large),
-                      ),
-                    ),
-                    elevation: 0,
-                  ),
-                  onPressed: () async {
-                    if (formKey.currentState!.validate()) {
-                      final user = currentUserProfile;
-                      if (user == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('يجب تسجيل الدخول أولاً'),
-                            backgroundColor: Colors.black,
-                          ),
-                        );
-                        return;
-                      }
-                      try {
-                        final member = TeamMember(
-                          id: const Uuid().v4(),
-                          name: user.name,
-                          skills: newSkills,
-                          previousProjects: newPreviousProjects,
-                          purpose: newPurpose,
-                          whatsappNumber: newWhatsapp,
-                          linkedinProfile: newLinkedin,
-                          userId: user.id,
-                          createdAt: DateTime.now(),
-                          teamName: newTeamName,
-                        );
-                        await onAdd(member);
-                        if (context.mounted) Navigator.pop(context);
-                      } catch (e) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('حدث خطأ: $e'),
-                              backgroundColor: Colors.red,
+                    );
+                    return;
+                  }
+                  try {
+                    final member = TeamMember(
+                      id: const Uuid().v4(),
+                      name: user.name,
+                      skills: newSkills,
+                      previousProjects: newPreviousProjects,
+                      purpose: newPurpose,
+                      whatsappNumber: newWhatsapp,
+                      linkedinProfile: newLinkedin,
+                      userId: user.id,
+                      createdAt: DateTime.now(),
+                      teamName: newTeamName,
+                    );
+                    await onAdd(member);
+                    if (context.mounted) Navigator.pop(context);
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('حدث خطأ: $e'),
+                          backgroundColor: Colors.red,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              Responsive.space(context, size: Space.large),
                             ),
-                          );
-                        }
-                      }
+                          ),
+                        ),
+                      );
                     }
-                  },
-                  child: Text(
-                    'إضافة',
-                    style: TextStyle(
-                      fontSize: Responsive.text(context, size: TextSize.medium),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+                  }
+                }
+              },
+            );
+          },
         ),
   );
 }

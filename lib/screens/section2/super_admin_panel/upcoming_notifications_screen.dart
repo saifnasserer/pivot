@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:pivot/providers/scheduled_notification_provider.dart';
 import 'package:pivot/models/scheduled_notification.dart';
 import 'package:pivot/responsive.dart';
+import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:intl/intl.dart';
 import 'package:pivot/services/notification_trigger_service.dart';
 import 'package:pivot/services/notification_service.dart';
@@ -528,80 +529,99 @@ class _UpcomingNotificationsScreenState
     showDialog(
       context: context,
       builder:
-          (context) => AlertDialog(
-            title: Text('تفاصيل الإشعار'),
-            content: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _buildDetailRow('العنوان', notification.title),
-                  _buildDetailRow('المحتوى', notification.body),
-                  _buildDetailRow(
-                    'الوقت المجدول',
-                    DateFormat(
-                      'dd/MM/yyyy HH:mm',
-                    ).format(notification.scheduledTime),
+          (context) => UnifiedDialog(
+            title: 'تفاصيل الإشعار',
+            subtitle: 'معلومات تفصيلية عن الإشعار المجدول',
+            content: Column(
+              children: [
+                SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildDetailRow('العنوان', notification.title),
+                      _buildDetailRow('المحتوى', notification.body),
+                      _buildDetailRow(
+                        'الوقت المجدول',
+                        DateFormat(
+                          'dd/MM/yyyy HH:mm',
+                        ).format(notification.scheduledTime),
+                      ),
+                      _buildDetailRow('الحالة', notification.statusText),
+                      _buildDetailRow(
+                        'أنشئ بواسطة',
+                        notification.createdByName,
+                      ),
+                      _buildDetailRow(
+                        'تاريخ الإنشاء',
+                        DateFormat(
+                          'dd/MM/yyyy HH:mm',
+                        ).format(notification.createdAt),
+                      ),
+                      _buildDetailRow(
+                        'نوع الإرسال',
+                        notification.sendToAllUsers
+                            ? 'جميع المستخدمين'
+                            : 'مستخدمين محددين',
+                      ),
+                      if (!notification.sendToAllUsers)
+                        _buildDetailRow(
+                          'عدد المستهدفين',
+                          notification.targetUserIds.length.toString(),
+                        ),
+                      if (notification.sentCount != null)
+                        _buildDetailRow(
+                          'تم الإرسال',
+                          '${notification.sentCount}/${notification.totalCount}',
+                        ),
+                      if (notification.errorMessage != null)
+                        _buildDetailRow(
+                          'رسالة الخطأ',
+                          notification.errorMessage!,
+                        ),
+                      if (notification.sentAt != null)
+                        _buildDetailRow(
+                          'وقت الإرسال',
+                          DateFormat(
+                            'dd/MM/yyyy HH:mm',
+                          ).format(notification.sentAt!),
+                        ),
+                    ],
                   ),
-                  _buildDetailRow('الحالة', notification.statusText),
-                  _buildDetailRow('أنشئ بواسطة', notification.createdByName),
-                  _buildDetailRow(
-                    'تاريخ الإنشاء',
-                    DateFormat(
-                      'dd/MM/yyyy HH:mm',
-                    ).format(notification.createdAt),
-                  ),
-                  _buildDetailRow(
-                    'نوع الإرسال',
-                    notification.sendToAllUsers
-                        ? 'جميع المستخدمين'
-                        : 'مستخدمين محددين',
-                  ),
-                  if (!notification.sendToAllUsers)
-                    _buildDetailRow(
-                      'عدد المستهدفين',
-                      notification.targetUserIds.length.toString(),
-                    ),
-                  if (notification.sentCount != null)
-                    _buildDetailRow(
-                      'تم الإرسال',
-                      '${notification.sentCount}/${notification.totalCount}',
-                    ),
-                  if (notification.errorMessage != null)
-                    _buildDetailRow('رسالة الخطأ', notification.errorMessage!),
-                  if (notification.sentAt != null)
-                    _buildDetailRow(
-                      'وقت الإرسال',
-                      DateFormat(
-                        'dd/MM/yyyy HH:mm',
-                      ).format(notification.sentAt!),
-                    ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text('إغلاق'),
-              ),
-              if (notification.isPending) ...[
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    _sendNow(notification, provider);
-                  },
-                  child: Text('إرسال الآن'),
                 ),
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    _cancelNotification(notification, provider);
-                  },
-                  style: TextButton.styleFrom(foregroundColor: Colors.red),
-                  child: Text('إلغاء'),
+                SizedBox(height: Responsive.space(context, size: Space.medium)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: Text('إغلاق'),
+                    ),
+                    if (notification.isPending) ...[
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          _sendNow(notification, provider);
+                        },
+                        icon: Icon(Icons.send),
+                        label: Text('إرسال الآن'),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          _cancelNotification(notification, provider);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                        ),
+                        icon: Icon(Icons.cancel),
+                        label: Text('إلغاء'),
+                      ),
+                    ],
+                  ],
                 ),
               ],
-            ],
+            ),
           ),
     );
   }
@@ -641,19 +661,40 @@ class _UpcomingNotificationsScreenState
     final confirmed = await showDialog<bool>(
       context: context,
       builder:
-          (context) => AlertDialog(
-            title: Text('تأكيد الإرسال'),
-            content: Text('هل تريد إرسال هذا الإشعار الآن؟'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: Text('إلغاء'),
+          (context) => UnifiedDialog(
+            title: 'تأكيد الإرسال',
+            subtitle: 'إرسال الإشعار فوراً',
+            content: Container(
+              padding: Responsive.padding(context, size: Space.medium),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.send,
+                    color: Colors.blue,
+                    size: Responsive.text(context, size: TextSize.heading),
+                  ),
+                  SizedBox(
+                    width: Responsive.space(context, size: Space.medium),
+                  ),
+                  Expanded(
+                    child: Text(
+                      'هل تريد إرسال هذا الإشعار الآن؟ سيتم إرساله فوراً إلى جميع المستهدفين.',
+                      style: TextStyle(
+                        fontSize: Responsive.text(
+                          context,
+                          size: TextSize.medium,
+                        ),
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: Text('إرسال'),
-              ),
-            ],
+            ),
+            confirmText: 'إرسال الآن',
+            confirmIcon: Icons.send,
+            onConfirm: () => Navigator.of(context).pop(true),
+            onCancel: () => Navigator.of(context).pop(false),
           ),
     );
 
@@ -677,20 +718,40 @@ class _UpcomingNotificationsScreenState
     final confirmed = await showDialog<bool>(
       context: context,
       builder:
-          (context) => AlertDialog(
-            title: Text('تأكيد الإلغاء'),
-            content: Text('هل تريد إلغاء هذا الإشعار؟'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: Text('إلغاء'),
+          (context) => UnifiedDialog(
+            title: 'تأكيد الإلغاء',
+            subtitle: 'إلغاء الإشعار المجدول',
+            content: Container(
+              padding: Responsive.padding(context, size: Space.medium),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.cancel,
+                    color: Colors.red,
+                    size: Responsive.text(context, size: TextSize.heading),
+                  ),
+                  SizedBox(
+                    width: Responsive.space(context, size: Space.medium),
+                  ),
+                  Expanded(
+                    child: Text(
+                      'هل تريد إلغاء هذا الإشعار؟ لن يتم إرساله بعد الآن ولن يمكن استرجاعه.',
+                      style: TextStyle(
+                        fontSize: Responsive.text(
+                          context,
+                          size: TextSize.medium,
+                        ),
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                child: Text('إلغاء الإشعار'),
-              ),
-            ],
+            ),
+            confirmText: 'إلغاء الإشعار',
+            confirmIcon: Icons.cancel,
+            onConfirm: () => Navigator.of(context).pop(true),
+            onCancel: () => Navigator.of(context).pop(false),
           ),
     );
 

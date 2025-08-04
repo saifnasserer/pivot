@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:pivot/providers/schadule_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/models/schedule_item.dart';
-// import 'package:pivot/utils/responsive.dart';
+import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:provider/provider.dart';
-import '../models/custom_text_field.dart'; // Corrected import path
 
 class AddEditScheduleDialog extends StatefulWidget {
   final String day;
@@ -77,53 +76,117 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
     }
   }
 
+  Future<void> _selectTime() async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: Colors.black,
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() {
+        _time = picked.format(context);
+        _timeController.text = _time;
+      });
+    }
+  }
+
+  String _getTypeArabicName(ScheduleItemType type) {
+    switch (type) {
+      case ScheduleItemType.lecture:
+        return 'محاضرة';
+      case ScheduleItemType.section:
+        return 'سكشن';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(
-        widget.itemToEdit == null ? 'اضافة للجدول' : 'تعديل الجدول',
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: Responsive.text(context, size: TextSize.heading),
-        ),
-      ),
-      content: SingleChildScrollView(
-        child: Form(
-          key: _formKey,
+    return UnifiedDialog(
+      title: widget.itemToEdit == null ? 'اضافة للجدول' : 'تعديل الجدول',
+      subtitle:
+          widget.itemToEdit == null
+              ? 'أدخل بيانات الجدول الجديد'
+              : 'قم بتعديل بيانات الجدول',
+      content: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Text('سكشن'),
-                  Radio<ScheduleItemType>(
-                    value: ScheduleItemType.section,
-                    groupValue: _selectedType,
-                    onChanged: (ScheduleItemType? value) {
-                      setState(() {
-                        _selectedType = value!;
-                      });
-                    },
-                  ),
-                  SizedBox(width: Responsive.space(context)),
-                  Text('محاضرة'),
-                  Radio<ScheduleItemType>(
-                    value: ScheduleItemType.lecture,
-                    groupValue: _selectedType,
-                    onChanged: (ScheduleItemType? value) {
-                      setState(() {
-                        _selectedType = value!;
-                      });
-                    },
-                  ),
-                ],
-              ),
-              SizedBox(height: Responsive.space(context)),
+              // Type Selection
+              UnifiedSectionHeader(title: 'نوع المادة', icon: Icons.category),
 
-              CustomTextField(
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(
+                    Responsive.space(context, size: Space.large),
+                  ),
+                  border: Border.all(color: Colors.grey[300]!),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: RadioListTile<ScheduleItemType>(
+                        title: Text(
+                          'محاضرة',
+                          style: TextStyle(
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.medium,
+                            ),
+                          ),
+                        ),
+                        value: ScheduleItemType.lecture,
+                        groupValue: _selectedType,
+                        onChanged: (ScheduleItemType? value) {
+                          setState(() {
+                            _selectedType = value!;
+                          });
+                        },
+                        activeColor: Colors.black,
+                      ),
+                    ),
+                    Expanded(
+                      child: RadioListTile<ScheduleItemType>(
+                        title: Text(
+                          'سكشن',
+                          style: TextStyle(
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.medium,
+                            ),
+                          ),
+                        ),
+                        value: ScheduleItemType.section,
+                        groupValue: _selectedType,
+                        onChanged: (ScheduleItemType? value) {
+                          setState(() {
+                            _selectedType = value!;
+                          });
+                        },
+                        activeColor: Colors.black,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: Responsive.space(context, size: Space.medium)),
+
+              // Subject Name
+              UnifiedFormField(
                 hint: 'اسم المادة',
                 onChanged: (value) {
                   setState(() {
@@ -137,10 +200,11 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
                   return null;
                 },
               ),
-              SizedBox(height: Responsive.space(context)),
+              SizedBox(height: Responsive.space(context, size: Space.medium)),
 
-              CustomTextField(
-                hint: 'المكان ',
+              // Location
+              UnifiedFormField(
+                hint: 'المكان',
                 onChanged: (value) {
                   setState(() {
                     _location = value;
@@ -153,45 +217,76 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
                   return null;
                 },
               ),
-              SizedBox(height: Responsive.space(context)),
+              SizedBox(height: Responsive.space(context, size: Space.medium)),
 
-              TextFormField(
-                controller: _timeController,
-                readOnly: true,
-                decoration: const InputDecoration(
-                  hintText: 'الوقت',
-                  border: OutlineInputBorder(),
-                  suffixIcon: Icon(Icons.access_time),
+              // Time Selection
+              UnifiedSectionHeader(title: 'الوقت', icon: Icons.access_time),
+
+              InkWell(
+                onTap: _selectTime,
+                child: Container(
+                  padding: EdgeInsets.all(
+                    Responsive.space(context, size: Space.medium),
+                  ),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey[300]!),
+                    borderRadius: BorderRadius.circular(
+                      Responsive.space(context, size: Space.large),
+                    ),
+                    color: Color(0xFFF7F7F7),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.access_time,
+                        color: Colors.black,
+                        size: Responsive.space(context, size: Space.medium),
+                      ),
+                      SizedBox(
+                        width: Responsive.space(context, size: Space.small),
+                      ),
+                      Expanded(
+                        child: Text(
+                          _time.isEmpty ? 'اضغط لاختيار الوقت' : _time,
+                          style: TextStyle(
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.medium,
+                            ),
+                            fontWeight:
+                                _time.isNotEmpty
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                            color:
+                                _time.isNotEmpty
+                                    ? Colors.black87
+                                    : Colors.grey[600],
+                          ),
+                          textAlign: TextAlign.right,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                onTap: () async {
-                  final TimeOfDay? picked = await showTimePicker(
-                    context: context,
-                    initialTime: TimeOfDay.now(),
-                  );
-                  if (picked != null) {
-                    setState(() {
-                      _time = picked.format(context);
-                      _timeController.text = _time;
-                    });
-                  }
-                },
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'الرجاء إدخال الوقت';
-                  }
-                  return null;
-                },
               ),
-              SizedBox(height: Responsive.space(context)),
+              SizedBox(height: Responsive.space(context, size: Space.medium)),
 
-              // Notification toggle
+              // Notification Toggle
+              UnifiedSectionHeader(
+                title: 'الإشعارات',
+                icon: Icons.notifications,
+              ),
+
               Container(
                 padding: EdgeInsets.all(
-                  Responsive.space(context, size: Space.small),
+                  Responsive.space(context, size: Space.medium),
                 ),
                 decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey[300]!),
+                  borderRadius: BorderRadius.circular(
+                    Responsive.space(context, size: Space.large),
+                  ),
+                  color: Color(0xFFF7F7F7),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -204,9 +299,9 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
                               : Icons.notifications_off,
                           color:
                               _notificationEnabled
-                                  ? Colors.green.shade600
-                                  : Colors.grey.shade500,
-                          size: 20,
+                                  ? Colors.black
+                                  : Colors.grey[500],
+                          size: Responsive.space(context, size: Space.medium),
                         ),
                         SizedBox(
                           width: Responsive.space(context, size: Space.small),
@@ -219,6 +314,7 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
                               size: TextSize.medium,
                             ),
                             fontWeight: FontWeight.w500,
+                            color: Colors.black87,
                           ),
                         ),
                       ],
@@ -230,32 +326,18 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
                           _notificationEnabled = value;
                         });
                       },
-                      activeColor: Colors.green.shade600,
+                      activeColor: Colors.black,
                     ),
                   ],
                 ),
               ),
-              SizedBox(height: Responsive.space(context)),
             ],
           ),
         ),
       ),
-      actions: <Widget>[
-        TextButton(
-          child: const Text('الغاء'),
-          onPressed: () {
-            Navigator.of(context).pop();
-          },
-        ),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.black),
-          onPressed: _submitForm,
-          child: Text(
-            widget.itemToEdit == null ? 'اضافة' : 'حفظ التعديل',
-            style: TextStyle(color: Colors.white),
-          ),
-        ),
-      ],
+      confirmText: widget.itemToEdit == null ? 'اضافة' : 'حفظ التعديل',
+      confirmIcon: widget.itemToEdit == null ? Icons.add : Icons.save,
+      onConfirm: _submitForm,
     );
   }
 }

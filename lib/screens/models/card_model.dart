@@ -305,43 +305,30 @@ class _CardModelState extends State<CardModel> {
   }
 
   Widget _buildTitle() {
-    return Container(
-      decoration: BoxDecoration(
-        // color: Colors.black.withValues(alpha: 0.7),
-        borderRadius: BorderRadius.circular(
-          Responsive.space(context, size: Space.large),
-        ),
-        border: Border.all(color: Colors.black, width: 1),
-      ),
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: Responsive.space(context, size: Space.small),
-          vertical: Responsive.space(context, size: Space.small) / 2,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            if (_contentPages.length > 1)
-              Container(
-                margin: EdgeInsets.only(
-                  bottom: Responsive.space(context, size: Space.small),
-                ),
-                child: _buildUltraCompactPageIndicator(),
-              ),
-
-            AutoSizeText(
-              widget.title,
-              textAlign: TextAlign.right,
-              maxLines: 2,
-              minFontSize: Responsive.text(context, size: TextSize.small),
-              style: TextStyle(
-                fontSize: Responsive.text(context, size: TextSize.heading),
-                fontWeight: FontWeight.bold,
-              ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        // Page indicator (only if multiple pages)
+        if (_contentPages.length > 1)
+          Padding(
+            padding: EdgeInsets.only(
+              bottom: Responsive.space(context, size: Space.small),
             ),
-          ],
+            child: _buildUltraCompactPageIndicator(),
+          ),
+
+        // Title text
+        Text(
+          widget.title,
+          textAlign: TextAlign.right,
+          maxLines: 2,
+          style: TextStyle(
+            fontSize: Responsive.text(context, size: TextSize.heading),
+            fontWeight: FontWeight.w600,
+            color: Colors.black,
+          ),
         ),
-      ),
+      ],
     );
   }
 
@@ -543,47 +530,68 @@ class _CardModelState extends State<CardModel> {
     );
   }
 
-  // Alternative: Ultra-compact indicator (uncomment to use)
+  // Enhanced ultra-compact indicator with better styling
   Widget _buildUltraCompactPageIndicator() {
     if (_contentPages.length <= 1) return const SizedBox.shrink();
 
-    return Container(
-      margin: EdgeInsets.symmetric(
-        vertical: Responsive.space(context, size: Space.small) * 0.5,
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Page text (left side for RTL)
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // Enhanced dots with better visual feedback
+        ...List.generate(_contentPages.length, (index) {
+          final reversedIndex = _contentPages.length - 1 - index;
+          final isActive = _currentPage == reversedIndex;
 
-          // Dots only (right side for RTL) - reversed order
-          ...List.generate(_contentPages.length, (index) {
-            final reversedIndex = _contentPages.length - 1 - index;
-            return Container(
-              margin: EdgeInsets.symmetric(horizontal: 2),
-              width: _currentPage == reversedIndex ? 8 : 4,
-              height: 4,
-              decoration: BoxDecoration(
-                color:
-                    _currentPage == reversedIndex
-                        ? Colors.black
-                        : Colors.grey.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            );
-          }),
-          SizedBox(width: Responsive.space(context, size: Space.small)),
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            margin: EdgeInsets.symmetric(horizontal: 3),
+            width: isActive ? 12 : 6,
+            height: 6,
+            decoration: BoxDecoration(
+              color:
+                  isActive
+                      ? Colors.black.withOpacity(0.8)
+                      : Colors.grey.withOpacity(0.4),
+              borderRadius: BorderRadius.circular(3),
+              boxShadow:
+                  isActive
+                      ? [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          offset: const Offset(0, 1),
+                          blurRadius: 2,
+                        ),
+                      ]
+                      : null,
+            ),
+          );
+        }),
 
-          Text(
+        SizedBox(width: Responsive.space(context, size: Space.small)),
+
+        // Enhanced page counter
+        Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: Responsive.space(context, size: Space.tiny),
+            vertical: Responsive.space(context, size: Space.tiny) / 2,
+          ),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.8),
+            borderRadius: BorderRadius.circular(
+              Responsive.space(context, size: Space.tiny),
+            ),
+            border: Border.all(color: Colors.grey.withOpacity(0.3), width: 0.5),
+          ),
+          child: Text(
             '${_currentPage + 1}/${_contentPages.length}',
             style: TextStyle(
               fontSize: Responsive.text(context, size: TextSize.small) * 0.7,
-              fontWeight: FontWeight.w500,
-              color: Colors.black.withValues(alpha: 0.6),
+              fontWeight: FontWeight.w600,
+              color: Colors.black.withOpacity(0.7),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 

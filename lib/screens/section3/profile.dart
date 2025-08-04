@@ -6,6 +6,7 @@ import 'package:pivot/providers/subject_provider.dart';
 import 'package:pivot/providers/task_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
+import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:pivot/screens/section3/bookmarks_screen.dart';
 import 'package:pivot/screens/section3/profile_details.dart';
 import 'package:pivot/screens/section3/profile_widgets/week_tasks.dart';
@@ -151,66 +152,42 @@ class _ProfileState extends State<Profile>
       context: context,
       barrierDismissible: false,
       builder: (BuildContext dialogContext) {
-        return Directionality(
-          textDirection: TextDirection.rtl,
-          child: AlertDialog(
-            title: const Text('تسجيل الخروج؟', textAlign: TextAlign.center),
-            actions: <Widget>[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      borderRadius: BorderRadius.circular(
-                        Responsive.space(context, size: Space.large),
-                      ),
-                    ),
-                    child: TextButton(
-                      onPressed: () async {
-                        await FirebaseAuth.instance.signOut();
-                        if (!context.mounted) return;
-                        Navigator.of(context).pushNamedAndRemoveUntil(
-                          '/auth-wrapper',
-                          (Route<dynamic> route) => false,
-                        );
-                      },
-                      child: Text(
-                        'تأكيد',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: Responsive.text(
-                            context,
-                            size: TextSize.medium,
-                          ),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+        return UnifiedDialog(
+          title: 'تسجيل الخروج؟',
+          subtitle: 'هل أنت متأكد من رغبتك في تسجيل الخروج؟',
+          content: Container(
+            padding: Responsive.padding(context, size: Space.medium),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.logout,
+                  color: Colors.orange,
+                  size: Responsive.text(context, size: TextSize.heading),
+                ),
+                SizedBox(width: Responsive.space(context, size: Space.medium)),
+                Expanded(
+                  child: Text(
+                    'سيتم تسجيل خروجك من التطبيق وستحتاج إلى تسجيل الدخول مرة أخرى للوصول إلى ملفك الشخصي.',
+                    style: TextStyle(
+                      fontSize: Responsive.text(context, size: TextSize.medium),
+                      color: Colors.grey[700],
                     ),
                   ),
-                  SizedBox(
-                    width: Responsive.space(context, size: Space.medium),
-                  ),
-                  TextButton(
-                    child: Text(
-                      'إلغاء',
-                      style: TextStyle(
-                        color: Colors.black87,
-                        fontSize: Responsive.text(
-                          context,
-                          size: TextSize.medium,
-                        ),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                    },
-                  ),
-                ],
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
+          confirmText: 'تأكيد الخروج',
+          confirmIcon: Icons.logout,
+          onConfirm: () async {
+            await FirebaseAuth.instance.signOut();
+            if (!context.mounted) return;
+            Navigator.of(context).pushNamedAndRemoveUntil(
+              '/auth-wrapper',
+              (Route<dynamic> route) => false,
+            );
+          },
+          onCancel: () => Navigator.of(context).pop(),
         );
       },
     );
@@ -618,192 +595,150 @@ class _ProfileState extends State<Profile>
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (context, setState) {
-            return Directionality(
-              textDirection: TextDirection.rtl,
-              child: AlertDialog(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(
-                    Responsive.space(context, size: Space.large),
-                  ),
-                ),
-                title: Text(
-                  'إعدادات الإشعارات',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: Responsive.text(context, size: TextSize.heading),
-                    color: Colors.black,
-                  ),
-                ),
-                content: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      FutureBuilder<bool>(
-                        future: NotificationService().areNotificationsEnabled(),
-                        builder: (context, snapshot) {
-                          final hasPermission = snapshot.data ?? false;
-                          return Container(
-                            padding: EdgeInsets.all(
-                              Responsive.space(context, size: Space.small),
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade100,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.grey.shade200),
-                            ),
-                            child: Column(
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(
-                                      hasPermission
-                                          ? Icons.notifications_active
-                                          : Icons.notifications_off,
-                                      color:
-                                          hasPermission
-                                              ? Colors.green
-                                              : Colors.red,
+            return UnifiedDialog(
+              title: 'إعدادات الإشعارات',
+              subtitle: 'تخصيص إعدادات الإشعارات حسب احتياجاتك',
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    FutureBuilder<bool>(
+                      future: NotificationService().areNotificationsEnabled(),
+                      builder: (context, snapshot) {
+                        final hasPermission = snapshot.data ?? false;
+                        return Container(
+                          padding: EdgeInsets.all(
+                            Responsive.space(context, size: Space.small),
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.grey.shade200),
+                          ),
+                          child: Column(
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    hasPermission
+                                        ? Icons.notifications_active
+                                        : Icons.notifications_off,
+                                    color:
+                                        hasPermission
+                                            ? Colors.green
+                                            : Colors.red,
+                                  ),
+                                  SizedBox(
+                                    width: Responsive.space(
+                                      context,
+                                      size: Space.small,
                                     ),
-                                    SizedBox(
-                                      width: Responsive.space(
-                                        context,
-                                        size: Space.small,
+                                  ),
+                                  Expanded(
+                                    child: Text(
+                                      hasPermission
+                                          ? 'الإشعارات مفعلة'
+                                          : 'الإشعارات معطلة',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color:
+                                            hasPermission
+                                                ? Colors.green
+                                                : Colors.red,
                                       ),
                                     ),
-                                    Expanded(
+                                  ),
+                                  if (!hasPermission)
+                                    TextButton(
+                                      onPressed: () async {
+                                        final notificationService =
+                                            NotificationService();
+                                        final granted =
+                                            await notificationService
+                                                .requestPermissionsExplicitly();
+                                        if (!granted) {
+                                          // Show permission dialog
+                                        }
+                                        setState(() {});
+                                      },
                                       child: Text(
-                                        hasPermission
-                                            ? 'الإشعارات مفعلة'
-                                            : 'الإشعارات معطلة',
+                                        'تفعيل',
                                         style: TextStyle(
                                           fontWeight: FontWeight.bold,
-                                          color:
-                                              hasPermission
-                                                  ? Colors.green
-                                                  : Colors.red,
+                                          color: Colors.black,
                                         ),
                                       ),
                                     ),
-                                    if (!hasPermission)
-                                      TextButton(
-                                        onPressed: () async {
-                                          final notificationService =
-                                              NotificationService();
-                                          final granted =
-                                              await notificationService
-                                                  .requestPermissionsExplicitly();
-                                          if (!granted) {
-                                            // Show permission dialog
-                                          }
-                                          setState(() {});
-                                        },
-                                        child: Text(
-                                          'تفعيل',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.black,
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                      SizedBox(
-                        height: Responsive.space(context, size: Space.medium),
-                      ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.medium),
+                    ),
 
-                      // Notification switches
-                      SwitchListTile(
-                        title: Text('إشعارات المحاضرات'),
-                        subtitle: Text('تنبيهات بمواعيد المحاضرات'),
-                        value: prefs['classNotifications']!,
-                        onChanged:
-                            (value) => setState(
-                              () => prefs['classNotifications'] = value,
-                            ),
-                        activeColor: Colors.green,
-                      ),
-                      SwitchListTile(
-                        title: Text('إشعارات المهام'),
-                        subtitle: Text('تنبيهات بمواعيد تسليم المهام'),
-                        value: prefs['taskNotifications']!,
-                        onChanged:
-                            (value) => setState(
-                              () => prefs['taskNotifications'] = value,
-                            ),
-                        activeColor: Colors.green,
-                      ),
-                      SwitchListTile(
-                        title: Text('إشعارات الإعلانات'),
-                        subtitle: Text('تنبيهات بالإعلانات الجديدة'),
-                        value: prefs['announcementNotifications']!,
-                        onChanged:
-                            (value) => setState(
-                              () => prefs['announcementNotifications'] = value,
-                            ),
-                        activeColor: Colors.green,
-                      ),
-                    ],
-                  ),
+                    // Notification switches
+                    SwitchListTile(
+                      title: Text('إشعارات المحاضرات'),
+                      subtitle: Text('تنبيهات بمواعيد المحاضرات'),
+                      value: prefs['classNotifications']!,
+                      onChanged:
+                          (value) => setState(
+                            () => prefs['classNotifications'] = value,
+                          ),
+                      activeColor: Colors.green,
+                    ),
+                    SwitchListTile(
+                      title: Text('إشعارات المهام'),
+                      subtitle: Text('تنبيهات بمواعيد تسليم المهام'),
+                      value: prefs['taskNotifications']!,
+                      onChanged:
+                          (value) => setState(
+                            () => prefs['taskNotifications'] = value,
+                          ),
+                      activeColor: Colors.green,
+                    ),
+                    SwitchListTile(
+                      title: Text('إشعارات الإعلانات'),
+                      subtitle: Text('تنبيهات بالإعلانات الجديدة'),
+                      value: prefs['announcementNotifications']!,
+                      onChanged:
+                          (value) => setState(
+                            () => prefs['announcementNotifications'] = value,
+                          ),
+                      activeColor: Colors.green,
+                    ),
+                  ],
                 ),
-                actionsAlignment: MainAxisAlignment.center,
-                actions: [
-                  ElevatedButton(
-                    onPressed: () async {
-                      await _saveNotificationPreferences(
-                        classNotifications: prefs['classNotifications']!,
-                        taskNotifications: prefs['taskNotifications']!,
-                        announcementNotifications:
-                            prefs['announcementNotifications']!,
-                      );
-                      Navigator.of(context).pop();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('تم حفظ إعدادات الإشعارات'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(
-                          Responsive.space(context, size: Space.large),
-                        ),
-                      ),
-                      padding: EdgeInsets.symmetric(
-                        vertical: Responsive.space(context, size: Space.small),
-                      ),
-                      textStyle: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: Responsive.text(
-                          context,
-                          size: TextSize.medium,
-                        ),
-                      ),
-                    ),
-                    child: Text('حفظ'),
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: Text(
-                      'إلغاء',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                    ),
-                  ),
-                ],
               ),
+              confirmText: 'حفظ',
+              confirmIcon: Icons.save,
+              onConfirm: () async {
+                await _saveNotificationPreferences(
+                  classNotifications: prefs['classNotifications']!,
+                  taskNotifications: prefs['taskNotifications']!,
+                  announcementNotifications:
+                      prefs['announcementNotifications']!,
+                );
+                Navigator.of(context).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('تم حفظ إعدادات الإشعارات'),
+                    backgroundColor: Colors.green,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(
+                        Responsive.space(context, size: Space.large),
+                      ),
+                    ),
+                  ),
+                );
+              },
+              onCancel: () => Navigator.of(context).pop(),
             );
           },
         );

@@ -1,5 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:pivot/responsive.dart';
+import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:pivot/screens/section1/login/login.dart';
 
 class SessionManagementService {
@@ -83,48 +85,55 @@ class SessionManagementService {
           context: context,
           barrierDismissible: false,
           builder: (BuildContext context) {
-            return AlertDialog(
-              title: const Text(
-                'انتهت صلاحية الجلسة',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: 'NotoSansArabic',
-                  fontWeight: FontWeight.bold,
+            return UnifiedDialog(
+              title: 'انتهت صلاحية الجلسة',
+              subtitle: 'يجب إعادة تسجيل الدخول للمتابعة',
+              content: Container(
+                padding: EdgeInsets.all(
+                  Responsive.space(context, size: Space.medium),
                 ),
-              ),
-              content: Text(
-                message,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontFamily: 'NotoSansArabic'),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop(false); // Cancel operation
-                  },
-                  child: const Text(
-                    'إلغاء',
-                    style: TextStyle(
-                      fontFamily: 'NotoSansArabic',
-                      color: Colors.grey,
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(
+                    Responsive.space(context, size: Space.large),
+                  ),
+                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Icon(
+                      Icons.warning_amber_rounded,
+                      color: Colors.orange,
+                      size: Responsive.space(context, size: Space.large),
                     ),
-                  ),
+                    SizedBox(
+                      width: Responsive.space(context, size: Space.medium),
+                    ),
+                    Expanded(
+                      child: Text(
+                        message,
+                        style: TextStyle(
+                          fontSize: Responsive.text(
+                            context,
+                            size: TextSize.medium,
+                          ),
+                          color: Colors.black87,
+                          height: 1.5,
+                        ),
+                        textAlign: TextAlign.right,
+                      ),
+                    ),
+                  ],
                 ),
-                ElevatedButton(
-                  onPressed: () async {
-                    Navigator.of(context).pop(true); // Proceed to login
-                    await _navigateToLogin(context);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: const Text(
-                    'تسجيل الدخول',
-                    style: TextStyle(fontFamily: 'NotoSansArabic'),
-                  ),
-                ),
-              ],
+              ),
+              confirmText: 'تسجيل الدخول',
+              confirmIcon: Icons.login,
+              onConfirm: () async {
+                Navigator.of(context).pop(true);
+                await _navigateToLogin(context);
+              },
+              onCancel: () => Navigator.of(context).pop(false),
             );
           },
         ) ??

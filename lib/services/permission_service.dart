@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:pivot/responsive.dart';
+import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:permission_handler/permission_handler.dart'
     as permission_handler;
 
@@ -140,94 +141,102 @@ class PermissionService {
     await showDialog(
       context: context,
       builder:
-          (ctx) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(
-                Responsive.space(context, size: Space.large),
-              ),
-            ),
-            backgroundColor: Theme.of(context).cardColor,
-            title: Center(
-              child: Text(
-                'الصلاحية مطلوبة',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: Responsive.text(context, size: TextSize.medium),
-                  color: Colors.black87,
+          (ctx) => UnifiedDialog(
+            title: 'الصلاحية مطلوبة',
+            subtitle: 'يجب منح الصلاحية للاستمرار',
+            content: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                // Warning icon
+                Container(
+                  padding: EdgeInsets.all(
+                    Responsive.space(context, size: Space.medium),
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(
+                      Responsive.space(context, size: Space.large),
+                    ),
+                    border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Icon(
+                        Icons.warning_amber_rounded,
+                        color: Colors.orange,
+                        size: Responsive.space(context, size: Space.large),
+                      ),
+                      SizedBox(
+                        width: Responsive.space(context, size: Space.medium),
+                      ),
+                      Expanded(
+                        child: Text(
+                          message,
+                          style: TextStyle(
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.medium,
+                            ),
+                            color: Colors.black87,
+                            height: 1.5,
+                          ),
+                          textAlign: TextAlign.right,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-            content: Directionality(
-              textDirection: TextDirection.rtl,
-              child: Text(
-                message,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: Responsive.text(context, size: TextSize.medium),
-                  color: Colors.black87,
+                SizedBox(height: Responsive.space(context, size: Space.medium)),
+                // Instructions
+                Container(
+                  padding: EdgeInsets.all(
+                    Responsive.space(context, size: Space.medium),
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(
+                      Responsive.space(context, size: Space.large),
+                    ),
+                    border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        color: Colors.blue,
+                        size: Responsive.space(context, size: Space.medium),
+                      ),
+                      SizedBox(
+                        width: Responsive.space(context, size: Space.medium),
+                      ),
+                      Expanded(
+                        child: Text(
+                          'اضغط على "فتح الإعدادات" للانتقال إلى إعدادات التطبيق ومنح الصلاحية المطلوبة',
+                          style: TextStyle(
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.small,
+                            ),
+                            color: Colors.black87,
+                            height: 1.5,
+                          ),
+                          textAlign: TextAlign.right,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+              ],
             ),
-            actionsAlignment: MainAxisAlignment.center,
-            actions: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  ElevatedButton(
-                    onPressed: () => Navigator.of(ctx).pop(),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.grey.shade200,
-                      foregroundColor: Colors.black,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(
-                          Responsive.space(context, size: Space.large),
-                        ),
-                      ),
-                      padding: EdgeInsets.symmetric(
-                        horizontal: Responsive.space(
-                          context,
-                          size: Space.medium,
-                        ),
-                        vertical: Responsive.space(context, size: Space.small),
-                      ),
-                    ),
-                    child: const Text('إلغاء', textAlign: TextAlign.center),
-                  ),
-                  SizedBox(
-                    width: Responsive.space(context, size: Space.medium),
-                  ),
-                  ElevatedButton(
-                    onPressed: () {
-                      permission_handler.openAppSettings();
-                      Navigator.of(ctx).pop();
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green.shade700,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(
-                          Responsive.space(context, size: Space.large),
-                        ),
-                      ),
-                      padding: EdgeInsets.symmetric(
-                        horizontal: Responsive.space(
-                          context,
-                          size: Space.medium,
-                        ),
-                        vertical: Responsive.space(context, size: Space.small),
-                      ),
-                    ),
-                    child: const Text(
-                      'فتح الإعدادات',
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+            confirmText: 'فتح الإعدادات',
+            confirmIcon: Icons.settings,
+            onConfirm: () {
+              permission_handler.openAppSettings();
+              Navigator.of(ctx).pop();
+            },
+            onCancel: () => Navigator.of(ctx).pop(),
           ),
     );
   }

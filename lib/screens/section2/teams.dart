@@ -3,6 +3,7 @@ import 'package:pivot/data/form_options.dart';
 import 'package:pivot/providers/teams_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
+import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:pivot/screens/section2/team_formation_screen.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:provider/provider.dart';
@@ -363,94 +364,42 @@ class _TeamsScreenState extends State<TeamsScreen> {
                     context: context,
                     builder:
                         (context) => StatefulBuilder(
-                          builder:
-                              (context, setState) => Directionality(
-                                textDirection: TextDirection.rtl,
-                                child: AlertDialog(
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(
-                                      Responsive.space(
-                                        context,
-                                        size: Space.large,
+                          builder: (context, setState) {
+                            return UnifiedDialog(
+                              title: 'إضافة فريق جديد',
+                              subtitle: 'أدخل معلومات الفريق',
+                              content: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  TextField(
+                                    controller: controller,
+                                    decoration: InputDecoration(
+                                      hintText: 'اسم الفريق',
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.all(
+                                          Radius.circular(
+                                            Responsive.space(
+                                              context,
+                                              size: Space.large,
+                                            ),
+                                          ),
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  title: const Text(
-                                    'إضافة فريق جديد',
                                     textDirection: TextDirection.rtl,
                                     textAlign: TextAlign.right,
                                   ),
-                                  content: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    children: [
-                                      TextField(
-                                        controller: controller,
-                                        decoration: InputDecoration(
-                                          hintText: 'اسم الفريق',
-                                          border: OutlineInputBorder(
-                                            borderRadius: BorderRadius.all(
-                                              Radius.circular(
-                                                Responsive.space(
-                                                  context,
-                                                  size: Space.large,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                        textDirection: TextDirection.rtl,
-                                        textAlign: TextAlign.right,
-                                      ),
-                                      SizedBox(
-                                        height: Responsive.space(
-                                          context,
-                                          size: Space.large,
-                                        ),
-                                      ),
-                                      DropdownButtonFormField<String>(
-                                        decoration: InputDecoration(
-                                          hintText: 'اختر الفرقة',
-                                          border: OutlineInputBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              Responsive.space(
-                                                context,
-                                                size: Space.large,
-                                              ),
-                                            ),
-                                          ),
-                                          contentPadding: EdgeInsets.symmetric(
-                                            horizontal: Responsive.space(
-                                              context,
-                                              size: Space.large,
-                                            ),
-                                            vertical: Responsive.space(
-                                              context,
-                                              size: Space.large,
-                                            ),
-                                          ),
-                                        ),
-                                        value: selectedYear,
-                                        items:
-                                            years
-                                                .map(
-                                                  (y) => DropdownMenuItem(
-                                                    value: y,
-                                                    child: Align(
-                                                      alignment:
-                                                          Alignment.centerRight,
-                                                      child: Text(y),
-                                                    ),
-                                                  ),
-                                                )
-                                                .toList(),
-                                        onChanged:
-                                            (v) => setState(
-                                              () => selectedYear = v,
-                                            ),
-                                        isExpanded: true,
-                                        alignment: Alignment.centerRight,
+                                  SizedBox(
+                                    height: Responsive.space(
+                                      context,
+                                      size: Space.large,
+                                    ),
+                                  ),
+                                  DropdownButtonFormField<String>(
+                                    decoration: InputDecoration(
+                                      hintText: 'اختر الفرقة',
+                                      border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(
                                           Responsive.space(
                                             context,
@@ -458,47 +407,82 @@ class _TeamsScreenState extends State<TeamsScreen> {
                                           ),
                                         ),
                                       ),
-                                    ],
-                                  ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed:
-                                          () => Navigator.of(context).pop(),
-                                      child: const Text('إلغاء'),
-                                    ),
-                                    ElevatedButton(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.black,
-                                        foregroundColor: Colors.white,
+                                      contentPadding: EdgeInsets.symmetric(
+                                        horizontal: Responsive.space(
+                                          context,
+                                          size: Space.large,
+                                        ),
+                                        vertical: Responsive.space(
+                                          context,
+                                          size: Space.large,
+                                        ),
                                       ),
-                                      onPressed: () async {
-                                        final name = controller.text.trim();
-                                        if (name.isNotEmpty &&
-                                            selectedYear != null) {
-                                          try {
-                                            await context
-                                                .read<TeamsProvider>()
-                                                .addTeam(name, selectedYear!);
-                                            if (!context.mounted) return;
-                                            Navigator.pop(context);
-                                          } catch (e) {
-                                            if (!context.mounted) return;
-                                            ScaffoldMessenger.of(
-                                              context,
-                                            ).showSnackBar(
-                                              SnackBar(
-                                                content: Text(e.toString()),
-                                                backgroundColor: Colors.red,
-                                              ),
-                                            );
-                                          }
-                                        }
-                                      },
-                                      child: const Text('إضافة'),
                                     ),
-                                  ],
-                                ),
+                                    value: selectedYear,
+                                    items:
+                                        years
+                                            .map(
+                                              (y) => DropdownMenuItem(
+                                                value: y,
+                                                child: Align(
+                                                  alignment:
+                                                      Alignment.centerRight,
+                                                  child: Text(y),
+                                                ),
+                                              ),
+                                            )
+                                            .toList(),
+                                    onChanged:
+                                        (v) => setState(() => selectedYear = v),
+                                    isExpanded: true,
+                                    alignment: Alignment.centerRight,
+                                    borderRadius: BorderRadius.circular(
+                                      Responsive.space(
+                                        context,
+                                        size: Space.large,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.of(context).pop(),
+                                  child: const Text('إلغاء'),
+                                ),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.black,
+                                    foregroundColor: Colors.white,
+                                  ),
+                                  onPressed: () async {
+                                    final name = controller.text.trim();
+                                    if (name.isNotEmpty &&
+                                        selectedYear != null) {
+                                      try {
+                                        await context
+                                            .read<TeamsProvider>()
+                                            .addTeam(name, selectedYear!);
+                                        if (!context.mounted) return;
+                                        Navigator.pop(context);
+                                      } catch (e) {
+                                        if (!context.mounted) return;
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(e.toString()),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  },
+                                  child: const Text('إضافة'),
+                                ),
+                              ],
+                            );
+                          },
                         ),
                   );
                 },

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/responsive.dart';
+import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:pivot/screens/models/custom_text_field.dart';
 
 Future<Subject?> showAddEditSubjectDialog(
@@ -137,20 +138,16 @@ class _AddEditSubjectDialogState extends State<AddEditSubjectDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(
-        _isEditing ? 'تعديل المادة' : 'إضافة مادة',
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: Responsive.text(context, size: TextSize.heading),
-        ),
-      ),
+    return UnifiedDialog(
+      title: _isEditing ? 'تعديل المادة' : 'إضافة مادة',
+      subtitle:
+          _isEditing ? 'تعديل معلومات المادة' : 'أدخل معلومات المادة الجديدة',
       content: Form(
         key: _formKey,
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               CustomTextField(
                 controller: _nameController,
@@ -162,7 +159,7 @@ class _AddEditSubjectDialogState extends State<AddEditSubjectDialog> {
                   return null;
                 },
               ),
-              SizedBox(height: Responsive.space(context)),
+              SizedBox(height: Responsive.space(context, size: Space.medium)),
               CustomTextField(
                 controller: _hoursController,
                 hint: 'عدد الساعات',
@@ -177,7 +174,7 @@ class _AddEditSubjectDialogState extends State<AddEditSubjectDialog> {
                   return null;
                 },
               ),
-              SizedBox(height: Responsive.space(context)),
+              SizedBox(height: Responsive.space(context, size: Space.medium)),
               CustomTextField(
                 controller: _englishNameController,
                 hint: 'Subject Name (English)',
@@ -188,7 +185,7 @@ class _AddEditSubjectDialogState extends State<AddEditSubjectDialog> {
                   return null;
                 },
               ),
-              SizedBox(height: Responsive.space(context)),
+              SizedBox(height: Responsive.space(context, size: Space.medium)),
               GestureDetector(
                 onTap: () async {
                   final result = await showDialog<List<String>>(
@@ -199,8 +196,9 @@ class _AddEditSubjectDialogState extends State<AddEditSubjectDialog> {
                       );
                       return StatefulBuilder(
                         builder: (context, setState) {
-                          return AlertDialog(
-                            title: const Text('اختر الأقسام'),
+                          return UnifiedDialog(
+                            title: 'اختر الأقسام',
+                            subtitle: 'حدد الأقسام المرتبطة بالمادة',
                             content: SizedBox(
                               width: double.maxFinite,
                               child: ListView(
@@ -223,21 +221,15 @@ class _AddEditSubjectDialogState extends State<AddEditSubjectDialog> {
                                     }).toList(),
                               ),
                             ),
-                            actions: [
-                              TextButton(
-                                onPressed:
-                                    () => Navigator.pop(
-                                      context,
-                                      _selectedDepartments,
-                                    ),
-                                child: const Text('إلغاء'),
-                              ),
-                              ElevatedButton(
-                                onPressed:
-                                    () => Navigator.pop(context, tempSelected),
-                                child: const Text('تم'),
-                              ),
-                            ],
+                            confirmText: 'تم',
+                            confirmIcon: Icons.check,
+                            onConfirm:
+                                () => Navigator.pop(context, tempSelected),
+                            onCancel:
+                                () => Navigator.pop(
+                                  context,
+                                  _selectedDepartments,
+                                ),
                           );
                         },
                       );
@@ -275,17 +267,13 @@ class _AddEditSubjectDialogState extends State<AddEditSubjectDialog> {
                   ),
                 ),
               ),
-              SizedBox(height: Responsive.space(context)),
-              DropdownButtonFormField<int>(
+              SizedBox(height: Responsive.space(context, size: Space.medium)),
+              UnifiedDropdownField<int>(
                 value: _selectedYear,
-                hint: const Text('الفصل الدراسي'),
-                items:
-                    _years.map((int year) {
-                      return DropdownMenuItem<int>(
-                        value: year,
-                        child: Text('الفصل الدراسي $year'),
-                      );
-                    }).toList(),
+                items: _years,
+                itemToString: (year) => 'الفصل الدراسي $year',
+                hint: 'اختر الفصل الدراسي',
+                label: 'الفصل الدراسي',
                 onChanged: (int? newValue) {
                   if (newValue != null) {
                     setState(() {
@@ -293,7 +281,6 @@ class _AddEditSubjectDialogState extends State<AddEditSubjectDialog> {
                     });
                   }
                 },
-                decoration: _getInputDecoration('الفصل الدراسي'),
                 validator:
                     (value) => value == null ? 'الرجاء اختيار فصل دراسي' : null,
               ),
@@ -301,17 +288,10 @@ class _AddEditSubjectDialogState extends State<AddEditSubjectDialog> {
           ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('إلغاء'),
-        ),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.black),
-          onPressed: _onSave,
-          child: const Text('حفظ', style: TextStyle(color: Colors.white)),
-        ),
-      ],
+      confirmText: 'حفظ',
+      confirmIcon: Icons.save,
+      onConfirm: _onSave,
+      onCancel: () => Navigator.of(context).pop(),
     );
   }
 }

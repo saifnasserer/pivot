@@ -6,6 +6,7 @@ import 'package:pivot/providers/section_provider.dart';
 import 'package:pivot/providers/subject_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
+import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:provider/provider.dart';
 
 /// Enhanced sections builder with better structure and animations
@@ -23,7 +24,7 @@ class SectionsBuilder {
       return [_buildLoadingState(context)];
     }
 
-    final userProfile = userProfileProvider.userProfile;
+    final loggedInUser = userProfileProvider.loggedInUserProfile;
     final allSections = sectionProvider.sections;
     final enrolledSubjects = subjectProvider.filteredSubjects;
 
@@ -59,18 +60,54 @@ class SectionsBuilder {
         ),
       ];
     }
-    if (userProfile == null) {
+    if (loggedInUser == null) {
       return [_buildErrorState(context)];
     }
 
-    final userSectionName = userProfile.section;
-    final enrolledSubjectIds = enrolledSubjects.map((s) => s.id).toSet();
+    final userSectionName = loggedInUser.section;
+    final enrolledSubjectIds = loggedInUser.enrolledSubjects.toSet();
+    final assistantPreferences = loggedInUser.assistantPreferences;
 
-    final relevantSections =
-        allSections.where((section) {
-          return enrolledSubjectIds.contains(section.subjectId) &&
-              section.name.contains(userSectionName);
-        }).toList();
+    // Get sections based on default instructors (one per subject)
+    final relevantSections = <Section>[];
+
+    for (final subjectId in enrolledSubjectIds) {
+      // Get the subject object
+      final subject =
+          enrolledSubjects.where((s) => s.id == subjectId).firstOrNull;
+      if (subject == null) continue;
+      // Get instructors for this subject
+      final instructors =
+          subjectProvider.instructorsBySubject[subject.id]
+              ?.where((prof) => prof.role == 'miniProfessor')
+              .toList() ??
+          [];
+
+      if (instructors.isEmpty) continue;
+
+      // Get the default instructor (selected preference or first instructor)
+      String? defaultAssistantId = assistantPreferences[subject.id];
+      if (defaultAssistantId == null && instructors.length == 1) {
+        // Auto-select if only one instructor
+        defaultAssistantId = instructors.first.id;
+      } else if (defaultAssistantId == null) {
+        // Multiple instructors but none selected - skip this subject
+        continue;
+      }
+
+      // Find the user's specific section for this subject and default instructor
+      final userSectionWithDefaultInstructor =
+          allSections.where((section) {
+            return section.subjectId == subject.id &&
+                section.assistantId == defaultAssistantId &&
+                section.name.contains(userSectionName);
+          }).firstOrNull;
+
+      // Add the user's section with default instructor if found
+      if (userSectionWithDefaultInstructor != null) {
+        relevantSections.add(userSectionWithDefaultInstructor);
+      }
+    }
 
     if (relevantSections.isEmpty) {
       return [_buildEmptyState(context)];
@@ -347,17 +384,12 @@ class _EnhancedSectionListItemState extends State<EnhancedSectionListItem>
                               children: [
                                 _buildInfoChip(
                                   context,
-                                  widget.section.name,
-                                  Colors.blue,
-                                ),
-                                _buildInfoChip(
-                                  context,
                                   widget.section.location,
                                   Colors.green,
                                 ),
                                 _buildInfoChip(
                                   context,
-                                  widget.section.days,
+                                  '${widget.section.days} - ${widget.section.time}',
                                   Colors.orange,
                                 ),
                               ],
@@ -460,53 +492,67 @@ class _EnhancedSectionListItemState extends State<EnhancedSectionListItem>
       context: context,
       barrierDismissible: false,
       builder:
-          (context) => _AssistantSelectionDialog(
-            subject: subject,
-            section: section,
-            assistants: assistants,
-            selectedAssistantId: null, // Dialog will read from provider
-            onAssistantSelected: (assistantId) async {
-              try {
-                // Get the current logged-in user profile
-                final loggedInUser = userProfileProvider.loggedInUserProfile;
-                if (loggedInUser == null) {
-                  throw Exception('No logged-in user found');
-                }
+          (context) => Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(
+                Responsive.space(context, size: Space.large),
+              ),
+            ),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.8,
+                maxWidth: MediaQuery.of(context).size.width * 0.9,
+              ),
+              child: _AssistantSelectionDialog(
+                subject: subject,
+                section: section,
+                assistants: assistants,
+                selectedAssistantId: null, // Dialog will read from provider
+                onAssistantSelected: (assistantId) async {
+                  try {
+                    // Get the current logged-in user profile
+                    final loggedInUser =
+                        userProfileProvider.loggedInUserProfile;
+                    if (loggedInUser == null) {
+                      throw Exception('No logged-in user found');
+                    }
 
-                print(
-                  'Saving assistant preference: ${subject.id} -> $assistantId',
-                );
-                print(
-                  'Current preferences: ${loggedInUser.assistantPreferences}',
-                );
+                    print(
+                      'Saving assistant preference: ${subject.id} -> $assistantId',
+                    );
+                    print(
+                      'Current preferences: ${loggedInUser.assistantPreferences}',
+                    );
 
-                await userProfileProvider.updateAssistantPreferences({
-                  ...loggedInUser.assistantPreferences,
-                  subject.id: assistantId,
-                });
-                // Show success message
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('تم حفظ اختيار المعيد بنجاح'),
-                    backgroundColor: Colors.green,
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-                // Close the dialog after successful update
-                Navigator.of(context).pop();
-              } catch (e) {
-                print('Failed to update assistant preference: $e');
-                // Show error message to user
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('فشل في حفظ اختيار المعيد'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-                // Re-throw to let the dialog handle the error state
-                rethrow;
-              }
-            },
+                    await userProfileProvider.updateAssistantPreferences({
+                      ...loggedInUser.assistantPreferences,
+                      subject.id: assistantId,
+                    });
+                    // Show success message
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('تم حفظ اختيار المعيد بنجاح'),
+                        backgroundColor: Colors.green,
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                    // Close the dialog after successful update
+                    Navigator.of(context).pop();
+                  } catch (e) {
+                    print('Failed to update assistant preference: $e');
+                    // Show error message to user
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('فشل في حفظ اختيار المعيد'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    // Re-throw to let the dialog handle the error state
+                    rethrow;
+                  }
+                },
+              ),
+            ),
           ),
     );
   }
@@ -821,52 +867,94 @@ class _AssistantSelectionDialogState extends State<_AssistantSelectionDialog> {
   }
 
   void _toggleEditMode() {
-    setState(() {
-      _isEditMode = !_isEditMode;
-    });
+    if (mounted) {
+      setState(() {
+        _isEditMode = !_isEditMode;
+      });
+    }
   }
 
   void _onAssistantSelected(String assistantId) {
-    setState(() {
-      _selectedAssistantId = assistantId;
-    });
+    if (mounted) {
+      setState(() {
+        _selectedAssistantId = assistantId;
+      });
+    }
     // Don't save immediately, just update local state
     // The save will happen when the user clicks the save button
   }
 
   @override
   Widget build(BuildContext context) {
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(
-            Responsive.space(context, size: Space.large),
-          ),
-        ),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.8,
-            maxWidth: MediaQuery.of(context).size.width * 0.9,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Header
+        Container(
+          padding: Responsive.padding(context, size: Space.medium),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(
+                Responsive.space(context, size: Space.large),
+              ),
+              topRight: Radius.circular(
+                Responsive.space(context, size: Space.large),
+              ),
+            ),
+            border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
           ),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              // Header
-              Container(
-                padding: Responsive.padding(context, size: Space.large),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(
-                      Responsive.space(context, size: Space.large),
-                    ),
-                    topRight: Radius.circular(
-                      Responsive.space(context, size: Space.large),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: Icon(Icons.close, color: Colors.grey.shade600),
+                  ),
+                  Expanded(
+                    child: Text(
+                      widget.subject.name,
+                      style: TextStyle(
+                        fontSize: Responsive.text(
+                          context,
+                          size: TextSize.heading,
+                        ),
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                      textAlign: TextAlign.center,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  SizedBox(width: 48), // Balance the close button
+                ],
+              ),
+              SizedBox(height: Responsive.space(context, size: Space.small)),
+              Text(
+                'اختيار المعيد الافتراضي',
+                style: TextStyle(
+                  fontSize: Responsive.text(context, size: TextSize.medium),
+                  color: Colors.grey.shade600,
                 ),
-                child: Row(
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+
+        // Scrollable content
+        Expanded(
+          child: SingleChildScrollView(
+            padding: Responsive.padding(context, size: Space.medium),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                // Subject icon and basic info
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     Container(
                       padding: EdgeInsets.all(
@@ -875,10 +963,14 @@ class _AssistantSelectionDialogState extends State<_AssistantSelectionDialog> {
                       decoration: BoxDecoration(
                         color: Colors.black.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(
-                          Responsive.space(context, size: Space.small),
+                          Responsive.space(context, size: Space.large),
                         ),
                       ),
-                      child: Icon(Icons.class_, color: Colors.black),
+                      child: Icon(
+                        Icons.class_,
+                        color: Colors.black,
+                        size: Responsive.space(context, size: Space.medium),
+                      ),
                     ),
                     SizedBox(
                       width: Responsive.space(context, size: Space.medium),
@@ -894,134 +986,166 @@ class _AssistantSelectionDialogState extends State<_AssistantSelectionDialog> {
                           fontWeight: FontWeight.bold,
                           color: Colors.black87,
                         ),
+                        textAlign: TextAlign.right,
                       ),
                     ),
                   ],
                 ),
-              ),
 
-              // Scrollable Content
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: Responsive.padding(context, size: Space.large),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildEnhancedDetailSection(context, widget.section),
-                      if (widget.assistants.isNotEmpty) ...[
-                        SizedBox(
-                          height: Responsive.space(context, size: Space.large),
-                        ),
-                        _buildAssistantsSection(
+                SizedBox(height: Responsive.space(context, size: Space.medium)),
+                Divider(thickness: 1, color: Colors.grey[200]),
+                SizedBox(height: Responsive.space(context, size: Space.medium)),
+
+                // Section details
+                _buildEnhancedDetailSection(context, widget.section),
+
+                // Assistants section
+                if (widget.assistants.isNotEmpty) ...[
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.medium),
+                  ),
+                  _buildAssistantsSection(
+                    context,
+                    widget.assistants,
+                    widget.subject,
+                    _selectedAssistantId,
+                    _onAssistantSelected,
+                  ),
+                ] else ...[
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.medium),
+                  ),
+                  _buildNoAssistantsSection(context),
+                ],
+              ],
+            ),
+          ),
+        ),
+
+        // Footer with action buttons
+        Container(
+          padding: Responsive.padding(context, size: Space.medium),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(
+              bottomLeft: Radius.circular(
+                Responsive.space(context, size: Space.large),
+              ),
+              bottomRight: Radius.circular(
+                Responsive.space(context, size: Space.large),
+              ),
+            ),
+            border: Border(top: BorderSide(color: Colors.grey.shade200)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              if (_isEditMode &&
+                  widget.assistants.isNotEmpty &&
+                  _selectedAssistantId != null)
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed:
+                        _isSaving
+                            ? null
+                            : () async {
+                              if (mounted) {
+                                setState(() {
+                                  _isSaving = true;
+                                });
+                              }
+                              try {
+                                await widget.onAssistantSelected(
+                                  _selectedAssistantId!,
+                                );
+                                // Success message will be shown by the parent
+                              } catch (e) {
+                                if (mounted) {
+                                  setState(() {
+                                    _isSaving = false;
+                                  });
+                                }
+                              }
+                            },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: Responsive.space(
                           context,
-                          widget.assistants,
-                          widget.subject,
-                          _selectedAssistantId,
-                          _onAssistantSelected,
+                          size: Space.large,
                         ),
-                      ] else ...[
-                        SizedBox(
-                          height: Responsive.space(context, size: Space.large),
-                        ),
-                        _buildNoAssistantsSection(context),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-
-              // Actions
-              Container(
-                padding: Responsive.padding(context, size: Space.medium),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(
-                      Responsive.space(context, size: Space.large),
-                    ),
-                    bottomRight: Radius.circular(
-                      Responsive.space(context, size: Space.large),
-                    ),
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: Text(
-                        'إغلاق',
-                        style: TextStyle(
-                          fontSize: Responsive.text(
-                            context,
-                            size: TextSize.medium,
-                          ),
-                          fontWeight: FontWeight.w600,
+                        vertical: Responsive.space(context, size: Space.medium),
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(
+                          Responsive.space(context, size: Space.medium),
                         ),
                       ),
                     ),
-                    if (_isEditMode &&
-                        widget.assistants.isNotEmpty &&
-                        _selectedAssistantId != null)
-                      ElevatedButton(
-                        onPressed:
-                            _isSaving
-                                ? null
-                                : () async {
-                                  setState(() {
-                                    _isSaving = true;
-                                  });
-                                  try {
-                                    await widget.onAssistantSelected(
-                                      _selectedAssistantId!,
-                                    );
-                                    // Success message will be shown by the parent
-                                  } catch (e) {
-                                    setState(() {
-                                      _isSaving = false;
-                                    });
-                                  }
-                                },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.black,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(
-                              Responsive.space(context, size: Space.small),
-                            ),
-                          ),
-                        ),
-                        child:
-                            _isSaving
-                                ? SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      Colors.white,
-                                    ),
-                                  ),
-                                )
-                                : Text(
-                                  'حفظ الاختيار',
-                                  style: TextStyle(
-                                    fontSize: Responsive.text(
-                                      context,
-                                      size: TextSize.medium,
-                                    ),
-                                    fontWeight: FontWeight.w600,
+                    child:
+                        _isSaving
+                            ? SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
+                              ),
+                            )
+                            : Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.save, size: 18),
+                                SizedBox(
+                                  width: Responsive.space(
+                                    context,
+                                    size: Space.small,
                                   ),
                                 ),
+                                Text('حفظ الاختيار'),
+                              ],
+                            ),
+                  ),
+                )
+              else
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey.shade300,
+                      foregroundColor: Colors.black87,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: Responsive.space(
+                          context,
+                          size: Space.large,
+                        ),
+                        vertical: Responsive.space(context, size: Space.medium),
                       ),
-                  ],
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(
+                          Responsive.space(context, size: Space.medium),
+                        ),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.close, size: 18),
+                        SizedBox(
+                          width: Responsive.space(context, size: Space.small),
+                        ),
+                        Text('إغلاق'),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
             ],
           ),
         ),
-      ),
+      ],
     );
   }
 
@@ -1130,71 +1254,76 @@ class _AssistantSelectionDialogState extends State<_AssistantSelectionDialog> {
     String? selectedAssistantId,
     Function(String) onAssistantSelected,
   ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            SizedBox(width: Responsive.space(context, size: Space.medium)),
-            Text(
-              'المعيدين',
-              style: TextStyle(
-                fontSize: Responsive.text(context, size: TextSize.medium),
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-            Spacer(flex: 2),
-            if (selectedAssistantId != null)
-              Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: Responsive.space(context, size: Space.small),
-                  vertical: Responsive.space(context, size: Space.tiny),
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(
-                    Responsive.space(context, size: Space.small),
-                  ),
-                  border: Border.all(color: Colors.green.withOpacity(0.3)),
-                ),
-                child: Text(
-                  'تم الاختيار',
-                  style: TextStyle(
-                    fontSize: Responsive.text(context, size: TextSize.small),
-                    color: Colors.green.shade700,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            // Edit Button
-            IconButton(
-              onPressed: _toggleEditMode,
-              icon: Icon(
-                _isEditMode ? Icons.close : Icons.edit,
-                color: _isEditMode ? Colors.red : Colors.black,
-              ),
-              tooltip: _isEditMode ? 'إلغاء التعديل' : 'تعديل المعيد الافتراضي',
-            ),
-          ],
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(
+          Responsive.space(context, size: Space.large),
         ),
-        SizedBox(height: Responsive.space(context, size: Space.small)),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.grey.shade50,
-            borderRadius: BorderRadius.circular(
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Padding(
+            padding: EdgeInsets.all(
               Responsive.space(context, size: Space.medium),
             ),
-            border: Border.all(color: Colors.grey.shade200),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Edit Button
+                IconButton(
+                  onPressed: _toggleEditMode,
+                  icon: Icon(
+                    _isEditMode ? Icons.close : Icons.edit,
+                    color: _isEditMode ? Colors.red : Colors.black,
+                  ),
+                  tooltip:
+                      _isEditMode ? 'إلغاء التعديل' : 'تعديل المعيد الافتراضي',
+                ),
+                // Status indicator
+                if (selectedAssistantId != null)
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: Responsive.space(context, size: Space.small),
+                      vertical: Responsive.space(context, size: Space.tiny),
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(
+                        Responsive.space(context, size: Space.small),
+                      ),
+                      border: Border.all(color: Colors.green.withOpacity(0.3)),
+                    ),
+                    child: Text(
+                      'تم الاختيار',
+                      style: TextStyle(
+                        fontSize: Responsive.text(
+                          context,
+                          size: TextSize.small,
+                        ),
+                        color: Colors.green,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                // Title
+                Expanded(
+                  child: UnifiedSectionHeader(
+                    title: 'المعيدين',
+                    icon: Icons.people,
+                  ),
+                ),
+              ],
+            ),
           ),
-          child: ListView.separated(
+          ListView.separated(
             shrinkWrap: true,
             physics: NeverScrollableScrollPhysics(),
             itemCount: assistants.length,
             separatorBuilder:
-                (context, index) =>
-                    Divider(height: 1, color: Colors.grey.shade200),
+                (context, index) => Divider(height: 1, color: Colors.grey[200]),
             itemBuilder: (context, index) {
               final assistant = assistants[index];
               return _buildAssistantTile(
@@ -1206,8 +1335,8 @@ class _AssistantSelectionDialogState extends State<_AssistantSelectionDialog> {
               );
             },
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -1275,22 +1404,22 @@ class _AssistantSelectionDialogState extends State<_AssistantSelectionDialog> {
     return Container(
       padding: Responsive.padding(context, size: Space.medium),
       decoration: BoxDecoration(
-        color: Colors.orange.shade50,
+        color: Colors.orange.withOpacity(0.1),
         borderRadius: BorderRadius.circular(
-          Responsive.space(context, size: Space.medium),
+          Responsive.space(context, size: Space.large),
         ),
-        border: Border.all(color: Colors.orange.shade200),
+        border: Border.all(color: Colors.orange.withOpacity(0.3)),
       ),
       child: Row(
         children: [
-          Icon(Icons.info_outline, color: Colors.orange.shade700, size: 24),
+          Icon(Icons.info_outline, color: Colors.orange, size: 24),
           SizedBox(width: Responsive.space(context, size: Space.medium)),
           Expanded(
             child: Text(
               'لا يوجد معيدين مسجلين لهذه المادة بعد',
               style: TextStyle(
                 fontSize: Responsive.text(context, size: TextSize.small),
-                color: Colors.orange.shade700,
+                color: Colors.orange,
               ),
             ),
           ),

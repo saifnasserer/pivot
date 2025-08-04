@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:pivot/responsive.dart';
+import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:pivot/widgets/no_internet_message.dart';
 
 class FeedbackManagementScreen extends StatefulWidget {
@@ -48,79 +49,49 @@ class _FeedbackManagementScreenState extends State<FeedbackManagementScreen> {
     showDialog(
       context: context,
       builder:
-          (context) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            title: Text(
-              feedback['category']?.toString().toUpperCase() ?? 'ملاحظة',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: Responsive.text(context, size: TextSize.medium),
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
+          (context) => UnifiedDialog(
+            title: feedback['category']?.toString().toUpperCase() ?? 'ملاحظة',
+            subtitle: 'تفاصيل الملاحظة',
             content: SingleChildScrollView(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
+                  // User information section
+                  UnifiedSectionHeader(
+                    title: 'معلومات المستخدم',
+                    icon: Icons.person,
+                  ),
                   Container(
-                    padding: Responsive.padding(context, size: Space.medium),
+                    padding: EdgeInsets.all(
+                      Responsive.space(context, size: Space.medium),
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.grey[50],
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(
+                        Responsive.space(context, size: Space.large),
+                      ),
                       border: Border.all(color: Colors.grey[200]!),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text(
-                          'معلومات المستخدم',
-                          style: TextStyle(
-                            fontSize: Responsive.text(
-                              context,
-                              size: TextSize.small,
-                            ),
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
+                        _buildInfoRow(
+                          'الاسم',
+                          feedback['userName'] ?? 'غير معروف',
                         ),
                         SizedBox(
                           height: Responsive.space(context, size: Space.small),
                         ),
-                        Text(
-                          'الاسم: ${feedback['userName'] ?? 'غير معروف'}',
-                          style: TextStyle(
-                            fontSize: Responsive.text(
-                              context,
-                              size: TextSize.small,
-                            ),
-                            color: Colors.grey[700],
-                          ),
+                        _buildInfoRow(
+                          'البريد الإلكتروني',
+                          feedback['userEmail'] ?? 'غير متوفر',
                         ),
-                        Text(
-                          'البريد الإلكتروني ${feedback['userEmail'] ?? 'غير متوفر'}',
-                          textAlign: TextAlign.end,
-                          style: TextStyle(
-                            fontSize: Responsive.text(
-                              context,
-                              size: TextSize.small,
-                            ),
-                            color: Colors.grey[700],
-                          ),
+                        SizedBox(
+                          height: Responsive.space(context, size: Space.small),
                         ),
-                        Text(
-                          '${feedback['userRole'] ?? 'غير محدد'} الدور',
-                          textAlign: TextAlign.end,
-                          style: TextStyle(
-                            fontSize: Responsive.text(
-                              context,
-                              size: TextSize.small,
-                            ),
-                            color: Colors.grey[700],
-                          ),
+                        _buildInfoRow(
+                          'الدور',
+                          feedback['userRole'] ?? 'غير محدد',
                         ),
                       ],
                     ),
@@ -128,45 +99,95 @@ class _FeedbackManagementScreenState extends State<FeedbackManagementScreen> {
                   SizedBox(
                     height: Responsive.space(context, size: Space.medium),
                   ),
+
+                  // Feedback content section
                   if (feedback['feedback'] != null &&
                       feedback['feedback'].toString().isNotEmpty) ...[
-                    Text(
-                      'التعليق',
-                      style: TextStyle(
-                        fontSize: Responsive.text(
-                          context,
-                          size: TextSize.small,
-                        ),
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    SizedBox(
-                      height: Responsive.space(context, size: Space.small),
+                    UnifiedSectionHeader(
+                      title: 'التعليق',
+                      icon: Icons.feedback,
                     ),
                     Container(
-                      padding: Responsive.padding(context, size: Space.medium),
+                      padding: EdgeInsets.all(
+                        Responsive.space(context, size: Space.medium),
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.grey[50],
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(
+                          Responsive.space(context, size: Space.large),
+                        ),
                         border: Border.all(color: Colors.grey[200]!),
                       ),
                       child: Text(
                         feedback['feedback'] ?? 'لا يوجد تعليق',
-                        textAlign: TextAlign.end,
                         style: TextStyle(
                           fontSize: Responsive.text(
                             context,
-                            size: TextSize.small,
+                            size: TextSize.medium,
                           ),
-                          color: Colors.grey[700],
+                          color: Colors.black87,
+                          height: 1.5,
                         ),
+                        textAlign: TextAlign.right,
                       ),
                     ),
                     SizedBox(
                       height: Responsive.space(context, size: Space.medium),
                     ),
                   ],
+
+                  // Status section
+                  UnifiedSectionHeader(
+                    title: 'حالة الملاحظة',
+                    icon: Icons.info,
+                  ),
+                  Container(
+                    padding: EdgeInsets.all(
+                      Responsive.space(context, size: Space.medium),
+                    ),
+                    decoration: BoxDecoration(
+                      color: _getStatusColor(
+                        feedback['status'] ?? 'pending',
+                      ).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(
+                        Responsive.space(context, size: Space.large),
+                      ),
+                      border: Border.all(
+                        color: _getStatusColor(
+                          feedback['status'] ?? 'pending',
+                        ).withOpacity(0.3),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Icon(
+                          _getStatusIcon(feedback['status'] ?? 'pending'),
+                          color: _getStatusColor(
+                            feedback['status'] ?? 'pending',
+                          ),
+                          size: Responsive.space(context, size: Space.medium),
+                        ),
+                        SizedBox(
+                          width: Responsive.space(context, size: Space.medium),
+                        ),
+                        Text(
+                          _getStatusText(feedback['status'] ?? 'pending'),
+                          style: TextStyle(
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.medium,
+                            ),
+                            fontWeight: FontWeight.bold,
+                            color: _getStatusColor(
+                              feedback['status'] ?? 'pending',
+                            ),
+                          ),
+                          textAlign: TextAlign.right,
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -174,17 +195,48 @@ class _FeedbackManagementScreenState extends State<FeedbackManagementScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  IconButton(
-                    icon: Icon(Icons.archive_outlined, color: Colors.red),
+                  ElevatedButton.icon(
+                    icon: Icon(Icons.archive_outlined, size: 20),
+                    label: Text('أرشفة'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(
+                          Responsive.space(context, size: Space.large),
+                        ),
+                      ),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: Responsive.space(
+                          context,
+                          size: Space.medium,
+                        ),
+                        vertical: Responsive.space(context, size: Space.small),
+                      ),
+                    ),
                     onPressed: () {
                       Navigator.of(context).pop();
                       _updateFeedbackStatus(docId, 'archived');
                     },
                   ),
-                  IconButton(
-                    icon: Icon(
-                      Icons.check_circle_outline_rounded,
-                      color: Colors.green,
+                  ElevatedButton.icon(
+                    icon: Icon(Icons.check_circle_outline_rounded, size: 20),
+                    label: Text('تم القراءة'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(
+                          Responsive.space(context, size: Space.large),
+                        ),
+                      ),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: Responsive.space(
+                          context,
+                          size: Space.medium,
+                        ),
+                        vertical: Responsive.space(context, size: Space.small),
+                      ),
                     ),
                     onPressed: () {
                       Navigator.of(context).pop();
@@ -196,6 +248,68 @@ class _FeedbackManagementScreenState extends State<FeedbackManagementScreen> {
             ],
           ),
     );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: Responsive.text(context, size: TextSize.small),
+            color: Colors.black87,
+            fontWeight: FontWeight.w500,
+          ),
+          textAlign: TextAlign.right,
+        ),
+        SizedBox(width: Responsive.space(context, size: Space.small)),
+        Text(
+          '$label:',
+          style: TextStyle(
+            fontSize: Responsive.text(context, size: TextSize.small),
+            color: Colors.grey[600],
+          ),
+          textAlign: TextAlign.right,
+        ),
+      ],
+    );
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'read':
+        return Colors.green;
+      case 'archived':
+        return Colors.red;
+      case 'pending':
+      default:
+        return Colors.orange;
+    }
+  }
+
+  IconData _getStatusIcon(String status) {
+    switch (status.toLowerCase()) {
+      case 'read':
+        return Icons.check_circle;
+      case 'archived':
+        return Icons.archive;
+      case 'pending':
+      default:
+        return Icons.schedule;
+    }
+  }
+
+  String _getStatusText(String status) {
+    switch (status.toLowerCase()) {
+      case 'read':
+        return 'تم القراءة';
+      case 'archived':
+        return 'مؤرشف';
+      case 'pending':
+      default:
+        return 'في الانتظار';
+    }
   }
 
   @override

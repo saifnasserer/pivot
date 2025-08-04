@@ -11,23 +11,36 @@ class SectionProvider with ChangeNotifier {
   List<String> _currentSubjectIds = [];
   bool _isLoading = false;
   String? _error;
+  bool _disposed = false;
 
   List<Section> get sections => _sections;
   bool get isLoading => _isLoading;
   String? get error => _error;
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
+  void _safeNotifyListeners() {
+    if (!_disposed) {
+      notifyListeners();
+    }
+  }
 
   // Fetch sections for a specific assistant
   Future<void> fetchSectionsForAssistant(String assistantId) async {
     _currentAssistantId = assistantId;
     if (assistantId.isEmpty) {
       _sections = [];
-      notifyListeners();
+      _safeNotifyListeners();
       return;
     }
 
     _isLoading = true;
     _error = null;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       // Step 1: Load from cache first
@@ -37,7 +50,7 @@ class SectionProvider with ChangeNotifier {
       if (filteredCached.isNotEmpty) {
         _sections = filteredCached;
         _isLoading = false;
-        notifyListeners();
+        _safeNotifyListeners();
       }
 
       // Step 2: Fetch from server in the background
@@ -47,7 +60,7 @@ class SectionProvider with ChangeNotifier {
       _error = 'Failed to fetch sections: ${e.toString()}';
     } finally {
       _isLoading = false;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
@@ -56,13 +69,13 @@ class SectionProvider with ChangeNotifier {
     _currentSubjectIds = subjectIds;
     if (subjectIds.isEmpty) {
       _sections = [];
-      notifyListeners();
+      _safeNotifyListeners();
       return;
     }
 
     _isLoading = true;
     _error = null;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       // Step 1: Load from cache first
@@ -74,7 +87,7 @@ class SectionProvider with ChangeNotifier {
       if (filteredCached.isNotEmpty) {
         _sections = filteredCached;
         _isLoading = false;
-        notifyListeners();
+        _safeNotifyListeners();
       }
 
       // Step 2: Fetch from server in the background
@@ -84,7 +97,7 @@ class SectionProvider with ChangeNotifier {
       _error = 'Failed to fetch sections: ${e.toString()}';
     } finally {
       _isLoading = false;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
@@ -99,18 +112,18 @@ class SectionProvider with ChangeNotifier {
       } else {
         // Otherwise just add to the current list
         _sections.add(newSection);
-        notifyListeners();
+        _safeNotifyListeners();
       }
     } catch (e) {
       _error = 'Failed to add section: ${e.toString()}';
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
   Future<void> updateSection(Section section) async {
     _isLoading = true;
     _error = null;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       await _sectionService.updateSection(section);
@@ -119,14 +132,14 @@ class SectionProvider with ChangeNotifier {
       _error = 'Failed to update section: ${e.toString()}';
     } finally {
       _isLoading = false;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
   Future<void> deleteSection(String sectionId) async {
     _isLoading = true;
     _error = null;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       await _sectionService.deleteSection(sectionId);
@@ -135,7 +148,7 @@ class SectionProvider with ChangeNotifier {
       _error = 'Failed to delete section: ${e.toString()}';
     } finally {
       _isLoading = false;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 }

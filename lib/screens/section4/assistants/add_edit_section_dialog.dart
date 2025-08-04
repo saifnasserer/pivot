@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/responsive.dart';
+import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
@@ -270,434 +271,316 @@ class _AddEditSectionDialogState extends State<AddEditSectionDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Directionality(
-      textDirection: ui.TextDirection.rtl,
-      child: AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(
-            Responsive.space(context, size: Space.large),
-          ),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 8,
-        titlePadding: EdgeInsets.only(
-          top: Responsive.space(context, size: Space.large),
-          left: Responsive.space(context, size: Space.large),
-          right: Responsive.space(context, size: Space.large),
-          bottom: Responsive.space(context, size: Space.small),
-        ),
-        title: Column(
-          children: [
-            // Header icon
-            Container(
-              padding: EdgeInsets.all(
-                Responsive.space(context, size: Space.medium),
-              ),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(
-                  Responsive.space(context, size: Space.large),
-                ),
-              ),
-              child: Icon(
-                _isEditing ? Icons.edit_calendar : Icons.add_circle_outline,
-                size: Responsive.space(context, size: Space.large) * 2,
-                color: Colors.black,
-              ),
-            ),
-            SizedBox(height: Responsive.space(context, size: Space.medium)),
-            // Title
-            Text(
-              _isEditing ? 'تعديل السكشن' : 'إضافة سكشن جديد',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: Responsive.text(context, size: TextSize.heading),
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-            SizedBox(height: Responsive.space(context, size: Space.small)),
-            // Subtitle
-            Text(
-              _isEditing
-                  ? 'قم بتعديل بيانات السكشن'
-                  : 'أدخل بيانات السكشن الجديد',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: Responsive.text(context, size: TextSize.small),
-                color: Colors.grey[600],
-              ),
-            ),
-          ],
-        ),
-        content: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                // Subject Display (auto-selected from current tab)
-                Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(
-                      Responsive.space(context, size: Space.large),
-                    ),
-                    border: Border.all(color: Colors.grey[300]!),
-                    color: Colors.grey[50],
+    return UnifiedDialog(
+      title: _isEditing ? 'تعديل السكشن' : 'إضافة سكشن جديد',
+      subtitle:
+          _isEditing ? 'قم بتعديل بيانات السكشن' : 'أدخل بيانات السكشن الجديد',
+      content: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              // Subject Display (auto-selected from current tab)
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(
+                    Responsive.space(context, size: Space.large),
                   ),
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-                  child: Row(
-                    children: [
-                      Icon(Icons.book, color: Colors.grey[600], size: 20),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          widget.subjects
-                              .firstWhere(
-                                (subject) => subject.id == _selectedSubjectId,
-                                orElse: () => widget.subjects.first,
-                              )
-                              .name,
-                          style: TextStyle(
-                            fontSize: Responsive.text(
-                              context,
-                              size: TextSize.medium,
-                            ),
-                            fontWeight: FontWeight.w500,
-                            color: Colors.grey[800],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                  border: Border.all(color: Colors.grey[300]!),
+                  color: Colors.grey[50],
                 ),
-                SizedBox(height: Responsive.space(context, size: Space.medium)),
-
-                // Section Number and Type Row
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                child: Row(
                   children: [
+                    Icon(Icons.book, color: Colors.grey[600], size: 20),
+                    SizedBox(width: 8),
                     Expanded(
-                      flex: 3,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(
-                            Responsive.space(context, size: Space.large),
+                      child: Text(
+                        widget.subjects
+                            .firstWhere(
+                              (subject) => subject.id == _selectedSubjectId,
+                              orElse: () => widget.subjects.first,
+                            )
+                            .name,
+                        style: TextStyle(
+                          fontSize: Responsive.text(
+                            context,
+                            size: TextSize.medium,
                           ),
-                          border: Border.all(color: Colors.grey[300]!),
-                        ),
-                        child: TextFormField(
-                          controller: _sectionNumberController,
-                          decoration: InputDecoration(
-                            hintText: 'الرقم',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(
-                                Responsive.space(context, size: Space.large),
-                              ),
-                              borderSide: BorderSide(color: Color(0xFFF7F7F7)),
-                            ),
-                            contentPadding: EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                          ),
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                          ],
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'مطلوب';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-                    ),
-                    SizedBox(
-                      width: Responsive.space(context, size: Space.small),
-                    ),
-                    Expanded(
-                      flex: 2,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(
-                            Responsive.space(context, size: Space.large),
-                          ),
-                          border: Border.all(color: Colors.grey[300]!),
-                        ),
-                        child: DropdownButtonFormField<String>(
-                          value: _selectedType,
-                          items:
-                              ['سكشن', 'عملي'].map((String value) {
-                                return DropdownMenuItem<String>(
-                                  value: value,
-                                  child: Text(
-                                    value,
-                                    style: TextStyle(
-                                      fontSize: Responsive.text(
-                                        context,
-                                        size: TextSize.medium,
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
-                          onChanged: (newValue) {
-                            if (newValue != null) {
-                              setState(() {
-                                _selectedType = newValue;
-                              });
-                            }
-                          },
-                          decoration: InputDecoration(
-                            hintText: 'النوع',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(
-                                Responsive.space(context, size: Space.large),
-                              ),
-                              borderSide: BorderSide(color: Color(0xFFF7F7F7)),
-                            ),
-                            contentPadding: EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                          ),
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey[800],
                         ),
                       ),
                     ),
                   ],
                 ),
-                SizedBox(height: Responsive.space(context, size: Space.medium)),
+              ),
+              SizedBox(height: Responsive.space(context, size: Space.medium)),
 
-                // Days Selection
-                Text(
-                  'أيام الحضور',
-                  style: TextStyle(
-                    fontSize: Responsive.text(context, size: TextSize.medium),
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                  textAlign: TextAlign.right,
-                ),
-                SizedBox(height: Responsive.space(context, size: Space.small)),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children:
-                        List<Widget>.generate(_dayNames.length, (int index) {
-                          final isSelected = _selectedDays[index];
-                          return Container(
-                            margin: EdgeInsets.only(
-                              left: Responsive.space(
-                                context,
-                                size: Space.small,
-                              ),
-                            ),
-                            child: FilterChip(
-                              label: Text(
-                                _dayNames[index],
-                                style: TextStyle(
-                                  color:
-                                      isSelected
-                                          ? Colors.white
-                                          : Colors.black87,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: Responsive.text(
-                                    context,
-                                    size: TextSize.small,
-                                  ),
-                                ),
-                              ),
-                              selected: isSelected,
-                              onSelected: (bool selected) {
-                                setState(() {
-                                  _selectedDays[index] = selected;
-                                });
-                              },
-                              selectedColor: Colors.black,
-                              backgroundColor: Colors.grey[200],
-                              checkmarkColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(
-                                  Responsive.space(context, size: Space.large),
-                                ),
-                              ),
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 8,
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                  ),
-                ),
-                SizedBox(height: Responsive.space(context, size: Space.medium)),
-
-                // Time Selection
-                Text(
-                  'وقت السكشن',
-                  style: TextStyle(
-                    fontSize: Responsive.text(context, size: TextSize.medium),
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                  textAlign: TextAlign.right,
-                ),
-                SizedBox(height: Responsive.space(context, size: Space.small)),
-                InkWell(
-                  onTap: _selectTime,
-                  child: Container(
-                    padding: EdgeInsets.all(
-                      Responsive.space(context, size: Space.medium),
-                    ),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey[300]!),
-                      borderRadius: BorderRadius.circular(
-                        Responsive.space(context, size: Space.large),
-                      ),
-                      color: Color(0xFFF7F7F7),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.access_time_rounded,
-                          color: Colors.black,
-                          size: Responsive.space(context, size: Space.medium),
-                        ),
-                        SizedBox(
-                          width: Responsive.space(context, size: Space.small),
-                        ),
-                        Expanded(
-                          child: Text(
-                            _selectedTime != null
-                                ? _formatTimeOfDay(_selectedTime!)
-                                : 'اضغط لاختيار الوقت',
-                            style: TextStyle(
-                              fontSize: Responsive.text(
-                                context,
-                                size: TextSize.medium,
-                              ),
-                              fontWeight:
-                                  _selectedTime != null
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
-                              color:
-                                  _selectedTime != null
-                                      ? Colors.black87
-                                      : Colors.grey[600],
-                            ),
-                            textAlign: TextAlign.right,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                SizedBox(height: Responsive.space(context, size: Space.medium)),
-
-                // Location Field
-                Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(
-                      Responsive.space(context, size: Space.large),
-                    ),
-                    border: Border.all(color: Colors.grey[300]!),
-                  ),
-                  child: TextFormField(
-                    controller: _locationController,
-                    decoration: InputDecoration(
-                      hintText: 'مثال: قاعة 3',
-                      border: OutlineInputBorder(
+              // Section Number and Type Row
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: Container(
+                      decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(
                           Responsive.space(context, size: Space.large),
                         ),
-                        borderSide: BorderSide(color: Color(0xFFF7F7F7)),
+                        border: Border.all(color: Colors.grey[300]!),
                       ),
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
+                      child: DropdownButtonFormField<String>(
+                        value: _selectedType,
+                        items:
+                            ['سكشن', 'عملي'].map((String value) {
+                              return DropdownMenuItem<String>(
+                                value: value,
+                                child: Text(
+                                  value,
+                                  style: TextStyle(
+                                    fontSize: Responsive.text(
+                                      context,
+                                      size: TextSize.medium,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                        onChanged: (newValue) {
+                          if (newValue != null) {
+                            setState(() {
+                              _selectedType = newValue;
+                            });
+                          }
+                        },
+                        decoration: InputDecoration(
+                          hintText: 'النوع',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(
+                              Responsive.space(context, size: Space.large),
+                            ),
+                            borderSide: BorderSide(color: Color(0xFFF7F7F7)),
+                          ),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                        ),
                       ),
                     ),
-                    keyboardType: TextInputType.text,
-                    textAlign: TextAlign.right,
-                    style: TextStyle(
-                      fontSize: Responsive.text(context, size: TextSize.medium),
+                  ),
+                  SizedBox(width: Responsive.space(context, size: Space.small)),
+                  Expanded(
+                    flex: 3,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(
+                          Responsive.space(context, size: Space.large),
+                        ),
+                        border: Border.all(color: Colors.grey[300]!),
+                      ),
+                      child: TextFormField(
+                        controller: _sectionNumberController,
+                        decoration: InputDecoration(
+                          hintText: 'الرقم',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(
+                              Responsive.space(context, size: Space.large),
+                            ),
+                            borderSide: BorderSide(color: Color(0xFFF7F7F7)),
+                          ),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                        ),
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'مطلوب';
+                          }
+                          return null;
+                        },
+                      ),
                     ),
-                    validator:
-                        (value) =>
-                            value == null || value.trim().isEmpty
-                                ? 'يرجى إدخال المكان'
-                                : null,
+                  ),
+                ],
+              ),
+              SizedBox(height: Responsive.space(context, size: Space.medium)),
+
+              // Days Selection
+              Text(
+                'أيام الحضور',
+                style: TextStyle(
+                  fontSize: Responsive.text(context, size: TextSize.medium),
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+                textAlign: TextAlign.right,
+              ),
+              SizedBox(height: Responsive.space(context, size: Space.small)),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children:
+                      List<Widget>.generate(_dayNames.length, (int index) {
+                        final isSelected = _selectedDays[index];
+                        return Container(
+                          margin: EdgeInsets.only(
+                            left: Responsive.space(context, size: Space.small),
+                          ),
+                          child: FilterChip(
+                            label: Text(
+                              _dayNames[index],
+                              style: TextStyle(
+                                color:
+                                    isSelected ? Colors.white : Colors.black87,
+                                fontWeight: FontWeight.w600,
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.small,
+                                ),
+                              ),
+                            ),
+                            selected: isSelected,
+                            onSelected: (bool selected) {
+                              setState(() {
+                                _selectedDays[index] = selected;
+                              });
+                            },
+                            selectedColor: Colors.black,
+                            backgroundColor: Colors.grey[200],
+                            checkmarkColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(
+                                Responsive.space(context, size: Space.large),
+                              ),
+                            ),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                ),
+              ),
+              SizedBox(height: Responsive.space(context, size: Space.medium)),
+
+              // Time Selection
+              Text(
+                'وقت السكشن',
+                style: TextStyle(
+                  fontSize: Responsive.text(context, size: TextSize.medium),
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+                textAlign: TextAlign.right,
+              ),
+              SizedBox(height: Responsive.space(context, size: Space.small)),
+              InkWell(
+                onTap: _selectTime,
+                child: Container(
+                  padding: EdgeInsets.all(
+                    Responsive.space(context, size: Space.medium),
+                  ),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey[300]!),
+                    borderRadius: BorderRadius.circular(
+                      Responsive.space(context, size: Space.large),
+                    ),
+                    color: Color(0xFFF7F7F7),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.access_time_rounded,
+                        color: Colors.black,
+                        size: Responsive.space(context, size: Space.medium),
+                      ),
+                      SizedBox(
+                        width: Responsive.space(context, size: Space.small),
+                      ),
+                      Expanded(
+                        child: Text(
+                          _selectedTime != null
+                              ? _formatTimeOfDay(_selectedTime!)
+                              : 'اضغط لاختيار الوقت',
+                          style: TextStyle(
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.medium,
+                            ),
+                            fontWeight:
+                                _selectedTime != null
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                            color:
+                                _selectedTime != null
+                                    ? Colors.black87
+                                    : Colors.grey[600],
+                          ),
+                          textAlign: TextAlign.right,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ),
-          ),
-        ),
-        actionsPadding: EdgeInsets.symmetric(
-          horizontal: Responsive.space(context, size: Space.large),
-          vertical: Responsive.space(context, size: Space.medium),
-        ),
-        actionsAlignment: MainAxisAlignment.spaceBetween,
-        actions: <Widget>[
-          TextButton(
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.grey[600],
-              padding: EdgeInsets.symmetric(
-                horizontal: Responsive.space(context, size: Space.medium),
-                vertical: Responsive.space(context, size: Space.small),
               ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(
-                  Responsive.space(context, size: Space.large),
+              SizedBox(height: Responsive.space(context, size: Space.medium)),
+
+              // Location Field
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(
+                    Responsive.space(context, size: Space.large),
+                  ),
+                  border: Border.all(color: Colors.grey[300]!),
+                ),
+                child: TextFormField(
+                  controller: _locationController,
+                  decoration: InputDecoration(
+                    hintText: 'مثال: قاعة 3',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(
+                        Responsive.space(context, size: Space.large),
+                      ),
+                      borderSide: BorderSide(color: Color(0xFFF7F7F7)),
+                    ),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                  ),
+                  keyboardType: TextInputType.text,
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    fontSize: Responsive.text(context, size: TextSize.medium),
+                  ),
+                  validator:
+                      (value) =>
+                          value == null || value.trim().isEmpty
+                              ? 'يرجى إدخال المكان'
+                              : null,
                 ),
               ),
-            ),
-            child: Text(
-              'إلغاء',
-              style: TextStyle(
-                fontSize: Responsive.text(context, size: TextSize.medium),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
+            ],
           ),
-          ElevatedButton.icon(
-            icon: Icon(
-              _isEditing
-                  ? Icons.save_alt_rounded
-                  : Icons.add_circle_outline_rounded,
-              size: Responsive.space(context, size: Space.medium),
-            ),
-            label: Text(
-              _isEditing ? 'حفظ التعديلات' : 'إضافة السكشن',
-              style: TextStyle(
-                fontSize: Responsive.text(context, size: TextSize.medium),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.black,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(
-                  Responsive.space(context, size: Space.large),
-                ),
-              ),
-              padding: EdgeInsets.symmetric(
-                horizontal: Responsive.space(context, size: Space.large),
-                vertical: Responsive.space(context, size: Space.small),
-              ),
-              elevation: 0,
-            ),
-            onPressed: _submitForm,
-          ),
-        ],
+        ),
       ),
+      confirmText: _isEditing ? 'حفظ التعديلات' : 'إضافة السكشن',
+      confirmIcon:
+          _isEditing
+              ? Icons.save_alt_rounded
+              : Icons.add_circle_outline_rounded,
+      onConfirm: _submitForm,
+      onCancel: () => Navigator.of(context).pop(),
     );
   }
 }

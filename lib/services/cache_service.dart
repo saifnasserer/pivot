@@ -113,13 +113,23 @@ class CacheService {
     final box = Hive.box<AnnouncementData>(_announcementsBoxName);
     await box.clear();
     for (var ann in announcements) {
-      await box.put(ann.id ?? ann.title, ann);
+      final key =
+          ann.id ??
+          ann.title ??
+          DateTime.now().millisecondsSinceEpoch.toString();
+      await box.put(key, ann);
     }
   }
 
   List<AnnouncementData> getCachedAnnouncements() {
     final box = Hive.box<AnnouncementData>(_announcementsBoxName);
     return box.values.toList();
+  }
+
+  // Clear announcements cache to resolve null safety issues
+  Future<void> clearAnnouncementsCache() async {
+    final box = Hive.box<AnnouncementData>(_announcementsBoxName);
+    await box.clear();
   }
 
   Future<void> close() async {

@@ -337,17 +337,9 @@ class _AddAnnouncementScreenState extends State<AddAnnouncementScreen>
               ),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.edit_note,
-                    color: Colors.blue[700],
-                    size: Responsive.space(context, size: Space.large) * 1.5,
-                  ),
-                  SizedBox(
-                    width: Responsive.space(context, size: Space.medium),
-                  ),
                   Expanded(
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
                           'المعلومات الأساسية',
@@ -361,6 +353,7 @@ class _AddAnnouncementScreenState extends State<AddAnnouncementScreen>
                             fontWeight: FontWeight.bold,
                             color: Colors.blue[700],
                           ),
+                          textAlign: TextAlign.right,
                         ),
                         Text(
                           'أدخل العنوان والوصف للإعلان',
@@ -371,9 +364,18 @@ class _AddAnnouncementScreenState extends State<AddAnnouncementScreen>
                             ),
                             color: Colors.blue[600],
                           ),
+                          textAlign: TextAlign.right,
                         ),
                       ],
                     ),
+                  ),
+                  SizedBox(
+                    width: Responsive.space(context, size: Space.medium),
+                  ),
+                  Icon(
+                    Icons.edit_note,
+                    color: Colors.blue[700],
+                    size: Responsive.space(context, size: Space.large) * 1.5,
                   ),
                 ],
               ),
@@ -399,7 +401,7 @@ class _AddAnnouncementScreenState extends State<AddAnnouncementScreen>
 
             // Character count indicator
             Align(
-              alignment: Alignment.centerLeft,
+              alignment: Alignment.centerRight,
               child: Text(
                 '${_titleController.text.length}/50',
                 style: TextStyle(
@@ -415,21 +417,23 @@ class _AddAnnouncementScreenState extends State<AddAnnouncementScreen>
             ),
             SizedBox(height: Responsive.space(context, size: Space.medium)),
 
-            // Description field
-            CustomTextField(
-              hint: 'الوصف',
-              controller: _descriptionController,
-              onChanged: (value) => setState(() => _description = value),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'الرجاء إدخال الوصف';
-                }
-                return null;
-              },
-              keyboardType: TextInputType.multiline,
-              textInputAction: TextInputAction.newline,
-              minLines: 4,
-              maxLines: 8,
+            // Description field - Expanded to take remaining space
+            Expanded(
+              child: CustomTextField(
+                hint: 'الوصف',
+                controller: _descriptionController,
+                onChanged: (value) => setState(() => _description = value),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'الرجاء إدخال الوصف';
+                  }
+                  return null;
+                },
+                keyboardType: TextInputType.multiline,
+                textInputAction: TextInputAction.newline,
+                minLines: null, // Remove minLines constraint
+                maxLines: null, // Remove maxLines constraint to allow expansion
+              ),
             ),
           ],
         ),
@@ -456,17 +460,9 @@ class _AddAnnouncementScreenState extends State<AddAnnouncementScreen>
               ),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.attach_file,
-                    color: Colors.green[700],
-                    size: Responsive.space(context, size: Space.large) * 1.5,
-                  ),
-                  SizedBox(
-                    width: Responsive.space(context, size: Space.medium),
-                  ),
                   Expanded(
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
                           'المرفقات',
@@ -480,6 +476,7 @@ class _AddAnnouncementScreenState extends State<AddAnnouncementScreen>
                             fontWeight: FontWeight.bold,
                             color: Colors.green[700],
                           ),
+                          textAlign: TextAlign.right,
                         ),
                         Text(
                           'أضف الصور والملفات والروابط (اختياري)',
@@ -490,9 +487,18 @@ class _AddAnnouncementScreenState extends State<AddAnnouncementScreen>
                             ),
                             color: Colors.green[600],
                           ),
+                          textAlign: TextAlign.right,
                         ),
                       ],
                     ),
+                  ),
+                  SizedBox(
+                    width: Responsive.space(context, size: Space.medium),
+                  ),
+                  Icon(
+                    Icons.attach_file,
+                    color: Colors.green[700],
+                    size: Responsive.space(context, size: Space.large) * 1.5,
                   ),
                 ],
               ),
@@ -537,7 +543,7 @@ class _AddAnnouncementScreenState extends State<AddAnnouncementScreen>
                   border: Border.all(color: Colors.grey[200]!),
                 ),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
                       'المرفقات المحددة:',
@@ -549,6 +555,7 @@ class _AddAnnouncementScreenState extends State<AddAnnouncementScreen>
                         fontWeight: FontWeight.bold,
                         color: Colors.grey[700],
                       ),
+                      textAlign: TextAlign.right,
                     ),
                     SizedBox(
                       height: Responsive.space(context, size: Space.medium),
@@ -566,12 +573,55 @@ class _AddAnnouncementScreenState extends State<AddAnnouncementScreen>
                           color: Colors.green[600],
                           fontWeight: FontWeight.w600,
                         ),
+                        textAlign: TextAlign.right,
                       ),
                       SizedBox(
                         height: Responsive.space(context, size: Space.small),
                       ),
+                      ..._pickedImages.asMap().entries.map((entry) {
+                        final idx = entry.key;
+                        final img = entry.value;
+                        return ListTile(
+                          leading: Image.file(
+                            File(img.path),
+                            width: 40,
+                            height: 40,
+                            fit: BoxFit.cover,
+                          ),
+                          title: Text(img.name ?? 'صورة'),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: Icon(Icons.edit, color: Colors.blue),
+                                onPressed: () async {
+                                  final newName =
+                                      await _showEditImageNameDialog(
+                                        img.name ?? 'صورة',
+                                      );
+                                  if (newName != null && newName.isNotEmpty) {
+                                    setState(() {
+                                      _pickedImages[idx] = XFile(
+                                        img.path,
+                                        name: newName,
+                                      );
+                                    });
+                                  }
+                                },
+                              ),
+                              IconButton(
+                                icon: Icon(Icons.delete, color: Colors.red),
+                                onPressed: () {
+                                  setState(() {
+                                    _pickedImages.removeAt(idx);
+                                  });
+                                },
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
                     ],
-
                     // Links
                     if (_links.isNotEmpty) ...[
                       Text(
@@ -584,10 +634,47 @@ class _AddAnnouncementScreenState extends State<AddAnnouncementScreen>
                           color: Colors.blue[600],
                           fontWeight: FontWeight.w600,
                         ),
+                        textAlign: TextAlign.right,
                       ),
                       SizedBox(
                         height: Responsive.space(context, size: Space.small),
                       ),
+                      ..._links.asMap().entries.map((entry) {
+                        final idx = entry.key;
+                        final link = entry.value;
+                        return ListTile(
+                          leading: Icon(Icons.link, color: Colors.blue),
+                          title: Text(link['title'] ?? ''),
+                          subtitle: Text(link['url'] ?? ''),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: Icon(Icons.edit, color: Colors.blue),
+                                onPressed: () async {
+                                  final result = await _showEditLinkDialog(
+                                    link['title'] ?? '',
+                                    link['url'] ?? '',
+                                  );
+                                  if (result != null) {
+                                    setState(() {
+                                      _links[idx] = result;
+                                    });
+                                  }
+                                },
+                              ),
+                              IconButton(
+                                icon: Icon(Icons.delete, color: Colors.red),
+                                onPressed: () {
+                                  setState(() {
+                                    _links.removeAt(idx);
+                                  });
+                                },
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
                     ],
                   ],
                 ),
@@ -617,17 +704,9 @@ class _AddAnnouncementScreenState extends State<AddAnnouncementScreen>
               ),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.palette,
-                    color: Colors.purple[700],
-                    size: Responsive.space(context, size: Space.large) * 1.5,
-                  ),
-                  SizedBox(
-                    width: Responsive.space(context, size: Space.medium),
-                  ),
                   Expanded(
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
                           'التصميم والأقسام',
@@ -641,6 +720,7 @@ class _AddAnnouncementScreenState extends State<AddAnnouncementScreen>
                             fontWeight: FontWeight.bold,
                             color: Colors.purple[700],
                           ),
+                          textAlign: TextAlign.right,
                         ),
                         Text(
                           'اختر اللون والأقسام المستهدفة',
@@ -651,9 +731,18 @@ class _AddAnnouncementScreenState extends State<AddAnnouncementScreen>
                             ),
                             color: Colors.purple[600],
                           ),
+                          textAlign: TextAlign.right,
                         ),
                       ],
                     ),
+                  ),
+                  SizedBox(
+                    width: Responsive.space(context, size: Space.medium),
+                  ),
+                  Icon(
+                    Icons.palette,
+                    color: Colors.purple[700],
+                    size: Responsive.space(context, size: Space.large) * 1.5,
                   ),
                 ],
               ),
@@ -752,6 +841,132 @@ class _AddAnnouncementScreenState extends State<AddAnnouncementScreen>
                       ),
                     );
                   }).toList(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSchedulingStep() {
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: SlideTransition(
+        position: _slideAnimation,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Header
+            Container(
+              padding: Responsive.padding(context, size: Space.large),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(
+                  Responsive.space(context, size: Space.large),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          'جدولة النشر',
+                          style: TextStyle(
+                            fontSize:
+                                Responsive.text(
+                                  context,
+                                  size: TextSize.heading,
+                                ) *
+                                1.2,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.orange[700],
+                          ),
+                          textAlign: TextAlign.right,
+                        ),
+                        Text(
+                          'حدد مواعيد النشر والانتهاء (اختياري)',
+                          style: TextStyle(
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.medium,
+                            ),
+                            color: Colors.orange[600],
+                          ),
+                          textAlign: TextAlign.right,
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(
+                    width: Responsive.space(context, size: Space.medium),
+                  ),
+                  Icon(
+                    Icons.schedule,
+                    color: Colors.orange[700],
+                    size: Responsive.space(context, size: Space.large) * 1.5,
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: Responsive.space(context, size: Space.large)),
+
+            // Publish date
+            _buildDateTimeSelector(
+              title: 'تاريخ النشر',
+              value: _publishAt,
+              icon: Icons.publish,
+              color: Colors.blue,
+              onTap: () => _selectDateTime(true),
+            ),
+            SizedBox(height: Responsive.space(context, size: Space.medium)),
+
+            // Expiry date
+            _buildDateTimeSelector(
+              title: 'تاريخ الانتهاء',
+              value: _expireAt,
+              icon: Icons.event_busy,
+              color: Colors.red,
+              onTap: () => _selectDateTime(false),
+            ),
+            SizedBox(height: Responsive.space(context, size: Space.large)),
+
+            // Info card
+            Container(
+              padding: Responsive.padding(context, size: Space.large),
+              decoration: BoxDecoration(
+                color: Colors.blue.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(
+                  Responsive.space(context, size: Space.large),
+                ),
+                border: Border.all(color: Colors.blue.withOpacity(0.2)),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'إذا لم تحدد مواعيد، سيتم نشر الإعلان فوراً',
+                      style: TextStyle(
+                        fontSize: Responsive.text(
+                          context,
+                          size: TextSize.medium,
+                        ),
+                        color: Colors.blue[700],
+                      ),
+                      textAlign: TextAlign.right,
+                    ),
+                  ),
+                  SizedBox(
+                    width: Responsive.space(context, size: Space.medium),
+                  ),
+                  Icon(
+                    Icons.info_outline,
+                    color: Colors.blue[600],
+                    size: Responsive.space(context, size: Space.large),
+                  ),
+                ],
+              ),
             ),
             SizedBox(height: Responsive.space(context, size: Space.large)),
 
@@ -872,129 +1087,6 @@ class _AddAnnouncementScreenState extends State<AddAnnouncementScreen>
     );
   }
 
-  Widget _buildSchedulingStep() {
-    return FadeTransition(
-      opacity: _fadeAnimation,
-      child: SlideTransition(
-        position: _slideAnimation,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Header
-            Container(
-              padding: Responsive.padding(context, size: Space.large),
-              decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(
-                  Responsive.space(context, size: Space.large),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.schedule,
-                    color: Colors.orange[700],
-                    size: Responsive.space(context, size: Space.large) * 1.5,
-                  ),
-                  SizedBox(
-                    width: Responsive.space(context, size: Space.medium),
-                  ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'جدولة النشر',
-                          style: TextStyle(
-                            fontSize:
-                                Responsive.text(
-                                  context,
-                                  size: TextSize.heading,
-                                ) *
-                                1.2,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.orange[700],
-                          ),
-                        ),
-                        Text(
-                          'حدد مواعيد النشر والانتهاء (اختياري)',
-                          style: TextStyle(
-                            fontSize: Responsive.text(
-                              context,
-                              size: TextSize.medium,
-                            ),
-                            color: Colors.orange[600],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: Responsive.space(context, size: Space.large)),
-
-            // Publish date
-            _buildDateTimeSelector(
-              title: 'تاريخ النشر',
-              value: _publishAt,
-              icon: Icons.publish,
-              color: Colors.blue,
-              onTap: () => _selectDateTime(true),
-            ),
-            SizedBox(height: Responsive.space(context, size: Space.medium)),
-
-            // Expiry date
-            _buildDateTimeSelector(
-              title: 'تاريخ الانتهاء',
-              value: _expireAt,
-              icon: Icons.event_busy,
-              color: Colors.red,
-              onTap: () => _selectDateTime(false),
-            ),
-            SizedBox(height: Responsive.space(context, size: Space.large)),
-
-            // Info card
-            Container(
-              padding: Responsive.padding(context, size: Space.large),
-              decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(
-                  Responsive.space(context, size: Space.large),
-                ),
-                border: Border.all(color: Colors.blue.withOpacity(0.2)),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.info_outline,
-                    color: Colors.blue[600],
-                    size: Responsive.space(context, size: Space.large),
-                  ),
-                  SizedBox(
-                    width: Responsive.space(context, size: Space.medium),
-                  ),
-                  Expanded(
-                    child: Text(
-                      'إذا لم تحدد مواعيد، سيتم نشر الإعلان فوراً',
-                      style: TextStyle(
-                        fontSize: Responsive.text(
-                          context,
-                          size: TextSize.medium,
-                        ),
-                        color: Colors.blue[700],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildAttachmentButton({
     required IconData icon,
     required String label,
@@ -1094,37 +1186,6 @@ class _AddAnnouncementScreenState extends State<AddAnnouncementScreen>
         ),
         child: Row(
           children: [
-            Icon(
-              icon,
-              color: color,
-              size: Responsive.space(context, size: Space.large),
-            ),
-            SizedBox(width: Responsive.space(context, size: Space.medium)),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: Responsive.text(context, size: TextSize.medium),
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey[700],
-                    ),
-                  ),
-                  Text(
-                    value != null
-                        ? DateFormat('yyyy/MM/dd HH:mm').format(value)
-                        : 'غير محدد',
-                    style: TextStyle(
-                      fontSize: Responsive.text(context, size: TextSize.medium),
-                      color: value != null ? color : Colors.grey[500],
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
             if (value != null)
               IconButton(
                 icon: Icon(Icons.clear, size: 24, color: Colors.red[400]),
@@ -1138,6 +1199,39 @@ class _AddAnnouncementScreenState extends State<AddAnnouncementScreen>
                   });
                 },
               ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: Responsive.text(context, size: TextSize.medium),
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[700],
+                    ),
+                    textAlign: TextAlign.right,
+                  ),
+                  Text(
+                    value != null
+                        ? DateFormat('yyyy/MM/dd HH:mm').format(value)
+                        : 'غير محدد',
+                    style: TextStyle(
+                      fontSize: Responsive.text(context, size: TextSize.medium),
+                      color: value != null ? color : Colors.grey[500],
+                      fontWeight: FontWeight.w500,
+                    ),
+                    textAlign: TextAlign.right,
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(width: Responsive.space(context, size: Space.medium)),
+            Icon(
+              icon,
+              color: color,
+              size: Responsive.space(context, size: Space.large),
+            ),
           ],
         ),
       ),
@@ -1377,6 +1471,94 @@ class _AddAnnouncementScreenState extends State<AddAnnouncementScreen>
         });
       }
     }
+  }
+
+  Future<String?> _showEditImageNameDialog(String currentName) async {
+    String tempName = currentName;
+    final controller = TextEditingController(text: currentName);
+    return showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('تعديل اسم الصورة'),
+          content: TextField(
+            controller: controller,
+            onChanged: (value) => tempName = value,
+            decoration: InputDecoration(labelText: 'اسم الصورة'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, tempName),
+              child: Text('حفظ'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<Map<String, String>?> _showEditLinkDialog(
+    String currentTitle,
+    String currentUrl,
+  ) async {
+    final titleController = TextEditingController(text: currentTitle);
+    final urlController = TextEditingController(text: currentUrl);
+    final formKey = GlobalKey<FormState>();
+    return showDialog<Map<String, String>>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('تعديل الرابط'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: titleController,
+                  decoration: InputDecoration(labelText: 'العنوان'),
+                  validator:
+                      (value) =>
+                          value == null || value.isEmpty
+                              ? 'الرجاء إدخال العنوان'
+                              : null,
+                ),
+                TextFormField(
+                  controller: urlController,
+                  decoration: InputDecoration(labelText: 'الرابط'),
+                  validator:
+                      (value) =>
+                          value == null || value.isEmpty
+                              ? 'الرجاء إدخال الرابط'
+                              : null,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (formKey.currentState!.validate()) {
+                  Navigator.pop(context, {
+                    'title': titleController.text,
+                    'url': urlController.text,
+                  });
+                }
+              },
+              child: Text('حفظ'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override

@@ -245,7 +245,11 @@ class AnnouncementProvider with ChangeNotifier {
 
         for (final doc in deptSnapshot.docs) {
           final announcement = AnnouncementData.fromFirestore(doc);
-          mergedResults[announcement.id ?? ''] = announcement;
+          final key =
+              announcement.id ??
+              announcement.title ??
+              DateTime.now().millisecondsSinceEpoch.toString();
+          mergedResults[key] = announcement;
           //debugprint(
           //   '[ANNOUNCEMENT_PROVIDER] Today mixed - Added department announcement: ${announcement.title} (ID: ${announcement.id})',
           // );
@@ -253,7 +257,11 @@ class AnnouncementProvider with ChangeNotifier {
 
         for (final doc in generalSnapshot.docs) {
           final announcement = AnnouncementData.fromFirestore(doc);
-          mergedResults[announcement.id ?? ''] = announcement;
+          final key =
+              announcement.id ??
+              announcement.title ??
+              DateTime.now().millisecondsSinceEpoch.toString();
+          mergedResults[key] = announcement;
           //debugprint(
           //   '[ANNOUNCEMENT_PROVIDER] Today mixed - Added general announcement: ${announcement.title} (ID: ${announcement.id})',
           // );
@@ -564,7 +572,12 @@ class AnnouncementProvider with ChangeNotifier {
     final box = Hive.box<AnnouncementData>(_announcementsBoxName);
     await box.clear();
     for (var ann in announcements) {
-      await box.put(ann.id ?? ann.title, ann);
+      // Use a safe key that won't be null
+      final key =
+          ann.id ??
+          ann.title ??
+          DateTime.now().millisecondsSinceEpoch.toString();
+      await box.put(key, ann);
     }
   }
 
@@ -577,5 +590,16 @@ class AnnouncementProvider with ChangeNotifier {
     }
     final box = Hive.box<AnnouncementData>(_announcementsBoxName);
     return box.values.toList();
+  }
+
+  // Clear announcements cache to resolve null safety issues
+  Future<void> clearAnnouncementsCache() async {
+    if (!Hive.isBoxOpen(_announcementsBoxName)) {
+      throw Exception(
+        'Announcement box is not open! Make sure CacheService.init() is called before any provider access.',
+      );
+    }
+    final box = Hive.box<AnnouncementData>(_announcementsBoxName);
+    await box.clear();
   }
 }

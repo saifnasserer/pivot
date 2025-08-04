@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/responsive.dart';
+import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:pivot/models/lecture_model.dart';
 import 'package:pivot/providers/doctor_subject_provider.dart';
 import 'package:provider/provider.dart';
@@ -57,73 +58,46 @@ class SubjectModel extends StatelessWidget {
     return showDialog<Map<String, String>>(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: borderRadius),
-          title: Text(
-            'إضافة رابط جديد',
-            textAlign: TextAlign.center,
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-          ),
-          content: Directionality(
-            textDirection: TextDirection.rtl,
-            child: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    controller: titleController,
-                    decoration: commonDecoration.copyWith(labelText: 'العنوان'),
-                    textAlign: TextAlign.right,
-                    validator:
-                        (value) =>
-                            value == null || value.trim().isEmpty
-                                ? 'يرجى إدخال العنوان'
-                                : null,
-                  ),
-                  SizedBox(
-                    height: Responsive.space(context, size: Space.medium),
-                  ),
-                  TextFormField(
-                    controller: urlController,
-                    decoration: commonDecoration.copyWith(labelText: 'الرابط'),
-                    textAlign: TextAlign.right,
-                    validator:
-                        (value) =>
-                            value == null || value.trim().isEmpty
-                                ? 'يرجى إدخال الرابط'
-                                : null,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actionsPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 8,
-          ),
-          actionsAlignment: MainAxisAlignment.spaceBetween,
-          actions: [
-            TextButton(
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.grey.shade700,
-              ),
-              child: const Text('إلغاء'),
-              onPressed: () => Navigator.of(context).pop(null),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                shape: RoundedRectangleBorder(borderRadius: borderRadius),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 10,
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return UnifiedDialog(
+              title: 'إضافة رابط جديد',
+              subtitle: 'أضف رابط جديد للمادة',
+              content: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    UnifiedFormField(
+                      controller: titleController,
+                      label: 'العنوان',
+                      hint: 'أدخل عنوان الرابط',
+                      validator:
+                          (value) =>
+                              value == null || value.trim().isEmpty
+                                  ? 'يرجى إدخال العنوان'
+                                  : null,
+                    ),
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.medium),
+                    ),
+                    UnifiedFormField(
+                      controller: urlController,
+                      label: 'الرابط',
+                      hint: 'https://example.com',
+                      keyboardType: TextInputType.url,
+                      validator:
+                          (value) =>
+                              value == null || value.trim().isEmpty
+                                  ? 'يرجى إدخال الرابط'
+                                  : null,
+                    ),
+                  ],
                 ),
-                backgroundColor: Theme.of(context).primaryColor,
-                foregroundColor: Theme.of(context).colorScheme.onPrimary,
               ),
-              onPressed: () {
+              confirmText: 'حفظ',
+              confirmIcon: Icons.save,
+              onConfirm: () {
                 if (formKey.currentState!.validate()) {
                   final newLink = {
                     'title': titleController.text.trim(),
@@ -132,9 +106,9 @@ class SubjectModel extends StatelessWidget {
                   Navigator.of(context).pop(newLink);
                 }
               },
-              child: const Text('حفظ'),
-            ),
-          ],
+              onCancel: () => Navigator.of(context).pop(null),
+            );
+          },
         );
       },
     );
@@ -171,224 +145,181 @@ class SubjectModel extends StatelessWidget {
             final cardRadius = BorderRadius.circular(
               Responsive.space(context, size: Space.large),
             );
-            return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: borderRadius),
-              elevation: 8,
-              backgroundColor: Colors.white,
-              titlePadding: EdgeInsets.only(
-                top: Responsive.space(context, size: Space.large),
-                left: Responsive.space(context, size: Space.large),
-                right: Responsive.space(context, size: Space.large),
-                bottom: Responsive.space(context, size: Space.small),
-              ),
-              title: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Text(
-                    'روابط مادة',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      fontSize: Responsive.text(
-                        context,
-                        size: TextSize.heading,
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: Responsive.space(context, size: Space.tiny)),
-                  Text(
-                    lecture.title,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Colors.grey[700],
-                      fontWeight: FontWeight.w500,
-                      fontSize: Responsive.text(context, size: TextSize.medium),
-                    ),
-                  ),
-                  SizedBox(
-                    height: Responsive.space(context, size: Space.small),
-                  ),
-                  Divider(
-                    thickness: 1,
-                    height: Responsive.space(context, size: Space.tiny),
-                  ),
-                ],
-              ),
-              contentPadding: EdgeInsets.symmetric(
-                horizontal: Responsive.space(context, size: Space.medium),
-                vertical: Responsive.space(context, size: Space.small),
-              ),
-              content: Directionality(
-                textDirection: TextDirection.rtl,
-                child: SizedBox(
-                  width: double.maxFinite,
-                  child:
-                      links.isEmpty
-                          ? Padding(
-                            padding: EdgeInsets.symmetric(
-                              vertical: Responsive.space(
-                                context,
-                                size: Space.xlarge,
-                              ),
-                            ),
-                            child: Center(
-                              child: Text(
-                                'لا توجد روابط بعد',
-                                style: TextStyle(
-                                  fontSize: Responsive.text(
-                                    context,
-                                    size: TextSize.medium,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          )
-                          : ListView.separated(
-                            shrinkWrap: true,
-                            reverse: true,
-
-                            itemCount: links.length,
-                            separatorBuilder:
-                                (_, __) => SizedBox(
-                                  height: Responsive.space(
-                                    context,
-                                    size: Space.small,
-                                  ),
-                                ),
-                            itemBuilder: (BuildContext context, int index) {
-                              final link = links[index];
-                              return Material(
-                                color: Colors.grey[100],
-                                borderRadius: cardRadius,
-                                child: InkWell(
-                                  borderRadius: cardRadius,
-                                  onTap:
-                                      () => _launchURL(context, link['url']!),
-                                  child: Padding(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: Responsive.space(
-                                        context,
-                                        size: Space.medium,
-                                      ),
-                                      vertical: Responsive.space(
-                                        context,
-                                        size: Space.small,
-                                      ),
-                                    ),
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.end,
-                                      textDirection: TextDirection.rtl,
-                                      children: [
-                                        Expanded(
-                                          child: Column(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.end,
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.end,
-                                            children: [
-                                              Text(
-                                                link['title']!,
-                                                textAlign: TextAlign.right,
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.w600,
-                                                  fontSize:
-                                                      Responsive.text(
-                                                        context,
-                                                        size: TextSize.medium,
-                                                      ) *
-                                                      0.85,
-                                                ),
-                                              ),
-                                              SizedBox(
-                                                height: Responsive.space(
-                                                  context,
-                                                  size: Space.tiny,
-                                                ),
-                                              ),
-                                              Text(
-                                                link['url']!,
-                                                textAlign: TextAlign.right,
-                                                style: TextStyle(
-                                                  color: Colors.grey[600],
-                                                  fontSize: Responsive.text(
-                                                    context,
-                                                    size: TextSize.small,
-                                                  ),
-                                                ),
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        if (canEdit)
-                                          IconButton(
-                                            icon: const Icon(
-                                              Icons.delete_outline,
-                                              color: Colors.redAccent,
-                                            ),
-                                            onPressed: () {
-                                              final linkToDelete = links[index];
-                                              setState(() {
-                                                links.removeAt(index);
-                                              });
-                                              provider.deleteLinkFromLecture(
-                                                lecture.id,
-                                                linkToDelete,
-                                              );
-                                            },
-                                            tooltip: 'حذف الرابط',
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                ),
-              ),
-              actionsPadding: EdgeInsets.only(
-                left: Responsive.space(context, size: Space.large),
-                right: Responsive.space(context, size: Space.large),
-                bottom: Responsive.space(context, size: Space.xlarge),
-                top: Responsive.space(context, size: Space.small),
-              ),
-              actionsAlignment: MainAxisAlignment.center,
-              actions: [
-                if (canEdit)
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.add_link_rounded),
-                      label: const Text(
-                        'إضافة رابط',
-                        style: TextStyle(fontSize: null),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        shape: RoundedRectangleBorder(
+            return UnifiedDialog(
+              title: 'روابط مادة',
+              subtitle: lecture.title,
+              content: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    if (links.isEmpty)
+                      Container(
+                        padding: EdgeInsets.all(
+                          Responsive.space(context, size: Space.large),
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[50],
                           borderRadius: BorderRadius.circular(
                             Responsive.space(context, size: Space.large),
                           ),
+                          border: Border.all(color: Colors.grey[200]!),
                         ),
-                        backgroundColor: Theme.of(context).primaryColor,
-                        foregroundColor:
-                            Theme.of(context).colorScheme.onPrimary,
-                        padding: EdgeInsets.symmetric(
-                          vertical: Responsive.space(
-                            context,
-                            size: Space.small,
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.link_off,
+                              size:
+                                  Responsive.space(context, size: Space.large) *
+                                  2,
+                              color: Colors.grey[400],
+                            ),
+                            SizedBox(
+                              height: Responsive.space(
+                                context,
+                                size: Space.medium,
+                              ),
+                            ),
+                            Text(
+                              'لا توجد روابط بعد',
+                              style: TextStyle(
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.medium,
+                                ),
+                                color: Colors.grey[600],
+                                fontWeight: FontWeight.w500,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            SizedBox(
+                              height: Responsive.space(
+                                context,
+                                size: Space.small,
+                              ),
+                            ),
+                            Text(
+                              'اضغط على "إضافة رابط" لإضافة روابط جديدة',
+                              style: TextStyle(
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.small,
+                                ),
+                                color: Colors.grey[500],
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      ...links.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final link = entry.value;
+                        return Container(
+                          margin: EdgeInsets.only(
+                            bottom: Responsive.space(
+                              context,
+                              size: Space.small,
+                            ),
                           ),
-                        ),
-                        textStyle: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: Responsive.text(
-                            context,
-                            size: TextSize.medium,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[50],
+                            borderRadius: BorderRadius.circular(
+                              Responsive.space(context, size: Space.large),
+                            ),
+                            border: Border.all(color: Colors.grey[200]!),
                           ),
-                        ),
-                        elevation: 0,
-                      ),
-                      onPressed: () async {
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(
+                              Responsive.space(context, size: Space.large),
+                            ),
+                            onTap: () => _launchURL(context, link['url']!),
+                            child: Padding(
+                              padding: EdgeInsets.all(
+                                Responsive.space(context, size: Space.medium),
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  if (canEdit)
+                                    IconButton(
+                                      icon: Icon(
+                                        Icons.delete_outline,
+                                        color: Colors.red,
+                                      ),
+                                      onPressed: () {
+                                        final linkToDelete = links[index];
+                                        setState(() {
+                                          links.removeAt(index);
+                                        });
+                                        provider.deleteLinkFromLecture(
+                                          lecture.id,
+                                          linkToDelete,
+                                        );
+                                      },
+                                      tooltip: 'حذف الرابط',
+                                    ),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.end,
+                                      children: [
+                                        Text(
+                                          link['title']!,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: Responsive.text(
+                                              context,
+                                              size: TextSize.medium,
+                                            ),
+                                            color: Colors.black87,
+                                          ),
+                                          textAlign: TextAlign.right,
+                                        ),
+                                        SizedBox(
+                                          height: Responsive.space(
+                                            context,
+                                            size: Space.tiny,
+                                          ),
+                                        ),
+                                        Text(
+                                          link['url']!,
+                                          style: TextStyle(
+                                            color: Colors.grey[600],
+                                            fontSize: Responsive.text(
+                                              context,
+                                              size: TextSize.small,
+                                            ),
+                                          ),
+                                          textAlign: TextAlign.right,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Icon(
+                                    Icons.open_in_new,
+                                    color: Colors.grey[400],
+                                    size: Responsive.space(
+                                      context,
+                                      size: Space.medium,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                  ],
+                ),
+              ),
+              confirmText: canEdit ? 'إضافة رابط' : null,
+              confirmIcon: canEdit ? Icons.add_link : null,
+              onConfirm:
+                  canEdit
+                      ? () async {
                         final newLink = await _showAddSingleLinkDialog(context);
                         if (newLink != null) {
                           setState(() {
@@ -396,47 +327,9 @@ class SubjectModel extends StatelessWidget {
                           });
                           provider.addLinkToLecture(lecture.id, newLink);
                         }
-                      },
-                    ),
-                  ),
-                SizedBox(height: Responsive.space(context, size: Space.small)),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(
-                          Responsive.space(context, size: Space.large),
-                        ),
-                      ),
-                      foregroundColor: Colors.grey.shade700,
-                      side: BorderSide(color: Colors.grey.shade300),
-                      padding: EdgeInsets.symmetric(
-                        vertical: Responsive.space(context, size: Space.small),
-                      ),
-                      textStyle: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: Responsive.text(
-                          context,
-                          size: TextSize.medium,
-                        ),
-                      ),
-                    ),
-                    child: Text(
-                      'إغلاق',
-                      style: TextStyle(
-                        fontSize: Responsive.text(
-                          context,
-                          size: TextSize.medium,
-                        ),
-                      ),
-                    ),
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                    },
-                  ),
-                ),
-              ],
+                      }
+                      : null,
+              onCancel: () => Navigator.of(context).pop(),
             );
           },
         );

@@ -114,6 +114,43 @@ class AnnouncementData extends HiveObject {
     );
   }
 
+  // Custom factory for reading from Hive with null safety
+  factory AnnouncementData.fromHiveWithNullSafety(Map<String, dynamic> data) {
+    // Helper function to safely parse links from Hive
+    List<Map<String, String>> parseLinksFromHive(dynamic linksData) {
+      if (linksData == null) return [];
+      final List<dynamic> linksList = List<dynamic>.from(linksData);
+      return linksList.map((item) {
+        if (item is Map) {
+          final map = Map<String, dynamic>.from(item);
+          return {
+            'title': map['title']?.toString() ?? '',
+            'url': map['url']?.toString() ?? '',
+          };
+        }
+        return {'title': '', 'url': ''};
+      }).toList();
+    }
+
+    return AnnouncementData._hive(
+      id: data['id'] as String?,
+      title: data['title'] as String? ?? '',
+      date: data['date'] as String? ?? '',
+      colorValue: data['colorValue'] as int? ?? 0xFFFFFFFF,
+      description: data['description'] as String? ?? '',
+      tags: List<String>.from(data['tags'] ?? []),
+      timestampMillis:
+          data['timestampMillis'] as int? ??
+          DateTime.now().millisecondsSinceEpoch,
+      imageUrls: List<String>.from(data['imageUrls'] ?? []),
+      links: parseLinksFromHive(data['links']),
+      pinned: data['pinned'] as bool? ?? false,
+      draft: data['draft'] as bool? ?? false,
+      publishAtMillis: data['publishAtMillis'] as int?,
+      expireAtMillis: data['expireAtMillis'] as int?,
+    );
+  }
+
   // Convert an AnnouncementData object into a map for Firestore
   Map<String, dynamic> toJson() {
     return {
@@ -146,6 +183,19 @@ class AnnouncementData extends HiveObject {
       }
     }
 
+    // Helper function to safely parse links
+    List<Map<String, String>> parseLinks(dynamic linksData) {
+      if (linksData == null) return [];
+      final List<dynamic> linksList = List<dynamic>.from(linksData);
+      return linksList.map((item) {
+        final map = Map<String, dynamic>.from(item);
+        return {
+          'title': map['title']?.toString() ?? '',
+          'url': map['url']?.toString() ?? '',
+        };
+      }).toList();
+    }
+
     return AnnouncementData(
       id: doc.id,
       title: data['title'] ?? '',
@@ -155,9 +205,7 @@ class AnnouncementData extends HiveObject {
       tags: List<String>.from(data['tags'] ?? []),
       timestamp: parseDate(data['timestamp']),
       imageUrls: List<String>.from(data['imageUrls'] ?? []),
-      links: List<Map<String, String>>.from(
-        (data['links'] ?? []).map((item) => Map<String, String>.from(item)),
-      ),
+      links: parseLinks(data['links']),
       pinned: data['pinned'] ?? false,
       draft: data['draft'] ?? false,
       publishAt:

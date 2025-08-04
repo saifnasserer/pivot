@@ -52,7 +52,57 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _progressAnimationController.forward();
       _listAnimationController.forward();
+      _updateAssistantPreferencesIfNeeded(); // This is now async
     });
+  }
+
+  void _updateAssistantPreferencesIfNeeded() async {
+    final userProfileProvider = Provider.of<UserProfileProvider>(
+      context,
+      listen: false,
+    );
+    final subjectProvider = Provider.of<SubjectProvider>(
+      context,
+      listen: false,
+    );
+    final loggedInUser = userProfileProvider.loggedInUserProfile;
+
+    if (loggedInUser == null) return;
+
+    final userEnrolledSubjectIds = loggedInUser.enrolledSubjects;
+    final assistantPreferences = loggedInUser.assistantPreferences;
+    final updatedPreferences = <String, String>{...assistantPreferences};
+
+    for (final subjectId in userEnrolledSubjectIds) {
+      final instructors =
+          subjectProvider.instructorsBySubject[subjectId]
+              ?.where((prof) => prof.role == 'miniProfessor')
+              .toList() ??
+          [];
+
+      if (instructors.length == 1 &&
+          !assistantPreferences.containsKey(subjectId)) {
+        // Auto-select if only one instructor and no preference set
+        updatedPreferences[subjectId] = instructors.first.id;
+      }
+    }
+
+    // Only update if there are changes
+    if (updatedPreferences.length != assistantPreferences.length ||
+        updatedPreferences.entries.any(
+          (entry) => assistantPreferences[entry.key] != entry.value,
+        )) {
+      try {
+        await userProfileProvider.updateAssistantPreferences(
+          updatedPreferences,
+        );
+        print(
+          'Successfully updated assistant preferences: $updatedPreferences',
+        );
+      } catch (e) {
+        print('Failed to update assistant preferences: $e');
+      }
+    }
   }
 
   @override
@@ -140,116 +190,76 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
     final userProfileProvider = Provider.of<UserProfileProvider>(context);
     final sectionProvider = Provider.of<SectionProvider>(context);
     final subjectProvider = Provider.of<SubjectProvider>(context);
-    final userProfile = userProfileProvider.userProfile;
+    final loggedInUser = userProfileProvider.loggedInUserProfile;
     final allTasks = [...taskProvider.tasks, ..._personalTasks];
 
-    if (userProfile == null) {
+    if (loggedInUser == null) {
       return Scaffold(body: Center(child: Text('User profile not found')));
     }
 
-    final userEnrolledSubjectIds = userProfile.enrolledSubjects;
-    final userSection = userProfile.section;
-    final assistantPreferences = userProfile.assistantPreferences;
+    final userEnrolledSubjectIds = loggedInUser.enrolledSubjects;
+    final userSection = loggedInUser.section;
+    final assistantPreferences = loggedInUser.assistantPreferences;
 
-    // Get relevant sections that match user's enrolled subjects and section
-    // Only check sections belonging to the default instructor for each subject
+    // Step 1: Check default instructors for each registered subject
     final relevantSections = <Section>[];
 
     for (final subjectId in userEnrolledSubjectIds) {
-      final selectedAssistantId = assistantPreferences[subjectId];
+      // Get all instructors for this subject
+      final instructors =
+          subjectProvider.instructorsBySubject[subjectId]
+              ?.where((prof) => prof.role == 'miniProfessor')
+              .toList() ??
+          [];
 
-      if (selectedAssistantId != null) {
-        // Get sections for this subject that belong to the selected assistant
-        final subjectSections =
-            sectionProvider.sections.where((section) {
-              return section.subjectId == subjectId &&
-                  section.assistantId == selectedAssistantId;
-            }).toList();
+      if (instructors.isEmpty) {
+        // No instructors available for this subject - skip
+        continue;
+      }
 
-        // Find sections that match the user's section number
-        for (final section in subjectSections) {
-          final sectionMatch =
-              userSection != null &&
-              _matchesUserSectionNumber(section.name, userSection);
+      // Get the default instructor (selected preference or first instructor)
+      String? defaultAssistantId = assistantPreferences[subjectId];
+      if (defaultAssistantId == null && instructors.length == 1) {
+        // Auto-select if only one instructor
+        defaultAssistantId = instructors.first.id;
+        // Note: We'll handle preference updates separately to avoid async issues in build
+      } else if (defaultAssistantId == null) {
+        // Multiple instructors but none selected - skip this subject
+        continue;
+      }
 
-          if (sectionMatch) {
-            relevantSections.add(section);
-          }
-        }
+      // Step 2: Find the user's specific section for this subject and default instructor
+      final userSubjectSection =
+          sectionProvider.sections.where((section) {
+            return section.subjectId == subjectId &&
+                section.assistantId == defaultAssistantId &&
+                userSection != null &&
+                _matchesUserSectionNumber(section.name, userSection);
+          }).firstOrNull;
+
+      // Add the user's specific section if found
+      if (userSubjectSection != null) {
+        relevantSections.add(userSubjectSection);
       }
     }
 
-    // Create a map of subjectId to selected assistantId
-    final subjectToAssistantMap = <String, String>{};
-    final subjectsWithoutAssistant = <String>[];
-
-    for (final section in relevantSections) {
-      final subjectId = section.subjectId;
-      final selectedAssistantId = assistantPreferences[subjectId];
-
-      if (selectedAssistantId != null) {
-        subjectToAssistantMap[subjectId] = selectedAssistantId;
-      } else {
-        // Check if there's only one assistant for this subject
-        final assistants =
-            subjectProvider.instructorsBySubject[subjectId]
-                ?.where((prof) => prof.role == 'miniProfessor')
-                .toList() ??
-            [];
-
-        if (assistants.length == 1) {
-          // Auto-select the only assistant
-          subjectToAssistantMap[subjectId] = assistants.first.id;
-          // Update the preference
-          userProfileProvider.updateAssistantPreferences({
-            ...assistantPreferences,
-            subjectId: assistants.first.id,
-          });
-        } else if (assistants.isEmpty) {
-          // No assistants available
-          subjectsWithoutAssistant.add(subjectId);
-        } else {
-          // Multiple assistants but none selected
-          subjectsWithoutAssistant.add(subjectId);
-        }
-      }
-    }
-
-    // Filter tasks based on assistant preferences
+    // Filter tasks based on the relevant sections
     final filteredTasks =
         allTasks.where((task) {
+          // Personal tasks are always included
           if (task.isPersonal) {
             return true;
           }
 
-          // Only include tasks that belong to sections with selected assistants
-          if (sectionProvider.sections.isEmpty) {
-            return false;
-          }
-
-          // Check if the task's section exists
+          // Check if the task's section exists in our relevant sections
           final taskSection =
-              sectionProvider.sections
-                  .where((s) => s.id == task.sectionId)
-                  .firstOrNull;
+              relevantSections.where((s) => s.id == task.sectionId).firstOrNull;
 
-          if (taskSection == null) {
-            return false;
-          }
-
-          final subjectId = taskSection.subjectId;
-          final sectionAssistantId = taskSection.assistantId;
-
-          // Include task if it belongs to the assistant who owns the section
-          // OR if the task's assistant ID is null (for backward compatibility)
-          final shouldInclude =
-              task.assistantId == sectionAssistantId ||
-              task.assistantId == null;
-
-          return shouldInclude;
+          // Include task if its section is in our relevant sections
+          return taskSection != null;
         }).toList();
 
-    final userId = userProfile.id;
+    final userId = loggedInUser.id;
     final pendingTasks =
         filteredTasks.where((t) => !t.isCompletedFor(userId)).toList();
     final completedTasks =
@@ -260,17 +270,7 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          // Show assistant selection prompts if needed
-          if (subjectsWithoutAssistant.isNotEmpty)
-            _buildAssistantSelectionPrompts(
-              context,
-              subjectsWithoutAssistant,
-              subjectProvider,
-            ),
-
-          if (pendingTasks.isEmpty &&
-              completedTasks.isEmpty &&
-              subjectsWithoutAssistant.isEmpty)
+          if (pendingTasks.isEmpty && completedTasks.isEmpty)
             _buildEmptyState()
           else ...[
             // Grouped Task Lists
@@ -283,166 +283,6 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
         ],
       ),
       floatingActionButton: _buildFloatingActionButton(),
-    );
-  }
-
-  /// Build assistant selection prompts for subjects without selected assistants
-  Widget _buildAssistantSelectionPrompts(
-    BuildContext context,
-    List<String> subjectsWithoutAssistant,
-    SubjectProvider subjectProvider,
-  ) {
-    return SliverToBoxAdapter(
-      child: Container(
-        margin: EdgeInsets.symmetric(
-          horizontal: Responsive.space(context, size: Space.medium),
-          vertical: Responsive.space(context, size: Space.small),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: Responsive.padding(context, size: Space.medium),
-              decoration: BoxDecoration(
-                color: Colors.orange.shade50,
-                borderRadius: BorderRadius.circular(
-                  Responsive.space(context, size: Space.medium),
-                ),
-                border: Border.all(color: Colors.orange.shade200),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.info_outline,
-                        color: Colors.orange.shade700,
-                        size: 24,
-                      ),
-                      SizedBox(
-                        width: Responsive.space(context, size: Space.small),
-                      ),
-                      Expanded(
-                        child: Text(
-                          'اختر معيدك الافتراضي',
-                          style: TextStyle(
-                            fontSize: Responsive.text(
-                              context,
-                              size: TextSize.medium,
-                            ),
-                            fontWeight: FontWeight.bold,
-                            color: Colors.orange.shade700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(
-                    height: Responsive.space(context, size: Space.small),
-                  ),
-                  Text(
-                    'لمعرفة المهام الخاصة بك، يجب عليك اختيار معيد افتراضي لكل مادة مسجل فيها.',
-                    style: TextStyle(
-                      fontSize: Responsive.text(context, size: TextSize.small),
-                      color: Colors.orange.shade700,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: Responsive.space(context, size: Space.small)),
-            ...subjectsWithoutAssistant.map((subjectId) {
-              final subject = subjectProvider.filteredSubjects.firstWhere(
-                (s) => s.id == subjectId,
-              );
-              final assistants =
-                  subjectProvider.instructorsBySubject[subjectId]
-                      ?.where((prof) => prof.role == 'miniProfessor')
-                      .toList() ??
-                  [];
-
-              return Container(
-                margin: EdgeInsets.only(
-                  bottom: Responsive.space(context, size: Space.small),
-                ),
-                padding: Responsive.padding(context, size: Space.medium),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(
-                    Responsive.space(context, size: Space.medium),
-                  ),
-                  border: Border.all(color: Colors.grey.shade200),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            subject.name,
-                            style: TextStyle(
-                              fontSize: Responsive.text(
-                                context,
-                                size: TextSize.medium,
-                              ),
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black87,
-                            ),
-                          ),
-                          SizedBox(
-                            height: Responsive.space(context, size: Space.tiny),
-                          ),
-                          Text(
-                            assistants.isEmpty
-                                ? 'لا يوجد معيدين متاحين'
-                                : '${assistants.length} معيد متاح',
-                            style: TextStyle(
-                              fontSize: Responsive.text(
-                                context,
-                                size: TextSize.small,
-                              ),
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    ElevatedButton(
-                      onPressed:
-                          assistants.isNotEmpty
-                              ? () {
-                                // Navigate to profile screen and switch to sections tab (index 2)
-                                Navigator.pushNamed(
-                                  context,
-                                  '/profile',
-                                  arguments: 2,
-                                );
-                              }
-                              : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            assistants.isNotEmpty ? Colors.blue : Colors.grey,
-                        foregroundColor: Colors.white,
-                      ),
-                      child: Text(
-                        assistants.isNotEmpty ? 'اختيار معيد' : 'غير متاح',
-                        style: TextStyle(
-                          fontSize: Responsive.text(
-                            context,
-                            size: TextSize.small,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }).toList(),
-          ],
-        ),
-      ),
     );
   }
 

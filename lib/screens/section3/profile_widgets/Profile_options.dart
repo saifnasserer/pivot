@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pivot/services/permission_service.dart';
 import 'package:pivot/responsive.dart';
+import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pivot/services/notification_service.dart';
 
@@ -218,62 +219,41 @@ Future<void> _showLogoutConfirmationDialog(BuildContext context) async {
     context: context,
     barrierDismissible: false, // User must tap button!
     builder: (BuildContext dialogContext) {
-      return Directionality(
-        textDirection: TextDirection.rtl,
-        child: AlertDialog(
-          title: const Text('تسجيل الخروج؟', textAlign: TextAlign.center),
-
-          actions: <Widget>[
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                    borderRadius: BorderRadius.circular(
-                      Responsive.space(context, size: Space.large),
-                    ),
-                  ),
-                  child: TextButton(
-                    onPressed: () async {
-                      await FirebaseAuth.instance.signOut();
-                      if (!context.mounted) return;
-                      Navigator.of(context).pushNamedAndRemoveUntil(
-                        '/auth-wrapper',
-                        (Route<dynamic> route) => false,
-                      );
-                    },
-                    child: Text(
-                      'تأكيد',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: Responsive.text(
-                          context,
-                          size: TextSize.medium,
-                        ),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-                SizedBox(width: Responsive.space(context, size: Space.medium)),
-                TextButton(
-                  child: Text(
-                    'إلغاء',
-                    style: TextStyle(
-                      color: Colors.black87,
-                      fontSize: Responsive.text(context, size: TextSize.medium),
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
-                ),
-              ],
+      return UnifiedDialog(
+        title: 'تسجيل الخروج؟',
+        subtitle: 'هل أنت متأكد من تسجيل الخروج؟',
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.logout,
+              size: Responsive.space(context, size: Space.large) * 2,
+              color: Colors.red,
+            ),
+            SizedBox(height: Responsive.space(context, size: Space.medium)),
+            Text(
+              'سيتم تسجيل خروجك من التطبيق',
+              style: TextStyle(
+                fontSize: Responsive.text(context, size: TextSize.medium),
+                color: Colors.black87,
+              ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
+        confirmText: 'تأكيد',
+        confirmIcon: Icons.logout,
+        onConfirm: () async {
+          await FirebaseAuth.instance.signOut();
+          if (!context.mounted) return;
+          Navigator.of(context).pushNamedAndRemoveUntil(
+            '/auth-wrapper',
+            (Route<dynamic> route) => false,
+          );
+        },
+        onCancel: () {
+          Navigator.of(context).pop();
+        },
       );
     },
   );
@@ -364,121 +344,130 @@ Future<void> _showNotificationSettingsDialog(BuildContext context) async {
     builder: (BuildContext context) {
       return StatefulBuilder(
         builder: (context, setState) {
-          return Directionality(
-            textDirection: TextDirection.rtl,
-            child: AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(
-                  Responsive.space(context, size: Space.large),
-                ),
-              ),
-              title: Text(
-                'إعدادات الإشعارات',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: Responsive.text(context, size: TextSize.heading),
-                  color: Colors.black,
-                ),
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    FutureBuilder<bool>(
-                      future: NotificationService().areNotificationsEnabled(),
-                      builder: (context, snapshot) {
-                        final hasPermission = snapshot.data ?? false;
-                        return Container(
+          return UnifiedDialog(
+            title: 'إعدادات الإشعارات',
+            subtitle: 'قم بتخصيص إعدادات الإشعارات حسب احتياجاتك',
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Permission Status
+                  FutureBuilder<bool>(
+                    future: NotificationService().areNotificationsEnabled(),
+                    builder: (context, snapshot) {
+                      final hasPermission = snapshot.data ?? false;
+                      return Container(
+                        padding: EdgeInsets.all(
+                          Responsive.space(context, size: Space.medium),
+                        ),
+                        decoration: BoxDecoration(
+                          color:
+                              hasPermission
+                                  ? Colors.green.withOpacity(0.1)
+                                  : Colors.red.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(
+                            Responsive.space(context, size: Space.large),
+                          ),
+                          border: Border.all(
+                            color:
+                                hasPermission
+                                    ? Colors.green.withOpacity(0.3)
+                                    : Colors.red.withOpacity(0.3),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              hasPermission
+                                  ? Icons.check_circle
+                                  : Icons.error_outline,
+                              color: hasPermission ? Colors.green : Colors.red,
+                              size: Responsive.space(
+                                context,
+                                size: Space.medium,
+                              ),
+                            ),
+                            SizedBox(
+                              width: Responsive.space(
+                                context,
+                                size: Space.small,
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                hasPermission
+                                    ? 'صلاحية الإشعارات مفعلة'
+                                    : 'صلاحية الإشعارات مطلوبة',
+                                style: TextStyle(
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.medium,
+                                  ),
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ),
+                            if (!hasPermission)
+                              TextButton(
+                                onPressed: () async {
+                                  final notificationService =
+                                      NotificationService();
+                                  final granted =
+                                      await notificationService
+                                          .requestPermissionsExplicitly();
+
+                                  if (!granted) {
+                                    await PermissionService.showNotificationPermissionDialog(
+                                      context,
+                                    );
+                                  }
+                                  setState(() {});
+                                },
+                                child: Text(
+                                  'تفعيل',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.medium),
+                  ),
+
+                  // Notification Types
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      // محاضرات
+                      Expanded(
+                        child: Container(
                           padding: EdgeInsets.all(
                             Responsive.space(context, size: Space.small),
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.grey.shade200),
+                            color: Colors.grey[50],
+                            borderRadius: BorderRadius.circular(
+                              Responsive.space(context, size: Space.large),
+                            ),
+                            border: Border.all(color: Colors.grey[200]!),
                           ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                hasPermission
-                                    ? Icons.check_circle
-                                    : Icons.error_outline,
-                                color: Colors.black,
-                                size: Responsive.text(
-                                  context,
-                                  size: TextSize.medium,
-                                ),
-                              ),
-                              SizedBox(
-                                width: Responsive.space(
-                                  context,
-                                  size: Space.small,
-                                ),
-                              ),
-                              Expanded(
-                                child: Text(
-                                  hasPermission
-                                      ? 'صلاحية الإشعارات مفعلة'
-                                      : 'صلاحية الإشعارات مطلوبة',
-                                  style: TextStyle(
-                                    fontSize: Responsive.text(
-                                      context,
-                                      size: TextSize.small,
-                                    ),
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.black87,
-                                  ),
-                                ),
-                              ),
-                              if (!hasPermission)
-                                TextButton(
-                                  onPressed: () async {
-                                    // Use the new NotificationService approach
-                                    final notificationService =
-                                        NotificationService();
-                                    final granted =
-                                        await notificationService
-                                            .requestPermissionsExplicitly();
-
-                                    if (!granted) {
-                                      await PermissionService.showNotificationPermissionDialog(
-                                        context,
-                                      );
-                                    }
-                                    setState(() {});
-                                  },
-                                  child: Text(
-                                    'تفعيل',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.black,
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                    SizedBox(
-                      height: Responsive.space(context, size: Space.medium),
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        // محاضرات
-                        Expanded(
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(
                                 Icons.school,
                                 color: Colors.black,
-                                size: Responsive.text(
+                                size: Responsive.space(
                                   context,
-                                  size: TextSize.heading,
+                                  size: Space.large,
                                 ),
                               ),
                               SizedBox(
@@ -495,7 +484,7 @@ Future<void> _showNotificationSettingsDialog(BuildContext context) async {
                                     context,
                                     size: TextSize.medium,
                                   ),
-                                  color: Colors.black,
+                                  color: Colors.black87,
                                 ),
                               ),
                               SizedBox(
@@ -510,22 +499,38 @@ Future<void> _showNotificationSettingsDialog(BuildContext context) async {
                                     (value) => setState(
                                       () => prefs.classNotifications = value,
                                     ),
-                                activeColor: Colors.green,
+                                activeColor: Colors.black,
                               ),
                             ],
                           ),
                         ),
-                        // تاسكات
-                        Expanded(
+                      ),
+                      SizedBox(
+                        width: Responsive.space(context, size: Space.small),
+                      ),
+
+                      // تاسكات
+                      Expanded(
+                        child: Container(
+                          padding: EdgeInsets.all(
+                            Responsive.space(context, size: Space.small),
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[50],
+                            borderRadius: BorderRadius.circular(
+                              Responsive.space(context, size: Space.large),
+                            ),
+                            border: Border.all(color: Colors.grey[200]!),
+                          ),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(
                                 Icons.assignment,
                                 color: Colors.black,
-                                size: Responsive.text(
+                                size: Responsive.space(
                                   context,
-                                  size: TextSize.heading,
+                                  size: Space.large,
                                 ),
                               ),
                               SizedBox(
@@ -542,7 +547,7 @@ Future<void> _showNotificationSettingsDialog(BuildContext context) async {
                                     context,
                                     size: TextSize.medium,
                                   ),
-                                  color: Colors.black,
+                                  color: Colors.black87,
                                 ),
                               ),
                               SizedBox(
@@ -557,22 +562,38 @@ Future<void> _showNotificationSettingsDialog(BuildContext context) async {
                                     (value) => setState(
                                       () => prefs.taskNotifications = value,
                                     ),
-                                activeColor: Colors.green,
+                                activeColor: Colors.black,
                               ),
                             ],
                           ),
                         ),
-                        // اخبار
-                        Expanded(
+                      ),
+                      SizedBox(
+                        width: Responsive.space(context, size: Space.small),
+                      ),
+
+                      // اخبار
+                      Expanded(
+                        child: Container(
+                          padding: EdgeInsets.all(
+                            Responsive.space(context, size: Space.small),
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[50],
+                            borderRadius: BorderRadius.circular(
+                              Responsive.space(context, size: Space.large),
+                            ),
+                            border: Border.all(color: Colors.grey[200]!),
+                          ),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(
                                 Icons.announcement,
                                 color: Colors.black,
-                                size: Responsive.text(
+                                size: Responsive.space(
                                   context,
-                                  size: TextSize.heading,
+                                  size: Space.large,
                                 ),
                               ),
                               SizedBox(
@@ -589,7 +610,7 @@ Future<void> _showNotificationSettingsDialog(BuildContext context) async {
                                     context,
                                     size: TextSize.medium,
                                   ),
-                                  color: Colors.black,
+                                  color: Colors.black87,
                                 ),
                               ),
                               SizedBox(
@@ -606,65 +627,40 @@ Future<void> _showNotificationSettingsDialog(BuildContext context) async {
                                           prefs.announcementNotifications =
                                               value,
                                     ),
-                                activeColor: Colors.green,
+                                activeColor: Colors.black,
                               ),
                             ],
                           ),
                         ),
-                      ],
-                    ),
-                  ],
-                ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              actionsAlignment: MainAxisAlignment.center,
-              actions: [
-                ElevatedButton(
-                  onPressed: () async {
-                    await _saveNotificationPreferences(
-                      classNotifications: prefs.classNotifications,
-                      taskNotifications: prefs.taskNotifications,
-                      announcementNotifications:
-                          prefs.announcementNotifications,
-                    );
-                    Navigator.of(context).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('تم حفظ إعدادات الإشعارات'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(
-                        Responsive.space(context, size: Space.large),
-                      ),
-                    ),
-                    padding: EdgeInsets.symmetric(
-                      vertical: Responsive.space(context, size: Space.small),
-                    ),
-                    textStyle: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: Responsive.text(context, size: TextSize.medium),
-                    ),
-                  ),
-                  child: Text('حفظ'),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(
-                    'إلغاء',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                    ),
-                  ),
-                ),
-              ],
             ),
+            confirmText: 'حفظ',
+            confirmIcon: Icons.save,
+            onConfirm: () async {
+              await _saveNotificationPreferences(
+                classNotifications: prefs.classNotifications,
+                taskNotifications: prefs.taskNotifications,
+                announcementNotifications: prefs.announcementNotifications,
+              );
+              Navigator.of(context).pop();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('تم حفظ إعدادات الإشعارات'),
+                  backgroundColor: Colors.green,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(
+                      Responsive.space(context, size: Space.large),
+                    ),
+                  ),
+                ),
+              );
+            },
+            onCancel: () => Navigator.of(context).pop(),
           );
         },
       );

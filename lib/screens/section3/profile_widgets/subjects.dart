@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/responsive.dart';
+import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/models/user_profile.dart';
 
@@ -336,142 +337,248 @@ class _EnhancedSubjectListItemState extends State<EnhancedSubjectListItem>
     showDialog(
       context: context,
       builder:
-          (context) => Directionality(
-            textDirection: TextDirection.rtl,
-            child: Dialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(
-                  Responsive.space(context, size: Space.large),
-                ),
+          (context) => Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(
+                Responsive.space(context, size: Space.large),
               ),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(context).size.height * 0.8,
-                  maxWidth: MediaQuery.of(context).size.width * 0.9,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Header
-                    Container(
-                      padding: Responsive.padding(context, size: Space.large),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade50,
-                        borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(
-                            Responsive.space(context, size: Space.large),
-                          ),
-                          topRight: Radius.circular(
-                            Responsive.space(context, size: Space.large),
-                          ),
+            ),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.8,
+                maxWidth: MediaQuery.of(context).size.width * 0.9,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Header
+                  Container(
+                    padding: Responsive.padding(context, size: Space.medium),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(
+                          Responsive.space(context, size: Space.large),
+                        ),
+                        topRight: Radius.circular(
+                          Responsive.space(context, size: Space.large),
                         ),
                       ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: EdgeInsets.all(
-                              Responsive.space(context, size: Space.small),
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(
-                                Responsive.space(context, size: Space.small),
+                      border: Border(
+                        bottom: BorderSide(color: Colors.grey.shade200),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            IconButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              icon: Icon(
+                                Icons.close,
+                                color: Colors.grey.shade600,
                               ),
                             ),
-                            child: Icon(
-                              Icons.menu_book_rounded,
-                              color: Colors.black,
+                            Expanded(
+                              child: Text(
+                                subject.name,
+                                style: TextStyle(
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.heading,
+                                  ),
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
+                                textAlign: TextAlign.center,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            SizedBox(width: 48), // Balance the close button
+                          ],
+                        ),
+                        SizedBox(
+                          height: Responsive.space(context, size: Space.small),
+                        ),
+                        Text(
+                          'تفاصيل المادة الدراسية',
+                          style: TextStyle(
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.medium,
+                            ),
+                            color: Colors.grey.shade600,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Scrollable content
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: Responsive.padding(context, size: Space.medium),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          // Subject icon and basic info
+                          Container(
+                            width: double.infinity,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                Container(
+                                  padding: EdgeInsets.all(
+                                    Responsive.space(
+                                      context,
+                                      size: Space.small,
+                                    ),
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(
+                                      Responsive.space(
+                                        context,
+                                        size: Space.large,
+                                      ),
+                                    ),
+                                  ),
+                                  child: Icon(
+                                    Icons.menu_book_rounded,
+                                    color: Colors.black,
+                                    size: Responsive.space(
+                                      context,
+                                      size: Space.medium,
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: Responsive.space(
+                                    context,
+                                    size: Space.medium,
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Text(
+                                    subject.name,
+                                    style: TextStyle(
+                                      fontSize: Responsive.text(
+                                        context,
+                                        size: TextSize.heading,
+                                      ),
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black87,
+                                    ),
+                                    textAlign: TextAlign.right,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
+
                           SizedBox(
-                            width: Responsive.space(
+                            height: Responsive.space(
                               context,
                               size: Space.medium,
                             ),
                           ),
-                          Expanded(
-                            child: Text(
-                              subject.name,
-                              style: TextStyle(
-                                fontSize: Responsive.text(
-                                  context,
-                                  size: TextSize.heading,
-                                ),
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87,
-                              ),
+                          Divider(thickness: 1, color: Colors.grey[200]),
+                          SizedBox(
+                            height: Responsive.space(
+                              context,
+                              size: Space.medium,
                             ),
                           ),
-                        ],
-                      ),
-                    ),
 
-                    // Scrollable Content
-                    Expanded(
-                      child: SingleChildScrollView(
-                        padding: Responsive.padding(context, size: Space.large),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildEnhancedDetailSection(context, subject),
-                            if (professors.isNotEmpty) ...[
-                              SizedBox(
-                                height: Responsive.space(
-                                  context,
-                                  size: Space.large,
-                                ),
+                          // Subject details section
+                          _buildEnhancedDetailSection(context, subject),
+
+                          // Professors section
+                          if (professors.isNotEmpty) ...[
+                            SizedBox(
+                              height: Responsive.space(
+                                context,
+                                size: Space.medium,
                               ),
-                              _buildProfessorsSection(context, professors),
-                            ] else ...[
-                              SizedBox(
-                                height: Responsive.space(
-                                  context,
-                                  size: Space.large,
-                                ),
+                            ),
+                            _buildProfessorsSection(context, professors),
+                          ] else ...[
+                            SizedBox(
+                              height: Responsive.space(
+                                context,
+                                size: Space.medium,
                               ),
-                              _buildNoProfessorsSection(context),
-                            ],
+                            ),
+                            _buildNoProfessorsSection(context),
                           ],
-                        ),
-                      ),
-                    ),
-
-                    // Actions
-                    Container(
-                      padding: Responsive.padding(context, size: Space.medium),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade50,
-                        borderRadius: BorderRadius.only(
-                          bottomLeft: Radius.circular(
-                            Responsive.space(context, size: Space.large),
-                          ),
-                          bottomRight: Radius.circular(
-                            Responsive.space(context, size: Space.large),
-                          ),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          TextButton(
-                            onPressed: () => Navigator.of(context).pop(),
-                            child: Text(
-                              'إغلاق',
-                              style: TextStyle(
-                                fontSize: Responsive.text(
-                                  context,
-                                  size: TextSize.medium,
-                                ),
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
                         ],
                       ),
                     ),
-                  ],
-                ),
+                  ),
+
+                  // Footer with action button
+                  Container(
+                    padding: Responsive.padding(context, size: Space.medium),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.only(
+                        bottomLeft: Radius.circular(
+                          Responsive.space(context, size: Space.large),
+                        ),
+                        bottomRight: Radius.circular(
+                          Responsive.space(context, size: Space.large),
+                        ),
+                      ),
+                      border: Border(
+                        top: BorderSide(color: Colors.grey.shade200),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        ElevatedButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.black,
+                            foregroundColor: Colors.white,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: Responsive.space(
+                                context,
+                                size: Space.large,
+                              ),
+                              vertical: Responsive.space(
+                                context,
+                                size: Space.medium,
+                              ),
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(
+                                Responsive.space(context, size: Space.medium),
+                              ),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.close, size: 18),
+                              SizedBox(
+                                width: Responsive.space(
+                                  context,
+                                  size: Space.small,
+                                ),
+                              ),
+                              Text('إغلاق'),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -482,18 +589,19 @@ class _EnhancedSubjectListItemState extends State<EnhancedSubjectListItem>
     return Container(
       padding: Responsive.padding(context, size: Space.medium),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.grey.shade50, Colors.white],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: Colors.grey[50],
         borderRadius: BorderRadius.circular(
-          Responsive.space(context, size: Space.medium),
+          Responsive.space(context, size: Space.large),
         ),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: Colors.grey[200]!),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
+          UnifiedSectionHeader(
+            title: 'تفاصيل المادة',
+            icon: Icons.info_outline,
+          ),
           _buildEnhancedDetailRow(
             context,
             'القسم',
@@ -572,40 +680,39 @@ class _EnhancedSubjectListItemState extends State<EnhancedSubjectListItem>
     BuildContext context,
     List<UserProfile> professors,
   ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'دكاترة المادة',
-          style: TextStyle(
-            fontSize: Responsive.text(context, size: TextSize.medium),
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-          ),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(
+          Responsive.space(context, size: Space.large),
         ),
-        SizedBox(height: Responsive.space(context, size: Space.small)),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.grey.shade50,
-            borderRadius: BorderRadius.circular(
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Padding(
+            padding: EdgeInsets.all(
               Responsive.space(context, size: Space.medium),
             ),
-            border: Border.all(color: Colors.grey.shade200),
+            child: UnifiedSectionHeader(
+              title: 'دكاترة المادة',
+              icon: Icons.people,
+            ),
           ),
-          child: ListView.separated(
+          ListView.separated(
             shrinkWrap: true,
             physics: NeverScrollableScrollPhysics(),
             itemCount: professors.length,
             separatorBuilder:
-                (context, index) =>
-                    Divider(height: 1, color: Colors.grey.shade200),
+                (context, index) => Divider(height: 1, color: Colors.grey[200]),
             itemBuilder: (context, index) {
               final professor = professors[index];
               return _buildProfessorTile(context, professor);
             },
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -646,22 +753,22 @@ class _EnhancedSubjectListItemState extends State<EnhancedSubjectListItem>
     return Container(
       padding: Responsive.padding(context, size: Space.medium),
       decoration: BoxDecoration(
-        color: Colors.orange.shade50,
+        color: Colors.orange.withOpacity(0.1),
         borderRadius: BorderRadius.circular(
-          Responsive.space(context, size: Space.medium),
+          Responsive.space(context, size: Space.large),
         ),
-        border: Border.all(color: Colors.orange.shade200),
+        border: Border.all(color: Colors.orange.withOpacity(0.3)),
       ),
       child: Row(
         children: [
-          Icon(Icons.info_outline, color: Colors.orange.shade700, size: 24),
+          Icon(Icons.info_outline, color: Colors.orange, size: 24),
           SizedBox(width: Responsive.space(context, size: Space.medium)),
           Expanded(
             child: Text(
               'لا يوجد دكاترة مسجلين لهذه المادة بعد',
               style: TextStyle(
                 fontSize: Responsive.text(context, size: TextSize.medium),
-                color: Colors.orange.shade700,
+                color: Colors.orange,
                 fontWeight: FontWeight.w500,
               ),
             ),

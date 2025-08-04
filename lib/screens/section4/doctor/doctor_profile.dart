@@ -6,6 +6,7 @@ import 'package:pivot/providers/doctor_subject_provider.dart';
 import 'package:pivot/providers/subject_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
+import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:pivot/screens/section4/doctor/add_subject_link_dialog.dart';
 import 'package:pivot/screens/section4/doctor/doctor_categories.dart';
 import 'package:pivot/screens/section4/doctor_details.dart';
@@ -844,98 +845,98 @@ class _DoctorProfileState extends State<DoctorProfile>
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return Directionality(
-          textDirection: TextDirection.rtl,
-          child: AlertDialog(
-            title: Text(
-              'إضافة رابط التواصل الاجتماعي',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: Responsive.text(context, size: TextSize.medium),
-                fontWeight: FontWeight.bold,
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return UnifiedDialog(
+              title: 'إضافة رابط التواصل الاجتماعي',
+              subtitle: 'أضف رابط منصة التواصل الاجتماعي الخاصة بك',
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  UnifiedFormField(
+                    controller: platformController,
+                    label: 'المنصة',
+                    hint: 'مثال: Facebook, Twitter, LinkedIn',
+                  ),
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.medium),
+                  ),
+                  UnifiedFormField(
+                    controller: urlController,
+                    label: 'الرابط',
+                    hint: 'https://www.facebook.com/username',
+                    keyboardType: TextInputType.url,
+                  ),
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.medium),
+                  ),
+                  UnifiedFormField(
+                    controller: displayNameController,
+                    label: 'الاسم المعروض',
+                    hint: 'اختياري - اسم معروض للرابط',
+                  ),
+                ],
               ),
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: platformController,
-                  decoration: InputDecoration(
-                    labelText: 'المنصة (مثال: Facebook)',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                SizedBox(height: Responsive.space(context, size: Space.small)),
-                TextField(
-                  controller: urlController,
-                  decoration: InputDecoration(
-                    labelText: 'الرابط',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                SizedBox(height: Responsive.space(context, size: Space.small)),
-                TextField(
-                  controller: displayNameController,
-                  decoration: InputDecoration(
-                    labelText: 'الاسم المعروض (اختياري)',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text('إلغاء'),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  if (platformController.text.isNotEmpty &&
-                      urlController.text.isNotEmpty) {
-                    final newLink = SocialMediaLink(
-                      platform: platformController.text.trim(),
-                      url: urlController.text.trim(),
-                      displayName:
-                          displayNameController.text.trim().isEmpty
-                              ? null
-                              : displayNameController.text.trim(),
-                    );
+              confirmText: 'إضافة',
+              confirmIcon: Icons.add_link,
+              onConfirm: () async {
+                if (platformController.text.isNotEmpty &&
+                    urlController.text.isNotEmpty) {
+                  final newLink = SocialMediaLink(
+                    platform: platformController.text.trim(),
+                    url: urlController.text.trim(),
+                    displayName:
+                        displayNameController.text.trim().isEmpty
+                            ? null
+                            : displayNameController.text.trim(),
+                  );
 
-                    final updatedLinks = [
-                      ...userProfile.socialMediaLinks,
-                      newLink,
-                    ];
+                  final updatedLinks = [
+                    ...userProfile.socialMediaLinks,
+                    newLink,
+                  ];
 
-                    try {
-                      await context
-                          .read<UserProfileProvider>()
-                          .updateSocialMediaLinks(userProfile.id, updatedLinks);
+                  try {
+                    await context
+                        .read<UserProfileProvider>()
+                        .updateSocialMediaLinks(userProfile.id, updatedLinks);
 
-                      if (mounted) {
-                        Navigator.of(context).pop();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('تم إضافة الرابط بنجاح'),
-                            backgroundColor: Colors.green,
+                    if (mounted) {
+                      Navigator.of(context).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('تم إضافة الرابط بنجاح'),
+                          backgroundColor: Colors.green,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              Responsive.space(context, size: Space.large),
+                            ),
                           ),
-                        );
-                      }
-                    } catch (e) {
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('فشل في إضافة الرابط: $e'),
-                            backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('فشل في إضافة الرابط: $e'),
+                          backgroundColor: Colors.red,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              Responsive.space(context, size: Space.large),
+                            ),
                           ),
-                        );
-                      }
+                        ),
+                      );
                     }
                   }
-                },
-                child: Text('إضافة'),
-              ),
-            ],
-          ),
+                }
+              },
+              onCancel: () => Navigator.of(context).pop(),
+            );
+          },
         );
       },
     );

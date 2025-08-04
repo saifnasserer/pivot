@@ -5,6 +5,7 @@ import 'package:pivot/providers/subject_provider.dart';
 import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/screens/section2/adminstration/add_edit_subject_dialog.dart';
 import 'package:pivot/responsive.dart';
+import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:pivot/providers/guide_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -218,76 +219,40 @@ class _GlobalSubjectManagementScreenState
     final confirm = await showDialog<bool>(
       context: context,
       builder:
-          (context) => Directionality(
-            textDirection: TextDirection.rtl,
-            child: AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              title: Text(
-                'تأكيد الحذف',
-                style: TextStyle(
-                  fontSize: Responsive.text(context, size: TextSize.heading),
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              content: Text(
-                'هل أنت متأكد من رغبتك في حذف مادة ${subject.name}؟ لا يمكن التراجع عن هذا الإجراء.',
-                style: TextStyle(
-                  fontSize: Responsive.text(context, size: TextSize.medium),
-                ),
-              ),
-              actions: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: TextButton(
-                        onPressed: () => Navigator.of(context).pop(true),
-                        child: Text(
-                          'حذف',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: Responsive.text(
-                              context,
-                              size: TextSize.medium,
-                            ),
-                            fontWeight: FontWeight.bold,
-                          ),
+          (context) => UnifiedDialog(
+            title: 'تأكيد الحذف',
+            subtitle: 'حذف مادة ${subject.name}',
+            content: Container(
+              padding: Responsive.padding(context, size: Space.medium),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.delete_forever,
+                    color: Colors.red,
+                    size: Responsive.text(context, size: TextSize.heading),
+                  ),
+                  SizedBox(
+                    width: Responsive.space(context, size: Space.medium),
+                  ),
+                  Expanded(
+                    child: Text(
+                      'هل أنت متأكد من رغبتك في حذف مادة ${subject.name}؟ لا يمكن التراجع عن هذا الإجراء وستتم إزالة جميع البيانات المرتبطة بها.',
+                      style: TextStyle(
+                        fontSize: Responsive.text(
+                          context,
+                          size: TextSize.medium,
                         ),
+                        color: Colors.grey[700],
                       ),
                     ),
-                    SizedBox(
-                      width: Responsive.space(context, size: Space.medium),
-                    ),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.grey[200],
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: TextButton(
-                        onPressed: () => Navigator.of(context).pop(false),
-                        child: Text(
-                          'إلغاء',
-                          style: TextStyle(
-                            color: Colors.black87,
-                            fontSize: Responsive.text(
-                              context,
-                              size: TextSize.medium,
-                            ),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
+            confirmText: 'حذف المادة',
+            confirmIcon: Icons.delete_forever,
+            onConfirm: () => Navigator.of(context).pop(true),
+            onCancel: () => Navigator.of(context).pop(false),
           ),
     );
 

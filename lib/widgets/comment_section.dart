@@ -3,6 +3,7 @@ import 'package:pivot/models/comment_data.dart';
 import 'package:pivot/providers/announcement_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
+import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:provider/provider.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'dart:ui';
@@ -133,33 +134,63 @@ class _CommentTileState extends State<CommentTile>
                       final confirm = await showDialog<bool>(
                         context: context,
                         builder:
-                            (ctx) => AlertDialog(
-                              title: Text(
-                                'متأكد؟',
-                                textAlign: TextAlign.center,
-                              ),
-                              actions: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    TextButton(
-                                      child: Text(
-                                        'إلغاء',
-                                        textAlign: TextAlign.center,
-                                      ),
-                                      onPressed:
-                                          () => Navigator.pop(ctx, false),
+                            (ctx) => UnifiedDialog(
+                              title: 'حذف التعليق',
+                              subtitle:
+                                  'هل أنت متأكد من رغبتك في حذف هذا التعليق؟',
+                              content: Container(
+                                padding: EdgeInsets.all(
+                                  Responsive.space(context, size: Space.medium),
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(
+                                    Responsive.space(
+                                      context,
+                                      size: Space.large,
                                     ),
-                                    TextButton(
-                                      child: Text(
-                                        'حذف',
-                                        style: TextStyle(color: Colors.red),
+                                  ),
+                                  border: Border.all(
+                                    color: Colors.red.withOpacity(0.3),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    Icon(
+                                      Icons.warning_amber_rounded,
+                                      color: Colors.red,
+                                      size: Responsive.space(
+                                        context,
+                                        size: Space.large,
                                       ),
-                                      onPressed: () => Navigator.pop(ctx, true),
+                                    ),
+                                    SizedBox(
+                                      width: Responsive.space(
+                                        context,
+                                        size: Space.medium,
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Text(
+                                        'لا يمكن التراجع عن هذا الإجراء بعد الحذف',
+                                        style: TextStyle(
+                                          fontSize: Responsive.text(
+                                            context,
+                                            size: TextSize.medium,
+                                          ),
+                                          color: Colors.black87,
+                                        ),
+                                        textAlign: TextAlign.right,
+                                      ),
                                     ),
                                   ],
                                 ),
-                              ],
+                              ),
+                              confirmText: 'حذف',
+                              confirmIcon: Icons.delete,
+                              onConfirm: () => Navigator.pop(ctx, true),
+                              onCancel: () => Navigator.pop(ctx, false),
                             ),
                       );
                       if (confirm == true) {

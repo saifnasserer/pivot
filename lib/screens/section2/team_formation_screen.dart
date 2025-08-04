@@ -4,6 +4,7 @@ import 'package:pivot/data/form_options.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/screens/models/team_find_card.dart';
 import 'package:pivot/responsive.dart';
+import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:pivot/models/team_member.dart';
 import 'package:pivot/providers/team_provider.dart';
 import 'package:provider/provider.dart';
@@ -93,62 +94,70 @@ class _TeamFormationScreenState extends State<TeamFormationScreen> {
     showDialog(
       context: context,
       builder:
-          (context) => Directionality(
-            textDirection: TextDirection.rtl,
-            child: AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(
-                  Responsive.space(context, size: Space.large),
-                ),
-              ),
-              title: Text(
-                'ضيف نفسك',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: Responsive.text(context, size: TextSize.heading),
-                ),
-              ),
-              content: Form(
-                key: _formKey,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(
-                            Responsive.space(context, size: Space.large),
-                          ),
-                          border: Border.all(color: Colors.grey[300]!),
+          (context) => StatefulBuilder(
+            builder: (context, setState) {
+              return UnifiedDialog(
+                title: 'إضافة نفسك للفريق',
+                subtitle: 'أضف معلوماتك ومهاراتك',
+                content: Form(
+                  key: _formKey,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        // Skills section
+                        UnifiedSectionHeader(
+                          title: 'المهارات',
+                          icon: Icons.psychology,
                         ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: TextFormField(
-                                controller: _skillController,
-                                textDirection: TextDirection.rtl,
-                                textAlign: TextAlign.right,
-                                decoration: InputDecoration(
-                                  hintText: 'أضف مهارة',
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(
-                                      Responsive.space(
-                                        context,
-                                        size: Space.large,
+                        Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(
+                              Responsive.space(context, size: Space.large),
+                            ),
+                            border: Border.all(color: Colors.grey[300]!),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _skillController,
+                                  textDirection: TextDirection.rtl,
+                                  textAlign: TextAlign.right,
+                                  decoration: InputDecoration(
+                                    hintText: 'أضف مهارة',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(
+                                        Responsive.space(
+                                          context,
+                                          size: Space.large,
+                                        ),
+                                      ),
+                                      borderSide: BorderSide(
+                                        color: Color(0xFFF7F7F7),
                                       ),
                                     ),
-                                    borderSide: BorderSide(
-                                      color: Color(0xFFF7F7F7),
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 8,
                                     ),
                                   ),
-                                  contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 8,
-                                  ),
+                                  onFieldSubmitted: (v) {
+                                    if (v.trim().isNotEmpty &&
+                                        !newSkills.contains(v.trim())) {
+                                      setState(() {
+                                        newSkills.add(v.trim());
+                                        _skillController.clear();
+                                      });
+                                    }
+                                  },
                                 ),
-                                onFieldSubmitted: (v) {
+                              ),
+                              IconButton(
+                                icon: Icon(Icons.add),
+                                onPressed: () {
+                                  final v = _skillController.text;
                                   if (v.trim().isNotEmpty &&
                                       !newSkills.contains(v.trim())) {
                                     setState(() {
@@ -158,79 +167,88 @@ class _TeamFormationScreenState extends State<TeamFormationScreen> {
                                   }
                                 },
                               ),
-                            ),
-                            IconButton(
-                              icon: Icon(Icons.add),
-                              onPressed: () {
-                                final v = _skillController.text;
-                                if (v.trim().isNotEmpty &&
-                                    !newSkills.contains(v.trim())) {
-                                  setState(() {
-                                    newSkills.add(v.trim());
-                                    _skillController.clear();
-                                  });
-                                }
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(
-                        height: Responsive.space(context, size: Space.small),
-                      ),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        alignment: WrapAlignment.end,
-                        children:
-                            newSkills
-                                .map(
-                                  (skill) => Chip(
-                                    label: Text(skill),
-                                    onDeleted:
-                                        () => setState(
-                                          () => newSkills.remove(skill),
-                                        ),
-                                  ),
-                                )
-                                .toList(),
-                      ),
-                      Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(
-                            Responsive.space(context, size: Space.large),
+                            ],
                           ),
-                          border: Border.all(color: Colors.grey[300]!),
                         ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: TextFormField(
-                                controller: _projectLinkController,
-                                textDirection: TextDirection.rtl,
-                                textAlign: TextAlign.right,
-                                decoration: InputDecoration(
-                                  hintText: 'رابط مشروع سابق',
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(
-                                      Responsive.space(
-                                        context,
-                                        size: Space.large,
+                        SizedBox(
+                          height: Responsive.space(context, size: Space.small),
+                        ),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          alignment: WrapAlignment.end,
+                          children:
+                              newSkills
+                                  .map(
+                                    (skill) => Chip(
+                                      label: Text(skill),
+                                      onDeleted:
+                                          () => setState(
+                                            () => newSkills.remove(skill),
+                                          ),
+                                    ),
+                                  )
+                                  .toList(),
+                        ),
+                        SizedBox(
+                          height: Responsive.space(context, size: Space.medium),
+                        ),
+
+                        // Previous projects section
+                        UnifiedSectionHeader(
+                          title: 'المشاريع السابقة',
+                          icon: Icons.work,
+                        ),
+                        Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(
+                              Responsive.space(context, size: Space.large),
+                            ),
+                            border: Border.all(color: Colors.grey[300]!),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _projectLinkController,
+                                  textDirection: TextDirection.rtl,
+                                  textAlign: TextAlign.right,
+                                  decoration: InputDecoration(
+                                    hintText: 'رابط مشروع سابق',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(
+                                        Responsive.space(
+                                          context,
+                                          size: Space.large,
+                                        ),
+                                      ),
+                                      borderSide: BorderSide(
+                                        color: Color(0xFFF7F7F7),
                                       ),
                                     ),
-                                    borderSide: BorderSide(
-                                      color: Color(0xFFF7F7F7),
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 8,
                                     ),
                                   ),
-                                  contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 8,
-                                  ),
+                                  onFieldSubmitted: (v) {
+                                    if (Uri.tryParse(v)?.hasAbsolutePath ==
+                                            true &&
+                                        !newPreviousProjects.contains(v)) {
+                                      setState(() {
+                                        newPreviousProjects.add(v);
+                                        _projectLinkController.clear();
+                                      });
+                                    }
+                                  },
                                 ),
-
-                                onFieldSubmitted: (v) {
-                                  final formKey = Form.of(context);
-                                  if (formKey.validate() &&
+                              ),
+                              IconButton(
+                                icon: Icon(Icons.add),
+                                onPressed: () {
+                                  final v = _projectLinkController.text;
+                                  if (Uri.tryParse(v)?.hasAbsolutePath ==
+                                          true &&
                                       !newPreviousProjects.contains(v)) {
                                     setState(() {
                                       newPreviousProjects.add(v);
@@ -239,172 +257,155 @@ class _TeamFormationScreenState extends State<TeamFormationScreen> {
                                   }
                                 },
                               ),
-                            ),
-                            IconButton(
-                              icon: Icon(Icons.add),
-                              onPressed: () {
-                                final v = _projectLinkController.text;
-                                if (Uri.tryParse(v)?.hasAbsolutePath == true &&
-                                    !newPreviousProjects.contains(v)) {
-                                  setState(() {
-                                    newPreviousProjects.add(v);
-                                    _projectLinkController.clear();
-                                  });
-                                }
-                              },
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                      SizedBox(
-                        height: Responsive.space(context, size: Space.small),
-                      ),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        alignment: WrapAlignment.end,
-                        children:
-                            newPreviousProjects
-                                .map(
-                                  (link) => Chip(
-                                    label: Text(
-                                      link,
-                                      style: TextStyle(
-                                        fontSize: Responsive.text(
-                                          context,
-                                          size: TextSize.small,
+                        SizedBox(
+                          height: Responsive.space(context, size: Space.small),
+                        ),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          alignment: WrapAlignment.end,
+                          children:
+                              newPreviousProjects
+                                  .map(
+                                    (link) => Chip(
+                                      label: Text(
+                                        link,
+                                        style: TextStyle(
+                                          fontSize: Responsive.text(
+                                            context,
+                                            size: TextSize.small,
+                                          ),
                                         ),
                                       ),
+                                      onDeleted:
+                                          () => setState(
+                                            () => newPreviousProjects.remove(
+                                              link,
+                                            ),
+                                          ),
                                     ),
-                                    onDeleted:
-                                        () => setState(
-                                          () =>
-                                              newPreviousProjects.remove(link),
-                                        ),
-                                  ),
-                                )
-                                .toList(),
-                      ),
-                      SizedBox(
-                        height: Responsive.space(context, size: Space.medium),
-                      ),
-                      // WhatsApp
-                      CustomTextField(
-                        hint: 'رقم واتساب',
-                        suffixIcon: Icon(Icons.phone),
-                        onChanged: (v) => newWhatsapp = v,
-                        validator: (v) {
-                          if (v == null || v.isEmpty) {
-                            return 'مطلوب';
-                          }
-                          if (!v.startsWith('0')) {
-                            return 'يجب أن يبدأ الرقم بـ 0';
-                          }
-                          if (v.length != 11) {
-                            return 'يجب أن يتكون الرقم من 11 رقم';
-                          }
-                          if (!RegExp(r'^[0-9]+$').hasMatch(v)) {
-                            return 'يجب أن يحتوي على أرقام فقط';
-                          }
-                          return null;
-                        },
-                        keyboardType: TextInputType.phone,
-                      ),
-                      SizedBox(
-                        height: Responsive.space(context, size: Space.medium),
-                      ),
-                      // LinkedIn (optional)
-                      CustomTextField(
-                        hint: 'رابط لينكدإن (اختياري)',
-                        onChanged: (v) => newLinkedin = v,
-                        validator:
-                            (v) =>
-                                v != null &&
-                                        v.isNotEmpty &&
-                                        !v.startsWith('http')
-                                    ? 'رابط غير صحيح'
-                                    : null,
-                      ),
-                    ],
+                                  )
+                                  .toList(),
+                        ),
+                        SizedBox(
+                          height: Responsive.space(context, size: Space.medium),
+                        ),
+
+                        // Contact information section
+                        UnifiedSectionHeader(
+                          title: 'معلومات التواصل',
+                          icon: Icons.contact_phone,
+                        ),
+                        CustomTextField(
+                          hint: 'رقم واتساب',
+                          suffixIcon: Icon(Icons.phone),
+                          onChanged: (v) => newWhatsapp = v,
+                          validator: (v) {
+                            if (v == null || v.isEmpty) return 'مطلوب';
+                            if (!v.startsWith('0'))
+                              return 'يجب أن يبدأ الرقم بـ 0';
+                            if (v.length != 11)
+                              return 'يجب أن يتكون الرقم من 11 رقم';
+                            if (!RegExp(r'^[0-9]+$').hasMatch(v))
+                              return 'يجب أن يحتوي على أرقام فقط';
+                            return null;
+                          },
+                          keyboardType: TextInputType.phone,
+                        ),
+                        SizedBox(
+                          height: Responsive.space(context, size: Space.medium),
+                        ),
+                        CustomTextField(
+                          hint: 'رابط لينكدإن (اختياري)',
+                          onChanged: (v) => newLinkedin = v,
+                          validator:
+                              (v) =>
+                                  v != null &&
+                                          v.isNotEmpty &&
+                                          !v.startsWith('http')
+                                      ? 'رابط غير صحيح'
+                                      : null,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              actions: [
-                Center(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(
-                          Responsive.space(context, size: Space.large),
-                        ),
-                      ),
-                      elevation: 0,
-                    ),
-                    onPressed: () async {
-                      if (_formKey.currentState!.validate()) {
-                        final provider = context.read<TeamProvider>();
-                        final user = FirebaseAuth.instance.currentUser;
-                        if (user == null) {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('يجب تسجيل الدخول أولاً'),
-                                backgroundColor: Colors.black,
+                confirmText: 'إضافة',
+                confirmIcon: Icons.add,
+                onConfirm: () async {
+                  if (_formKey.currentState!.validate()) {
+                    final provider = context.read<TeamProvider>();
+                    final user = FirebaseAuth.instance.currentUser;
+                    if (user == null) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('يجب تسجيل الدخول أولاً'),
+                            backgroundColor: Colors.red,
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(
+                                Responsive.space(context, size: Space.large),
                               ),
-                            );
-                          }
-                          return;
-                        }
-                        try {
-                          final member = TeamMember(
-                            id: const Uuid().v4(),
-                            name: currentUserProfile?.name ?? '',
-                            skills: newSkills,
-                            previousProjects: newPreviousProjects,
-                            purpose: widget.teamName ?? newPurpose,
-                            whatsappNumber: newWhatsapp,
-                            linkedinProfile: newLinkedin,
-                            userId: user.uid,
-                            createdAt: DateTime.now(),
-                            teamName: widget.teamName ?? newPurpose,
-                          );
-                          await provider.addTeamMember(member);
-                          if (context.mounted) {
-                            Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('تم إضافتك بنجاح'),
-                                backgroundColor: Colors.green,
-                              ),
-                            );
-                          }
-                        } catch (e) {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('حدث خطأ: $e'),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                          }
-                        }
+                            ),
+                          ),
+                        );
                       }
-                    },
-                    child: Text(
-                      'إضافة',
-                      style: TextStyle(
-                        fontSize: Responsive.text(
-                          context,
-                          size: TextSize.medium,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+                      return;
+                    }
+                    try {
+                      final member = TeamMember(
+                        id: const Uuid().v4(),
+                        name: currentUserProfile?.name ?? '',
+                        skills: newSkills,
+                        previousProjects: newPreviousProjects,
+                        purpose: widget.teamName ?? newPurpose,
+                        whatsappNumber: newWhatsapp,
+                        linkedinProfile: newLinkedin,
+                        userId: user.uid,
+                        createdAt: DateTime.now(),
+                        teamName: widget.teamName ?? newPurpose,
+                      );
+                      await provider.addTeamMember(member);
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('تم إضافتك بنجاح'),
+                            backgroundColor: Colors.green,
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(
+                                Responsive.space(context, size: Space.large),
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('حدث خطأ: $e'),
+                            backgroundColor: Colors.red,
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(
+                                Responsive.space(context, size: Space.large),
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+                    }
+                  }
+                },
+                onCancel: () => Navigator.pop(context),
+              );
+            },
           ),
     );
   }
@@ -603,62 +604,69 @@ class _TeamFormationScreenState extends State<TeamFormationScreen> {
                               final shouldDelete = await showDialog<bool>(
                                 context: context,
                                 builder:
-                                    (context) => AlertDialog(
-                                      title: Text(
-                                        'متأكد؟',
-                                        textAlign: TextAlign.center,
-                                      ),
-                                      actions: [
-                                        Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            TextButton(
-                                              onPressed:
-                                                  () => Navigator.pop(
-                                                    context,
-                                                    false,
-                                                  ),
-                                              child: Text('إلغاء'),
+                                    (context) => UnifiedDialog(
+                                      title: 'حذف العضو',
+                                      subtitle:
+                                          'هل أنت متأكد من رغبتك في حذف هذا العضو؟',
+                                      content: Container(
+                                        padding: EdgeInsets.all(
+                                          Responsive.space(
+                                            context,
+                                            size: Space.medium,
+                                          ),
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.red.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(
+                                            Responsive.space(
+                                              context,
+                                              size: Space.large,
                                             ),
-                                            TextButton(
-                                              onPressed:
-                                                  () => Navigator.pop(
+                                          ),
+                                          border: Border.all(
+                                            color: Colors.red.withOpacity(0.3),
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.end,
+                                          children: [
+                                            Icon(
+                                              Icons.warning_amber_rounded,
+                                              color: Colors.red,
+                                              size: Responsive.space(
+                                                context,
+                                                size: Space.large,
+                                              ),
+                                            ),
+                                            SizedBox(
+                                              width: Responsive.space(
+                                                context,
+                                                size: Space.medium,
+                                              ),
+                                            ),
+                                            Expanded(
+                                              child: Text(
+                                                'لا يمكن التراجع عن هذا الإجراء بعد الحذف',
+                                                style: TextStyle(
+                                                  fontSize: Responsive.text(
                                                     context,
-                                                    true,
+                                                    size: TextSize.medium,
                                                   ),
-                                              child: Container(
-                                                padding: EdgeInsets.symmetric(
-                                                  horizontal: Responsive.space(
-                                                    context,
-                                                    size: Space.medium,
-                                                  ),
-                                                  vertical: Responsive.space(
-                                                    context,
-                                                    size: Space.small,
-                                                  ),
+                                                  color: Colors.black87,
                                                 ),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.red,
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                        Responsive.space(
-                                                          context,
-                                                          size: Space.large,
-                                                        ),
-                                                      ),
-                                                ),
-                                                child: Text(
-                                                  'حذف',
-                                                  style: TextStyle(
-                                                    color: Colors.white,
-                                                  ),
-                                                ),
+                                                textAlign: TextAlign.right,
                                               ),
                                             ),
                                           ],
                                         ),
-                                      ],
+                                      ),
+                                      confirmText: 'حذف',
+                                      confirmIcon: Icons.delete,
+                                      onConfirm:
+                                          () => Navigator.pop(context, true),
+                                      onCancel:
+                                          () => Navigator.pop(context, false),
                                     ),
                               );
 

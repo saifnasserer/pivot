@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/providers/super_admin_provider.dart';
 import 'package:pivot/responsive.dart';
+import 'package:pivot/widgets/unified_dialog.dart';
 
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -431,76 +432,42 @@ class _SuperAdminPanelScreenState extends State<SuperAdminPanelScreen> {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return Directionality(
-          textDirection: TextDirection.rtl,
-          child: AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+        return UnifiedDialog(
+          title: 'تسجيل الخروج؟',
+          subtitle: 'هل أنت متأكد من رغبتك في تسجيل الخروج؟',
+          content: Container(
+            padding: Responsive.padding(context, size: Space.medium),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.logout,
+                  color: Colors.orange,
+                  size: Responsive.text(context, size: TextSize.heading),
+                ),
+                SizedBox(width: Responsive.space(context, size: Space.medium)),
+                Expanded(
+                  child: Text(
+                    'سيتم تسجيل خروجك من التطبيق وستحتاج إلى تسجيل الدخول مرة أخرى للوصول إلى لوحة الإدارة.',
+                    style: TextStyle(
+                      fontSize: Responsive.text(context, size: TextSize.medium),
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                ),
+              ],
             ),
-            title: Text(
-              'تسجيل الخروج؟',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: Responsive.text(context, size: TextSize.heading),
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            actions: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      borderRadius: BorderRadius.circular(
-                        Responsive.space(context, size: Space.large),
-                      ),
-                    ),
-                    child: TextButton(
-                      child: Text(
-                        'تأكيد',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: Responsive.text(
-                            context,
-                            size: TextSize.medium,
-                          ),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      onPressed: () async {
-                        await FirebaseAuth.instance.signOut();
-                        if (!mounted) return;
-                        Navigator.of(context).pushNamedAndRemoveUntil(
-                          '/auth-wrapper',
-                          (Route<dynamic> route) => false,
-                        );
-                      },
-                    ),
-                  ),
-                  SizedBox(
-                    width: Responsive.space(context, size: Space.medium),
-                  ),
-                  TextButton(
-                    child: Text(
-                      'إلغاء',
-                      style: TextStyle(
-                        color: Colors.black87,
-                        fontSize: Responsive.text(
-                          context,
-                          size: TextSize.medium,
-                        ),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                    },
-                  ),
-                ],
-              ),
-            ],
           ),
+          confirmText: 'تأكيد الخروج',
+          confirmIcon: Icons.logout,
+          onConfirm: () async {
+            await FirebaseAuth.instance.signOut();
+            if (!mounted) return;
+            Navigator.of(context).pushNamedAndRemoveUntil(
+              '/auth-wrapper',
+              (Route<dynamic> route) => false,
+            );
+          },
+          onCancel: () => Navigator.pop(context),
         );
       },
     );
