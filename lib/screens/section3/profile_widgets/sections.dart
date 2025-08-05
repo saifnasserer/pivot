@@ -889,135 +889,85 @@ class _AssistantSelectionDialogState extends State<_AssistantSelectionDialog> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Header
-        Container(
-          padding: Responsive.padding(context, size: Space.medium),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(
-                Responsive.space(context, size: Space.large),
-              ),
-              topRight: Radius.circular(
-                Responsive.space(context, size: Space.large),
-              ),
-            ),
-            border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: Icon(Icons.close, color: Colors.grey.shade600),
-                  ),
-                  Expanded(
-                    child: Text(
-                      widget.subject.name,
-                      style: TextStyle(
-                        fontSize: Responsive.text(
-                          context,
-                          size: TextSize.heading,
-                        ),
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                      textAlign: TextAlign.center,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  SizedBox(width: 48), // Balance the close button
-                ],
-              ),
-              SizedBox(height: Responsive.space(context, size: Space.small)),
-              Text(
-                'اختيار المعيد الافتراضي',
-                style: TextStyle(
-                  fontSize: Responsive.text(context, size: TextSize.medium),
-                  color: Colors.grey.shade600,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-
-        // Scrollable content
         Expanded(
-          child: SingleChildScrollView(
-            padding: Responsive.padding(context, size: Space.medium),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                // Subject icon and basic info
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Container(
-                      padding: EdgeInsets.all(
-                        Responsive.space(context, size: Space.small),
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(
-                          Responsive.space(context, size: Space.large),
+          child: Directionality(
+            textDirection: TextDirection.rtl,
+            child: SingleChildScrollView(
+              padding: Responsive.padding(context, size: Space.medium),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  // Subject icon and basic info
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(
+                          Responsive.space(context, size: Space.small),
                         ),
-                      ),
-                      child: Icon(
-                        Icons.class_,
-                        color: Colors.black,
-                        size: Responsive.space(context, size: Space.medium),
-                      ),
-                    ),
-                    SizedBox(
-                      width: Responsive.space(context, size: Space.medium),
-                    ),
-                    Expanded(
-                      child: Text(
-                        widget.subject.name,
-                        style: TextStyle(
-                          fontSize: Responsive.text(
-                            context,
-                            size: TextSize.heading,
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(
+                            Responsive.space(context, size: Space.large),
                           ),
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
                         ),
-                        textAlign: TextAlign.right,
+                        child: Icon(
+                          Icons.class_,
+                          color: Colors.black,
+                          size: Responsive.space(context, size: Space.medium),
+                        ),
                       ),
+                      SizedBox(
+                        width: Responsive.space(context, size: Space.medium),
+                      ),
+                      Expanded(
+                        child: Text(
+                          widget.subject.name,
+                          style: TextStyle(
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.heading,
+                            ),
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                          textAlign: TextAlign.right,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.medium),
+                  ),
+                  Divider(thickness: 1, color: Colors.grey[200]),
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.medium),
+                  ),
+
+                  // Section details
+                  _buildEnhancedDetailSection(context, widget.section),
+
+                  // Assistants section
+                  if (widget.assistants.isNotEmpty) ...[
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.medium),
                     ),
+                    _buildAssistantsSection(
+                      context,
+                      widget.assistants,
+                      widget.subject,
+                      _selectedAssistantId,
+                      _onAssistantSelected,
+                    ),
+                  ] else ...[
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.medium),
+                    ),
+                    _buildNoAssistantsSection(context),
                   ],
-                ),
-
-                SizedBox(height: Responsive.space(context, size: Space.medium)),
-                Divider(thickness: 1, color: Colors.grey[200]),
-                SizedBox(height: Responsive.space(context, size: Space.medium)),
-
-                // Section details
-                _buildEnhancedDetailSection(context, widget.section),
-
-                // Assistants section
-                if (widget.assistants.isNotEmpty) ...[
-                  SizedBox(
-                    height: Responsive.space(context, size: Space.medium),
-                  ),
-                  _buildAssistantsSection(
-                    context,
-                    widget.assistants,
-                    widget.subject,
-                    _selectedAssistantId,
-                    _onAssistantSelected,
-                  ),
-                ] else ...[
-                  SizedBox(
-                    height: Responsive.space(context, size: Space.medium),
-                  ),
-                  _buildNoAssistantsSection(context),
                 ],
-              ],
+              ),
             ),
           ),
         ),

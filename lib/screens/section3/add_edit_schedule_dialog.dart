@@ -102,15 +102,6 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
     }
   }
 
-  String _getTypeArabicName(ScheduleItemType type) {
-    switch (type) {
-      case ScheduleItemType.lecture:
-        return 'محاضرة';
-      case ScheduleItemType.section:
-        return 'سكشن';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return UnifiedDialog(

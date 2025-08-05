@@ -479,8 +479,8 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
           context: context,
           builder:
               (context) => AlertDialog(
-                title: const Text('حذف المهمة'),
-                content: const Text('هل أنت متأكد من حذف هذه المهمة؟'),
+                title: const Text('حذف'),
+                content: const Text('متأكد؟'),
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(false),
@@ -725,10 +725,16 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
       onPressed: () => _showAddEditTaskDialog(context),
       backgroundColor: Colors.black,
       elevation: 4,
-      icon: const Icon(Icons.add, color: Colors.white, size: 20),
-      label: const Text(
-        'مهمة جديدة',
-        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+
+      label: Row(
+        children: [
+          const Text(
+            'تاسك',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+          ),
+          SizedBox(width: Responsive.space(context, size: Space.small)),
+          const Icon(Icons.add, color: Colors.white, size: 20),
+        ],
       ),
     );
   }

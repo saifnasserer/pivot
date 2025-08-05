@@ -7,7 +7,7 @@ import 'package:pivot/providers/settings_provider.dart';
 import 'package:pivot/providers/super_admin_provider.dart';
 import 'package:pivot/providers/guide_provider.dart';
 import 'package:pivot/screens/section2/teams.dart';
-import 'package:pivot/screens/section3/edit_profile.dart'
+import 'package:pivot/screens/section3/edit_profile/edit_profile.dart'
     deferred as edit_profile;
 import 'package:pivot/services/remote_config_service.dart';
 import 'package:pivot/responsive.dart';
@@ -30,7 +30,7 @@ import 'package:pivot/screens/section2/adminstration/send_notification_screen.da
 import 'package:pivot/screens/section2/super_admin_panel/super_admin_panel_screen.dart'
     deferred as super_admin_panel_screen;
 import 'package:pivot/screens/section2/landing.dart';
-import 'package:pivot/screens/section3/profile.dart';
+import 'package:pivot/screens/section3/profile/profile.dart';
 import 'package:pivot/screens/section4/assistants/assistant_profile.dart';
 import 'package:pivot/screens/section4/doctor/doctor_profile.dart';
 import 'package:pivot/screens/section4/assistants/all_tasks.dart';
@@ -544,19 +544,19 @@ class _ErrorBoundaryState extends State<ErrorBoundary> {
     return widget.child;
   }
 
-  @override
-  void initState() {
-    super.initState();
-    // Set up error handling
-    FlutterError.onError = (FlutterErrorDetails details) {
-      // Schedule the state update for after the current build frame completes
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          setState(() {
-            _error = details.exception.toString();
-          });
-        }
-      });
-    };
-  }
+  // @override
+  // void initState() {
+  //   super.initState();
+  //   // Set up error handling
+  //   FlutterError.onError = (FlutterErrorDetails details) {
+  //     // Schedule the state update for after the current build frame completes
+  //     WidgetsBinding.instance.addPostFrameCallback((_) {
+  //       if (mounted) {
+  //         setState(() {
+  //           _error = details.exception.toString();
+  //         });
+  //       }
+  //     });
+  //   };
+  // }
 }

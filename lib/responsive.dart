@@ -3,8 +3,32 @@ import 'package:flutter/material.dart';
 class Responsive {
   static double width(BuildContext context) =>
       MediaQuery.of(context).size.width;
-  static double height(BuildContext context) =>
-      MediaQuery.of(context).size.height;
+
+  // Updated to use available height considering system UI insets
+  static double height(BuildContext context) {
+    final mediaQuery = MediaQuery.of(context);
+    return mediaQuery.size.height -
+        mediaQuery.padding.top -
+        mediaQuery.padding.bottom;
+  }
+
+  // New method to get available height for dialogs and overlays
+  static double availableHeight(BuildContext context) {
+    final mediaQuery = MediaQuery.of(context);
+    return mediaQuery.size.height -
+        mediaQuery.viewInsets.top -
+        mediaQuery.viewInsets.bottom;
+  }
+
+  // New method to get safe area height
+  static double safeHeight(BuildContext context) {
+    final mediaQuery = MediaQuery.of(context);
+    return mediaQuery.size.height -
+        mediaQuery.padding.top -
+        mediaQuery.padding.bottom -
+        mediaQuery.viewInsets.top -
+        mediaQuery.viewInsets.bottom;
+  }
 
   static double text(BuildContext context, {TextSize size = TextSize.medium}) {
     final double screenWidth = width(context);
@@ -66,6 +90,12 @@ enum Space { tiny, small, medium, large, xlarge }
 class ScreenD {
   static double width(BuildContext context) =>
       MediaQuery.of(context).size.width;
-  static double height(BuildContext context) =>
-      MediaQuery.of(context).size.height;
+
+  // Updated to use available height
+  static double height(BuildContext context) {
+    final mediaQuery = MediaQuery.of(context);
+    return mediaQuery.size.height -
+        mediaQuery.padding.top -
+        mediaQuery.padding.bottom;
+  }
 }

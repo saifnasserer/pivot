@@ -331,6 +331,9 @@ class UserProfileProvider with ChangeNotifier {
     BuildContext? context,
   }) async {
     try {
+      debugPrint('Starting updateUserProfileData for user: $userId');
+      debugPrint('Image file provided: ${imageFile?.path}');
+
       // Handle password update if present
       if (data.containsKey('password')) {
         final newPassword = data['password'] as String;
@@ -384,9 +387,15 @@ class UserProfileProvider with ChangeNotifier {
 
       String? imageUrl;
       if (imageFile != null) {
+        debugPrint('Starting image upload process...');
+        debugPrint('Image file path: ${imageFile.path}');
+        debugPrint('Image file exists: ${await File(imageFile.path).exists()}');
+
         // Use the optimized storage service for profile images
         final storageService = StorageOptimizationService();
         final xFile = XFile(imageFile.path);
+
+        debugPrint('Calling uploadFileOptimized...');
         imageUrl = await storageService.uploadFileOptimized(
           xFile,
           folder: 'profile_images',
@@ -394,13 +403,28 @@ class UserProfileProvider with ChangeNotifier {
           checkDuplicate: true,
         );
 
+        debugPrint('Upload result - imageUrl: $imageUrl');
+
+        if (imageUrl == null) {
+          debugPrint(
+            'Firebase Storage upload failed - authorization issue detected',
+          );
+          // Show error message to user about Firebase Storage configuration
+          throw Exception(
+            'فشل في رفع الصورة. يرجى التحقق من إعدادات Firebase Storage أو المحاولة لاحقاً',
+          );
+        }
+
         if (imageUrl != null) {
           data['profileImageUrl'] = imageUrl;
+          debugPrint('Image URL added to update data: $imageUrl');
         }
       }
 
+      debugPrint('Updating Firestore document...');
       final userRef = _firestore.collection('users').doc(userId);
       await userRef.update(data);
+      debugPrint('Firestore document updated successfully');
 
       // Update local cache
       if (_userProfile?.id == userId) {
@@ -424,14 +448,10 @@ class UserProfileProvider with ChangeNotifier {
         );
       }
 
+      debugPrint('Local cache updated successfully');
       notifyListeners();
-      // Log profile update
-      // await ActivityLogService().logAction(
-      //   action: 'Profile updated',
-      //   details: 'Profile data updated for user $userId',
-      // );
     } catch (e) {
-      print('Error updating user profile: $e');
+      debugPrint('Error in updateUserProfileData: $e');
       rethrow;
     }
   }

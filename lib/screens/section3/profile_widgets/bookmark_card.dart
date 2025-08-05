@@ -120,8 +120,9 @@ class _BookmarkCardState extends State<BookmarkCard>
                               color: Colors.red.shade400,
                               tooltip: 'إزالة من المحفظات',
                               onPressed: () {
-                                widget.onRemove!();
-                                Navigator.of(context).pop();
+                                if (context.mounted) {
+                                  Navigator.of(context).pop();
+                                }
                               },
                             ),
 
@@ -271,7 +272,11 @@ class _BookmarkCardState extends State<BookmarkCard>
                   elevation: 4,
                   child: IconButton(
                     icon: const Icon(Icons.close, color: Colors.black87),
-                    onPressed: () => Navigator.of(context).pop(),
+                    onPressed: () {
+                      if (context.mounted) {
+                        Navigator.of(context).pop();
+                      }
+                    },
                     tooltip: 'إغلاق',
                   ),
                 ),
@@ -434,7 +439,7 @@ class _BookmarkCardState extends State<BookmarkCard>
                 if (await canLaunchUrl(url)) {
                   await launchUrl(url, mode: LaunchMode.externalApplication);
                 } else {
-                  if (mounted) {
+                  if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text('تعذر فتح الرابط: $urlString')),
                     );
@@ -510,13 +515,15 @@ class _BookmarkCardState extends State<BookmarkCard>
                 height: Responsive.space(context, size: Space.large) * 3,
                 child: GestureDetector(
                   onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder:
-                            (context) =>
-                                FullScreenImageViewer(imageUrl: imageUrl),
-                      ),
-                    );
+                    if (context.mounted) {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder:
+                              (context) =>
+                                  FullScreenImageViewer(imageUrl: imageUrl),
+                        ),
+                      );
+                    }
                   },
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(12.0),
@@ -969,7 +976,11 @@ class BookmarkDetailsDialog extends StatelessWidget {
               elevation: 2,
               child: IconButton(
                 icon: const Icon(Icons.close, color: Colors.black87),
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: () {
+                  if (context.mounted) {
+                    Navigator.of(context).pop();
+                  }
+                },
               ),
             ),
           ),

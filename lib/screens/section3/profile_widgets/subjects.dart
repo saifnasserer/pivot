@@ -351,171 +351,110 @@ class _EnhancedSubjectListItemState extends State<EnhancedSubjectListItem>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Header
-                  Container(
-                    padding: Responsive.padding(context, size: Space.medium),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(
-                          Responsive.space(context, size: Space.large),
-                        ),
-                        topRight: Radius.circular(
-                          Responsive.space(context, size: Space.large),
-                        ),
-                      ),
-                      border: Border(
-                        bottom: BorderSide(color: Colors.grey.shade200),
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            IconButton(
-                              onPressed: () => Navigator.of(context).pop(),
-                              icon: Icon(
-                                Icons.close,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                            Expanded(
-                              child: Text(
-                                subject.name,
-                                style: TextStyle(
-                                  fontSize: Responsive.text(
-                                    context,
-                                    size: TextSize.heading,
-                                  ),
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
-                                ),
-                                textAlign: TextAlign.center,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            SizedBox(width: 48), // Balance the close button
-                          ],
-                        ),
-                        SizedBox(
-                          height: Responsive.space(context, size: Space.small),
-                        ),
-                        Text(
-                          'تفاصيل المادة الدراسية',
-                          style: TextStyle(
-                            fontSize: Responsive.text(
-                              context,
-                              size: TextSize.medium,
-                            ),
-                            color: Colors.grey.shade600,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Scrollable content
                   Expanded(
-                    child: SingleChildScrollView(
-                      padding: Responsive.padding(context, size: Space.medium),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          // Subject icon and basic info
-                          Container(
-                            width: double.infinity,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                Container(
-                                  padding: EdgeInsets.all(
-                                    Responsive.space(
-                                      context,
-                                      size: Space.small,
-                                    ),
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(
+                    child: Directionality(
+                      textDirection: TextDirection.rtl,
+                      child: SingleChildScrollView(
+                        padding: Responsive.padding(
+                          context,
+                          size: Space.medium,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            // Subject icon and basic info
+                            Container(
+                              width: double.infinity,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  Container(
+                                    padding: EdgeInsets.all(
                                       Responsive.space(
                                         context,
-                                        size: Space.large,
+                                        size: Space.small,
+                                      ),
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(
+                                        Responsive.space(
+                                          context,
+                                          size: Space.large,
+                                        ),
+                                      ),
+                                    ),
+                                    child: Icon(
+                                      Icons.menu_book_rounded,
+                                      color: Colors.black,
+                                      size: Responsive.space(
+                                        context,
+                                        size: Space.medium,
                                       ),
                                     ),
                                   ),
-                                  child: Icon(
-                                    Icons.menu_book_rounded,
-                                    color: Colors.black,
-                                    size: Responsive.space(
+                                  SizedBox(
+                                    width: Responsive.space(
                                       context,
                                       size: Space.medium,
                                     ),
                                   ),
-                                ),
-                                SizedBox(
-                                  width: Responsive.space(
-                                    context,
-                                    size: Space.medium,
-                                  ),
-                                ),
-                                Expanded(
-                                  child: Text(
-                                    subject.name,
-                                    style: TextStyle(
-                                      fontSize: Responsive.text(
-                                        context,
-                                        size: TextSize.heading,
+                                  Expanded(
+                                    child: Text(
+                                      subject.name,
+                                      style: TextStyle(
+                                        fontSize: Responsive.text(
+                                          context,
+                                          size: TextSize.heading,
+                                        ),
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black87,
                                       ),
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.black87,
+                                      textAlign: TextAlign.right,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                    textAlign: TextAlign.right,
-                                    overflow: TextOverflow.ellipsis,
                                   ),
+                                ],
+                              ),
+                            ),
+
+                            SizedBox(
+                              height: Responsive.space(
+                                context,
+                                size: Space.medium,
+                              ),
+                            ),
+                            Divider(thickness: 1, color: Colors.grey[200]),
+                            SizedBox(
+                              height: Responsive.space(
+                                context,
+                                size: Space.medium,
+                              ),
+                            ),
+
+                            // Subject details section
+                            _buildEnhancedDetailSection(context, subject),
+
+                            // Professors section
+                            if (professors.isNotEmpty) ...[
+                              SizedBox(
+                                height: Responsive.space(
+                                  context,
+                                  size: Space.medium,
                                 ),
-                              ],
-                            ),
-                          ),
-
-                          SizedBox(
-                            height: Responsive.space(
-                              context,
-                              size: Space.medium,
-                            ),
-                          ),
-                          Divider(thickness: 1, color: Colors.grey[200]),
-                          SizedBox(
-                            height: Responsive.space(
-                              context,
-                              size: Space.medium,
-                            ),
-                          ),
-
-                          // Subject details section
-                          _buildEnhancedDetailSection(context, subject),
-
-                          // Professors section
-                          if (professors.isNotEmpty) ...[
-                            SizedBox(
-                              height: Responsive.space(
-                                context,
-                                size: Space.medium,
                               ),
-                            ),
-                            _buildProfessorsSection(context, professors),
-                          ] else ...[
-                            SizedBox(
-                              height: Responsive.space(
-                                context,
-                                size: Space.medium,
+                              _buildProfessorsSection(context, professors),
+                            ] else ...[
+                              SizedBox(
+                                height: Responsive.space(
+                                  context,
+                                  size: Space.medium,
+                                ),
                               ),
-                            ),
-                            _buildNoProfessorsSection(context),
+                              _buildNoProfessorsSection(context),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
                     ),
                   ),

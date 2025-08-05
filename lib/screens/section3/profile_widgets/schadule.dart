@@ -87,15 +87,9 @@ class ScheduleCalendarBuilder {
                 backgroundColor: Colors.black,
                 foregroundColor: Colors.white,
                 elevation: 6,
-                label: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text('محاضرة/سكاشن'),
-                    SizedBox(
-                      width: Responsive.space(context, size: Space.tiny),
-                    ),
-                    const Icon(Icons.add, size: 18),
-                  ],
+                label: Icon(
+                  Icons.add,
+                  size: Responsive.text(context, size: TextSize.medium),
                 ),
               )
               : null,

@@ -233,10 +233,64 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
     if (_hasVideoError || !_isVideoInitialized) {
       return Container(
         color: Colors.black,
-        child: const Center(
-          child: Text(
-            'خطأ في عرض الفيديو',
-            style: TextStyle(color: Colors.white),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, color: Colors.white, size: 64),
+              SizedBox(height: Responsive.space(context, size: Space.medium)),
+              Text(
+                'خطأ في عرض الفيديو',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: Responsive.text(context, size: TextSize.medium),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              SizedBox(height: Responsive.space(context, size: Space.small)),
+              Text(
+                _errorMessage.isNotEmpty
+                    ? _errorMessage
+                    : 'فشل في تحميل الفيديو',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: Responsive.text(context, size: TextSize.small),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: Responsive.space(context, size: Space.large)),
+              ElevatedButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _hasVideoError = false;
+                    _isVideoLoading = true;
+                    _errorMessage = '';
+                  });
+                  _initializeVideo();
+                },
+                icon: Icon(Icons.refresh, color: Colors.black),
+                label: Text(
+                  'حاول مرة أخرى',
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontWeight: FontWeight.bold,
+                    fontSize: Responsive.text(context, size: TextSize.small),
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: Responsive.space(context, size: Space.medium),
+                    vertical: Responsive.space(context, size: Space.small),
+                  ),
+                  elevation: 2,
+                ),
+              ),
+            ],
           ),
         ),
       );

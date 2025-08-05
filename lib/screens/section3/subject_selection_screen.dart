@@ -33,6 +33,12 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
   bool _showEnglish = false; // Language toggle
   static const int maxHours = 18; // Maximum allowed hours
 
+  // Search functionality
+  bool _isSearchMode = false;
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+  String _searchQuery = '';
+
   @override
   void initState() {
     super.initState();
@@ -48,6 +54,41 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
         ).fetchAllUsers();
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    super.dispose();
+  }
+
+  void _toggleSearchMode() {
+    setState(() {
+      _isSearchMode = !_isSearchMode;
+      if (_isSearchMode) {
+        _searchFocusNode.requestFocus();
+      } else {
+        _searchQuery = '';
+        _searchController.clear();
+        _searchFocusNode.unfocus();
+      }
+    });
+  }
+
+  List<Subject> _filterSubjects(List<Subject> subjects) {
+    if (_searchQuery.isEmpty) return subjects;
+
+    return subjects.where((subject) {
+      final query = _searchQuery.toLowerCase();
+      final name =
+          _showEnglish
+              ? subject.englishName.toLowerCase()
+              : subject.name.toLowerCase();
+      final departments = subject.departments.join(' ').toLowerCase();
+
+      return name.contains(query) || departments.contains(query);
+    }).toList();
   }
 
   int _calculateTotalHours() {
@@ -304,7 +345,7 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
                             ),
                           ),
                           Text(
-                            'دليل الكلية والخطط المقترحة',
+                            'لائحة كلية حاصلة على الشهادة الجامعية',
                             style: TextStyle(
                               fontSize: Responsive.text(
                                 context,
@@ -450,8 +491,37 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
         }
 
         final subjects = subjectProvider.allSubjects;
+        final filteredSubjects = _filterSubjects(subjects);
+
+        if (_searchQuery.isNotEmpty && filteredSubjects.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
+                SizedBox(height: Responsive.space(context, size: Space.medium)),
+                Text(
+                  'لا توجد نتائج للبحث',
+                  style: TextStyle(
+                    fontSize: Responsive.text(context, size: TextSize.medium),
+                    color: Colors.grey[600],
+                  ),
+                ),
+                SizedBox(height: Responsive.space(context, size: Space.small)),
+                Text(
+                  'جرب البحث بكلمات مختلفة',
+                  style: TextStyle(
+                    fontSize: Responsive.text(context, size: TextSize.small),
+                    color: Colors.grey[500],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
         final groupedSubjects = <int, List<Subject>>{};
-        for (final subject in subjects) {
+        for (final subject in filteredSubjects) {
           (groupedSubjects[subject.year] ??= []).add(subject);
         }
         final sortedYears = groupedSubjects.keys.toList()..sort();
@@ -584,17 +654,56 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
         child: Scaffold(
           backgroundColor: Colors.white,
           appBar: AppBar(
-            title: Text(
-              'اختار كورساتك',
-              style: TextStyle(
-                fontSize: Responsive.text(context, size: TextSize.heading),
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            title:
+                _isSearchMode
+                    ? TextField(
+                      controller: _searchController,
+                      focusNode: _searchFocusNode,
+                      onChanged: (value) {
+                        setState(() {
+                          _searchQuery = value;
+                        });
+                      },
+                      decoration: InputDecoration(
+                        hintText: 'ابحث في المواد...',
+                        border: InputBorder.none,
+                        hintStyle: TextStyle(
+                          color: Colors.grey[500],
+                          fontSize: Responsive.text(
+                            context,
+                            size: TextSize.medium,
+                          ),
+                        ),
+                      ),
+                      style: TextStyle(
+                        fontSize: Responsive.text(
+                          context,
+                          size: TextSize.medium,
+                        ),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    )
+                    : Text(
+                      'اختار كورساتك',
+                      style: TextStyle(
+                        fontSize: Responsive.text(
+                          context,
+                          size: TextSize.heading,
+                        ),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
             centerTitle: true,
             backgroundColor: Colors.white,
             elevation: 0,
             iconTheme: const IconThemeData(color: Colors.black),
+            leading:
+                _isSearchMode
+                    ? IconButton(
+                      icon: const Icon(Icons.arrow_back),
+                      onPressed: _toggleSearchMode,
+                    )
+                    : null,
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(40),
               child: Consumer<SubjectProvider>(
@@ -635,45 +744,52 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
               ),
             ),
             actions: [
-              IconButton(
-                icon: Icon(_showEnglish ? Icons.language : Icons.translate),
-                tooltip: _showEnglish ? 'عرض بالعربية' : 'Show in English',
-                onPressed: () {
-                  setState(() {
-                    _showEnglish = !_showEnglish;
-                  });
-                },
-              ),
-              Consumer<GuideProvider>(
-                builder: (context, guideProvider, child) {
-                  final hasContent =
-                      guideProvider.guideContent != null &&
-                      guideProvider.guideContent!.guidebooks.isNotEmpty;
-                  return IconButton(
-                    icon: const Icon(Icons.menu_book_outlined),
-                    tooltip: 'عرض دليل الكلية',
-                    onPressed:
-                        !hasContent
-                            ? null
-                            : () {
-                              showModalBottomSheet(
-                                context: context,
-                                isScrollControlled: true,
-                                shape: const RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.vertical(
-                                    top: Radius.circular(20),
-                                  ),
-                                ),
-                                builder:
-                                    (_) => Directionality(
-                                      textDirection: TextDirection.rtl,
-                                      child: _buildGuideSection(),
+              if (!_isSearchMode) ...[
+                IconButton(
+                  icon: const Icon(Icons.search),
+                  tooltip: 'البحث في المواد',
+                  onPressed: _toggleSearchMode,
+                ),
+                IconButton(
+                  icon: Icon(_showEnglish ? Icons.language : Icons.translate),
+                  tooltip: _showEnglish ? 'عرض بالعربية' : 'Show in English',
+                  onPressed: () {
+                    setState(() {
+                      _showEnglish = !_showEnglish;
+                    });
+                  },
+                ),
+                Consumer<GuideProvider>(
+                  builder: (context, guideProvider, child) {
+                    final hasContent =
+                        guideProvider.guideContent != null &&
+                        guideProvider.guideContent!.guidebooks.isNotEmpty;
+                    return IconButton(
+                      icon: const Icon(Icons.menu_book_outlined),
+                      tooltip: 'عرض دليل الكلية',
+                      onPressed:
+                          !hasContent
+                              ? null
+                              : () {
+                                showModalBottomSheet(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  shape: const RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.vertical(
+                                      top: Radius.circular(20),
                                     ),
-                              );
-                            },
-                  );
-                },
-              ),
+                                  ),
+                                  builder:
+                                      (_) => Directionality(
+                                        textDirection: TextDirection.rtl,
+                                        child: _buildGuideSection(),
+                                      ),
+                                );
+                              },
+                    );
+                  },
+                ),
+              ],
             ],
           ),
           body: _buildSubjectsList(),
