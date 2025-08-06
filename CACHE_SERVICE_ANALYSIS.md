@@ -15,12 +15,13 @@ This document provides a comprehensive analysis of the `CacheService` implementa
    - ✅ Generated adapter file exists
    - ✅ Caching methods implemented
 
-2. **Section** (typeId: 1)
+2. **Section** (typeId: 7) - **FIXED**
 
    - ✅ Hive annotations present
    - ✅ Adapter registered in CacheService
    - ✅ Generated adapter file exists
    - ✅ Caching methods implemented
+   - ✅ TypeId conflict resolved (changed from 1 to 7)
 
 3. **Subject** (typeId: 2)
 
@@ -91,8 +92,8 @@ This document provides a comprehensive analysis of the `CacheService` implementa
 
 ### 1. TypeId Conflict - RESOLVED ✅
 
-**Issue**: Both `Section` and `NotificationPreferences` were using `typeId: 1`
-**Solution**: Changed `NotificationPreferences` to use `typeId: 6`
+**Issue**: Both `Section` and `SocialMediaLink` were using `typeId: 1`
+**Solution**: Changed `Section` to use `typeId: 7`
 **Status**: ✅ Fixed and regenerated adapters
 
 ### 2. Custom Adapters vs Generated Adapters

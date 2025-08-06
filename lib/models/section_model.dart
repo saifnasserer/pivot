@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hive/hive.dart';
 part 'section_model.g.dart';
 
-@HiveType(typeId: 1)
+@HiveType(typeId: 7)
 class Section extends HiveObject {
   @HiveField(0)
   final String id;

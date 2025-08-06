@@ -12,9 +12,10 @@ class SubjectsBuilder {
     List<Subject> subjects,
     Map<String, List<UserProfile>> instructorsMap, {
     bool enableAnimations = true,
+    List<String>? enrolledIds,
   }) {
     if (subjects.isEmpty) {
-      return [_buildEmptyState(context)];
+      return [_buildEmptyState(context, enrolledIds)];
     }
 
     return [
@@ -23,7 +24,10 @@ class SubjectsBuilder {
   }
 
   /// Builds enhanced empty state
-  static Widget _buildEmptyState(BuildContext context) {
+  static Widget _buildEmptyState(
+    BuildContext context,
+    List<String>? enrolledIds,
+  ) {
     return SliverFillRemaining(
       hasScrollBody: false,
       child: Center(
@@ -39,14 +43,14 @@ class SubjectsBuilder {
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                Icons.menu_book_rounded,
+                Icons.school_outlined,
                 size: Responsive.text(context, size: TextSize.heading) * 1.5,
                 color: Colors.grey.shade400,
               ),
             ),
             SizedBox(height: Responsive.space(context, size: Space.large)),
             Text(
-              'لا توجد مواد دراسية',
+              'لا توجد مواد مسجلة',
               style: TextStyle(
                 fontSize: Responsive.text(context, size: TextSize.heading),
                 fontWeight: FontWeight.bold,
@@ -56,12 +60,36 @@ class SubjectsBuilder {
             ),
             SizedBox(height: Responsive.space(context, size: Space.small)),
             Text(
-              'سيتم إضافة المواد الدراسية قريباً',
+              'قم بتسجيل المواد أولاً',
               style: TextStyle(
                 fontSize: Responsive.text(context, size: TextSize.medium),
                 color: Colors.grey.shade600,
               ),
               textAlign: TextAlign.center,
+            ),
+            SizedBox(height: Responsive.space(context, size: Space.large)),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pushNamed(
+                  context,
+                  '/subject-selection',
+                  arguments: {'previouslySelectedIds': enrolledIds},
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.black,
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(
+                  horizontal: Responsive.space(context, size: Space.large),
+                  vertical: Responsive.space(context, size: Space.medium),
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(
+                    Responsive.space(context, size: Space.large),
+                  ),
+                ),
+              ),
+              child: const Text('تسجيل المواد'),
             ),
           ],
         ),

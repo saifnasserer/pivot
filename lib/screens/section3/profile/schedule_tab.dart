@@ -5,49 +5,174 @@ import 'package:pivot/providers/schadule_provider.dart';
 import 'package:pivot/screens/section3/profile_widgets/schadule.dart';
 import 'profile_provider.dart';
 
-class ScheduleTab extends StatelessWidget {
+class ScheduleTab extends StatefulWidget {
   final Function(int) onDaySelected;
 
   const ScheduleTab({super.key, required this.onDaySelected});
 
   @override
+  State<ScheduleTab> createState() => _ScheduleTabState();
+}
+
+class _ScheduleTabState extends State<ScheduleTab>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true; // Keep the tab alive when switching
+
+  @override
+  void initState() {
+    super.initState();
+    // Ensure schedule data is loaded when tab is initialized
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshScheduleData();
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh data when dependencies change (e.g., when returning to this tab)
+    _refreshScheduleData();
+  }
+
+  void _refreshScheduleData() {
+    final scheduleProvider = context.read<ScheduleProvider>();
+    if (scheduleProvider.days.isEmpty && !scheduleProvider.isLoading) {
+      scheduleProvider.fetchSchedule();
+    }
+  }
+
+  Future<void> _refreshSchedule() async {
+    final scheduleProvider = context.read<ScheduleProvider>();
+    await scheduleProvider.fetchSchedule();
+  }
+
+  void _handleDaySelected(int index) {
+    widget.onDaySelected(index);
+    // Also update the provider directly for immediate UI update
+    final profileProvider = context.read<ProfileProvider>();
+    profileProvider.updateSelectedDayIndex(index);
+  }
+
+  void _handleDelete(String itemId) {
+    final scheduleProvider = context.read<ScheduleProvider>();
+    final profileProvider = context.read<ProfileProvider>();
+    final currentDay =
+        scheduleProvider.days.isNotEmpty
+            ? scheduleProvider.days[profileProvider.selectedDayIndex.clamp(
+              0,
+              scheduleProvider.days.length - 1,
+            )]
+            : '';
+
+    scheduleProvider.removeScheduleItem(currentDay, itemId);
+  }
+
+  void _handleNotificationToggle(String itemId) {
+    final scheduleProvider = context.read<ScheduleProvider>();
+    final profileProvider = context.read<ProfileProvider>();
+    final currentDay =
+        scheduleProvider.days.isNotEmpty
+            ? scheduleProvider.days[profileProvider.selectedDayIndex.clamp(
+              0,
+              scheduleProvider.days.length - 1,
+            )]
+            : '';
+
+    scheduleProvider.toggleNotificationForItem(currentDay, itemId);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Consumer<ScheduleProvider>(
-      builder: (context, scheduleProvider, child) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
+
+    return Consumer2<ScheduleProvider, ProfileProvider>(
+      builder: (context, scheduleProvider, profileProvider, child) {
         if (scheduleProvider.isLoading) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('جاري تحميل الجدول...'),
+              ],
+            ),
+          );
         }
+
         if (scheduleProvider.error != null) {
-          return Center(child: Text('Error: ${scheduleProvider.error}'));
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline, size: 48, color: Colors.red.shade300),
+                SizedBox(height: 16),
+                Text(
+                  'Error: ${scheduleProvider.error}',
+                  style: TextStyle(color: Colors.red.shade600),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: _refreshSchedule,
+                  child: Text('إعادة المحاولة'),
+                ),
+              ],
+            ),
+          );
         }
 
         final days = scheduleProvider.days;
-        // Use context.read instead of Consumer for ProfileProvider to avoid unnecessary rebuilds
-        final provider = context.read<ProfileProvider>();
-        final validIndex = provider.selectedDayIndex.clamp(
+        if (days.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.schedule_outlined,
+                  size: 48,
+                  color: Colors.grey.shade400,
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'لا توجد أيام في الجدول',
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: _refreshSchedule,
+                  child: Text('تحديث الجدول'),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final validIndex = profileProvider.selectedDayIndex.clamp(
           0,
-          days.isEmpty ? 0 : days.length - 1,
+          days.length - 1,
         );
-        final currentDay = days.isEmpty ? '' : days[validIndex];
+        final currentDay = days[validIndex];
         final itemsForSelectedDay = scheduleProvider.getScheduleForDay(
           currentDay,
         );
 
-        return ScheduleCalendarBuilder.buildScheduleWithScaffold(
-          selectedDayIndex: validIndex,
-          context: context,
-          days: days,
-          dayScheduleItems: itemsForSelectedDay,
-          onDaySelected: onDaySelected,
-          handleDelete: (String itemId) {
-            scheduleProvider.removeScheduleItem(currentDay, itemId);
-          },
-          onNotificationToggle: (String itemId) {
-            scheduleProvider.toggleNotificationForItem(currentDay, itemId);
-          },
-          showFloatingActionButton: true,
-          selectedDay: currentDay,
-          enableAnimations: true,
+        return RefreshIndicator(
+          onRefresh: _refreshSchedule,
+          child: ScheduleCalendarBuilder.buildScheduleWithScaffold(
+            selectedDayIndex: validIndex,
+            context: context,
+            days: days,
+            dayScheduleItems: itemsForSelectedDay,
+            onDaySelected: _handleDaySelected,
+            handleDelete: _handleDelete,
+            onNotificationToggle: _handleNotificationToggle,
+            showFloatingActionButton: true,
+            selectedDay: currentDay,
+            enableAnimations: true,
+          ),
         );
       },
     );

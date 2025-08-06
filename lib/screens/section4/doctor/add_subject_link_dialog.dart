@@ -16,6 +16,7 @@ class _AddSubjectLinkDialogState extends State<AddSubjectLinkDialog> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   String? _selectedSubjectId;
+  bool _isSubmitting = false;
 
   @override
   void initState() {
@@ -31,18 +32,38 @@ class _AddSubjectLinkDialogState extends State<AddSubjectLinkDialog> {
     super.dispose();
   }
 
-  void _submit() {
+  void _submit() async {
     if (_formKey.currentState!.validate()) {
       if (_selectedSubjectId == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select a subject')),
+          const SnackBar(
+            content: Text('يرجى اختيار مادة'),
+            backgroundColor: Colors.orange,
+          ),
         );
         return;
       }
-      Navigator.of(context).pop({
-        'title': _titleController.text.trim(),
-        'subjectId': _selectedSubjectId!,
+
+      setState(() {
+        _isSubmitting = true;
       });
+
+      try {
+        // Simulate a brief delay for better UX
+        await Future.delayed(const Duration(milliseconds: 500));
+
+        Navigator.of(context).pop({
+          'title': _titleController.text.trim(),
+          'subjectId': _selectedSubjectId!,
+        });
+      } catch (e) {
+        setState(() {
+          _isSubmitting = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('حدث خطأ: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -59,11 +80,14 @@ class _AddSubjectLinkDialogState extends State<AddSubjectLinkDialog> {
           children: [
             UnifiedFormField(
               controller: _titleController,
-              label: 'العنوان',
+              label: 'عنوان المحاضرة',
               hint: 'أدخل عنوان المحاضرة',
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
-                  return 'يرجى إدخال العنوان';
+                  return 'يرجى إدخال عنوان المحاضرة';
+                }
+                if (value.trim().length < 3) {
+                  return 'يجب أن يكون العنوان 3 أحرف على الأقل';
                 }
                 return null;
               },
@@ -72,11 +96,18 @@ class _AddSubjectLinkDialogState extends State<AddSubjectLinkDialog> {
             if (widget.subjects.isEmpty)
               Container(
                 padding: Responsive.padding(context, size: Space.medium),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(
+                    Responsive.space(context, size: Space.medium),
+                  ),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
                 child: Row(
                   children: [
                     Icon(
-                      Icons.warning,
-                      color: Colors.orange,
+                      Icons.warning_amber_rounded,
+                      color: Colors.orange.shade700,
                       size: Responsive.text(context, size: TextSize.medium),
                     ),
                     SizedBox(
@@ -90,7 +121,8 @@ class _AddSubjectLinkDialogState extends State<AddSubjectLinkDialog> {
                             context,
                             size: TextSize.medium,
                           ),
-                          color: Colors.grey[700],
+                          color: Colors.orange.shade700,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
@@ -114,15 +146,15 @@ class _AddSubjectLinkDialogState extends State<AddSubjectLinkDialog> {
                   });
                 },
                 validator:
-                    (value) => value == null ? 'يرجى إختيار المادة' : null,
+                    (value) => value == null ? 'يرجى اختيار المادة' : null,
               ),
           ],
         ),
       ),
-      confirmText: 'إضافة',
-      confirmIcon: Icons.add,
-      onConfirm: _submit,
-      onCancel: () => Navigator.of(context).pop(),
+      confirmText: _isSubmitting ? 'جاري الإضافة...' : 'إضافة',
+      confirmIcon: _isSubmitting ? Icons.hourglass_empty : Icons.add,
+      onConfirm: _isSubmitting ? null : _submit,
+      onCancel: _isSubmitting ? null : () => Navigator.of(context).pop(),
     );
   }
 }

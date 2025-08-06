@@ -215,98 +215,101 @@ class SubjectModel extends StatelessWidget {
                       ...links.asMap().entries.map((entry) {
                         final index = entry.key;
                         final link = entry.value;
-                        return Container(
-                          margin: EdgeInsets.only(
-                            bottom: Responsive.space(
-                              context,
-                              size: Space.small,
-                            ),
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[50],
-                            borderRadius: BorderRadius.circular(
-                              Responsive.space(context, size: Space.large),
-                            ),
-                            border: Border.all(color: Colors.grey[200]!),
-                          ),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(
-                              Responsive.space(context, size: Space.large),
-                            ),
-                            onTap: () => _launchURL(context, link['url']!),
-                            child: Padding(
-                              padding: EdgeInsets.all(
-                                Responsive.space(context, size: Space.medium),
+                        return Directionality(
+                          textDirection: TextDirection.rtl,
+                          child: Container(
+                            margin: EdgeInsets.only(
+                              bottom: Responsive.space(
+                                context,
+                                size: Space.small,
                               ),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  if (canEdit)
-                                    IconButton(
-                                      icon: Icon(
-                                        Icons.delete_outline,
-                                        color: Colors.red,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[50],
+                              borderRadius: BorderRadius.circular(
+                                Responsive.space(context, size: Space.large),
+                              ),
+                              border: Border.all(color: Colors.grey[200]!),
+                            ),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(
+                                Responsive.space(context, size: Space.large),
+                              ),
+                              onTap: () => _launchURL(context, link['url']!),
+                              child: Padding(
+                                padding: EdgeInsets.all(
+                                  Responsive.space(context, size: Space.medium),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    if (canEdit)
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.delete_outline,
+                                          color: Colors.red,
+                                        ),
+                                        onPressed: () {
+                                          final linkToDelete = links[index];
+                                          setState(() {
+                                            links.removeAt(index);
+                                          });
+                                          provider.deleteLinkFromLecture(
+                                            lecture.id,
+                                            linkToDelete,
+                                          );
+                                        },
+                                        tooltip: 'حذف الرابط',
                                       ),
-                                      onPressed: () {
-                                        final linkToDelete = links[index];
-                                        setState(() {
-                                          links.removeAt(index);
-                                        });
-                                        provider.deleteLinkFromLecture(
-                                          lecture.id,
-                                          linkToDelete,
-                                        );
-                                      },
-                                      tooltip: 'حذف الرابط',
-                                    ),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.end,
-                                      children: [
-                                        Text(
-                                          link['title']!,
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: Responsive.text(
-                                              context,
-                                              size: TextSize.medium,
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.end,
+                                        children: [
+                                          Text(
+                                            link['title']!,
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: Responsive.text(
+                                                context,
+                                                size: TextSize.medium,
+                                              ),
+                                              color: Colors.black87,
                                             ),
-                                            color: Colors.black87,
+                                            textAlign: TextAlign.right,
                                           ),
-                                          textAlign: TextAlign.right,
-                                        ),
-                                        SizedBox(
-                                          height: Responsive.space(
-                                            context,
-                                            size: Space.tiny,
-                                          ),
-                                        ),
-                                        Text(
-                                          link['url']!,
-                                          style: TextStyle(
-                                            color: Colors.grey[600],
-                                            fontSize: Responsive.text(
+                                          SizedBox(
+                                            height: Responsive.space(
                                               context,
-                                              size: TextSize.small,
+                                              size: Space.tiny,
                                             ),
                                           ),
-                                          textAlign: TextAlign.right,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ],
+                                          Text(
+                                            link['url']!,
+                                            style: TextStyle(
+                                              color: Colors.grey[600],
+                                              fontSize: Responsive.text(
+                                                context,
+                                                size: TextSize.small,
+                                              ),
+                                            ),
+                                            textAlign: TextAlign.right,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                  Icon(
-                                    Icons.open_in_new,
-                                    color: Colors.grey[400],
-                                    size: Responsive.space(
-                                      context,
-                                      size: Space.medium,
+                                    Icon(
+                                      Icons.open_in_new,
+                                      color: Colors.grey[400],
+                                      size: Responsive.space(
+                                        context,
+                                        size: Space.medium,
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           ),

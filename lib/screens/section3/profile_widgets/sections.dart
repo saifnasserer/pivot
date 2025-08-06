@@ -109,7 +109,8 @@ class SectionsBuilder {
       }
     }
 
-    if (relevantSections.isEmpty) {
+    // If no relevant sections found, show empty state only if we have enrolled subjects
+    if (relevantSections.isEmpty && enrolledSubjectIds.isNotEmpty) {
       return [_buildEmptyState(context)];
     }
 
@@ -690,7 +691,7 @@ class _EnhancedSectionListItemState extends State<EnhancedSectionListItem>
                   border: Border.all(color: Colors.green.withOpacity(0.3)),
                 ),
                 child: Text(
-                  'تم الاختيار',
+                  'تم ختيار',
                   style: TextStyle(
                     fontSize: Responsive.text(context, size: TextSize.small),
                     color: Colors.green.shade700,

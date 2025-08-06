@@ -1,15 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:pivot/screens/section4/doctor/profile/doctor_profile.dart';
 import 'package:provider/provider.dart';
-
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
-import 'package:pivot/providers/schadule_provider.dart';
-import 'package:pivot/providers/section_provider.dart';
 import 'package:pivot/providers/subject_provider.dart';
-import 'package:pivot/providers/task_provider.dart';
+import 'package:pivot/providers/section_provider.dart';
 import 'package:pivot/screens/section4/assistants/assistant_profile.dart';
-import 'package:pivot/screens/section4/doctor/doctor_profile.dart';
 import 'package:pivot/screens/section3/bookmarks_screen.dart';
 import 'package:pivot/screens/section3/profile_widgets/week_tasks.dart';
 import 'profile_provider.dart';
@@ -62,6 +59,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       vsync: this,
       initialIndex: initialIndex,
     );
+    _tabController.addListener(_onTabChanged);
     WidgetsBinding.instance.addObserver(this);
   }
 
@@ -78,10 +76,14 @@ class _ProfileScreenState extends State<ProfileScreen>
     super.didChangeAppLifecycleState(state);
     if (state == AppLifecycleState.resumed) {
       // Reset filters when app is resumed (user returns from another screen)
-      final userProfile = context.read<UserProfileProvider>().userProfile;
-      if (userProfile != null) {
-        _fetchProfileData(userProfile);
-      }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          final userProfile = context.read<UserProfileProvider>().userProfile;
+          if (userProfile != null) {
+            _fetchProfileData(userProfile);
+          }
+        }
+      });
     }
   }
 
@@ -90,6 +92,15 @@ class _ProfileScreenState extends State<ProfileScreen>
       if (!mounted) return;
 
       try {
+        // Reset filters in providers to ensure clean state
+        // Use additional post-frame callback to ensure these happen after current build
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            context.read<SubjectProvider>().resetFilter();
+            context.read<SectionProvider>().resetFilter();
+          }
+        });
+
         final provider = context.read<ProfileProvider>();
         provider.fetchProfileData(userProfile);
       } catch (e) {
@@ -101,6 +112,23 @@ class _ProfileScreenState extends State<ProfileScreen>
   void _onDaySelected(int index) {
     final provider = context.read<ProfileProvider>();
     provider.updateSelectedDayIndex(index);
+  }
+
+  void _onTabChanged() {
+    // Reset filters when switching to subjects or sections tabs
+    if (_tabController.index == 2 || _tabController.index == 3) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          // Use additional post-frame callback to ensure these happen after current build
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              context.read<SubjectProvider>().resetFilter();
+              context.read<SectionProvider>().resetFilter();
+            }
+          });
+        }
+      });
+    }
   }
 
   @override

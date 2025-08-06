@@ -9,6 +9,7 @@ import 'package:pivot/providers/guide_provider.dart';
 import 'package:pivot/screens/section2/teams.dart';
 import 'package:pivot/screens/section3/edit_profile/edit_profile.dart'
     deferred as edit_profile;
+import 'package:pivot/screens/section4/doctor/profile/doctor_profile.dart';
 import 'package:pivot/services/remote_config_service.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/section1/login/login.dart';
@@ -32,8 +33,8 @@ import 'package:pivot/screens/section2/super_admin_panel/super_admin_panel_scree
 import 'package:pivot/screens/section2/landing.dart';
 import 'package:pivot/screens/section3/profile/profile.dart';
 import 'package:pivot/screens/section4/assistants/assistant_profile.dart';
-import 'package:pivot/screens/section4/doctor/doctor_profile.dart';
 import 'package:pivot/screens/section4/assistants/all_tasks.dart';
+import 'package:pivot/screens/section3/subject_selection_screen.dart';
 
 import 'package:provider/provider.dart';
 import 'package:pivot/providers/announcement_provider.dart';
@@ -340,6 +341,16 @@ class Pivot extends StatelessWidget {
                 },
               ),
           '/teams': (context) => const TeamsScreen(),
+          '/subject-selection': (context) {
+            final args =
+                ModalRoute.of(context)?.settings.arguments
+                    as Map<String, dynamic>?;
+            final previouslySelectedIds =
+                args?['previouslySelectedIds'] as List<String>? ?? [];
+            return SubjectSelectionScreen(
+              previouslySelectedIds: previouslySelectedIds,
+            );
+          },
           '/tasks-control': (context) {
             final sectionId =
                 ModalRoute.of(context)?.settings.arguments as String?;

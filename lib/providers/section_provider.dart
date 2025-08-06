@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:pivot/models/section_model.dart';
 import 'package:pivot/services/section_service.dart';
 import 'package:pivot/services/cache_service.dart';
@@ -78,16 +79,22 @@ class SectionProvider with ChangeNotifier {
     _safeNotifyListeners();
 
     try {
-      // Step 1: Load from cache first
-      final cachedSections = CacheService.instance.getCachedSections();
-      final filteredCached =
-          cachedSections
-              .where((s) => subjectIds.contains(s.subjectId))
-              .toList();
-      if (filteredCached.isNotEmpty) {
-        _sections = filteredCached;
-        _isLoading = false;
-        _safeNotifyListeners();
+      // Step 1: Try to load from cache first, but handle type casting errors
+      try {
+        final cachedSections = CacheService.instance.getCachedSections();
+        final filteredCached =
+            cachedSections
+                .where((s) => subjectIds.contains(s.subjectId))
+                .toList();
+        if (filteredCached.isNotEmpty) {
+          _sections = filteredCached;
+          _isLoading = false;
+          _safeNotifyListeners();
+        }
+      } catch (cacheError) {
+        print('Cache error, clearing sections cache: $cacheError');
+        // Clear the sections cache if there's a type casting issue
+        await CacheService.instance.clearSectionsCache();
       }
 
       // Step 2: Fetch from server in the background
@@ -150,5 +157,17 @@ class SectionProvider with ChangeNotifier {
       _isLoading = false;
       _safeNotifyListeners();
     }
+  }
+
+  void resetFilter() {
+    _currentAssistantId = null;
+    _currentSubjectIds = [];
+    _sections = [];
+    // Use post-frame callback to avoid build-time notifications
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_disposed) {
+        notifyListeners();
+      }
+    });
   }
 }

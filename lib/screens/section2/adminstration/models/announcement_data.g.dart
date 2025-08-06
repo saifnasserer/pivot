@@ -16,33 +16,18 @@ class AnnouncementDataAdapter extends TypeAdapter<AnnouncementData> {
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-
-    // Safely parse links with null safety
-    List<Map<String, String>> parseLinksSafely(dynamic linksData) {
-      if (linksData == null) return [];
-      final List<dynamic> linksList = List<dynamic>.from(linksData);
-      return linksList.map((item) {
-        if (item is Map) {
-          final map = Map<String, dynamic>.from(item);
-          return {
-            'title': map['title']?.toString() ?? '',
-            'url': map['url']?.toString() ?? '',
-          };
-        }
-        return {'title': '', 'url': ''};
-      }).toList();
-    }
-
     return AnnouncementData(
       id: fields[0] as String?,
-      title: fields[1] as String? ?? '',
-      date: fields[2] as String? ?? '',
-      description: fields[4] as String? ?? '',
-      tags: (fields[5] as List?)?.cast<String>() ?? [],
-      imageUrls: (fields[7] as List?)?.cast<String>() ?? [],
-      links: parseLinksSafely(fields[8]),
-      pinned: fields[9] as bool? ?? false,
-      draft: fields[10] as bool? ?? false,
+      title: fields[1] as String,
+      date: fields[2] as String,
+      description: fields[4] as String,
+      tags: (fields[5] as List).cast<String>(),
+      imageUrls: (fields[7] as List).cast<String>(),
+      links: (fields[8] as List)
+          .map((dynamic e) => (e as Map).cast<String, String>())
+          .toList(),
+      pinned: fields[9] as bool,
+      draft: fields[10] as bool,
     );
   }
 

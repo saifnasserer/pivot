@@ -46,6 +46,76 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
     super.dispose();
   }
 
+  Widget _buildTypeOption(
+    BuildContext context,
+    ScheduleItemType type,
+    String title,
+    IconData icon,
+    Color backgroundColor,
+  ) {
+    final isSelected = _selectedType == type;
+
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _selectedType = type;
+        });
+      },
+      child: Container(
+        padding: EdgeInsets.all(Responsive.space(context, size: Space.medium)),
+        decoration: BoxDecoration(
+          color: isSelected ? backgroundColor : Colors.transparent,
+          borderRadius: BorderRadius.circular(
+            Responsive.space(context, size: Space.small),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: EdgeInsets.all(
+                Responsive.space(context, size: Space.small),
+              ),
+              decoration: BoxDecoration(
+                color: isSelected ? Colors.white : Colors.grey.shade200,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                size: Responsive.text(context, size: TextSize.medium),
+                color:
+                    isSelected
+                        ? (type == ScheduleItemType.lecture
+                            ? Colors.blue.shade700
+                            : Colors.orange.shade700)
+                        : Colors.grey.shade600,
+              ),
+            ),
+            SizedBox(width: Responsive.space(context, size: Space.medium)),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: Responsive.text(context, size: TextSize.medium),
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                  color: isSelected ? Colors.black87 : Colors.grey.shade700,
+                ),
+              ),
+            ),
+            if (isSelected)
+              Icon(
+                Icons.check_circle,
+                color:
+                    type == ScheduleItemType.lecture
+                        ? Colors.blue.shade700
+                        : Colors.orange.shade700,
+                size: Responsive.text(context, size: TextSize.medium),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _submitForm() {
     if (_formKey.currentState!.validate()) {
       final scheduleProvider = Provider.of<ScheduleProvider>(
@@ -126,50 +196,28 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
                     Responsive.space(context, size: Space.large),
                   ),
                   border: Border.all(color: Colors.grey[300]!),
+                  color: Colors.grey.shade50,
                 ),
-                child: Row(
+                child: Column(
                   children: [
-                    Expanded(
-                      child: RadioListTile<ScheduleItemType>(
-                        title: Text(
-                          'محاضرة',
-                          style: TextStyle(
-                            fontSize: Responsive.text(
-                              context,
-                              size: TextSize.medium,
-                            ),
-                          ),
-                        ),
-                        value: ScheduleItemType.lecture,
-                        groupValue: _selectedType,
-                        onChanged: (ScheduleItemType? value) {
-                          setState(() {
-                            _selectedType = value!;
-                          });
-                        },
-                        activeColor: Colors.black,
-                      ),
+                    _buildTypeOption(
+                      context,
+                      ScheduleItemType.lecture,
+                      'محاضرة',
+                      Icons.menu_book_rounded,
+                      Colors.blue.shade100,
                     ),
-                    Expanded(
-                      child: RadioListTile<ScheduleItemType>(
-                        title: Text(
-                          'سكشن',
-                          style: TextStyle(
-                            fontSize: Responsive.text(
-                              context,
-                              size: TextSize.medium,
-                            ),
-                          ),
-                        ),
-                        value: ScheduleItemType.section,
-                        groupValue: _selectedType,
-                        onChanged: (ScheduleItemType? value) {
-                          setState(() {
-                            _selectedType = value!;
-                          });
-                        },
-                        activeColor: Colors.black,
-                      ),
+                    Divider(
+                      height: 1,
+                      thickness: 1,
+                      color: Colors.grey.shade200,
+                    ),
+                    _buildTypeOption(
+                      context,
+                      ScheduleItemType.section,
+                      'سكشن',
+                      Icons.groups_rounded,
+                      Colors.orange.shade100,
                     ),
                   ],
                 ),

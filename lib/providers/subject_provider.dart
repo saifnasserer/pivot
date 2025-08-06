@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/services/subject_service.dart';
@@ -265,5 +266,16 @@ class SubjectProvider with ChangeNotifier {
         notifyListeners();
       }
     }
+  }
+
+  void resetFilter() {
+    _checkDisposed();
+    _filteredSubjects = _allSubjects;
+    // Use post-frame callback to avoid build-time notifications
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_disposed) {
+        notifyListeners();
+      }
+    });
   }
 }

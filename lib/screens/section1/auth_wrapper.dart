@@ -28,7 +28,13 @@ class _AuthWrapperState extends State<AuthWrapper> {
   }
 
   Future<void> _initCache() async {
-    await CacheService.instance.init();
+    // Only initialize cache if not already initialized
+    try {
+      await CacheService.instance.init();
+    } catch (e) {
+      // Cache might already be initialized, ignore error
+      print('Cache initialization: $e');
+    }
     if (mounted) {
       setState(() {
         _cacheReady = true;

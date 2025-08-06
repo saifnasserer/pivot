@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/models/schadule_card.dart';
 import 'package:pivot/screens/models/schedule_item.dart';
 import 'package:pivot/screens/section3/add_edit_schedule_dialog.dart';
+import 'package:pivot/providers/schadule_provider.dart';
 
 /// Enhanced schedule calendar builder with better UX and performance
 class ScheduleCalendarBuilder {
@@ -276,7 +278,14 @@ class ScheduleCalendarBuilder {
       builder: (BuildContext context) {
         return AddEditScheduleDialog(day: selectedDay);
       },
-    );
+    ).then((_) {
+      // Refresh schedule data after dialog is closed
+      final scheduleProvider = Provider.of<ScheduleProvider>(
+        context,
+        listen: false,
+      );
+      scheduleProvider.fetchSchedule();
+    });
   }
 
   /// Builds enhanced empty state with action button
@@ -310,41 +319,6 @@ class ScheduleCalendarBuilder {
                 fontWeight: FontWeight.w500,
               ),
               textAlign: TextAlign.center,
-            ),
-            SizedBox(height: Responsive.space(context, size: Space.small)),
-            Text(
-              'يمكنك إضافة محاضرة أو سكاشن جديد',
-              style: TextStyle(
-                fontSize: Responsive.text(context, size: TextSize.small),
-                color: Colors.grey.shade500,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: Responsive.space(context, size: Space.large)),
-            ElevatedButton.icon(
-              onPressed: () => _showAddScheduleDialog(context, 'اليوم'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
-                foregroundColor: Colors.white,
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(
-                    Responsive.space(context, size: Space.medium),
-                  ),
-                ),
-                padding: EdgeInsets.symmetric(
-                  horizontal: Responsive.space(context, size: Space.large),
-                  vertical: Responsive.space(context, size: Space.medium),
-                ),
-              ),
-              icon: const Icon(Icons.add),
-              label: Text(
-                'إضافة محاضرة/سكاشن',
-                style: TextStyle(
-                  fontSize: Responsive.text(context, size: TextSize.medium),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
             ),
           ],
         ),

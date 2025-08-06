@@ -17,39 +17,73 @@ class CacheService {
   static const String _scheduleBoxName = 'scheduleBox';
   static const String _announcementsBoxName = 'announcementsBox';
 
+  bool _initialized = false;
+
   Future<void> init() async {
-    await Hive.initFlutter(); // Works for both web and mobile
-
-    // Register adapters
-    if (!Hive.isAdapterRegistered(NotificationPreferencesAdapter().typeId)) {
-      Hive.registerAdapter(NotificationPreferencesAdapter());
-    }
-    if (!Hive.isAdapterRegistered(UserProfileAdapter().typeId)) {
-      Hive.registerAdapter(UserProfileAdapter());
-    }
-    if (!Hive.isAdapterRegistered(SectionAdapter().typeId)) {
-      Hive.registerAdapter(SectionAdapter());
-    }
-    if (!Hive.isAdapterRegistered(SubjectAdapter().typeId)) {
-      Hive.registerAdapter(SubjectAdapter());
-    }
-    if (!Hive.isAdapterRegistered(ScheduleItemTypeCustomAdapter().typeId)) {
-      Hive.registerAdapter(ScheduleItemTypeCustomAdapter());
-    }
-    if (!Hive.isAdapterRegistered(ScheduleItemCustomAdapter().typeId)) {
-      Hive.registerAdapter(ScheduleItemCustomAdapter());
-    }
-    if (!Hive.isAdapterRegistered(AnnouncementDataAdapter().typeId)) {
-      Hive.registerAdapter(AnnouncementDataAdapter());
+    if (_initialized) {
+      print('CacheService already initialized, skipping...');
+      return;
     }
 
-    // Open boxes
-    await Hive.openBox<UserProfile>(_usersBoxName);
-    await Hive.openBox<Section>(_sectionsBoxName);
-    await Hive.openBox<Subject>(_subjectsBoxName);
-    await Hive.openBox<ScheduleItem>(_scheduleBoxName);
-    await Hive.openBox<AnnouncementData>(_announcementsBoxName);
-    //debugprint('Announcements box opened!');
+    _initialized = true;
+
+    try {
+      await Hive.initFlutter(); // Works for both web and mobile
+      print('Hive initialized successfully');
+
+      // Register adapters
+      if (!Hive.isAdapterRegistered(SocialMediaLinkAdapter().typeId)) {
+        Hive.registerAdapter(SocialMediaLinkAdapter());
+        print('SocialMediaLinkAdapter registered');
+      }
+      if (!Hive.isAdapterRegistered(NotificationPreferencesAdapter().typeId)) {
+        Hive.registerAdapter(NotificationPreferencesAdapter());
+        print('NotificationPreferencesAdapter registered');
+      }
+      if (!Hive.isAdapterRegistered(UserProfileAdapter().typeId)) {
+        Hive.registerAdapter(UserProfileAdapter());
+        print('UserProfileAdapter registered');
+      }
+      if (!Hive.isAdapterRegistered(SectionAdapter().typeId)) {
+        Hive.registerAdapter(SectionAdapter());
+        print(
+          'SectionAdapter registered with typeId: ${SectionAdapter().typeId}',
+        );
+      }
+      if (!Hive.isAdapterRegistered(SubjectAdapter().typeId)) {
+        Hive.registerAdapter(SubjectAdapter());
+        print('SubjectAdapter registered');
+      }
+      if (!Hive.isAdapterRegistered(ScheduleItemTypeCustomAdapter().typeId)) {
+        Hive.registerAdapter(ScheduleItemTypeCustomAdapter());
+        print('ScheduleItemTypeCustomAdapter registered');
+      }
+      if (!Hive.isAdapterRegistered(ScheduleItemCustomAdapter().typeId)) {
+        Hive.registerAdapter(ScheduleItemCustomAdapter());
+        print('ScheduleItemCustomAdapter registered');
+      }
+      if (!Hive.isAdapterRegistered(AnnouncementDataAdapter().typeId)) {
+        Hive.registerAdapter(AnnouncementDataAdapter());
+        print('AnnouncementDataAdapter registered');
+      }
+
+      // Open boxes
+      await Hive.openBox<UserProfile>(_usersBoxName);
+      print('UserProfile box opened');
+      await Hive.openBox<Section>(_sectionsBoxName);
+      print('Section box opened');
+      await Hive.openBox<Subject>(_subjectsBoxName);
+      print('Subject box opened');
+      await Hive.openBox<ScheduleItem>(_scheduleBoxName);
+      print('ScheduleItem box opened');
+      await Hive.openBox<AnnouncementData>(_announcementsBoxName);
+      print('AnnouncementData box opened');
+      print('All Hive boxes opened successfully');
+    } catch (e, stackTrace) {
+      print('Error initializing CacheService: $e');
+      print('Stack trace: $stackTrace');
+      rethrow;
+    }
   }
 
   // User Caching
@@ -78,6 +112,11 @@ class CacheService {
   List<Section> getCachedSections() {
     final box = Hive.box<Section>(_sectionsBoxName);
     return box.values.toList();
+  }
+
+  Future<void> clearSectionsCache() async {
+    final box = Hive.box<Section>(_sectionsBoxName);
+    await box.clear();
   }
 
   // Subject Caching
