@@ -812,6 +812,7 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
               ],
             ),
             child: FloatingActionButton(
+              heroTag: 'subject_selection_fab',
               onPressed:
                   _isSaving || _calculateTotalHours() > maxHours
                       ? null

@@ -6,7 +6,7 @@ class Lecture {
   final String subjectId;
   final String doctorId;
   final String categoryName;
-  final List<Map<String, String>> links;
+  final List<Map<String, dynamic>> links;
 
   Lecture({
     required this.id,
@@ -23,7 +23,7 @@ class Lecture {
     String? subjectId,
     String? doctorId,
     String? categoryName,
-    List<Map<String, String>>? links,
+    List<Map<String, dynamic>>? links,
   }) {
     return Lecture(
       id: id ?? this.id,
@@ -43,8 +43,9 @@ class Lecture {
       subjectId: data['subjectId'] ?? '',
       doctorId: data['doctorId'] ?? '',
       categoryName: data['categoryName'] ?? '',
-      links: List<Map<String, String>>.from(
-          data['links']?.map((item) => Map<String, String>.from(item)) ?? []),
+      links: List<Map<String, dynamic>>.from(
+        data['links']?.map((item) => Map<String, dynamic>.from(item)) ?? [],
+      ),
     );
   }
 

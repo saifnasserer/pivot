@@ -157,8 +157,8 @@ class _AddMaterialDialogState extends State<AddMaterialDialog> {
   @override
   Widget build(BuildContext context) {
     return UnifiedDialog(
-      title: 'إضافة مادة جديدة',
-      subtitle: 'أضف رابط جديد للمادة',
+      title: 'إضافة محتوى جديد',
+      subtitle: 'أضف رابط جديد للمحتوى',
       content: Form(
         key: _formKey,
         child: Column(
@@ -192,7 +192,7 @@ class _AddMaterialDialogState extends State<AddMaterialDialog> {
     return UnifiedFormField(
       controller: _titleController,
       label: 'العنوان',
-      hint: 'أدخل عنوان المادة',
+      hint: 'أدخل عنوان المحتوى',
       validator: (value) {
         if (value == null || value.trim().isEmpty) {
           return 'يرجى إدخال العنوان';
@@ -268,7 +268,7 @@ class _AddMaterialDialogState extends State<AddMaterialDialog> {
           ),
           SizedBox(width: Responsive.space(context, size: Space.small)),
           Text(
-            'نوع المادة: ${_getTypeDisplayName(_detectedType!)}',
+            'نوع المحتوى: ${_getTypeDisplayName(_detectedType!)}',
             style: TextStyle(
               fontSize: Responsive.text(context, size: TextSize.small),
               color: Colors.grey.shade700,

@@ -85,6 +85,7 @@ class ScheduleCalendarBuilder {
       floatingActionButton:
           showFloatingActionButton && currentDay.isNotEmpty
               ? FloatingActionButton.extended(
+                heroTag: 'schedule_fab',
                 onPressed: () => _showAddScheduleDialog(context, currentDay),
                 backgroundColor: Colors.black,
                 foregroundColor: Colors.white,

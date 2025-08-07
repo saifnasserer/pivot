@@ -260,7 +260,7 @@ class _SubjectsSectionState extends State<SubjectsSection>
         await _loadLecturesForSubject(_tabController.index);
       },
       child: ListView.builder(
-        padding: EdgeInsets.all(Responsive.space(context, size: Space.medium)),
+        // padding: EdgeInsets.all(Responsive.space(context, size: Space.medium)),
         itemCount: lectures.length,
         itemBuilder:
             (context, index) => SubjectModel(

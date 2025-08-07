@@ -25,14 +25,6 @@ class ProfileAppBar extends StatelessWidget implements PreferredSizeWidget {
         icon: const Icon(Icons.arrow_back, color: Colors.black),
         onPressed: () => Navigator.pop(context),
       ),
-      title: Text(
-        'المطبخ',
-        style: TextStyle(
-          fontSize: Responsive.text(context, size: TextSize.heading),
-          fontWeight: FontWeight.bold,
-          color: Colors.black87,
-        ),
-      ),
       centerTitle: true,
       actions: [
         IconButton(

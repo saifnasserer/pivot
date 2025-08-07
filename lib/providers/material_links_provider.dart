@@ -158,6 +158,14 @@ class MaterialLinksProvider with ChangeNotifier {
       _isLoading = true;
       _safeNotifyListeners();
 
+      // Use the new service method for rating
+      await _service.rateMaterialLink(
+        lectureId,
+        materialLink.url,
+        userId,
+        rating,
+      );
+
       // Create updated material link with new rating
       final updatedUserRatings = Map<String, double>.from(
         materialLink.userRatings,
@@ -171,10 +179,6 @@ class MaterialLinksProvider with ChangeNotifier {
             updatedUserRatings.values.reduce((a, b) => a + b) /
             updatedUserRatings.length,
       );
-
-      // Update in service (convert to legacy format)
-      final legacyMap = updatedMaterialLink.toLegacyMap();
-      await _service.updateLinkInLecture(lectureId, legacyMap);
 
       // Update in local list
       final index = _materialLinks.indexWhere(
@@ -204,6 +208,9 @@ class MaterialLinksProvider with ChangeNotifier {
       _isLoading = true;
       _safeNotifyListeners();
 
+      // Use the new service method for removing rating
+      await _service.removeMaterialRating(lectureId, materialLink.url, userId);
+
       // Create updated material link without user's rating
       final updatedUserRatings = Map<String, double>.from(
         materialLink.userRatings,
@@ -219,10 +226,6 @@ class MaterialLinksProvider with ChangeNotifier {
                 : updatedUserRatings.values.reduce((a, b) => a + b) /
                     updatedUserRatings.length,
       );
-
-      // Update in service (convert to legacy format)
-      final legacyMap = updatedMaterialLink.toLegacyMap();
-      await _service.updateLinkInLecture(lectureId, legacyMap);
 
       // Update in local list
       final index = _materialLinks.indexWhere(

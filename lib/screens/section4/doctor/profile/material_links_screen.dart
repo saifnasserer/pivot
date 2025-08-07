@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart' hide MaterialType;
+import 'package:flutter/services.dart';
 import 'package:pivot/models/lecture_model.dart';
 import 'package:pivot/models/material_link.dart';
 import 'package:pivot/models/user_profile.dart';
@@ -32,6 +33,12 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
     super.initState();
     // Fetch material links when screen initializes
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      debugPrint(
+        'MaterialLinksScreen: Logged in user: ${widget.loggedInUser?.id}',
+      );
+      debugPrint(
+        'MaterialLinksScreen: User role: ${widget.loggedInUser?.role}',
+      );
       context.read<MaterialLinksProvider>().fetchMaterialLinks(
         widget.lecture.id,
       );
@@ -45,14 +52,23 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
   }
 
   Future<void> _launchURL(String urlString) async {
+    HapticFeedback.lightImpact();
+
     final Uri? url = Uri.tryParse(urlString);
     if (url != null && await canLaunchUrl(url)) {
       await launchUrl(url, mode: LaunchMode.externalApplication);
     } else {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('تعذر فتح الرابط: $urlString')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('تعذر فتح الرابط: $urlString'),
+            backgroundColor: Colors.red,
+            action: SnackBarAction(
+              label: 'إعادة المحاولة',
+              onPressed: () => _launchURL(urlString),
+            ),
+          ),
+        );
       }
     }
   }
@@ -70,7 +86,7 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('تم إضافة المادة بنجاح'),
+            content: Text('تم إضافة المحتوى بنجاح'),
             backgroundColor: Colors.green,
           ),
         );
@@ -114,10 +130,6 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
             });
           },
         ),
-        IconButton(
-          icon: const Icon(Icons.filter_list, color: Colors.black),
-          onPressed: _showFilterDialog,
-        ),
       ],
     );
   }
@@ -130,16 +142,7 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
           child: Consumer<MaterialLinksProvider>(
             builder: (context, provider, child) {
               if (provider.isLoading) {
-                return const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      CircularProgressIndicator(),
-                      SizedBox(height: 16),
-                      Text('جاري تحميل المواد...'),
-                    ],
-                  ),
-                );
+                return _buildSkeletonLoading();
               }
 
               if (provider.error != null) {
@@ -178,6 +181,7 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
 
               return Column(
                 children: [
+                  // _buildMaterialStats(provider),
                   _buildFilterChips(provider),
                   Expanded(
                     child: RefreshIndicator(
@@ -231,56 +235,210 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
           ),
         ],
       ),
-      child: Row(
+      child: Column(
         children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.black),
-            onPressed: () {
-              setState(() {
-                _showSearch = false;
-                _searchController.clear();
-                context.read<MaterialLinksProvider>().setSearchQuery('');
-              });
-            },
-          ),
-          Expanded(
-            child: TextField(
-              controller: _searchController,
-              autofocus: true,
-              decoration: InputDecoration(
-                hintText: 'البحث في المواد...',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(
-                    Responsive.space(context, size: Space.large),
-                  ),
-                  borderSide: BorderSide.none,
-                ),
-                filled: true,
-                fillColor: Colors.grey.shade100,
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: Responsive.space(context, size: Space.medium),
-                  vertical: Responsive.space(context, size: Space.small),
-                ),
-                suffixIcon:
-                    _searchController.text.isNotEmpty
-                        ? IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: () {
-                            _searchController.clear();
-                            context
-                                .read<MaterialLinksProvider>()
-                                .setSearchQuery('');
-                          },
-                        )
-                        : null,
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.black),
+                onPressed: () {
+                  setState(() {
+                    _showSearch = false;
+                    _searchController.clear();
+                    context.read<MaterialLinksProvider>().setSearchQuery('');
+                  });
+                },
               ),
-              onChanged: (value) {
-                context.read<MaterialLinksProvider>().setSearchQuery(value);
-              },
-            ),
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    hintText: 'البحث في المواد...',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(
+                        Responsive.space(context, size: Space.large),
+                      ),
+                      borderSide: BorderSide.none,
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey.shade100,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: Responsive.space(context, size: Space.medium),
+                      vertical: Responsive.space(context, size: Space.small),
+                    ),
+                    prefixIcon: Icon(Icons.search, color: Colors.grey.shade600),
+                    suffixIcon:
+                        _searchController.text.isNotEmpty
+                            ? IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                _searchController.clear();
+                                context
+                                    .read<MaterialLinksProvider>()
+                                    .setSearchQuery('');
+                              },
+                            )
+                            : null,
+                  ),
+                  onChanged: (value) {
+                    context.read<MaterialLinksProvider>().setSearchQuery(value);
+                  },
+                ),
+              ),
+            ],
           ),
+          if (_searchController.text.isNotEmpty) ...[
+            SizedBox(height: Responsive.space(context, size: Space.small)),
+            _buildSearchSuggestions(),
+          ],
         ],
       ),
+    );
+  }
+
+  Widget _buildSearchSuggestions() {
+    final provider = context.read<MaterialLinksProvider>();
+    final suggestions =
+        provider.materialLinks
+            .where(
+              (link) =>
+                  link.title.toLowerCase().contains(
+                    _searchController.text.toLowerCase(),
+                  ) ||
+                  link.description?.toLowerCase().contains(
+                        _searchController.text.toLowerCase(),
+                      ) ==
+                      true,
+            )
+            .take(3)
+            .toList();
+
+    if (suggestions.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: Responsive.space(context, size: Space.small),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children:
+            suggestions
+                .map(
+                  (link) => ListTile(
+                    dense: true,
+                    leading: Icon(_getMaterialTypeIcon(link.type), size: 20),
+                    title: Text(
+                      link.title,
+                      style: TextStyle(fontSize: 14),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    onTap: () {
+                      _searchController.text = link.title;
+                      context.read<MaterialLinksProvider>().setSearchQuery(
+                        link.title,
+                      );
+                    },
+                  ),
+                )
+                .toList(),
+      ),
+    );
+  }
+
+  IconData _getMaterialTypeIcon(MaterialType type) {
+    switch (type) {
+      case MaterialType.video:
+        return Icons.video_library;
+      case MaterialType.pdf:
+        return Icons.picture_as_pdf;
+      case MaterialType.document:
+        return Icons.description;
+      case MaterialType.image:
+        return Icons.image;
+      case MaterialType.link:
+        return Icons.link;
+    }
+  }
+
+  // Widget _buildMaterialStats(MaterialLinksProvider provider) {
+  //   final totalMaterials = provider.materialLinks.length;
+  //   final totalRatings = provider.materialLinks.fold(
+  //     0,
+  //     (sum, link) => sum + link.totalRatings,
+  //   );
+  //   final avgRating =
+  //       provider.materialLinks.isEmpty
+  //           ? 0.0
+  //           : provider.materialLinks.fold(
+  //                 0.0,
+  //                 (sum, link) => sum + link.averageRating,
+  //               ) /
+  //               totalMaterials;
+
+  //   return Container(
+  //     margin: EdgeInsets.symmetric(
+  //       horizontal: Responsive.space(context, size: Space.small),
+  //       vertical: Responsive.space(context, size: Space.tiny),
+  //     ),
+  //     padding: EdgeInsets.all(Responsive.space(context, size: Space.small)),
+  //     decoration: BoxDecoration(
+  //       color: Colors.grey.shade50,
+  //       borderRadius: BorderRadius.circular(
+  //         Responsive.space(context, size: Space.medium),
+  //       ),
+  //       border: Border.all(color: Colors.grey.shade200),
+  //     ),
+  //     child: Row(
+  //       mainAxisAlignment: MainAxisAlignment.spaceAround,
+  //       children: [
+  //         _buildStatItem(
+  //           icon: Icons.library_books,
+  //           label: 'المواد',
+  //           value: '$totalMaterials',
+  //           color: Colors.blue,
+  //         ),
+  //         _buildStatItem(
+  //           icon: Icons.star,
+  //           label: 'التقييمات',
+  //           value: '$totalRatings',
+  //           color: Colors.amber,
+  //         ),
+  //         _buildStatItem(
+  //           icon: Icons.star_rate,
+  //           label: 'المتوسط',
+  //           value: avgRating.toStringAsFixed(1),
+  //           color: Colors.green,
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
+
+  Widget _buildStatItem({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Column(
+      children: [
+        Icon(icon, color: color, size: 24),
+        SizedBox(height: 4),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+        ),
+      ],
     );
   }
 
@@ -288,37 +446,40 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
     final typeCounts = provider.typeCounts;
     if (typeCounts.isEmpty) return const SizedBox.shrink();
 
-    return Container(
-      height: 50,
-      margin: EdgeInsets.symmetric(
-        horizontal: Responsive.space(context, size: Space.small),
-        vertical: Responsive.space(context, size: Space.tiny),
-      ),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: typeCounts.length + 1, // +1 for "All" option
-        itemBuilder: (context, index) {
-          if (index == 0) {
-            // "All" option
-            final isSelected = provider.selectedType == null;
-            return _buildFilterChip(
-              'الكل',
-              null,
-              isSelected,
-              provider.materialLinks.length,
-            );
-          } else {
-            final type = typeCounts.keys.elementAt(index - 1);
-            final count = typeCounts[type]!;
-            final isSelected = provider.selectedType == type;
-            return _buildFilterChip(
-              _getTypeDisplayName(type),
-              type,
-              isSelected,
-              count,
-            );
-          }
-        },
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Container(
+        height: 50,
+        margin: EdgeInsets.symmetric(
+          horizontal: Responsive.space(context, size: Space.small),
+          vertical: Responsive.space(context, size: Space.tiny),
+        ),
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          itemCount: typeCounts.length + 1, // +1 for "All" option
+          itemBuilder: (context, index) {
+            if (index == 0) {
+              // "All" option
+              final isSelected = provider.selectedType == null;
+              return _buildFilterChip(
+                'الكل',
+                null,
+                isSelected,
+                provider.materialLinks.length,
+              );
+            } else {
+              final type = typeCounts.keys.elementAt(index - 1);
+              final count = typeCounts[type]!;
+              final isSelected = provider.selectedType == type;
+              return _buildFilterChip(
+                _getTypeDisplayName(type),
+                type,
+                isSelected,
+                count,
+              );
+            }
+          },
+        ),
       ),
     );
   }
@@ -349,9 +510,23 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
         right: Responsive.space(context, size: Space.small),
       ),
       child: FilterChip(
-        label: Text('$label ($count)'),
+        label: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (type != null) ...[
+              Icon(
+                _getMaterialTypeIcon(type),
+                size: 16,
+                color: isSelected ? Colors.white : Colors.grey.shade600,
+              ),
+              SizedBox(width: 4),
+            ],
+            Text('$label ($count)'),
+          ],
+        ),
         selected: isSelected,
         onSelected: (selected) {
+          HapticFeedback.selectionClick();
           context.read<MaterialLinksProvider>().setSelectedType(
             selected ? type : null,
           );
@@ -362,6 +537,7 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
           color: isSelected ? Colors.white : Colors.black,
           fontSize: Responsive.text(context, size: TextSize.small),
         ),
+        elevation: isSelected ? 2 : 0,
       ),
     );
   }
@@ -401,18 +577,10 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
     if (!canEdit) return const SizedBox.shrink();
 
     return FloatingActionButton(
+      heroTag: 'material_links_fab',
       onPressed: _showAddMaterialDialog,
       backgroundColor: Colors.black,
       child: const Icon(Icons.add, color: Colors.white),
-    );
-  }
-
-  void _showFilterDialog() {
-    // TODO: Implement advanced filter dialog
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('سيتم إضافة خيارات التصفية المتقدمة قريباً'),
-      ),
     );
   }
 
@@ -421,8 +589,8 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
       context: context,
       builder:
           (context) => AlertDialog(
-            title: const Text('حذف المادة'),
-            content: const Text('هل أنت متأكد من رغبتك في حذف هذه المادة؟'),
+            title: const Text('حذف المحتوى'),
+            content: const Text('هل أنت متأكد من رغبتك في حذف هذا المحتوى؟'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(false),
@@ -444,7 +612,7 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('تم حذف المادة بنجاح'),
+              content: Text('تم حذف المحتوى بنجاح'),
               backgroundColor: Colors.green,
             ),
           );
@@ -453,7 +621,7 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('فشل في حذف المادة: ${e.toString()}'),
+              content: Text('فشل في حذف المحتوى: ${e.toString()}'),
               backgroundColor: Colors.red,
             ),
           );
@@ -463,7 +631,15 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
   }
 
   void _rateMaterial(MaterialLink materialLink, double rating) async {
+    debugPrint(
+      'MaterialLinksScreen: Rating material: ${materialLink.title} with rating: $rating',
+    );
+    debugPrint(
+      'MaterialLinksScreen: Logged in user: ${widget.loggedInUser?.id}',
+    );
+
     if (widget.loggedInUser == null) {
+      debugPrint('MaterialLinksScreen: No logged in user');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('يجب تسجيل الدخول لتقييم المواد'),
@@ -474,6 +650,7 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
     }
 
     try {
+      debugPrint('MaterialLinksScreen: Calling provider.rateMaterial');
       final provider = context.read<MaterialLinksProvider>();
       await provider.rateMaterial(
         widget.lecture.id,
@@ -482,15 +659,17 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
         rating,
       );
 
+      debugPrint('MaterialLinksScreen: Rating successful');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('تم تقييم المادة: ${rating.toInt()} نجوم'),
+            content: Text('تم تقييم المحتوى: ${rating.toInt()} نجوم'),
             backgroundColor: Colors.green,
           ),
         );
       }
     } catch (e) {
+      debugPrint('MaterialLinksScreen: Rating failed: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -500,5 +679,64 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
         );
       }
     }
+  }
+
+  Widget _buildSkeletonLoading() {
+    return ListView.builder(
+      padding: EdgeInsets.all(Responsive.space(context, size: Space.small)),
+      itemCount: 6,
+      itemBuilder: (context, index) {
+        return Card(
+          margin: EdgeInsets.only(
+            bottom: Responsive.space(context, size: Space.small),
+          ),
+          child: Column(
+            children: [
+              Container(
+                height: Responsive.height(context) * 0.25,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(
+                      Responsive.space(context, size: Space.medium),
+                    ),
+                    topRight: Radius.circular(
+                      Responsive.space(context, size: Space.medium),
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.all(
+                  Responsive.space(context, size: Space.small),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      height: 20,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade200,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Container(
+                      height: 16,
+                      width: MediaQuery.of(context).size.width * 0.6,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade200,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 }

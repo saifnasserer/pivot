@@ -722,6 +722,7 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
   /// Build enhanced floating action button
   Widget _buildFloatingActionButton() {
     return FloatingActionButton.extended(
+      heroTag: 'week_tasks_fab',
       onPressed: () => _showAddEditTaskDialog(context),
       backgroundColor: Colors.black,
       elevation: 4,

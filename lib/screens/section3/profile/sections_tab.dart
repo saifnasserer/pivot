@@ -17,16 +17,12 @@ class _SectionsTabState extends State<SectionsTab> {
   UserProfile? _previousUserProfile;
   List<String> _previousEnrolledSubjects = [];
   bool _hasLoadedSections = false;
+  bool _isLoadingSections = false;
 
   @override
   void initState() {
     super.initState();
-    // Load sections when widget initializes
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _loadSectionsForUser();
-      }
-    });
+    // Initial load will be handled in didChangeDependencies
   }
 
   @override
@@ -34,42 +30,10 @@ class _SectionsTabState extends State<SectionsTab> {
     super.didChangeDependencies();
     final userProfile = context.read<UserProfileProvider>().userProfile;
 
-    if (userProfile != null) {
-      final currentEnrolledSubjects = userProfile.enrolledSubjects;
-
-      // Check if we need to reload sections
-      bool shouldReload = false;
-
-      // Reload if user profile changed
-      if (userProfile != _previousUserProfile) {
-        _previousUserProfile = userProfile;
-        shouldReload = true;
-        print('User profile changed, reloading sections');
-      }
-
-      // Reload if enrolled subjects changed
-      if (!_areListsEqual(currentEnrolledSubjects, _previousEnrolledSubjects)) {
-        _previousEnrolledSubjects = List.from(currentEnrolledSubjects);
-        shouldReload = true;
-        print('Enrolled subjects changed, reloading sections');
-      }
-
-      // Reload if sections haven't been loaded yet
+    if (userProfile != null && userProfile.enrolledSubjects.isNotEmpty) {
+      // Simple loading like subjects tab - just load once when dependencies change
       if (!_hasLoadedSections) {
-        shouldReload = true;
-        print('Sections not loaded yet, loading sections');
-      }
-
-      // Reload if sections are empty but user has enrolled subjects
-      final sectionProvider = context.read<SectionProvider>();
-      if (currentEnrolledSubjects.isNotEmpty &&
-          sectionProvider.sections.isEmpty &&
-          !sectionProvider.isLoading) {
-        shouldReload = true;
-        print('Sections are empty but user has enrolled subjects, reloading');
-      }
-
-      if (shouldReload) {
+        // Use post-frame callback to avoid build-time notifyListeners
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
             _loadSectionsForUser();
@@ -89,48 +53,84 @@ class _SectionsTabState extends State<SectionsTab> {
 
   void _loadSectionsForUser() {
     final userProfile = context.read<UserProfileProvider>().userProfile;
-    if (userProfile != null) {
-      if (userProfile.enrolledSubjects.isNotEmpty) {
-        print(
-          'Loading sections for user with ${userProfile.enrolledSubjects.length} enrolled subjects',
-        );
-        // Use post-frame callback to ensure this happens after build
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            context
-                .read<SectionProvider>()
-                .fetchSectionsForUserSubjects(userProfile.enrolledSubjects)
-                .then((_) {
-                  // Mark sections as loaded
-                  if (mounted) {
-                    setState(() {
-                      _hasLoadedSections = true;
-                    });
-                  }
-                });
-          }
-        });
-      } else {
-        print('User has no enrolled subjects, clearing sections');
-        // Clear sections if user has no enrolled subjects
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            context.read<SectionProvider>().resetFilter();
-            setState(() {
-              _hasLoadedSections = true;
-            });
-          }
-        });
-      }
+    final sectionProvider = context.read<SectionProvider>();
+
+    // Prevent multiple simultaneous loading calls
+    if (_isLoadingSections || sectionProvider.isLoading) {
+      return;
+    }
+
+    if (userProfile != null && userProfile.enrolledSubjects.isNotEmpty) {
+      // Set loading flag
+      _isLoadingSections = true;
+
+      context
+          .read<SectionProvider>()
+          .fetchSectionsForUserSubjects(userProfile.enrolledSubjects)
+          .then((_) {
+            // Mark sections as loaded
+            if (mounted) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  setState(() {
+                    _hasLoadedSections = true;
+                    _isLoadingSections = false;
+                  });
+                }
+              });
+            }
+          })
+          .catchError((error) {
+            if (mounted) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  setState(() {
+                    _hasLoadedSections =
+                        true; // Mark as loaded even on error to prevent infinite retries
+                    _isLoadingSections = false;
+                  });
+                }
+              });
+            }
+          });
     } else {
-      print('No user profile found');
+      // Only clear sections if user has no enrolled subjects
+      if (userProfile != null && userProfile.enrolledSubjects.isEmpty) {
+        context.read<SectionProvider>().resetFilter();
+      }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {
+            _hasLoadedSections = true;
+            _isLoadingSections = false;
+          });
+        }
+      });
     }
   }
 
   // Method to reset loading state when tab becomes visible
   void _resetLoadingState() {
-    setState(() {
-      _hasLoadedSections = false;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {
+          _hasLoadedSections = false;
+          _isLoadingSections = false;
+        });
+      }
+    });
+  }
+
+  // Method to force reload sections (for manual refresh)
+  void _forceReloadSections() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {
+          _hasLoadedSections = false;
+          _isLoadingSections = false;
+        });
+        _loadSectionsForUser();
+      }
     });
   }
 
@@ -141,20 +141,6 @@ class _SectionsTabState extends State<SectionsTab> {
         // Get user profile and enrolled subjects
         final userProfile = context.read<UserProfileProvider>().userProfile;
         final enrolledSubjects = userProfile?.enrolledSubjects ?? [];
-
-        // Always ensure sections are loaded when tab is visible
-        if (userProfile != null &&
-            enrolledSubjects.isNotEmpty &&
-            !sectionProvider.isLoading) {
-          // Check if sections need to be loaded
-          if (!_hasLoadedSections || sectionProvider.sections.isEmpty) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) {
-                _loadSectionsForUser();
-              }
-            });
-          }
-        }
 
         // Always show loading indicator when loading
         if (sectionProvider.isLoading) {

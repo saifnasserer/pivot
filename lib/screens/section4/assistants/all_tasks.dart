@@ -107,6 +107,7 @@ class _TasksControlState extends State<TasksControl> {
       floatingActionButton:
           canEdit
               ? FloatingActionButton(
+                heroTag: 'all_tasks_fab',
                 onPressed: () => _showAddEditTaskDialog(context, taskProvider),
                 backgroundColor: Colors.black,
                 child: const Icon(Icons.add, color: Colors.white),

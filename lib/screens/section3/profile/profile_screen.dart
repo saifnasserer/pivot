@@ -1,12 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:pivot/screens/section4/assistants/profile/assistant_profile_main.dart';
 import 'package:pivot/screens/section4/doctor/profile/doctor_profile.dart';
 import 'package:provider/provider.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/providers/subject_provider.dart';
 import 'package:pivot/providers/section_provider.dart';
-import 'package:pivot/screens/section4/assistants/assistant_profile.dart';
+
 import 'package:pivot/screens/section3/bookmarks_screen.dart';
 import 'package:pivot/screens/section3/profile_widgets/week_tasks.dart';
 import 'profile_provider.dart';
@@ -61,6 +62,18 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
     _tabController.addListener(_onTabChanged);
     WidgetsBinding.instance.addObserver(this);
+
+    // Load sections when profile screen opens
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        final userProfile = context.read<UserProfileProvider>().userProfile;
+        if (userProfile != null && userProfile.enrolledSubjects.isNotEmpty) {
+          context.read<SectionProvider>().fetchSectionsForUserSubjects(
+            userProfile.enrolledSubjects,
+          );
+        }
+      }
+    });
   }
 
   @override
@@ -75,12 +88,14 @@ class _ProfileScreenState extends State<ProfileScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     if (state == AppLifecycleState.resumed) {
-      // Reset filters when app is resumed (user returns from another screen)
+      // Only refresh profile data when app is resumed, don't reset sections
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           final userProfile = context.read<UserProfileProvider>().userProfile;
           if (userProfile != null) {
-            _fetchProfileData(userProfile);
+            // Only fetch profile data, don't reset sections
+            final provider = context.read<ProfileProvider>();
+            provider.fetchProfileData(userProfile);
           }
         }
       });
@@ -92,12 +107,12 @@ class _ProfileScreenState extends State<ProfileScreen>
       if (!mounted) return;
 
       try {
-        // Reset filters in providers to ensure clean state
+        // Only reset SubjectProvider filter, not SectionProvider
         // Use additional post-frame callback to ensure these happen after current build
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
             context.read<SubjectProvider>().resetFilter();
-            context.read<SectionProvider>().resetFilter();
+            // Removed SectionProvider.resetFilter() to prevent sections from disappearing
           }
         });
 
@@ -115,15 +130,14 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   void _onTabChanged() {
-    // Reset filters when switching to subjects or sections tabs
-    if (_tabController.index == 2 || _tabController.index == 3) {
+    // Reset filters when switching to subjects tab only
+    if (_tabController.index == 2) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           // Use additional post-frame callback to ensure these happen after current build
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
               context.read<SubjectProvider>().resetFilter();
-              context.read<SectionProvider>().resetFilter();
             }
           });
         }
@@ -139,14 +153,16 @@ class _ProfileScreenState extends State<ProfileScreen>
     if (userProfile != null) {
       final lowerCaseRole = userProfile.role.toLowerCase();
       if (lowerCaseRole == 'professor') return const DoctorProfile();
-      if (lowerCaseRole == 'miniprofessor') return const AssistantProfile();
+      if (lowerCaseRole == 'miniprofessor') return const AssistantProfileMain();
     }
 
-    // Reset filters when user profile changes (e.g., when returning from another profile)
+    // Update profile data when user profile changes (e.g., when returning from another profile)
     if (userProfile != null && userProfile != _previousUserProfile) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          _fetchProfileData(userProfile);
+          // Only fetch profile data, don't reset sections
+          final provider = context.read<ProfileProvider>();
+          provider.fetchProfileData(userProfile);
         }
       });
     }

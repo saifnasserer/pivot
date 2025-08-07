@@ -6,9 +6,10 @@ import 'package:pivot/responsive.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:pivot/screens/section4/doctor/profile/pdf_viewer_screen.dart';
 import 'package:pivot/screens/section4/doctor/profile/video_player_screen.dart';
+import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-class MaterialCard extends StatelessWidget {
+class MaterialCard extends StatefulWidget {
   final MaterialLink materialLink;
   final bool canEdit;
   final UserProfile? loggedInUser;
@@ -27,213 +28,278 @@ class MaterialCard extends StatelessWidget {
   });
 
   @override
+  State<MaterialCard> createState() => _MaterialCardState();
+}
+
+class _MaterialCardState extends State<MaterialCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _fadeAnimation;
+  bool _isHovered = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 200),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.02).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+    _fadeAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+
+    // Debug logging for user data
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      debugPrint(
+        'MaterialCard: Received loggedInUser: ${widget.loggedInUser?.id}',
+      );
+      debugPrint('MaterialCard: User role: ${widget.loggedInUser?.role}');
+      debugPrint('MaterialCard: onRate callback: ${widget.onRate != null}');
+    });
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  void _onHover(bool isHovered) {
+    setState(() {
+      _isHovered = isHovered;
+    });
+    if (isHovered) {
+      _animationController.forward();
+    } else {
+      _animationController.reverse();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.only(
-        bottom: Responsive.space(context, size: Space.small),
-      ),
-      elevation: 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(
-          Responsive.space(context, size: Space.medium),
-        ),
-      ),
-      child: InkWell(
-        onTap: () => _handleTap(context),
-        borderRadius: BorderRadius.circular(
-          Responsive.space(context, size: Space.medium),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Thumbnail - Full width
-            _buildThumbnail(context),
-            // Content - Compact
-            Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: Responsive.space(context, size: Space.small),
-                vertical: Responsive.space(context, size: Space.tiny),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Icon + Title
-                  _buildTitleRow(context),
-                  SizedBox(height: Responsive.space(context, size: Space.tiny)),
-                  // Rating
-                  _buildRatingRow(context),
-                  SizedBox(height: Responsive.space(context, size: Space.tiny)),
-                  // Date + Actions
-                  _buildBottomRow(context),
-                ],
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: AnimatedBuilder(
+        animation: _animationController,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: _scaleAnimation.value,
+            child: Opacity(
+              opacity: _fadeAnimation.value,
+              child: Card(
+                margin: EdgeInsets.only(
+                  bottom: Responsive.space(context, size: Space.small),
+                ),
+                elevation: _isHovered ? 8 : 2,
+                shadowColor: Colors.black.withOpacity(0.15),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(
+                    Responsive.space(context, size: Space.large),
+                  ),
+                ),
+                child: InkWell(
+                  onTap: () => _handleTap(context),
+                  onHover: _onHover,
+                  borderRadius: BorderRadius.circular(
+                    Responsive.space(context, size: Space.large),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      // Enhanced Thumbnail with overlay
+                      _buildEnhancedThumbnail(context),
+                      // Content with better spacing
+                      _buildEnhancedContent(context),
+                    ],
+                  ),
+                ),
               ),
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildThumbnail(BuildContext context) {
+  Widget _buildEnhancedThumbnail(BuildContext context) {
     final thumbnailUrl = _getThumbnailUrl();
 
+    return Stack(
+      children: [
+        Container(
+          width: double.infinity,
+          height: Responsive.height(context) * 0.25,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(
+                Responsive.space(context, size: Space.large),
+              ),
+              topRight: Radius.circular(
+                Responsive.space(context, size: Space.large),
+              ),
+            ),
+            color: Colors.grey.shade100,
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(
+                Responsive.space(context, size: Space.large),
+              ),
+              topRight: Radius.circular(
+                Responsive.space(context, size: Space.large),
+              ),
+            ),
+            child:
+                thumbnailUrl != null
+                    ? CachedNetworkImage(
+                      imageUrl: thumbnailUrl,
+                      fit: BoxFit.cover,
+                      placeholder:
+                          (context, url) => _buildEnhancedPlaceholder(context),
+                      errorWidget:
+                          (context, url, error) =>
+                              _buildEnhancedPlaceholder(context),
+                    )
+                    : _buildEnhancedPlaceholder(context),
+          ),
+        ),
+        // Play overlay for videos
+        if (widget.materialLink.type == MaterialType.video)
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.3),
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(
+                    Responsive.space(context, size: Space.large),
+                  ),
+                  topRight: Radius.circular(
+                    Responsive.space(context, size: Space.large),
+                  ),
+                ),
+              ),
+              child: Center(
+                child: Container(
+                  padding: EdgeInsets.all(
+                    Responsive.space(context, size: Space.small),
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.9),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.play_arrow,
+                    size: Responsive.text(context, size: TextSize.heading),
+                    color: Colors.black,
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildMaterialTypeBadge(BuildContext context) {
+    final typeColors = {
+      MaterialType.video: Colors.red,
+      MaterialType.pdf: Colors.orange,
+      MaterialType.document: Colors.blue,
+      MaterialType.image: Colors.green,
+      MaterialType.link: Colors.purple,
+    };
+
     return Container(
-      width: double.infinity,
-      height: Responsive.height(context) * 0.25, // Use responsive height
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(
-            Responsive.space(context, size: Space.medium),
-          ),
-          topRight: Radius.circular(
-            Responsive.space(context, size: Space.medium),
-          ),
-        ),
-        color: Colors.grey.shade100,
+      padding: EdgeInsets.symmetric(
+        horizontal: Responsive.space(context, size: Space.small),
+        vertical: Responsive.space(context, size: Space.tiny),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(
-            Responsive.space(context, size: Space.medium),
-          ),
-          topRight: Radius.circular(
-            Responsive.space(context, size: Space.medium),
-          ),
+      decoration: BoxDecoration(
+        color: typeColors[widget.materialLink.type]?.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(
+          Responsive.space(context, size: Space.medium),
         ),
-        child:
-            thumbnailUrl != null
-                ? CachedNetworkImage(
-                  imageUrl: thumbnailUrl,
-                  fit: BoxFit.cover,
-                  placeholder:
-                      (context, url) => _buildPlaceholderThumbnail(context),
-                  errorWidget:
-                      (context, url, error) =>
-                          _buildPlaceholderThumbnail(context),
-                )
-                : _buildPlaceholderThumbnail(context),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(widget.materialLink.typeIcon, size: 16, color: Colors.white),
+          SizedBox(width: 4),
+          Text(
+            widget.materialLink.typeDisplayName,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildPlaceholderThumbnail(BuildContext context) {
+  Widget _buildEnhancedPlaceholder(BuildContext context) {
     return Container(
       width: double.infinity,
-      height: Responsive.height(context) * 0.25, // Use responsive height
+      height: Responsive.height(context) * 0.25,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Colors.grey.shade200, Colors.grey.shade100],
+        ),
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(
+            Responsive.space(context, size: Space.large),
+          ),
+          topRight: Radius.circular(
+            Responsive.space(context, size: Space.large),
+          ),
+        ),
+      ),
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Special styling for PDFs
-            if (materialLink.type == MaterialType.pdf) ...[
-              Container(
-                width: Responsive.width(context) * 0.15, // Responsive width
-                height: Responsive.height(context) * 0.12, // Responsive height
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(
-                    Responsive.space(context, size: Space.small),
+            Container(
+              padding: EdgeInsets.all(
+                Responsive.space(context, size: Space.medium),
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.8),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
                   ),
-                  border: Border.all(color: Colors.red.shade300, width: 1.5),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.15),
-                      blurRadius: Responsive.space(context, size: Space.small),
-                      offset: const Offset(0, 3),
-                      spreadRadius: 1,
-                    ),
-                  ],
-                ),
-                child: Stack(
-                  children: [
-                    // Document lines to simulate text
-                    Positioned(
-                      top: Responsive.space(context, size: Space.small),
-                      left: Responsive.space(context, size: Space.small),
-                      right: Responsive.space(context, size: Space.small),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: List.generate(
-                          3,
-                          (index) => Container(
-                            height: 2,
-                            width: (index + 1) * 0.3, // Different line lengths
-                            margin: EdgeInsets.only(
-                              bottom: Responsive.space(
-                                context,
-                                size: Space.tiny,
-                              ),
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade300,
-                              borderRadius: BorderRadius.circular(1),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    // PDF icon and label
-                    Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            padding: EdgeInsets.all(
-                              Responsive.space(context, size: Space.tiny),
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.red.shade50,
-                              borderRadius: BorderRadius.circular(
-                                Responsive.space(context, size: Space.tiny),
-                              ),
-                            ),
-                            child: Icon(
-                              Icons.picture_as_pdf,
-                              size: Responsive.text(
-                                context,
-                                size: TextSize.small,
-                              ),
-                              color: Colors.red.shade600,
-                            ),
-                          ),
-                          SizedBox(
-                            height: Responsive.space(context, size: Space.tiny),
-                          ),
-                          Text(
-                            'PDF',
-                            style: TextStyle(
-                              fontSize:
-                                  Responsive.text(
-                                    context,
-                                    size: TextSize.small,
-                                  ) *
-                                  0.8,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.red.shade700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+                ],
               ),
-            ] else ...[
-              Icon(
-                materialLink.typeIcon,
-                size: Responsive.text(
-                  context,
-                  size: TextSize.heading,
-                ), // Responsive icon size
-                color: Colors.grey.shade400,
+              child: Icon(
+                widget.materialLink.typeIcon,
+                size: Responsive.text(context, size: TextSize.heading),
+                color: _getTypeColor(widget.materialLink.type),
               ),
-            ],
+            ),
             SizedBox(height: Responsive.space(context, size: Space.small)),
             Text(
-              materialLink.typeDisplayName,
+              widget.materialLink.typeDisplayName,
               style: TextStyle(
                 fontSize: Responsive.text(context, size: TextSize.small),
-                color: Colors.grey.shade500,
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ],
@@ -242,27 +308,69 @@ class MaterialCard extends StatelessWidget {
     );
   }
 
-  Widget _buildTitleRow(BuildContext context) {
+  Color _getTypeColor(MaterialType type) {
+    switch (type) {
+      case MaterialType.video:
+        return Colors.red.shade600;
+      case MaterialType.pdf:
+        return Colors.orange.shade600;
+      case MaterialType.document:
+        return Colors.blue.shade600;
+      case MaterialType.image:
+        return Colors.green.shade600;
+      case MaterialType.link:
+        return Colors.purple.shade600;
+    }
+  }
+
+  Widget _buildEnhancedContent(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.all(Responsive.space(context, size: Space.medium)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Enhanced title with better typography
+          _buildEnhancedTitle(context),
+          SizedBox(height: Responsive.space(context, size: Space.small)),
+          // Description if available
+          if (widget.materialLink.description?.isNotEmpty == true)
+            _buildDescription(context),
+          SizedBox(height: Responsive.space(context, size: Space.small)),
+          // Enhanced bottom row with date, rating, and actions
+          _buildEnhancedBottomRow(context),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEnhancedTitle(BuildContext context) {
     return Row(
       children: [
-        Icon(
-          materialLink.typeIcon,
-          size: Responsive.text(
-            context,
-            size: TextSize.small,
-          ), // Responsive icon size
-          color: Colors.grey.shade600,
+        Container(
+          padding: EdgeInsets.all(Responsive.space(context, size: Space.tiny)),
+          decoration: BoxDecoration(
+            color: _getTypeColor(widget.materialLink.type).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(
+              Responsive.space(context, size: Space.small),
+            ),
+          ),
+          child: Icon(
+            widget.materialLink.typeIcon,
+            size: Responsive.text(context, size: TextSize.small),
+            color: _getTypeColor(widget.materialLink.type),
+          ),
         ),
         SizedBox(width: Responsive.space(context, size: Space.small)),
         Expanded(
           child: Text(
-            materialLink.displayTitle,
+            widget.materialLink.displayTitle,
             style: TextStyle(
               fontSize: Responsive.text(context, size: TextSize.medium),
               fontWeight: FontWeight.w600,
-              color: Colors.black,
+              color: Colors.black87,
+              height: 1.3,
             ),
-            maxLines: 1,
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
         ),
@@ -270,157 +378,356 @@ class MaterialCard extends StatelessWidget {
     );
   }
 
-  Widget _buildRatingRow(BuildContext context) {
+  Widget _buildDescription(BuildContext context) {
+    return Text(
+      widget.materialLink.description!,
+      style: TextStyle(
+        fontSize: Responsive.text(context, size: TextSize.small),
+        color: Colors.grey.shade600,
+        height: 1.4,
+      ),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+
+  Widget _buildEnhancedBottomRow(BuildContext context) {
     final userRating =
-        loggedInUser != null
-            ? materialLink.getUserRating(loggedInUser!.id)
+        widget.loggedInUser != null
+            ? widget.materialLink.getUserRating(widget.loggedInUser!.id)
             : null;
-    final hasRated =
-        loggedInUser != null
-            ? materialLink.hasUserRated(loggedInUser!.id)
-            : false;
 
     return Row(
       children: [
-        // Average rating display
-        Row(
-          children: [
-            Icon(
-              Icons.star,
-              size: Responsive.text(context, size: TextSize.small),
-              color: Colors.yellow.shade700,
-            ),
-            SizedBox(width: Responsive.space(context, size: Space.tiny)),
-            Text(
-              '${materialLink.averageRatingCalculated.toStringAsFixed(1)}',
-              style: TextStyle(
-                fontSize: Responsive.text(context, size: TextSize.small),
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
-              ),
-            ),
-            if (materialLink.totalRatingsCalculated > 0) ...[
-              SizedBox(width: Responsive.space(context, size: Space.tiny)),
-              Text(
-                '(${materialLink.totalRatingsCalculated})',
-                style: TextStyle(
-                  fontSize: Responsive.text(context, size: TextSize.small),
-                  color: Colors.grey.shade600,
+        // Date and Rating in one row
+        Expanded(
+          child: Row(
+            children: [
+              // Date display
+              Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: Responsive.space(context, size: Space.small),
+                  vertical: Responsive.space(context, size: Space.tiny),
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(
+                    Responsive.space(context, size: Space.medium),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.access_time,
+                      size: 14,
+                      color: Colors.grey.shade600,
+                    ),
+                    SizedBox(width: 4),
+                    Text(
+                      _formatDate(widget.materialLink.createdAt),
+                      style: TextStyle(
+                        fontSize: Responsive.text(
+                          context,
+                          size: TextSize.small,
+                        ),
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
                 ),
               ),
+              SizedBox(width: Responsive.space(context, size: Space.small)),
+              // Clickable rating
+              _buildClickableRating(context, userRating),
             ],
-          ],
-        ),
-        const Spacer(),
-        // Interactive rating stars (only for logged in users)
-        if (loggedInUser != null && onRate != null)
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: List.generate(5, (index) {
-              final starValue = index + 1.0;
-              final isFilled = userRating != null && userRating >= starValue;
-
-              return GestureDetector(
-                onTap: () => onRate!(starValue),
-                child: Icon(
-                  isFilled ? Icons.star : Icons.star_border,
-                  size: Responsive.text(context, size: TextSize.small),
-                  color:
-                      isFilled ? Colors.yellow.shade700 : Colors.grey.shade400,
-                ),
-              );
-            }),
           ),
+        ),
+        // Action buttons
+        _buildEnhancedActionButtons(context),
       ],
     );
   }
 
-  Widget _buildBottomRow(BuildContext context) {
-    return Row(
-      children: [
-        // Date
-        Expanded(
-          child: Text(
-            _formatDate(materialLink.createdAt),
-            style: TextStyle(
-              fontSize: Responsive.text(context, size: TextSize.small),
-              color: Colors.grey.shade500,
-            ),
-          ),
+  Widget _buildClickableRating(BuildContext context, double? userRating) {
+    return GestureDetector(
+      onTap: () {
+        debugPrint('MaterialCard: Rating icon tapped');
+        debugPrint('MaterialCard: Logged in user: ${widget.loggedInUser?.id}');
+        debugPrint('MaterialCard: onRate callback: ${widget.onRate != null}');
+
+        if (widget.loggedInUser != null && widget.onRate != null) {
+          debugPrint('MaterialCard: Opening rating dialog');
+          _showRatingDialog(context, userRating);
+        } else {
+          debugPrint(
+            'MaterialCard: Cannot open rating dialog - user: ${widget.loggedInUser != null}, callback: ${widget.onRate != null}',
+          );
+        }
+      },
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: Responsive.space(context, size: Space.small),
+          vertical: Responsive.space(context, size: Space.tiny),
         ),
-        // Action Icons
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              onPressed: () => _handleTap(context),
-              icon: Icon(
-                _getActionIcon(),
-                size: Responsive.text(
-                  context,
-                  size: TextSize.small,
-                ), // Responsive icon size
-                color: Colors.grey.shade600,
-              ),
-              tooltip: _getActionTooltip(),
-              padding: EdgeInsets.zero,
-              constraints: BoxConstraints(
-                minWidth: Responsive.space(
-                  context,
-                  size: Space.large,
-                ), // Responsive touch target
-                minHeight: Responsive.space(context, size: Space.large),
-              ),
+        decoration: BoxDecoration(
+          color: Colors.amber.shade50,
+          borderRadius: BorderRadius.circular(
+            Responsive.space(context, size: Space.medium),
+          ),
+          border: Border.all(color: Colors.amber.shade200),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.amber.shade200.withOpacity(0.3),
+              blurRadius: 2,
+              offset: const Offset(0, 1),
             ),
-            IconButton(
-              onPressed: () => _copyToClipboard(context),
-              icon: Icon(
-                Icons.copy,
-                size: Responsive.text(
-                  context,
-                  size: TextSize.small,
-                ), // Responsive icon size
-                color: Colors.grey.shade600,
-              ),
-              tooltip: 'نسخ الرابط',
-              padding: EdgeInsets.zero,
-              constraints: BoxConstraints(
-                minWidth: Responsive.space(
-                  context,
-                  size: Space.large,
-                ), // Responsive touch target
-                minHeight: Responsive.space(context, size: Space.large),
-              ),
-            ),
-            if (canEdit)
-              IconButton(
-                onPressed: onDelete,
-                icon: Icon(
-                  Icons.delete_outline,
-                  size: Responsive.text(
-                    context,
-                    size: TextSize.small,
-                  ), // Responsive icon size
-                  color: Colors.red.shade400,
-                ),
-                tooltip: 'حذف المادة',
-                padding: EdgeInsets.zero,
-                constraints: BoxConstraints(
-                  minWidth: Responsive.space(
-                    context,
-                    size: Space.large,
-                  ), // Responsive touch target
-                  minHeight: Responsive.space(context, size: Space.large),
-                ),
-              ),
           ],
         ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              userRating != null ? Icons.star : Icons.star_border,
+              size: 14,
+              color:
+                  userRating != null
+                      ? Colors.amber.shade600
+                      : Colors.amber.shade400,
+            ),
+            SizedBox(width: 4),
+            Text(
+              userRating != null
+                  ? '${userRating.toInt()}'
+                  : '${widget.materialLink.averageRatingCalculated.toStringAsFixed(1)}',
+              style: TextStyle(
+                fontSize: Responsive.text(context, size: TextSize.small),
+                fontWeight: FontWeight.bold,
+                color:
+                    userRating != null
+                        ? Colors.amber.shade700
+                        : Colors.amber.shade600,
+              ),
+            ),
+            if (widget.materialLink.totalRatingsCalculated > 0 &&
+                userRating == null) ...[
+              SizedBox(width: 2),
+              Text(
+                '(${widget.materialLink.totalRatingsCalculated})',
+                style: TextStyle(fontSize: 10, color: Colors.amber.shade600),
+              ),
+            ],
+            if (widget.loggedInUser != null &&
+                widget.onRate != null &&
+                userRating == null) ...[
+              SizedBox(width: 4),
+              Icon(Icons.touch_app, size: 10, color: Colors.amber.shade400),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showRatingDialog(BuildContext context, double? currentRating) {
+    double selectedRating = currentRating ?? 0.0;
+
+    debugPrint(
+      'MaterialCard: Showing rating dialog for material: ${widget.materialLink.title}',
+    );
+    debugPrint('MaterialCard: Current rating: $currentRating');
+    debugPrint('MaterialCard: Logged in user: ${widget.loggedInUser?.id}');
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => StatefulBuilder(
+            builder: (context, setState) {
+              return UnifiedDialog(
+                title: 'تقييم المحتوى',
+                subtitle: widget.materialLink.title,
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.medium),
+                    ),
+                    // Interactive stars with live movement
+                    _buildInteractiveStars(context, selectedRating, (rating) {
+                      setState(() {
+                        selectedRating = rating;
+                      });
+                      HapticFeedback.lightImpact();
+                      debugPrint(
+                        'MaterialCard: User selected rating: $selectedRating',
+                      );
+                    }),
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.medium),
+                    ),
+                    // Rating text
+                    Text(
+                      selectedRating > 0
+                          ? '${selectedRating.toInt()} نجوم'
+                          : 'اختر التقييم',
+                      style: TextStyle(
+                        fontSize: Responsive.text(
+                          context,
+                          size: TextSize.medium,
+                        ),
+                        fontWeight: FontWeight.bold,
+                        color:
+                            selectedRating > 0
+                                ? Colors.amber.shade700
+                                : Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+                onCancel: () => Navigator.of(context).pop(),
+                onConfirm:
+                    selectedRating > 0
+                        ? () {
+                          debugPrint(
+                            'MaterialCard: Submitting rating: $selectedRating',
+                          );
+                          Navigator.of(context).pop();
+                          if (widget.onRate != null) {
+                            widget.onRate!(selectedRating);
+                          } else {
+                            debugPrint(
+                              'MaterialCard: onRate callback is null!',
+                            );
+                          }
+                        }
+                        : null,
+                confirmText: 'تقييم',
+                confirmIcon: Icons.star,
+              );
+            },
+          ),
+    );
+  }
+
+  Widget _buildInteractiveStars(
+    BuildContext context,
+    double selectedRating,
+    Function(double) onRatingChanged,
+  ) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: Responsive.space(context, size: Space.medium),
+        vertical: Responsive.space(context, size: Space.small),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: List.generate(5, (index) {
+          final starValue = index + 1.0;
+          final isFilled = selectedRating >= starValue;
+
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => onRatingChanged(starValue),
+              onPanUpdate: (details) {
+                // Calculate which star the user is hovering over
+                final RenderBox renderBox =
+                    context.findRenderObject() as RenderBox;
+                final localPosition = renderBox.globalToLocal(
+                  details.globalPosition,
+                );
+                final starWidth = renderBox.size.width / 5;
+                final starIndex = (localPosition.dx / starWidth).floor();
+                final newRating = (starIndex + 1).clamp(1, 5).toDouble();
+
+                if (newRating != selectedRating) {
+                  onRatingChanged(newRating);
+                }
+              },
+              onPanEnd: (details) {
+                // Keep the rating when user stops dragging
+                debugPrint('MaterialCard: Final rating: $selectedRating');
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 100),
+                padding: EdgeInsets.all(
+                  Responsive.space(context, size: Space.small),
+                ),
+                child: Icon(
+                  isFilled ? Icons.star : Icons.star_border,
+                  size: Responsive.text(context, size: TextSize.heading),
+                  color:
+                      isFilled ? Colors.amber.shade600 : Colors.grey.shade400,
+                ),
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildEnhancedActionButtons(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildActionButton(
+          context,
+          icon: _getActionIcon(),
+          tooltip: _getActionTooltip(),
+          color: _getTypeColor(widget.materialLink.type),
+          onPressed: () => _handleTap(context),
+        ),
+        SizedBox(width: Responsive.space(context, size: Space.small)),
+        _buildActionButton(
+          context,
+          icon: Icons.copy,
+          tooltip: 'نسخ الرابط',
+          color: Colors.grey.shade600,
+          onPressed: () => _copyToClipboard(context),
+        ),
+        if (widget.canEdit) ...[
+          SizedBox(width: Responsive.space(context, size: Space.small)),
+          _buildActionButton(
+            context,
+            icon: Icons.delete_outline,
+            tooltip: 'حذف المادة',
+            color: Colors.red.shade400,
+            onPressed: widget.onDelete,
+          ),
+        ],
       ],
+    );
+  }
+
+  Widget _buildActionButton(
+    BuildContext context, {
+    required IconData icon,
+    required String tooltip,
+    required Color color,
+    required VoidCallback? onPressed,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(
+          Responsive.space(context, size: Space.medium),
+        ),
+      ),
+      child: IconButton(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 20, color: color),
+        tooltip: tooltip,
+        padding: EdgeInsets.all(Responsive.space(context, size: Space.small)),
+        constraints: BoxConstraints(
+          minWidth: Responsive.space(context, size: Space.large),
+          minHeight: Responsive.space(context, size: Space.large),
+        ),
+      ),
     );
   }
 
   IconData _getActionIcon() {
-    switch (materialLink.type) {
+    switch (widget.materialLink.type) {
       case MaterialType.video:
         return Icons.play_circle_outline;
       case MaterialType.pdf:
@@ -433,7 +740,7 @@ class MaterialCard extends StatelessWidget {
   }
 
   String _getActionTooltip() {
-    switch (materialLink.type) {
+    switch (widget.materialLink.type) {
       case MaterialType.video:
         return 'تشغيل الفيديو';
       case MaterialType.pdf:
@@ -446,7 +753,7 @@ class MaterialCard extends StatelessWidget {
   }
 
   String? _getThumbnailUrl() {
-    return materialLink.bestThumbnail;
+    return widget.materialLink.bestThumbnail;
   }
 
   String _formatDate(DateTime date) {
@@ -468,7 +775,7 @@ class MaterialCard extends StatelessWidget {
   }
 
   void _copyToClipboard(BuildContext context) {
-    Clipboard.setData(ClipboardData(text: materialLink.url))
+    Clipboard.setData(ClipboardData(text: widget.materialLink.url))
         .then((_) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -488,24 +795,27 @@ class MaterialCard extends StatelessWidget {
   }
 
   void _handleTap(BuildContext context) {
-    if (onTap != null) {
-      onTap!();
+    if (widget.onTap != null) {
+      widget.onTap!();
       return;
     }
 
     // Enhanced content handling based on type
-    switch (materialLink.type) {
+    switch (widget.materialLink.type) {
       case MaterialType.pdf:
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (context) => PdfViewerScreen(materialLink: materialLink),
+            builder:
+                (context) => PdfViewerScreen(materialLink: widget.materialLink),
           ),
         );
         break;
       case MaterialType.video:
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (context) => VideoPlayerScreen(materialLink: materialLink),
+            builder:
+                (context) =>
+                    VideoPlayerScreen(materialLink: widget.materialLink),
           ),
         );
         break;
@@ -513,7 +823,7 @@ class MaterialCard extends StatelessWidget {
         _showImageFullScreen(context);
         break;
       default:
-        _launchURL(context, materialLink.url);
+        _launchURL(context, widget.materialLink.url);
         break;
     }
   }
@@ -532,20 +842,21 @@ class MaterialCard extends StatelessWidget {
                   onPressed: () => Navigator.of(context).pop(),
                 ),
                 title: Text(
-                  materialLink.displayTitle,
+                  widget.materialLink.displayTitle,
                   style: const TextStyle(color: Colors.white),
                 ),
                 actions: [
                   IconButton(
                     icon: const Icon(Icons.open_in_new, color: Colors.white),
-                    onPressed: () => _launchURL(context, materialLink.url),
+                    onPressed:
+                        () => _launchURL(context, widget.materialLink.url),
                   ),
                 ],
               ),
               body: Center(
                 child: InteractiveViewer(
                   child: CachedNetworkImage(
-                    imageUrl: materialLink.url,
+                    imageUrl: widget.materialLink.url,
                     fit: BoxFit.contain,
                     placeholder:
                         (context, url) => const Center(

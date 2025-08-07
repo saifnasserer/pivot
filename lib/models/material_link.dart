@@ -118,9 +118,15 @@ class MaterialLink extends HiveObject {
               ? DateTime.tryParse(map['lastAccessed'])
               : null,
       userRatings: _parseUserRatings(map['userRatings']),
-      totalRatings: int.tryParse(map['totalRatings']?.toString() ?? '0') ?? 0,
+      totalRatings:
+          map['totalRatings'] is int
+              ? map['totalRatings']
+              : int.tryParse(map['totalRatings']?.toString() ?? '0') ?? 0,
       averageRating:
-          double.tryParse(map['averageRating']?.toString() ?? '0.0') ?? 0.0,
+          map['averageRating'] is double
+              ? map['averageRating']
+              : double.tryParse(map['averageRating']?.toString() ?? '0.0') ??
+                  0.0,
     );
   }
 
@@ -144,7 +150,7 @@ class MaterialLink extends HiveObject {
     return {};
   }
 
-  Map<String, String> toLegacyMap() {
+  Map<String, dynamic> toLegacyMap() {
     return {
       'title': title,
       'url': url,
@@ -154,9 +160,9 @@ class MaterialLink extends HiveObject {
       'metadata': metadata.toString(),
       'createdAt': createdAt.toIso8601String(),
       'lastAccessed': lastAccessed?.toIso8601String() ?? '',
-      'userRatings': userRatings.toString(),
-      'totalRatings': totalRatings.toString(),
-      'averageRating': averageRating.toString(),
+      'userRatings': userRatings,
+      'totalRatings': totalRatings,
+      'averageRating': averageRating,
     };
   }
 

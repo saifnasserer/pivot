@@ -9,6 +9,7 @@ import 'package:pivot/providers/guide_provider.dart';
 import 'package:pivot/screens/section2/teams.dart';
 import 'package:pivot/screens/section3/edit_profile/edit_profile.dart'
     deferred as edit_profile;
+import 'package:pivot/screens/section4/assistants/profile/assistant_profile_main.dart';
 import 'package:pivot/screens/section4/doctor/profile/doctor_profile.dart';
 import 'package:pivot/services/remote_config_service.dart';
 import 'package:pivot/responsive.dart';
@@ -32,7 +33,7 @@ import 'package:pivot/screens/section2/super_admin_panel/super_admin_panel_scree
     deferred as super_admin_panel_screen;
 import 'package:pivot/screens/section2/landing.dart';
 import 'package:pivot/screens/section3/profile/profile.dart';
-import 'package:pivot/screens/section4/assistants/assistant_profile.dart';
+
 import 'package:pivot/screens/section4/assistants/all_tasks.dart';
 import 'package:pivot/screens/section3/subject_selection_screen.dart';
 
@@ -229,7 +230,7 @@ class Pivot extends StatelessWidget {
           },
           '/doctor-profile': (context) => const DoctorProfile(),
           '/admin-control': (context) => const AdminControl(),
-          '/assistant-profile': (context) => const AssistantProfile(),
+          '/assistant-profile': (context) => const AssistantProfileMain(),
           '/notification-test': (context) => const NotificationTestWidget(),
           // Deferred and custom routes
           routeUserManagement:

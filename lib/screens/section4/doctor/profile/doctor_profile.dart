@@ -333,6 +333,7 @@ class _DoctorProfileState extends State<DoctorProfile>
                     loggedInUser?.role != 'miniProfessor' &&
                     _currentCategory == 'المواد'
                 ? FloatingActionButton(
+                  heroTag: 'doctor_profile_fab',
                   onPressed: _showAddLectureDialog,
                   backgroundColor: Colors.black,
                   child: const Icon(Icons.add),

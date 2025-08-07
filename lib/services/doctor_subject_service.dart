@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pivot/models/lecture_model.dart';
+import 'package:pivot/models/material_link.dart';
 
 class DoctorSubjectService {
   final CollectionReference _lecturesCollection = FirebaseFirestore.instance
@@ -59,7 +60,7 @@ class DoctorSubjectService {
 
   Future<void> addLinkToLecture(
     String lectureId,
-    Map<String, String> link,
+    Map<String, dynamic> link,
   ) async {
     try {
       await _lecturesCollection.doc(lectureId).update({
@@ -73,7 +74,7 @@ class DoctorSubjectService {
 
   Future<void> deleteLinkFromLecture(
     String lectureId,
-    Map<String, String> link,
+    Map<String, dynamic> link,
   ) async {
     try {
       await _lecturesCollection.doc(lectureId).update({
@@ -112,6 +113,119 @@ class DoctorSubjectService {
       }
     } catch (e) {
       print('Error updating link: $e');
+      rethrow;
+    }
+  }
+
+  // New method to rate a material link
+  Future<void> rateMaterialLink(
+    String lectureId,
+    String materialUrl,
+    String userId,
+    double rating,
+  ) async {
+    try {
+      // Get the current lecture
+      final lecture = await getLectureById(lectureId);
+      if (lecture == null) {
+        throw Exception('Lecture not found');
+      }
+
+      // Find the material link to update
+      final oldLinks = List<Map<String, dynamic>>.from(lecture.links);
+      final linkIndex = oldLinks.indexWhere(
+        (link) => link['url'] == materialUrl,
+      );
+
+      if (linkIndex == -1) {
+        throw Exception('Material link not found');
+      }
+
+      // Get current link data
+      final currentLink = Map<String, dynamic>.from(oldLinks[linkIndex]);
+
+      // Update or add user rating
+      Map<String, dynamic> userRatings = Map<String, dynamic>.from(
+        currentLink['userRatings'] ?? {},
+      );
+      userRatings[userId] = rating;
+
+      // Calculate new average rating
+      final ratings = userRatings.values.cast<double>();
+      final averageRating =
+          ratings.isEmpty
+              ? 0.0
+              : ratings.reduce((a, b) => a + b) / ratings.length;
+
+      // Update the link with new rating data
+      final updatedLink = Map<String, dynamic>.from(currentLink);
+      updatedLink['userRatings'] = userRatings;
+      updatedLink['totalRatings'] = userRatings.length;
+      updatedLink['averageRating'] = averageRating;
+
+      // Replace the old link with the updated one
+      oldLinks[linkIndex] = updatedLink;
+
+      // Update the lecture
+      await _lecturesCollection.doc(lectureId).update({'links': oldLinks});
+    } catch (e) {
+      print('Error rating material: $e');
+      rethrow;
+    }
+  }
+
+  // New method to remove a rating
+  Future<void> removeMaterialRating(
+    String lectureId,
+    String materialUrl,
+    String userId,
+  ) async {
+    try {
+      // Get the current lecture
+      final lecture = await getLectureById(lectureId);
+      if (lecture == null) {
+        throw Exception('Lecture not found');
+      }
+
+      // Find the material link to update
+      final oldLinks = List<Map<String, dynamic>>.from(lecture.links);
+      final linkIndex = oldLinks.indexWhere(
+        (link) => link['url'] == materialUrl,
+      );
+
+      if (linkIndex == -1) {
+        throw Exception('Material link not found');
+      }
+
+      // Get current link data
+      final currentLink = Map<String, dynamic>.from(oldLinks[linkIndex]);
+
+      // Remove user rating
+      Map<String, dynamic> userRatings = Map<String, dynamic>.from(
+        currentLink['userRatings'] ?? {},
+      );
+      userRatings.remove(userId);
+
+      // Calculate new average rating
+      final ratings = userRatings.values.cast<double>();
+      final averageRating =
+          ratings.isEmpty
+              ? 0.0
+              : ratings.reduce((a, b) => a + b) / ratings.length;
+
+      // Update the link with new rating data
+      final updatedLink = Map<String, dynamic>.from(currentLink);
+      updatedLink['userRatings'] = userRatings;
+      updatedLink['totalRatings'] = userRatings.length;
+      updatedLink['averageRating'] = averageRating;
+
+      // Replace the old link with the updated one
+      oldLinks[linkIndex] = updatedLink;
+
+      // Update the lecture
+      await _lecturesCollection.doc(lectureId).update({'links': oldLinks});
+    } catch (e) {
+      print('Error removing rating: $e');
       rethrow;
     }
   }
