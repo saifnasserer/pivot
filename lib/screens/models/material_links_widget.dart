@@ -3,6 +3,8 @@ import 'package:pivot/responsive.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:pivot/models/lecture_model.dart';
 import 'package:pivot/providers/doctor_subject_provider.dart';
+import 'package:pivot/screens/section4/doctor/profile/material_links_screen.dart';
+import 'package:pivot/screens/section4/doctor/profile/material_links_route.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -356,7 +358,16 @@ class SubjectModel extends StatelessWidget {
         ),
       ),
       onPressed: () {
-        _showLinksDialog(context, lecture.links);
+        // Navigate to MaterialLinksScreen instead of showing dialog
+        Navigator.of(context).push(
+          MaterialLinksRoute(
+            lecture: lecture,
+            child: MaterialLinksScreen(
+              lecture: lecture,
+              loggedInUser: null, // TODO: Pass the actual logged in user
+            ),
+          ),
+        );
       },
       child: Padding(
         padding: EdgeInsets.all(Responsive.space(context, size: Space.small)),

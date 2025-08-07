@@ -45,6 +45,7 @@ import 'package:pivot/providers/section_provider.dart'; // Import SectionProvide
 import 'package:pivot/providers/bookmarks.dart'; // Import Bookmarks provider
 import 'package:pivot/providers/scheduled_notification_provider.dart'; // Import ScheduledNotificationProvider
 import 'package:pivot/providers/user_notification_provider.dart';
+import 'package:pivot/providers/material_links_provider.dart'; // Import MaterialLinksProvider
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -176,6 +177,7 @@ class Pivot extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => SubjectProvider()),
         ChangeNotifierProvider(create: (_) => Bookmarks()),
         ChangeNotifierProvider(create: (_) => DoctorSubjectProvider()),
+        ChangeNotifierProvider(create: (_) => MaterialLinksProvider()),
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
         ChangeNotifierProvider(create: (_) => SuperAdminProvider()),
         ChangeNotifierProvider(create: (_) => GuideProvider()),
