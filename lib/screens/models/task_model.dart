@@ -251,7 +251,7 @@ class _TaskModelState extends State<TaskModel>
                                   tooltip:
                                       isCompleted
                                           ? 'إلغاء الإكمال'
-                                          : 'إكمال المهمة',
+                                          : 'إكمال التاسك',
                                   style: IconButton.styleFrom(
                                     padding: EdgeInsets.all(
                                       Responsive.space(
@@ -428,7 +428,7 @@ class _TaskModelState extends State<TaskModel>
                                 _buildActionButton(
                                   icon: Icons.edit_outlined,
                                   color: Colors.grey.shade600,
-                                  tooltip: 'تعديل المهمة',
+                                  tooltip: 'تعديل التاسك',
                                   onPressed: widget.onEdit,
                                 ),
                                 SizedBox(
@@ -440,7 +440,7 @@ class _TaskModelState extends State<TaskModel>
                                 _buildActionButton(
                                   icon: Icons.delete_outline,
                                   color: Colors.red.shade400,
-                                  tooltip: 'حذف المهمة',
+                                  tooltip: 'حذف التاسك',
                                   onPressed: widget.onDelete,
                                 ),
                               ],

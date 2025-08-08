@@ -25,10 +25,10 @@ class TaskDetailsDialog extends StatelessWidget {
 
     return UnifiedDialog(
       title: task.title,
-      subtitle: 'تفاصيل المهمة',
+      subtitle: 'تفاصيل التاسك',
       content: SingleChildScrollView(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Task importance indicator
             Container(
@@ -43,7 +43,7 @@ class TaskDetailsDialog extends StatelessWidget {
                 border: Border.all(color: headerColor.withOpacity(0.3)),
               ),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+                mainAxisAlignment: MainAxisAlignment.start,
                 children: [
                   Icon(
                     Icons.task_alt,
@@ -53,38 +53,36 @@ class TaskDetailsDialog extends StatelessWidget {
                   SizedBox(
                     width: Responsive.space(context, size: Space.medium),
                   ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          _getImportanceText(task.importance),
-                          style: TextStyle(
-                            fontSize: Responsive.text(
-                              context,
-                              size: TextSize.medium,
-                            ),
-                            fontWeight: FontWeight.bold,
-                            color: headerColor,
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _getImportanceText(task.importance),
+                        style: TextStyle(
+                          fontSize: Responsive.text(
+                            context,
+                            size: TextSize.medium,
                           ),
-                          textAlign: TextAlign.right,
+                          fontWeight: FontWeight.bold,
+                          color: headerColor,
                         ),
-                        SizedBox(
-                          height: Responsive.space(context, size: Space.tiny),
-                        ),
-                        Text(
-                          'أولوية المهمة',
-                          style: TextStyle(
-                            fontSize: Responsive.text(
-                              context,
-                              size: TextSize.small,
-                            ),
-                            color: Colors.grey[600],
+                        textAlign: TextAlign.right,
+                      ),
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.tiny),
+                      ),
+                      Text(
+                        'أولوية التاسك',
+                        style: TextStyle(
+                          fontSize: Responsive.text(
+                            context,
+                            size: TextSize.small,
                           ),
-                          textAlign: TextAlign.right,
+                          color: Colors.grey[600],
                         ),
-                      ],
-                    ),
+                        textAlign: TextAlign.start,
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -93,7 +91,7 @@ class TaskDetailsDialog extends StatelessWidget {
 
             // Due date section
             UnifiedSectionHeader(
-              title: 'تاريخ الاستحقاق',
+              title: 'تاريخ التسليم',
               icon: Icons.calendar_today,
             ),
             Container(
@@ -108,7 +106,7 @@ class TaskDetailsDialog extends StatelessWidget {
                 border: Border.all(color: Colors.grey[200]!),
               ),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+                mainAxisAlignment: MainAxisAlignment.start,
                 children: [
                   Icon(
                     Icons.calendar_today,
@@ -121,11 +119,12 @@ class TaskDetailsDialog extends StatelessWidget {
                   Text(
                     fullFormattedDate,
                     style: TextStyle(
-                      fontSize: Responsive.text(context, size: TextSize.medium),
+                      fontSize:
+                          Responsive.text(context, size: TextSize.medium) / 1.2,
                       color: Colors.black87,
                       fontWeight: FontWeight.w500,
                     ),
-                    textAlign: TextAlign.right,
+                    textAlign: TextAlign.start,
                   ),
                 ],
               ),
@@ -133,7 +132,7 @@ class TaskDetailsDialog extends StatelessWidget {
             SizedBox(height: Responsive.space(context, size: Space.medium)),
 
             // Description section
-            UnifiedSectionHeader(title: 'وصف المهمة', icon: Icons.description),
+            UnifiedSectionHeader(title: 'وصف التاسك', icon: Icons.description),
             Container(
               padding: EdgeInsets.all(
                 Responsive.space(context, size: Space.medium),
@@ -152,7 +151,7 @@ class TaskDetailsDialog extends StatelessWidget {
                   color: Colors.black87,
                   height: 1.5,
                 ),
-                textAlign: TextAlign.right,
+                textAlign: TextAlign.start,
               ),
             ),
 
@@ -240,7 +239,7 @@ class TaskDetailsDialog extends StatelessWidget {
                           ),
                           Expanded(
                             child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
                                   attachment['title'] ?? 'ملف مرفق',
@@ -252,7 +251,7 @@ class TaskDetailsDialog extends StatelessWidget {
                                     fontWeight: FontWeight.w500,
                                     color: Colors.black87,
                                   ),
-                                  textAlign: TextAlign.right,
+                                  textAlign: TextAlign.start,
                                 ),
                                 SizedBox(
                                   height: Responsive.space(
@@ -269,7 +268,7 @@ class TaskDetailsDialog extends StatelessWidget {
                                     ),
                                     color: Colors.grey[600],
                                   ),
-                                  textAlign: TextAlign.right,
+                                  textAlign: TextAlign.start,
                                 ),
                               ],
                             ),

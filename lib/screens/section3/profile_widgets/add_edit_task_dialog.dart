@@ -121,11 +121,11 @@ class _AddEditTaskDialogState extends State<AddEditTaskDialog> {
   @override
   Widget build(BuildContext context) {
     return UnifiedDialog(
-      title: widget.task == null ? 'إضافة مهمة شخصية' : 'تعديل المهمة',
+      title: widget.task == null ? 'إضافة تاسك شخصية' : 'تعديل التاسك',
       subtitle:
           widget.task == null
-              ? 'أدخل بيانات المهمة الجديدة'
-              : 'قم بتعديل بيانات المهمة',
+              ? 'أدخل بيانات التاسك الجديدة'
+              : 'قم بتعديل بيانات التاسك',
       content: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -158,7 +158,7 @@ class _AddEditTaskDialogState extends State<AddEditTaskDialog> {
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'الرجاء إدخال عنوان للمهمة';
+                      return 'الرجاء إدخال عنوان للتاسك';
                     }
                     return null;
                   },
@@ -461,7 +461,7 @@ class _AddEditTaskDialogState extends State<AddEditTaskDialog> {
                                   ),
                                 ),
                                 Text(
-                                  'أدخل اسم الملف كما تريد أن يظهر في المهمة',
+                                  'أدخل اسم الملف كما تريد أن يظهر في التاسك',
                                   style: TextStyle(
                                     fontSize: Responsive.text(
                                       context,
@@ -701,7 +701,7 @@ class _AddEditTaskDialogState extends State<AddEditTaskDialog> {
           ),
         ),
       ),
-      confirmText: widget.task == null ? 'إضافة المهمة' : 'حفظ التعديلات',
+      confirmText: widget.task == null ? 'إضافة التاسك' : 'حفظ التعديلات',
       confirmIcon:
           widget.task == null
               ? Icons.add_circle_outline

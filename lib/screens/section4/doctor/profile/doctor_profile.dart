@@ -264,6 +264,14 @@ class _DoctorProfileState extends State<DoctorProfile>
     return isSuperAdmin && isViewingOtherUser && isProfessorOrMiniProfessor;
   }
 
+  bool _shouldShowAddLectureButton() {
+    final userProfile = _displayedProfile;
+    if (userProfile == null) return false;
+
+    // Show for all roles except Student and miniProfessor
+    return userProfile.role != 'Student' && userProfile.role != 'miniProfessor';
+  }
+
   Future<void> _editTeachingSubjects() async {
     final profile = _displayedProfile;
     if (profile == null) return;
@@ -348,7 +356,7 @@ class _DoctorProfileState extends State<DoctorProfile>
       child: Scaffold(
         backgroundColor: Colors.white,
         floatingActionButton:
-            isOwnProfile
+            _shouldShowAddLectureButton()
                 ? FloatingActionButton(
                   heroTag: 'doctor_profile_fab',
                   onPressed: _showAddLectureDialog,

@@ -603,7 +603,7 @@ class _AttachmentSection extends StatelessWidget {
 
                               // Subtitle
                               Text(
-                                'أدخل اسم الملف كما تريد أن يظهر في المهمة',
+                                'أدخل اسم الملف كما تريد أن يظهر في التاسك',
                                 style: TextStyle(
                                   fontSize: Responsive.text(
                                     context,
