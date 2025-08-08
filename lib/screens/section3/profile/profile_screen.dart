@@ -169,12 +169,7 @@ class _ProfileScreenState extends State<ProfileScreen>
 
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: ProfileAppBar(
-        tabController: _tabController,
-        onLogoutPressed: () {
-          // Logout is handled in the ProfileAppBar
-        },
-      ),
+      appBar: ProfileAppBar(tabController: _tabController),
       body: TabBarView(
         controller: _tabController,
         children: [

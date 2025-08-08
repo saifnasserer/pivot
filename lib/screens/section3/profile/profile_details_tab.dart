@@ -5,6 +5,8 @@ import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/section3/profile_details.dart';
+import 'package:pivot/widgets/unified_dialog.dart';
+import 'profile_provider.dart';
 import 'quick_actions_section.dart';
 
 class ProfileDetailsTab extends StatefulWidget {
@@ -53,9 +55,10 @@ class _ProfileDetailsTabState extends State<ProfileDetailsTab>
                 // Quick Actions Section with enhanced styling
                 _buildQuickActionsSection(userProfile),
 
-                // Additional info section
-                // SizedBox(height: Responsive.space(context, size: Space.large)),
-                // _buildAdditionalInfoSection(userProfile),
+                SizedBox(height: Responsive.space(context, size: Space.large)),
+
+                // Logout Section
+                _buildLogoutSection(),
               ],
             ),
           ),
@@ -139,6 +142,150 @@ class _ProfileDetailsTabState extends State<ProfileDetailsTab>
         textDirection: TextDirection.rtl,
         child: QuickActionsSection(userProfile: userProfile),
       ),
+    );
+  }
+
+  Widget _buildLogoutSection() {
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(
+            Responsive.space(context, size: Space.large),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+              spreadRadius: 1,
+            ),
+          ],
+          border: Border.all(color: Colors.grey[200]!, width: 1),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(
+              Responsive.space(context, size: Space.large),
+            ),
+            onTap: () => _showLogoutConfirmationDialog(context),
+            child: Padding(
+              padding: EdgeInsets.all(
+                Responsive.space(context, size: Space.large),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(
+                      Responsive.space(context, size: Space.small),
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.red[50],
+                      borderRadius: BorderRadius.circular(
+                        Responsive.space(context, size: Space.medium),
+                      ),
+                    ),
+                    child: Icon(
+                      Icons.logout,
+                      color: Colors.red,
+                      size: Responsive.text(context, size: TextSize.heading),
+                    ),
+                  ),
+                  SizedBox(
+                    width: Responsive.space(context, size: Space.medium),
+                  ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'تسجيل الخروج',
+                          style: TextStyle(
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.medium,
+                            ),
+                            fontWeight: FontWeight.w600,
+                            color: Colors.red,
+                          ),
+                        ),
+                        SizedBox(
+                          height: Responsive.space(context, size: Space.tiny),
+                        ),
+                        Text(
+                          'تسجيل الخروج من التطبيق',
+                          style: TextStyle(
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.small,
+                            ),
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    color: Colors.grey[400],
+                    size: 16,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showLogoutConfirmationDialog(BuildContext context) async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return UnifiedDialog(
+          title: 'تسجيل الخروج؟',
+          subtitle: 'هل أنت متأكد من رغبتك في تسجيل الخروج؟',
+          content: Container(
+            padding: Responsive.padding(context, size: Space.medium),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.logout,
+                  color: Colors.orange,
+                  size: Responsive.text(context, size: TextSize.heading),
+                ),
+                SizedBox(width: Responsive.space(context, size: Space.medium)),
+                Expanded(
+                  child: Text(
+                    'سيتم تسجيل خروجك من التطبيق وستحتاج إلى تسجيل الدخول مرة أخرى للوصول إلى ملفك الشخصي.',
+                    style: TextStyle(
+                      fontSize: Responsive.text(context, size: TextSize.medium),
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          confirmText: 'تأكيد الخروج',
+          confirmIcon: Icons.logout,
+          onConfirm: () async {
+            final provider = context.read<ProfileProvider>();
+            await provider.logout();
+            if (!context.mounted) return;
+            Navigator.of(context).pushNamedAndRemoveUntil(
+              '/auth-wrapper',
+              (Route<dynamic> route) => false,
+            );
+          },
+          onCancel: () => Navigator.of(context).pop(),
+        );
+      },
     );
   }
 }
