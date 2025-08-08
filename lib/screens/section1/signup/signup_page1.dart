@@ -3,8 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:pivot/screens/section1/signup/signup_page2.dart';
 import 'package:pivot/data/form_options.dart';
 import 'package:pivot/screens/models/circular_button.dart';
-import 'package:pivot/screens/models/custom_dropdown.dart';
-import 'package:pivot/screens/models/custom_text_field.dart';
+import 'package:pivot/widgets/custom_dropdown.dart';
+import 'package:pivot/widgets/custom_text_field.dart';
 import '../../../responsive.dart';
 import 'package:pivot/widgets/no_internet_message.dart';
 

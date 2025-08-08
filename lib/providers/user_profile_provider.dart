@@ -22,12 +22,17 @@ class UserProfileProvider with ChangeNotifier {
   Box? _profilePicsBox;
   bool _isLoading = false;
   String? _error;
+  bool _hasLoadedAllUsers = false;
+  Function? _onProfileRestored;
 
+  // Getters
   UserProfile? get userProfile => _userProfile;
   UserProfile? get loggedInUserProfile => _loggedInUserProfile;
   List<UserProfile> get allUsers => _allUsers;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  bool get hasLoadedAllUsers => _hasLoadedAllUsers;
+  bool get isViewingOwnProfile => _userProfile?.id == _loggedInUserProfile?.id;
 
   // Add cache getter
   Map<String, UserProfile> get userProfilesCache => _userProfilesCache;
@@ -73,18 +78,75 @@ class UserProfileProvider with ChangeNotifier {
     }
   }
 
-  // Sets the profile to be viewed on a screen
-  void setUserProfile(UserProfile profile) {
-    _userProfile = profile;
-    notifyListeners();
-  }
-
   // Sets the profile for the currently authenticated user
   void setLoggedInUserProfile(UserProfile profile) {
     _loggedInUserProfile = profile;
     //debugprint(
     //   '[UserProfileProvider] Set logged in user profile: ${profile.name} (${profile.id})',
     // );
+    notifyListeners();
+  }
+
+  // Set callback for profile restoration
+  void setOnProfileRestored(Function callback) {
+    _onProfileRestored = callback;
+  }
+
+  // Restore the logged-in user profile as the current user profile
+  void restoreLoggedInUserProfile() {
+    if (_loggedInUserProfile != null) {
+      print(
+        '[UserProfileProvider] Restoring logged-in user profile: ${_loggedInUserProfile!.name} (${_loggedInUserProfile!.id})',
+      );
+      print(
+        '[UserProfileProvider] Previous userProfile was: ${_userProfile?.name} (${_userProfile?.id})',
+      );
+      _userProfile = _loggedInUserProfile;
+      print('[UserProfileProvider] Profile restored successfully');
+      notifyListeners();
+
+      // Trigger callback if set
+      if (_onProfileRestored != null) {
+        _onProfileRestored!();
+      }
+
+      // Trigger a post-frame callback to allow other components to refresh their data
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        print(
+          '[UserProfileProvider] Profile restoration completed, other components can now refresh',
+        );
+      });
+    } else {
+      print(
+        '[UserProfileProvider] Warning: Cannot restore profile - loggedInUserProfile is null',
+      );
+    }
+  }
+
+  // Ensure the logged-in user profile is set as the current user profile
+  // This should be called when returning to the main profile or when the app resumes
+  void ensureLoggedInUserProfileIsCurrent() {
+    if (_loggedInUserProfile != null &&
+        _userProfile?.id != _loggedInUserProfile?.id) {
+      print(
+        '[UserProfileProvider] Ensuring logged-in user profile is current: ${_loggedInUserProfile!.name} (${_loggedInUserProfile!.id})',
+      );
+      print(
+        '[UserProfileProvider] Previous userProfile was: ${_userProfile?.name} (${_userProfile?.id})',
+      );
+      _userProfile = _loggedInUserProfile;
+      print('[UserProfileProvider] Profile ensured successfully');
+      notifyListeners();
+    } else {
+      print(
+        '[UserProfileProvider] No profile restoration needed - already using logged-in user profile',
+      );
+    }
+  }
+
+  // Sets the profile to be viewed on a screen
+  void setUserProfile(UserProfile profile) {
+    _userProfile = profile;
     notifyListeners();
   }
 
@@ -231,6 +293,12 @@ class UserProfileProvider with ChangeNotifier {
         _allUsers[userIndex] = _allUsers[userIndex].copyWith(
           enrolledSubjects: subjectIds,
         );
+        notifyListeners();
+      }
+
+      // Also update the displayed profile if it's the same user
+      if (_userProfile?.id == userId) {
+        _userProfile = _userProfile!.copyWith(enrolledSubjects: subjectIds);
         notifyListeners();
       }
     } catch (e) {

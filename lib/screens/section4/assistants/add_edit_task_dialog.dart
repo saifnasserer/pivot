@@ -5,7 +5,7 @@ import 'package:pivot/providers/section_provider.dart';
 import 'package:pivot/providers/subject_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/models/user_profile.dart';
-import 'package:pivot/screens/models/custom_text_field.dart';
+import 'package:pivot/widgets/custom_text_field.dart';
 import 'package:pivot/screens/models/task.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';

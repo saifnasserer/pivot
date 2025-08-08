@@ -4,7 +4,7 @@ import 'package:pivot/screens/section1/login/forgot_password_screen.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/screens/models/circular_button.dart';
-import 'package:pivot/screens/models/custom_text_field.dart';
+import 'package:pivot/widgets/custom_text_field.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../responsive.dart';

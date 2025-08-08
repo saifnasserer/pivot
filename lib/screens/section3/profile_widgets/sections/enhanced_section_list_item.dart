@@ -5,20 +5,21 @@ import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/providers/subject_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
+import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:provider/provider.dart';
 import 'assistant_selection_dialog.dart';
 
-/// Enhanced section list item with better design and functionality
+/// Enhanced section list item with simplified approach - similar to subjects
 class EnhancedSectionListItem extends StatefulWidget {
   const EnhancedSectionListItem({
     super.key,
-    required this.section,
     required this.subject,
+    required this.sections,
     required this.index,
   });
 
-  final Section section;
   final Subject subject;
+  final List<Section> sections;
   final int index;
 
   @override
@@ -59,12 +60,31 @@ class _EnhancedSectionListItemState extends State<EnhancedSectionListItem>
     final assistants =
         instructors?.where((prof) => prof.role == 'miniProfessor').toList() ??
         [];
-    _showEnhancedSectionDetails(
-      context,
-      widget.subject,
-      widget.section,
-      assistants,
-    );
+
+    // If there are assistants, show assistant selection dialog (regardless of sections)
+    if (assistants.isNotEmpty) {
+      _showEnhancedSectionDetails(
+        context,
+        widget.subject,
+        // Use first section if available, otherwise create placeholder
+        widget.sections.isNotEmpty
+            ? widget.sections.first
+            : Section(
+              id: 'placeholder',
+              name: 'سيتم إضافة السكاشن قريباً',
+              location: 'قريباً',
+              days: 'قريباً',
+              time: 'قريباً',
+              subjectId: widget.subject.id,
+              assistantId:
+                  assistants.first.id, // Use first assistant as placeholder
+            ),
+        assistants,
+      );
+    } else {
+      // Show a simple dialog for subjects without instructors
+      _showNoSectionDialog(context, widget.subject);
+    }
   }
 
   @override
@@ -164,16 +184,32 @@ class _EnhancedSectionListItemState extends State<EnhancedSectionListItem>
                               ),
                               alignment: WrapAlignment.end,
                               children: [
-                                _buildInfoChip(
-                                  context,
-                                  widget.section.location,
-                                  Colors.green,
-                                ),
-                                _buildInfoChip(
-                                  context,
-                                  '${widget.section.days} - ${widget.section.time}',
-                                  Colors.orange,
-                                ),
+                                // Show section info if available, otherwise show placeholder
+                                if (widget.sections.isNotEmpty)
+                                  ...widget.sections
+                                      .take(1)
+                                      .map(
+                                        (section) => [
+                                          _buildInfoChip(
+                                            context,
+                                            section.location,
+                                            Colors.green,
+                                          ),
+                                          _buildInfoChip(
+                                            context,
+                                            '${section.days} - ${section.time}',
+                                            Colors.orange,
+                                          ),
+                                        ],
+                                      )
+                                      .expand((e) => e)
+                                      .toList()
+                                else
+                                  _buildInfoChip(
+                                    context,
+                                    'سيتم إضافة السكشن قريباً',
+                                    Colors.grey,
+                                  ),
                               ],
                             ),
                           ],
@@ -190,15 +226,21 @@ class _EnhancedSectionListItemState extends State<EnhancedSectionListItem>
                           Responsive.space(context, size: Space.small),
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.1),
+                          color:
+                              widget.sections.isNotEmpty
+                                  ? Colors.black.withOpacity(0.1)
+                                  : Colors.grey.shade200,
                           borderRadius: BorderRadius.circular(
                             Responsive.space(context, size: Space.medium),
                           ),
                         ),
                         child: Icon(
                           Icons.class_,
-                          color: Colors.black,
-                          size: Responsive.text(context, size: TextSize.medium),
+                          color:
+                              widget.sections.isNotEmpty
+                                  ? Colors.black
+                                  : Colors.grey.shade400,
+                          size: 20,
                         ),
                       ),
                     ],
@@ -221,9 +263,9 @@ class _EnhancedSectionListItemState extends State<EnhancedSectionListItem>
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(
-          Responsive.space(context, size: Space.small),
+          Responsive.space(context, size: Space.medium),
         ),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withOpacity(0.3), width: 1),
       ),
       child: Text(
         text,
@@ -233,6 +275,34 @@ class _EnhancedSectionListItemState extends State<EnhancedSectionListItem>
           fontWeight: FontWeight.w500,
         ),
       ),
+    );
+  }
+
+  void _showNoSectionDialog(BuildContext context, Subject subject) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => UnifiedDialog(
+            title: subject.name,
+            content: Padding(
+              padding: EdgeInsets.symmetric(
+                vertical: Responsive.space(context, size: Space.large),
+              ),
+              child: Text(
+                'سيتم إضافة السكشن قريباً',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: Responsive.text(context, size: TextSize.medium),
+                  color: Colors.black87,
+                ),
+              ),
+            ),
+            showActions: true,
+            confirmText: 'اوكي',
+            onConfirm: () => Navigator.of(context).pop(),
+            onCancel: null,
+            actions: null,
+          ),
     );
   }
 

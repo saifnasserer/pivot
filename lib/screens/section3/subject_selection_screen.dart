@@ -865,6 +865,9 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
                               );
                             }
 
+                            // Update the UI after Super Admin changes
+                            await userProfileProvider.fetchAllUsers();
+                            await subjectProvider.fetchAllSubjects();
                             success = true;
                           } else {
                             // Normal flow - user editing their own subjects

@@ -52,11 +52,22 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _progressAnimationController.forward();
       _listAnimationController.forward();
-      _updateAssistantPreferencesIfNeeded(); // This is now async
     });
   }
 
-  void _updateAssistantPreferencesIfNeeded() async {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Update assistant preferences when dependencies change
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _updateAssistantPreferencesIfNeeded();
+      }
+    });
+  }
+
+  // Method to trigger assistant preferences update when user profile changes
+  void _checkAndUpdateAssistantPreferences() {
     final userProfileProvider = Provider.of<UserProfileProvider>(
       context,
       listen: false,
@@ -65,43 +76,91 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
       context,
       listen: false,
     );
-    final loggedInUser = userProfileProvider.loggedInUserProfile;
 
-    if (loggedInUser == null) return;
-
-    final userEnrolledSubjectIds = loggedInUser.enrolledSubjects;
-    final assistantPreferences = loggedInUser.assistantPreferences;
-    final updatedPreferences = <String, String>{...assistantPreferences};
-
-    for (final subjectId in userEnrolledSubjectIds) {
-      final instructors =
-          subjectProvider.instructorsBySubject[subjectId]
-              ?.where((prof) => prof.role == 'miniProfessor')
-              .toList() ??
-          [];
-
-      if (instructors.length == 1 &&
-          !assistantPreferences.containsKey(subjectId)) {
-        // Auto-select if only one instructor and no preference set
-        updatedPreferences[subjectId] = instructors.first.id;
-      }
+    // Only run if both providers are ready
+    if (!subjectProvider.isLoading &&
+        userProfileProvider.loggedInUserProfile != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _updateAssistantPreferencesIfNeeded();
+        }
+      });
     }
+  }
 
-    // Only update if there are changes
-    if (updatedPreferences.length != assistantPreferences.length ||
-        updatedPreferences.entries.any(
-          (entry) => assistantPreferences[entry.key] != entry.value,
-        )) {
-      try {
+  void _updateAssistantPreferencesIfNeeded() async {
+    try {
+      final userProfileProvider = Provider.of<UserProfileProvider>(
+        context,
+        listen: false,
+      );
+      final subjectProvider = Provider.of<SubjectProvider>(
+        context,
+        listen: false,
+      );
+      final loggedInUser = userProfileProvider.loggedInUserProfile;
+
+      if (loggedInUser == null) {
+        print(
+          'WeekTasks: No logged-in user found, skipping assistant preferences update',
+        );
+        return;
+      }
+
+      // Check if subject provider is ready
+      if (subjectProvider.isLoading) {
+        print(
+          'WeekTasks: Subject provider is still loading, skipping assistant preferences update',
+        );
+        return;
+      }
+
+      final userEnrolledSubjectIds = loggedInUser.enrolledSubjects;
+      final assistantPreferences = loggedInUser.assistantPreferences;
+      final updatedPreferences = <String, String>{...assistantPreferences};
+
+      print(
+        'WeekTasks: Checking assistant preferences for ${userEnrolledSubjectIds.length} enrolled subjects',
+      );
+      print('WeekTasks: Current preferences: $assistantPreferences');
+
+      bool hasChanges = false;
+
+      for (final subjectId in userEnrolledSubjectIds) {
+        final instructors =
+            subjectProvider.instructorsBySubject[subjectId]
+                ?.where((prof) => prof.role == 'miniProfessor')
+                .toList() ??
+            [];
+
+        print(
+          'WeekTasks: Subject $subjectId has ${instructors.length} miniProfessor instructors',
+        );
+
+        if (instructors.length == 1 &&
+            !assistantPreferences.containsKey(subjectId)) {
+          // Auto-select if only one instructor and no preference set
+          final selectedAssistantId = instructors.first.id;
+          updatedPreferences[subjectId] = selectedAssistantId;
+          hasChanges = true;
+          print(
+            'WeekTasks: Auto-selected assistant $selectedAssistantId for subject $subjectId',
+          );
+        }
+      }
+
+      // Only update if there are changes
+      if (hasChanges) {
+        print('WeekTasks: Updating assistant preferences: $updatedPreferences');
         await userProfileProvider.updateAssistantPreferences(
           updatedPreferences,
         );
-        print(
-          'Successfully updated assistant preferences: $updatedPreferences',
-        );
-      } catch (e) {
-        print('Failed to update assistant preferences: $e');
+        print('WeekTasks: Successfully updated assistant preferences');
+      } else {
+        print('WeekTasks: No changes needed for assistant preferences');
       }
+    } catch (e) {
+      print('WeekTasks: Failed to update assistant preferences: $e');
     }
   }
 
@@ -184,6 +243,32 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
     return grouped;
   }
 
+  /// Check for subjects that need assistant selection
+  List<String> _getSubjectsNeedingAssistantSelection(
+    List<String> userEnrolledSubjectIds,
+    Map<String, String> assistantPreferences,
+    SubjectProvider subjectProvider,
+    SectionProvider sectionProvider,
+  ) {
+    final subjectsNeedingSelection = <String>[];
+
+    for (final subjectId in userEnrolledSubjectIds) {
+      // Get instructors for this subject
+      final instructors =
+          subjectProvider.instructorsBySubject[subjectId]
+              ?.where((prof) => prof.role == 'miniProfessor')
+              .toList() ??
+          [];
+
+      // Show warning if there are instructors but no default assistant selected
+      if (instructors.length > 1 &&
+          !assistantPreferences.containsKey(subjectId)) {
+        subjectsNeedingSelection.add(subjectId);
+      }
+    }
+    return subjectsNeedingSelection;
+  }
+
   @override
   Widget build(BuildContext context) {
     final taskProvider = Provider.of<TaskProvider>(context);
@@ -193,6 +278,13 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
     final loggedInUser = userProfileProvider.loggedInUserProfile;
     final allTasks = [...taskProvider.tasks, ..._personalTasks];
 
+    // Check and update assistant preferences when build is called
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _checkAndUpdateAssistantPreferences();
+      }
+    });
+
     if (loggedInUser == null) {
       return Scaffold(body: Center(child: Text('User profile not found')));
     }
@@ -200,6 +292,14 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
     final userEnrolledSubjectIds = loggedInUser.enrolledSubjects;
     final userSection = loggedInUser.section;
     final assistantPreferences = loggedInUser.assistantPreferences;
+
+    // Check for subjects that need assistant selection
+    final subjectsNeedingSelection = _getSubjectsNeedingAssistantSelection(
+      userEnrolledSubjectIds,
+      assistantPreferences,
+      subjectProvider,
+      sectionProvider,
+    );
 
     // Step 1: Check default instructors for each registered subject
     final relevantSections = <Section>[];
@@ -270,6 +370,13 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
+          // Assistant Selection Warning
+          if (subjectsNeedingSelection.isNotEmpty)
+            _buildAssistantSelectionWarning(
+              subjectsNeedingSelection,
+              subjectProvider,
+            ),
+
           if (pendingTasks.isEmpty && completedTasks.isEmpty)
             _buildEmptyState()
           else ...[
@@ -736,6 +843,155 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
           SizedBox(width: Responsive.space(context, size: Space.small)),
           const Icon(Icons.add, color: Colors.white, size: 20),
         ],
+      ),
+    );
+  }
+
+  /// Build assistant selection warning
+  Widget _buildAssistantSelectionWarning(
+    List<String> subjectsNeedingSelection,
+    SubjectProvider subjectProvider,
+  ) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: Responsive.space(context, size: Space.medium),
+          vertical: Responsive.space(context, size: Space.small),
+        ),
+        child: Directionality(
+          textDirection: TextDirection.rtl,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.orange.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(
+                Responsive.space(context, size: Space.medium),
+              ),
+              border: Border.all(color: Colors.orange.withOpacity(0.3)),
+            ),
+            child: Padding(
+              padding: EdgeInsets.all(
+                Responsive.space(context, size: Space.medium),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.warning_amber_rounded,
+                        color: Colors.orange,
+                        size: 24,
+                      ),
+                      SizedBox(
+                        width: Responsive.space(context, size: Space.small),
+                      ),
+                      Expanded(
+                        child: Text(
+                          'اختار المُعيد بتاعك',
+                          style: TextStyle(
+                            color: Colors.orange.shade800,
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.medium,
+                            ),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.small),
+                  ),
+
+                  // Description
+                  Text(
+                    'محتاج تختار المُعيد للمواد التالية عشان تظهرلك التاسكات. تقدر تعمل كدا من صفحة السكاشن.',
+                    style: TextStyle(
+                      color: Colors.orange.shade700,
+                      fontSize: Responsive.text(context, size: TextSize.small),
+                    ),
+                  ),
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.small),
+                  ),
+
+                  // Subject list
+                  ...subjectsNeedingSelection.map((subjectId) {
+                    final subject =
+                        subjectProvider.filteredSubjects
+                            .where((s) => s.id == subjectId)
+                            .firstOrNull;
+                    final instructors =
+                        subjectProvider.instructorsBySubject[subjectId]
+                            ?.where((prof) => prof.role == 'miniProfessor')
+                            .toList() ??
+                        [];
+
+                    return Padding(
+                      padding: EdgeInsets.only(
+                        bottom: Responsive.space(context, size: Space.small),
+                      ),
+                      child: Container(
+                        padding: EdgeInsets.all(
+                          Responsive.space(context, size: Space.small),
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(
+                            Responsive.space(context, size: Space.small),
+                          ),
+                          border: Border.all(
+                            color: Colors.orange.withOpacity(0.2),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.school, color: Colors.orange, size: 16),
+                            SizedBox(
+                              width: Responsive.space(
+                                context,
+                                size: Space.small,
+                              ),
+                            ),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    subject?.name ?? 'Subject $subjectId',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: Responsive.text(
+                                        context,
+                                        size: TextSize.small,
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    '${instructors.length} أستاذ متاح',
+                                    style: TextStyle(
+                                      color: Colors.grey.shade600,
+                                      fontSize: Responsive.text(
+                                        context,
+                                        size: TextSize.small,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

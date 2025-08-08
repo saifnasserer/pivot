@@ -64,11 +64,12 @@ class _SubjectsSectionState extends State<SubjectsSection>
       print('Doctor changed from $_previousDoctorId to $currentDoctorId');
     }
 
-    // Check if subjects have changed
+    // Check if subjects have changed - more efficient comparison
     bool subjectsChanged = false;
     if (_previousSubjects.length != subjects.length) {
       subjectsChanged = true;
     } else {
+      // Compare only IDs for efficiency
       for (int i = 0; i < subjects.length; i++) {
         if (i >= _previousSubjects.length ||
             subjects[i].id != _previousSubjects[i].id) {
@@ -89,6 +90,7 @@ class _SubjectsSectionState extends State<SubjectsSection>
     final subjectProvider = context.read<SubjectProvider>();
     final subjects = subjectProvider.filteredSubjects;
 
+    // Only update if the number of subjects actually changed
     if (_tabController.length != subjects.length) {
       // Remove the old listener before disposing
       _tabController.removeListener(_onTabChanged);
@@ -103,7 +105,7 @@ class _SubjectsSectionState extends State<SubjectsSection>
       // Add listener to detect tab changes (including swiping)
       _tabController.addListener(_onTabChanged);
 
-      // Load initial lectures for the last subject
+      // Load initial lectures for the last subject only if we have subjects
       if (subjects.isNotEmpty) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {

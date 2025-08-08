@@ -5,6 +5,8 @@ import 'package:pivot/services/auth_service.dart';
 import 'package:pivot/services/cache_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:pivot/providers/user_profile_provider.dart'; // Added import for UserProfileProvider
+import 'package:provider/provider.dart'; // Added import for Provider
 
 class UserSearchCard extends StatelessWidget {
   final UserProfile user;
@@ -140,7 +142,14 @@ void showUserSearchModal(BuildContext context) {
     builder: (context) {
       return _UserSearchModalContent();
     },
-  );
+  ).then((_) {
+    // Restore logged-in user profile when modal is dismissed
+    final userProfileProvider = Provider.of<UserProfileProvider>(
+      context,
+      listen: false,
+    );
+    userProfileProvider.restoreLoggedInUserProfile();
+  });
 }
 
 class _UserSearchModalContent extends StatefulWidget {

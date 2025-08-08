@@ -8,9 +8,9 @@ import 'package:pivot/responsive.dart';
 import 'package:provider/provider.dart';
 import 'enhanced_section_list_item.dart';
 
-/// Enhanced sections builder with better structure and animations
+/// Enhanced sections builder with simplified logic - similar to subjects
 class SectionsBuilder {
-  /// Builds a complete sections list with enhanced features
+  /// Builds a complete sections list with simplified approach
   static List<Widget> buildSectionsSlivers(
     BuildContext context, {
     bool enableAnimations = true,
@@ -47,10 +47,12 @@ class SectionsBuilder {
                 ),
                 SizedBox(height: Responsive.space(context, size: Space.medium)),
                 ElevatedButton(
-                  onPressed:
-                      () => sectionProvider.fetchSectionsForUserSubjects(
-                        enrolledSubjects.map((s) => s.id).toList(),
-                      ),
+                  onPressed: () {
+                    final enrolledIds = loggedInUser?.enrolledSubjects ?? [];
+                    if (enrolledIds.isNotEmpty) {
+                      sectionProvider.fetchSectionsForUserSubjects(enrolledIds);
+                    }
+                  },
                   child: Text('إعادة المحاولة'),
                 ),
               ],
@@ -59,69 +61,58 @@ class SectionsBuilder {
         ),
       ];
     }
+
     if (loggedInUser == null) {
       return [_buildErrorState(context)];
     }
 
-    final userSectionName = loggedInUser.section;
+    // Simplified approach: Show section cards for all enrolled subjects
     final enrolledSubjectIds = loggedInUser.enrolledSubjects.toSet();
-    final assistantPreferences = loggedInUser.assistantPreferences;
 
-    // Get sections based on default instructors (one per subject)
-    final relevantSections = <Section>[];
-
-    for (final subjectId in enrolledSubjectIds) {
-      // Get the subject object
-      final subject =
-          enrolledSubjects.where((s) => s.id == subjectId).firstOrNull;
-      if (subject == null) continue;
-      // Get instructors for this subject
-      final instructors =
-          subjectProvider.instructorsBySubject[subject.id]
-              ?.where((prof) => prof.role == 'miniProfessor')
-              .toList() ??
-          [];
-
-      if (instructors.isEmpty) continue;
-
-      // Get the default instructor (selected preference or first instructor)
-      String? defaultAssistantId = assistantPreferences[subject.id];
-      if (defaultAssistantId == null && instructors.length == 1) {
-        // Auto-select if only one instructor
-        defaultAssistantId = instructors.first.id;
-      } else if (defaultAssistantId == null) {
-        // Multiple instructors but none selected - skip this subject
-        continue;
-      }
-
-      // Find the user's specific section for this subject and default instructor
-      final userSectionWithDefaultInstructor =
-          allSections.where((section) {
-            return section.subjectId == subject.id &&
-                section.assistantId == defaultAssistantId &&
-                section.name.contains(userSectionName);
-          }).firstOrNull;
-
-      // Add the user's section with default instructor if found
-      if (userSectionWithDefaultInstructor != null) {
-        relevantSections.add(userSectionWithDefaultInstructor);
-      }
-    }
-
-    // If no relevant sections found, show empty state only if we have enrolled subjects
-    if (relevantSections.isEmpty && enrolledSubjectIds.isNotEmpty) {
+    // Check if user has no enrolled subjects first
+    if (enrolledSubjectIds.isEmpty) {
       return [_buildEmptyState(context)];
     }
 
-    final subjectMap = {
-      for (var subject in enrolledSubjects) subject.id: subject,
-    };
+    final registeredSubjects =
+        enrolledSubjects
+            .where((s) => enrolledSubjectIds.contains(s.id))
+            .toList();
+
+    // If we have enrolled subjects but none found in the list, still show them
+    // This handles the case where subjects are enrolled but not yet loaded
+    if (registeredSubjects.isEmpty && enrolledSubjectIds.isNotEmpty) {
+      // Create placeholder subjects for enrolled subjects not found in the list
+      final placeholderSubjects =
+          enrolledSubjectIds
+              .map(
+                (subjectId) => Subject(
+                  id: subjectId,
+                  name: 'Subject $subjectId', // Placeholder name
+                  hours: 0,
+                  year: 1,
+                  departments: [],
+                  englishName: 'Subject $subjectId',
+                  description: '',
+                ),
+              )
+              .toList();
+
+      return [
+        _buildSectionsList(
+          context,
+          placeholderSubjects,
+          allSections,
+          enableAnimations,
+        ),
+      ];
+    }
 
     return [
       _buildSectionsList(
         context,
-        relevantSections,
-        subjectMap,
+        registeredSubjects,
+        allSections,
         enableAnimations,
       ),
     ];
@@ -165,7 +156,7 @@ class SectionsBuilder {
             ),
             SizedBox(height: Responsive.space(context, size: Space.medium)),
             Text(
-              'لا توجد سكاشن مسجلة لك حالياً',
+              'لا توجد مواد مسجلة',
               style: TextStyle(
                 fontSize: Responsive.text(context, size: TextSize.medium),
                 fontWeight: FontWeight.w500,
@@ -175,7 +166,7 @@ class SectionsBuilder {
             ),
             SizedBox(height: Responsive.space(context, size: Space.small)),
             Text(
-              'سيتم إضافة السكاشن قريباً',
+              'قم بتسجيل المواد أولاً لعرض الأقسام',
               style: TextStyle(
                 fontSize: Responsive.text(context, size: TextSize.small),
                 color: Colors.grey.shade600,
@@ -188,11 +179,11 @@ class SectionsBuilder {
     );
   }
 
-  /// Builds sections list with enhanced styling
+  /// Builds sections list with simplified approach
   static Widget _buildSectionsList(
     BuildContext context,
-    List<Section> sections,
-    Map<String, Subject> subjectMap,
+    List<Subject> subjects,
+    List<Section> allSections,
     bool enableAnimations,
   ) {
     return SliverPadding(
@@ -202,11 +193,13 @@ class SectionsBuilder {
       ),
       sliver: SliverList(
         delegate: SliverChildBuilderDelegate((context, index) {
-          final section = sections[index];
-          final subject = subjectMap[section.subjectId];
-          if (subject == null) {
-            return const SizedBox.shrink();
-          }
+          final subject = subjects[index];
+
+          // Find sections for this subject (if any)
+          final subjectSections =
+              allSections
+                  .where((section) => section.subjectId == subject.id)
+                  .toList();
 
           return AnimatedContainer(
             duration:
@@ -215,12 +208,12 @@ class SectionsBuilder {
                     : Duration.zero,
             curve: Curves.easeInOut,
             child: EnhancedSectionListItem(
-              section: section,
               subject: subject,
+              sections: subjectSections,
               index: index,
             ),
           );
-        }, childCount: sections.length),
+        }, childCount: subjects.length),
       ),
     );
   }

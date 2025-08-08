@@ -57,6 +57,8 @@ class _DoctorProfileState extends State<DoctorProfile>
     if (profileToShow != null && profileToShow.id != _previousProfileId) {
       _displayedProfile = profileToShow;
       _previousProfileId = profileToShow.id;
+
+      // Ensure we have the correct profile data before fetching
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && profileToShow != null) {
           _fetchInitialData(profileToShow);
@@ -86,6 +88,7 @@ class _DoctorProfileState extends State<DoctorProfile>
       'Using profile: ${profileToUse.name} with teaching subjects: ${profileToUse.teachingSubjects}',
     );
 
+    // Only fetch and filter subjects - let SubjectsSection handle lecture loading
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
 
@@ -95,31 +98,23 @@ class _DoctorProfileState extends State<DoctorProfile>
           listen: false,
         );
 
-        subjectProvider.fetchAndFilterSubjects(profileToUse).then((_) {
-          if (mounted) {
-            try {
-              final subjects = subjectProvider.filteredSubjects;
-              print('Filtered subjects count: ${subjects.length}');
+        print(
+          'Calling fetchAndFilterSubjects for profile: ${profileToUse.name}',
+        );
+        // Just fetch and filter subjects - no lecture loading here
+        subjectProvider
+            .fetchAndFilterSubjects(profileToUse)
+            .then((_) {
               print(
-                'Filtered subjects: ${subjects.map((s) => s.name).toList()}',
+                'fetchAndFilterSubjects completed for ${profileToUse.name}',
               );
-
-              if (subjects.isNotEmpty) {
-                // Trigger initial lecture fetch for first subject
-                final subjectId = subjects.first.id;
-                final doctorId =
-                    userProfile
-                        .id; // Always use the displayed profile ID for lecture fetching
-                context.read<DoctorSubjectProvider>().fetchLecturesForSubject(
-                  doctorId,
-                  subjectId,
-                );
-              }
-            } catch (e) {
-              print('Provider access error in callback: $e');
-            }
-          }
-        });
+              print(
+                'Filtered subjects count: ${subjectProvider.filteredSubjects.length}',
+              );
+            })
+            .catchError((error) {
+              print('Error in fetchAndFilterSubjects: $error');
+            });
       } catch (e) {
         print('Provider access error: $e');
       }
@@ -310,6 +305,16 @@ class _DoctorProfileState extends State<DoctorProfile>
     }
   }
 
+  void _onBackPressed() {
+    // Restore logged-in user profile when navigating back
+    final userProfileProvider = Provider.of<UserProfileProvider>(
+      context,
+      listen: false,
+    );
+    userProfileProvider.restoreLoggedInUserProfile();
+    Navigator.pop(context);
+  }
+
   @override
   Widget build(BuildContext context) {
     final userProfile = _displayedProfile;
@@ -325,13 +330,25 @@ class _DoctorProfileState extends State<DoctorProfile>
       );
     }
 
-    return NoInternetMessage(
+    return PopScope(
+      canPop: true,
+      onPopInvoked: (didPop) {
+        if (didPop) {
+          // Only restore profile when actually navigating back
+          print(
+            'Navigating back from doctor profile, restoring logged-in user profile',
+          );
+          final userProfileProvider = Provider.of<UserProfileProvider>(
+            context,
+            listen: false,
+          );
+          userProfileProvider.restoreLoggedInUserProfile();
+        }
+      },
       child: Scaffold(
         backgroundColor: Colors.white,
         floatingActionButton:
-            loggedInUser?.role != 'Student' &&
-                    loggedInUser?.role != 'miniProfessor' &&
-                    _currentCategory == 'المواد'
+            isOwnProfile
                 ? FloatingActionButton(
                   heroTag: 'doctor_profile_fab',
                   onPressed: _showAddLectureDialog,
@@ -357,7 +374,7 @@ class _DoctorProfileState extends State<DoctorProfile>
                     showBackButton: true,
                     showEditButton: _shouldShowEditIcon(),
                     showMenuButton: isOwnProfile,
-                    onBackPressed: () => Navigator.pop(context),
+                    onBackPressed: _onBackPressed,
                     onEditPressed: _editTeachingSubjects,
                     onMenuPressed: () => profile_options(context),
                   ),

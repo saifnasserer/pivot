@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pivot/responsive.dart';
-import 'package:pivot/screens/models/custom_text_field.dart';
+import 'package:pivot/widgets/custom_text_field.dart';
 import 'package:pivot/widgets/no_internet_message.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {

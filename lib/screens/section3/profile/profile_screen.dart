@@ -29,8 +29,8 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   late TabController _tabController;
-  UserProfile? _previousUserProfile;
   Timer? _debounceTimer;
+  bool _isRefreshingData = false;
 
   @override
   void didChangeDependencies() {
@@ -38,13 +38,35 @@ class _ProfileScreenState extends State<ProfileScreen>
     final userProfile = context.read<UserProfileProvider>().userProfile;
     final provider = context.read<ProfileProvider>();
 
-    if (userProfile != null && provider.hasUserProfileChanged(userProfile)) {
+    // Ensure we're showing the logged-in user's profile
+    final userProfileProvider = context.read<UserProfileProvider>();
+    userProfileProvider.ensureLoggedInUserProfileIsCurrent();
+
+    // Check if we just returned from viewing another user's profile
+    final loggedInUser = userProfileProvider.loggedInUserProfile;
+    final isViewingOwnProfile = userProfile?.id == loggedInUser?.id;
+
+    if (isViewingOwnProfile &&
+        userProfile != null &&
+        provider.hasUserProfileChanged(userProfile)) {
       // Cancel previous timer if it exists
       _debounceTimer?.cancel();
       // Use debounce to avoid multiple rapid calls
       _debounceTimer = Timer(const Duration(milliseconds: 300), () {
         if (mounted) {
           _fetchProfileData(userProfile);
+        }
+      });
+    }
+
+    // Force refresh data providers when returning to own profile
+    if (isViewingOwnProfile && loggedInUser != null && !_isRefreshingData) {
+      _isRefreshingData = true;
+      setState(() {}); // Trigger rebuild to show loading state
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _forceRefreshDataProviders(loggedInUser);
         }
       });
     }
@@ -62,6 +84,26 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
     _tabController.addListener(_onTabChanged);
     WidgetsBinding.instance.addObserver(this);
+
+    // Set up profile restoration callback
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        final userProfileProvider = context.read<UserProfileProvider>();
+        userProfileProvider.setOnProfileRestored(() {
+          if (mounted) {
+            final loggedInUser = userProfileProvider.loggedInUserProfile;
+            if (loggedInUser != null) {
+              print(
+                'Profile restored callback triggered, refreshing data for: ${loggedInUser.name}',
+              );
+              _isRefreshingData = true;
+              setState(() {});
+              _forceRefreshDataProviders(loggedInUser);
+            }
+          }
+        });
+      }
+    });
 
     // Load sections when profile screen opens
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -124,6 +166,49 @@ class _ProfileScreenState extends State<ProfileScreen>
     });
   }
 
+  void _forceRefreshDataProviders(UserProfile userProfile) {
+    print(
+      'Force refreshing data providers for logged-in user: ${userProfile.name}',
+    );
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      try {
+        final subjectProvider = context.read<SubjectProvider>();
+        final sectionProvider = context.read<SectionProvider>();
+
+        // Force refresh subject provider
+        subjectProvider.fetchAndFilterSubjects(userProfile);
+
+        // Force refresh sections
+        if (userProfile.enrolledSubjects.isNotEmpty) {
+          sectionProvider.fetchSectionsForUserSubjects(
+            userProfile.enrolledSubjects,
+          );
+        } else {
+          sectionProvider.resetFilter();
+        }
+
+        print('Data providers refreshed successfully');
+
+        // Reset loading state and force rebuild
+        if (mounted) {
+          setState(() {
+            _isRefreshingData = false;
+          });
+        }
+      } catch (e) {
+        print('Error refreshing data providers: $e');
+        if (mounted) {
+          setState(() {
+            _isRefreshingData = false;
+          });
+        }
+      }
+    });
+  }
+
   void _onDaySelected(int index) {
     final provider = context.read<ProfileProvider>();
     provider.updateSelectedDayIndex(index);
@@ -157,7 +242,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
 
     // Update profile data when user profile changes (e.g., when returning from another profile)
-    if (userProfile != null && userProfile != _previousUserProfile) {
+    if (userProfile != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           // Only fetch profile data, don't reset sections
@@ -170,26 +255,53 @@ class _ProfileScreenState extends State<ProfileScreen>
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: ProfileAppBar(tabController: _tabController),
-      body: TabBarView(
-        controller: _tabController,
+      body: Stack(
         children: [
-          // Profile Details Tab
-          const ProfileDetailsTab(),
+          TabBarView(
+            controller: _tabController,
+            children: [
+              // Profile Details Tab
+              const ProfileDetailsTab(),
 
-          // Bookmarks Tab
-          const BookmarksScreen(),
+              // Bookmarks Tab
+              const BookmarksScreen(),
 
-          // Sections Tab
-          const SectionsTab(),
+              // Sections Tab
+              _isRefreshingData
+                  ? const Center(child: CircularProgressIndicator())
+                  : const SectionsTab(),
 
-          // Subjects Tab
-          const SubjectsTab(),
+              // Subjects Tab
+              _isRefreshingData
+                  ? const Center(child: CircularProgressIndicator())
+                  : const SubjectsTab(),
 
-          // Schedule Tab
-          ScheduleTab(onDaySelected: _onDaySelected),
+              // Schedule Tab
+              ScheduleTab(onDaySelected: _onDaySelected),
 
-          // Week Tasks Tab
-          const WeekTasks(),
+              // Week Tasks Tab
+              const WeekTasks(),
+            ],
+          ),
+          if (_isRefreshingData)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                color: Colors.blue.withOpacity(0.1),
+                child: const Center(
+                  child: Text(
+                    'جاري تحديث البيانات...',
+                    style: TextStyle(
+                      color: Colors.blue,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );

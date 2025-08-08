@@ -10,7 +10,7 @@ import 'package:pivot/providers/team_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uuid/uuid.dart';
-import 'package:pivot/screens/models/custom_text_field.dart';
+import 'package:pivot/widgets/custom_text_field.dart';
 import 'package:pivot/models/user_profile.dart';
 
 class TeamFormationScreen extends StatefulWidget {

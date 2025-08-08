@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/services/notification_service.dart';
 import 'package:pivot/responsive.dart';
-import 'package:pivot/screens/models/custom_text_field.dart';
+import 'package:pivot/widgets/custom_text_field.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pivot/providers/scheduled_notification_provider.dart';
 import 'package:pivot/models/scheduled_notification.dart';

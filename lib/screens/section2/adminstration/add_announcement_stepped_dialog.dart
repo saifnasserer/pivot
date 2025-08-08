@@ -5,7 +5,7 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:pivot/screens/section2/adminstration/models/announcement_data.dart';
 import 'package:provider/provider.dart';
-import '../../models/custom_text_field.dart';
+import 'package:pivot/widgets/custom_text_field.dart';
 import 'package:pivot/providers/announcement_provider.dart';
 import 'package:pivot/services/permission_service.dart';
 import 'package:file_picker/file_picker.dart';

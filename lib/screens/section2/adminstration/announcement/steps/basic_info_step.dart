@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/responsive.dart';
-import 'package:pivot/screens/models/custom_text_field.dart';
+import 'package:pivot/widgets/custom_text_field.dart';
 
 class BasicInfoStep extends StatelessWidget {
   final TextEditingController titleController;

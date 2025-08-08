@@ -35,18 +35,25 @@ class SubjectProvider with ChangeNotifier {
     }
   }
 
+  /// Helper method to check if a user is an instructor (professor, miniProfessor, doctor)
+  bool _isInstructor(String role) {
+    final lowerRole = role.toLowerCase();
+    return lowerRole == 'professor' ||
+        lowerRole == 'miniprofessor' ||
+        role == 'miniProfessor' ||
+        lowerRole == 'doctor';
+  }
+
+  /// Helper method to check if a user is a student
+  bool _isStudent(String role) {
+    return role == 'Student';
+  }
+
   void buildInstructorsMap(List<UserProfile> allUsers) {
     _checkDisposed();
     _instructorsBySubject.clear();
     final instructors =
-        allUsers
-            .where(
-              (user) =>
-                  user.role.toLowerCase() == 'professor' ||
-                  user.role.toLowerCase() == 'miniprofessor' ||
-                  user.role.toLowerCase() == 'doctor',
-            )
-            .toList();
+        allUsers.where((user) => _isInstructor(user.role)).toList();
 
     print('Instructors found:');
     for (final instructor in instructors) {
@@ -178,55 +185,49 @@ class SubjectProvider with ChangeNotifier {
     }
 
     try {
-      _allSubjects = await _subjectService.getSubjects();
-      print('All subjects count: ${_allSubjects.length}');
-      print(
-        'All subjects: ${_allSubjects.map((s) => '${s.id}:${s.name}').toList()}',
-      );
-
-      // For admin users or when we want to show all subjects, don't filter
+      // For admin users or when we want to show all subjects, fetch all
       if (userProfile.role == 'Admin' || userProfile.role == 'Super Admin') {
-        print('User is admin, showing all subjects');
+        print('User is admin, fetching all subjects');
+        _allSubjects = await _subjectService.getSubjects();
         _filteredSubjects = _allSubjects;
       } else {
         List<String> userSubjectIds = [];
         print(
           'User role: "${userProfile.role}" (length: ${userProfile.role.length})',
         );
-        print('Role comparison tests:');
-        print('  professor: ${userProfile.role.toLowerCase() == 'professor'}');
-        print(
-          '  miniprofessor: ${userProfile.role.toLowerCase() == 'miniprofessor'}',
-        );
-        print('  doctor: ${userProfile.role.toLowerCase() == 'doctor'}');
-        print('  student: ${userProfile.role == 'Student'}');
+        print('Role check results:');
+        print('  Is instructor: ${_isInstructor(userProfile.role)}');
+        print('  Is student: ${_isStudent(userProfile.role)}');
 
-        if (userProfile.role == 'Student') {
+        if (_isStudent(userProfile.role)) {
           userSubjectIds = userProfile.enrolledSubjects;
           print('User is student, enrolled subjects: $userSubjectIds');
-        } else if (userProfile.role.toLowerCase() == 'professor' ||
-            userProfile.role.toLowerCase() == 'miniprofessor' ||
-            userProfile.role.toLowerCase() == 'doctor' ||
-            userProfile.role.toLowerCase() == 'mini professor' ||
-            userProfile.role.toLowerCase() == 'mini-professor' ||
-            userProfile.role.toLowerCase() == 'mini_professor') {
+        } else if (_isInstructor(userProfile.role)) {
           userSubjectIds = userProfile.teachingSubjects;
-          print('User is professor/doctor, teaching subjects: $userSubjectIds');
+          print(
+            'User is instructor (professor/doctor/miniProfessor), teaching subjects: $userSubjectIds',
+          );
         } else {
           print('User role not recognized: ${userProfile.role}');
           print(
-            'Available roles for filtering: professor, miniprofessor, doctor, student',
+            'Available roles for filtering: professor, miniprofessor, miniProfessor, doctor, student',
           );
         }
 
         print('Final userSubjectIds: $userSubjectIds');
 
         if (userSubjectIds.isNotEmpty) {
-          _filteredSubjects =
-              _allSubjects
-                  .where((subject) => userSubjectIds.contains(subject.id))
-                  .toList();
-          print('Filtered subjects count: ${_filteredSubjects.length}');
+          // For non-admin users, only fetch the subjects they need
+          print('Fetching specific subjects for non-admin user');
+          _filteredSubjects = await _subjectService.getSubjectsByIds(
+            userSubjectIds,
+          );
+
+          // For compatibility with other parts of the app that expect allSubjects,
+          // we'll set allSubjects to the same as filteredSubjects for non-admin users
+          _allSubjects = _filteredSubjects;
+
+          print('Fetched ${_filteredSubjects.length} subjects for user');
           print(
             'Filtered subjects: ${_filteredSubjects.map((s) => '${s.id}:${s.name}').toList()}',
           );
@@ -234,11 +235,47 @@ class SubjectProvider with ChangeNotifier {
           // If the user has no subjects, show an empty list.
           print('User has no subjects, showing empty list');
           _filteredSubjects = [];
+          _allSubjects = [];
         }
       }
     } catch (e) {
       _error = 'Failed to fetch subjects: ${e.toString()}';
       print('Error in fetchAndFilterSubjects: $e');
+    } finally {
+      _isLoading = false;
+      if (!_disposed) {
+        notifyListeners();
+      }
+    }
+  }
+
+  /// Optimized method to fetch only specific subjects by IDs
+  Future<void> fetchSpecificSubjects(List<String> subjectIds) async {
+    _checkDisposed();
+    if (subjectIds.isEmpty) {
+      _filteredSubjects = [];
+      _allSubjects = [];
+      if (!_disposed) {
+        notifyListeners();
+      }
+      return;
+    }
+
+    _isLoading = true;
+    _error = null;
+    if (!_disposed) {
+      notifyListeners();
+    }
+
+    try {
+      print('Fetching specific subjects by IDs: $subjectIds');
+      _filteredSubjects = await _subjectService.getSubjectsByIds(subjectIds);
+      // For consistency, set allSubjects to the same as filteredSubjects
+      _allSubjects = _filteredSubjects;
+      print('Fetched ${_filteredSubjects.length} specific subjects');
+    } catch (e) {
+      _error = 'Failed to fetch specific subjects: ${e.toString()}';
+      print('Error in fetchSpecificSubjects: $e');
     } finally {
       _isLoading = false;
       if (!_disposed) {
@@ -270,6 +307,8 @@ class SubjectProvider with ChangeNotifier {
 
   void resetFilter() {
     _checkDisposed();
+    // For non-admin users, filteredSubjects and allSubjects are the same
+    // For admin users, this will show all subjects
     _filteredSubjects = _allSubjects;
     // Use post-frame callback to avoid build-time notifications
     WidgetsBinding.instance.addPostFrameCallback((_) {

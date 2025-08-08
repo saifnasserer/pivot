@@ -26,6 +26,26 @@ class SubjectService {
     }
   }
 
+  /// Fetches only specific subjects by their IDs (more efficient for filtering).
+  Future<List<Subject>> getSubjectsByIds(List<String> subjectIds) async {
+    try {
+      if (subjectIds.isEmpty) {
+        return [];
+      }
+
+      // Use 'whereIn' to fetch only the specified subjects
+      final snapshot =
+          await _subjectsCollection
+              .where(FieldPath.documentId, whereIn: subjectIds)
+              .get();
+
+      return snapshot.docs.map((doc) => doc.data()).toList();
+    } catch (e) {
+      print('Error fetching subjects by IDs: $e');
+      rethrow;
+    }
+  }
+
   /// Adds a new subject to the Firestore 'subjects' collection.
   Future<Subject> addSubject(Subject subject) async {
     try {

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:pivot/screens/models/circular_button.dart';
 import 'package:pivot/data/form_options.dart';
 import 'package:pivot/providers/settings_provider.dart';
-import 'package:pivot/screens/models/custom_dropdown.dart';
+import 'package:pivot/widgets/custom_dropdown.dart';
 import 'package:pivot/widgets/no_internet_message.dart';
 import '../../../../responsive.dart';
 import 'package:provider/provider.dart';

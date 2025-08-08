@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/providers/section_provider.dart';
+import 'package:pivot/providers/subject_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/screens/section3/profile_widgets/sections/sections.dart';
 
@@ -14,33 +15,123 @@ class SectionsTab extends StatefulWidget {
 }
 
 class _SectionsTabState extends State<SectionsTab> {
+  bool _hasLoadedSections = false;
   UserProfile? _previousUserProfile;
   List<String> _previousEnrolledSubjects = [];
-  bool _hasLoadedSections = false;
-  bool _isLoadingSections = false;
+  Map<String, String> _previousAssistantPreferences = {};
 
   @override
   void initState() {
     super.initState();
-    // Initial load will be handled in didChangeDependencies
+    // Set up profile restoration listener
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        final userProfileProvider = context.read<UserProfileProvider>();
+        userProfileProvider.setOnProfileRestored(() {
+          if (mounted) {
+            final loggedInUser = userProfileProvider.loggedInUserProfile;
+            if (loggedInUser != null) {
+              print(
+                'SectionsTab: Profile restored, refreshing data for: ${loggedInUser.name}',
+              );
+              _hasLoadedSections = false;
+              _updatePreviousProfile(loggedInUser);
+              _refreshDataProviders(loggedInUser);
+              if (loggedInUser.enrolledSubjects.isNotEmpty) {
+                _loadSectionsForUser(loggedInUser);
+              }
+            }
+          }
+        });
+      }
+    });
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final userProfile = context.read<UserProfileProvider>().userProfile;
+    final userProfileProvider = context.read<UserProfileProvider>();
+    final userProfile = userProfileProvider.userProfile;
+    final loggedInUser = userProfileProvider.loggedInUserProfile;
 
-    if (userProfile != null && userProfile.enrolledSubjects.isNotEmpty) {
-      // Simple loading like subjects tab - just load once when dependencies change
-      if (!_hasLoadedSections) {
-        // Use post-frame callback to avoid build-time notifyListeners
+    // Determine which profile to use based on context
+    final targetProfile = _getTargetProfile(userProfile, loggedInUser);
+
+    if (targetProfile != null) {
+      // Check if we need to reload due to profile changes
+      final shouldReload = _shouldReloadDueToProfileChange(targetProfile);
+
+      if (shouldReload) {
+        // Reset loading state and reload
+        _hasLoadedSections = false;
+        _updatePreviousProfile(targetProfile);
+
+        // Force refresh of data providers when switching profiles
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
-            _loadSectionsForUser();
+            _refreshDataProviders(targetProfile);
+            if (targetProfile.enrolledSubjects.isNotEmpty) {
+              _loadSectionsForUser(targetProfile);
+            }
+          }
+        });
+      } else if (!_hasLoadedSections &&
+          targetProfile.enrolledSubjects.isNotEmpty) {
+        // Initial load
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _refreshDataProviders(targetProfile);
+            _loadSectionsForUser(targetProfile);
           }
         });
       }
     }
+  }
+
+  UserProfile? _getTargetProfile(
+    UserProfile? userProfile,
+    UserProfile? loggedInUser,
+  ) {
+    // If we're viewing someone else's profile, show their sections
+    if (userProfile != null &&
+        loggedInUser != null &&
+        userProfile.id != loggedInUser.id) {
+      return userProfile;
+    }
+
+    // Otherwise, show logged-in user's sections
+    return loggedInUser;
+  }
+
+  bool _shouldReloadDueToProfileChange(UserProfile currentProfile) {
+    // Check if enrolled subjects changed
+    if (!_areListsEqual(
+      _previousEnrolledSubjects,
+      currentProfile.enrolledSubjects,
+    )) {
+      return true;
+    }
+
+    // Check if assistant preferences changed
+    if (!_areMapsEqual(
+      _previousAssistantPreferences,
+      currentProfile.assistantPreferences,
+    )) {
+      return true;
+    }
+
+    // Check if user profile itself changed (different instance)
+    if (_previousUserProfile != currentProfile) {
+      return true;
+    }
+
+    return false;
+  }
+
+  void _updatePreviousProfile(UserProfile profile) {
+    _previousUserProfile = profile;
+    _previousEnrolledSubjects = List.from(profile.enrolledSubjects);
+    _previousAssistantPreferences = Map.from(profile.assistantPreferences);
   }
 
   bool _areListsEqual(List<String> list1, List<String> list2) {
@@ -51,19 +142,23 @@ class _SectionsTabState extends State<SectionsTab> {
     return true;
   }
 
-  void _loadSectionsForUser() {
-    final userProfile = context.read<UserProfileProvider>().userProfile;
+  bool _areMapsEqual(Map<String, String> map1, Map<String, String> map2) {
+    if (map1.length != map2.length) return false;
+    for (final key in map1.keys) {
+      if (map1[key] != map2[key]) return false;
+    }
+    return true;
+  }
+
+  void _loadSectionsForUser(UserProfile userProfile) {
     final sectionProvider = context.read<SectionProvider>();
 
     // Prevent multiple simultaneous loading calls
-    if (_isLoadingSections || sectionProvider.isLoading) {
+    if (sectionProvider.isLoading) {
       return;
     }
 
-    if (userProfile != null && userProfile.enrolledSubjects.isNotEmpty) {
-      // Set loading flag
-      _isLoadingSections = true;
-
+    if (userProfile.enrolledSubjects.isNotEmpty) {
       context
           .read<SectionProvider>()
           .fetchSectionsForUserSubjects(userProfile.enrolledSubjects)
@@ -74,7 +169,6 @@ class _SectionsTabState extends State<SectionsTab> {
                 if (mounted) {
                   setState(() {
                     _hasLoadedSections = true;
-                    _isLoadingSections = false;
                   });
                 }
               });
@@ -87,7 +181,6 @@ class _SectionsTabState extends State<SectionsTab> {
                   setState(() {
                     _hasLoadedSections =
                         true; // Mark as loaded even on error to prevent infinite retries
-                    _isLoadingSections = false;
                   });
                 }
               });
@@ -95,119 +188,106 @@ class _SectionsTabState extends State<SectionsTab> {
           });
     } else {
       // Only clear sections if user has no enrolled subjects
-      if (userProfile != null && userProfile.enrolledSubjects.isEmpty) {
+      if (userProfile.enrolledSubjects.isEmpty) {
         context.read<SectionProvider>().resetFilter();
       }
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           setState(() {
             _hasLoadedSections = true;
-            _isLoadingSections = false;
           });
         }
       });
     }
   }
 
-  // Method to reset loading state when tab becomes visible
-  void _resetLoadingState() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        setState(() {
-          _hasLoadedSections = false;
-          _isLoadingSections = false;
-        });
-      }
-    });
-  }
+  void _refreshDataProviders(UserProfile targetProfile) {
+    try {
+      final subjectProvider = context.read<SubjectProvider>();
+      final sectionProvider = context.read<SectionProvider>();
 
-  // Method to force reload sections (for manual refresh)
-  void _forceReloadSections() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        setState(() {
-          _hasLoadedSections = false;
-          _isLoadingSections = false;
-        });
-        _loadSectionsForUser();
+      print('Refreshing data providers for profile: ${targetProfile.name}');
+      print(
+        'Target profile enrolled subjects: ${targetProfile.enrolledSubjects}',
+      );
+
+      // Refresh subject provider with the target profile
+      subjectProvider.fetchAndFilterSubjects(targetProfile);
+
+      // Clear and reload sections for the target profile
+      if (targetProfile.enrolledSubjects.isNotEmpty) {
+        sectionProvider.fetchSectionsForUserSubjects(
+          targetProfile.enrolledSubjects,
+        );
+      } else {
+        sectionProvider.resetFilter();
       }
-    });
+    } catch (e) {
+      print('Error refreshing data providers: $e');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Consumer<SectionProvider>(
       builder: (context, sectionProvider, child) {
-        // Get user profile and enrolled subjects
-        final userProfile = context.read<UserProfileProvider>().userProfile;
-        final enrolledSubjects = userProfile?.enrolledSubjects ?? [];
+        try {
+          if (sectionProvider.isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (sectionProvider.error != null) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    size: 48,
+                    color: Colors.red.shade300,
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'خطأ: ${sectionProvider.error}',
+                    style: TextStyle(fontSize: 16, color: Colors.red.shade600),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      final userProfileProvider =
+                          context.read<UserProfileProvider>();
+                      final userProfile = userProfileProvider.userProfile;
+                      final loggedInUser =
+                          userProfileProvider.loggedInUserProfile;
+                      final targetProfile = _getTargetProfile(
+                        userProfile,
+                        loggedInUser,
+                      );
 
-        // Always show loading indicator when loading
-        if (sectionProvider.isLoading) {
-          return const Center(child: CircularProgressIndicator());
+                      if (targetProfile != null &&
+                          targetProfile.enrolledSubjects.isNotEmpty) {
+                        context
+                            .read<SectionProvider>()
+                            .fetchSectionsForUserSubjects(
+                              targetProfile.enrolledSubjects,
+                            );
+                      }
+                    },
+                    child: Text('إعادة المحاولة'),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          // Build sections slivers - this will handle all states internally
+          final sectionSlivers = buildSectionsSlivers(context);
+
+          return CustomScrollView(slivers: sectionSlivers);
+        } catch (e) {
+          print('Warning: SectionProvider disposed in SectionsTab: $e');
+          return const Center(child: Text('لا يمكن تحميل الأقسام حالياً'));
         }
-
-        // Show error if there's an error
-        if (sectionProvider.error != null) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.error_outline, size: 48, color: Colors.red.shade300),
-                SizedBox(height: 16),
-                Text(
-                  'خطأ: ${sectionProvider.error}',
-                  style: TextStyle(fontSize: 16, color: Colors.red.shade600),
-                  textAlign: TextAlign.center,
-                ),
-                SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () {
-                    if (userProfile != null && enrolledSubjects.isNotEmpty) {
-                      context
-                          .read<SectionProvider>()
-                          .fetchSectionsForUserSubjects(enrolledSubjects);
-                    }
-                  },
-                  child: Text('إعادة المحاولة'),
-                ),
-              ],
-            ),
-          );
-        }
-
-        // If user has no enrolled subjects, show appropriate message
-        if (enrolledSubjects.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.school_outlined,
-                  size: 48,
-                  color: Colors.grey.shade400,
-                ),
-                SizedBox(height: 16),
-                Text(
-                  'لا توجد مواد مسجلة',
-                  style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
-                  textAlign: TextAlign.center,
-                ),
-                SizedBox(height: 8),
-                Text(
-                  'يجب التسجيل في المواد أولاً لعرض الأقسام',
-                  style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          );
-        }
-
-        // Build sections slivers - this will handle empty state internally
-        final sectionSlivers = buildSectionsSlivers(context);
-
-        return CustomScrollView(slivers: sectionSlivers);
       },
     );
   }

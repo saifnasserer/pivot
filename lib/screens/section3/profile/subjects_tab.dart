@@ -1,12 +1,41 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/providers/subject_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/screens/section3/profile_widgets/subjects.dart';
 
-class SubjectsTab extends StatelessWidget {
+class SubjectsTab extends StatefulWidget {
   const SubjectsTab({super.key});
+
+  @override
+  State<SubjectsTab> createState() => _SubjectsTabState();
+}
+
+class _SubjectsTabState extends State<SubjectsTab> {
+  @override
+  void initState() {
+    super.initState();
+    // Set up profile restoration listener
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        final userProfileProvider = context.read<UserProfileProvider>();
+        userProfileProvider.setOnProfileRestored(() {
+          if (mounted) {
+            final loggedInUser = userProfileProvider.loggedInUserProfile;
+            if (loggedInUser != null) {
+              print(
+                'SubjectsTab: Profile restored, refreshing data for: ${loggedInUser.name}',
+              );
+              final subjectProvider = context.read<SubjectProvider>();
+              subjectProvider.fetchAndFilterSubjects(loggedInUser);
+            }
+          }
+        });
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,14 +49,28 @@ class SubjectsTab extends StatelessWidget {
             return Center(child: Text('Error: ${subjectProvider.error}'));
           }
 
-          // Filter subjects to only those registered/enrolled by the user
-          // Use context.read to avoid unnecessary rebuilds
-          final userProfile = context.read<UserProfileProvider>().userProfile;
-          final enrolledIds = userProfile?.enrolledSubjects ?? [];
+          // Get the correct profile to use
+          final userProfileProvider = context.read<UserProfileProvider>();
+          final userProfile = userProfileProvider.userProfile;
+          final loggedInUser = userProfileProvider.loggedInUserProfile;
+
+          // Determine which profile to use based on context
+          final targetProfile = _getTargetProfile(userProfile, loggedInUser);
+          final enrolledIds = targetProfile?.enrolledSubjects ?? [];
+
+          print(
+            'SubjectsTab: Using profile ${targetProfile?.name} with enrolled subjects: $enrolledIds',
+          );
+
           final registeredSubjects =
               subjectProvider.filteredSubjects
                   .where((s) => enrolledIds.contains(s.id))
                   .toList();
+
+          print(
+            'SubjectsTab: Found ${registeredSubjects.length} registered subjects',
+          );
+
           final subjectSlivers = buildSubjectsSlivers(
             context,
             registeredSubjects,
@@ -41,5 +84,20 @@ class SubjectsTab extends StatelessWidget {
         }
       },
     );
+  }
+
+  UserProfile? _getTargetProfile(
+    UserProfile? userProfile,
+    UserProfile? loggedInUser,
+  ) {
+    // If we're viewing someone else's profile, show their subjects
+    if (userProfile != null &&
+        loggedInUser != null &&
+        userProfile.id != loggedInUser.id) {
+      return userProfile;
+    }
+
+    // Otherwise, show logged-in user's subjects
+    return loggedInUser;
   }
 }

@@ -32,7 +32,6 @@ class _AssistantProfileMainState extends State<AssistantProfileMain>
   bool _isEditingAboutMe = false;
   late TextEditingController _aboutMeController;
   late TabController _subjectTabController;
-  List<Subject> _localFilteredSubjects = [];
 
   @override
   void initState() {
@@ -72,22 +71,44 @@ class _AssistantProfileMainState extends State<AssistantProfileMain>
         }
       });
 
+      // Ensure we have the correct profile data before fetching
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && newProfile != null) {
-          _fetchData();
+          _fetchInitialData(newProfile);
         }
       });
     }
   }
 
-  void _fetchData() {
-    if (_displayedProfile == null || !mounted) return;
+  void _fetchInitialData(UserProfile userProfile) {
+    if (!mounted) return;
 
-    // Use a safer approach to access providers
+    print(
+      '_fetchInitialData called for user: ${userProfile.name} (${userProfile.role})',
+    );
+    print('Teaching subjects: ${userProfile.teachingSubjects}');
+
+    // Check if this is the logged-in user's own profile
+    final loggedInUser = context.read<UserProfileProvider>().userProfile;
+    final isOwnProfile = loggedInUser?.id == userProfile.id;
+    print('Is own profile: $isOwnProfile');
+    print('Logged in user ID: ${loggedInUser?.id}');
+    print('Displayed profile ID: ${userProfile.id}');
+
+    // Use logged-in user's profile data when viewing own profile to ensure correct teaching subjects
+    final profileToUse = isOwnProfile ? loggedInUser! : userProfile;
+    print(
+      'Using profile: ${profileToUse.name} with teaching subjects: ${profileToUse.teachingSubjects}',
+    );
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
 
       try {
+        final userProfileProvider = Provider.of<UserProfileProvider>(
+          context,
+          listen: false,
+        );
         final subjectProvider = Provider.of<SubjectProvider>(
           context,
           listen: false,
@@ -96,33 +117,39 @@ class _AssistantProfileMainState extends State<AssistantProfileMain>
           context,
           listen: false,
         );
-        final userProfileProvider = Provider.of<UserProfileProvider>(
-          context,
-          listen: false,
-        );
 
+        print('Starting data fetch for assistant profile');
         // Fetch all users for admin functionality
-        userProfileProvider.fetchAllUsers(forceAll: true).then((_) {
-          subjectProvider.fetchAndFilterSubjects(_displayedProfile!).then((_) {
-            if (mounted) {
-              try {
-                final subjects = subjectProvider.filteredSubjects;
-                setState(() {
-                  _localFilteredSubjects = subjects;
-                });
+        userProfileProvider
+            .fetchAllUsers(forceAll: true)
+            .then((_) {
+              print('All users fetched, now fetching subjects');
+              // Just fetch and filter subjects - let UI components handle their own state
+              subjectProvider
+                  .fetchAndFilterSubjects(profileToUse)
+                  .then((_) {
+                    print('Subjects fetched for ${profileToUse.name}');
+                    print(
+                      'Filtered subjects count: ${subjectProvider.filteredSubjects.length}',
+                    );
+                  })
+                  .catchError((error) {
+                    print('Error fetching subjects: $error');
+                  });
+            })
+            .catchError((error) {
+              print('Error fetching all users: $error');
+            });
 
-                if (subjects.isNotEmpty) {
-                  _updateSubjectTabController(subjects);
-                  _onSubjectSelected(0);
-                }
-              } catch (e) {
-                print('Provider access error in callback: $e');
-              }
-            }
-          });
-        });
         // Fetch sections for this specific assistant
-        sectionProvider.fetchSectionsForAssistant(_displayedProfile!.id);
+        sectionProvider
+            .fetchSectionsForAssistant(profileToUse.id)
+            .then((_) {
+              print('Sections fetched for assistant ${profileToUse.id}');
+            })
+            .catchError((error) {
+              print('Error fetching sections: $error');
+            });
       } catch (e) {
         print('Provider access error: $e');
       }
@@ -214,7 +241,9 @@ class _AssistantProfileMainState extends State<AssistantProfileMain>
         setState(() {
           _displayedProfile = updatedProfile;
         });
-        _fetchData();
+        _fetchInitialData(
+          _displayedProfile!,
+        ); // Re-fetch data for the updated profile
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -232,96 +261,123 @@ class _AssistantProfileMainState extends State<AssistantProfileMain>
     });
   }
 
+  void _showAddSectionDialog() {
+    final subjectProvider = context.watch<SubjectProvider>();
+    final subjects = subjectProvider.filteredSubjects;
+    if (subjects.isNotEmpty && _subjectTabController.index < subjects.length) {
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AddEditSectionDialog(
+            subjects: subjects,
+            autoSelectedSubjectId: subjects[_subjectTabController.index].id,
+            targetAssistantId: _displayedProfile?.id,
+          );
+        },
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('الرجاء تحديد المادة أولاً')),
+      );
+    }
+  }
+
+  void _onBackPressed() {
+    // Restore logged-in user profile when navigating back
+    final userProfileProvider = Provider.of<UserProfileProvider>(
+      context,
+      listen: false,
+    );
+    userProfileProvider.restoreLoggedInUserProfile();
+    Navigator.pop(context);
+  }
+
   @override
   Widget build(BuildContext context) {
     final loggedInUser = context.watch<UserProfileProvider>().userProfile;
     final isOwnProfile = loggedInUser?.id == _displayedProfile?.id;
+    final subjectProvider = context.watch<SubjectProvider>();
+    final subjects = subjectProvider.filteredSubjects; // Use provider directly
 
     if (_displayedProfile == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      resizeToAvoidBottomInset: true,
-      floatingActionButton:
-          loggedInUser?.role != 'Student' &&
-                  loggedInUser?.role != 'Professor' &&
-                  _currentCategory == 'المواد'
-              ? FloatingActionButton(
-                heroTag: 'assistant_profile_fab',
-                backgroundColor: Colors.black,
-                onPressed: () {
-                  final subjects = _localFilteredSubjects;
-                  if (subjects.isNotEmpty &&
-                      _subjectTabController.index < subjects.length) {
-                    showDialog(
-                      context: context,
-                      builder: (BuildContext context) {
-                        return AddEditSectionDialog(
-                          subjects: subjects,
-                          autoSelectedSubjectId:
-                              subjects[_subjectTabController.index].id,
-                          targetAssistantId: _displayedProfile?.id,
-                        );
-                      },
-                    );
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('الرجاء تحديد المادة أولاً'),
-                      ),
-                    );
-                  }
-                },
-                tooltip: 'إضافة سكشن جديد',
-                child: const Icon(Icons.add, color: Colors.white),
-              )
-              : null,
-      body: SafeArea(
-        child: Padding(
-          padding: Responsive.paddingHorizontal(context),
-          child: CustomScrollView(
-            controller: _scrollController,
-            slivers: [
-              // Add top padding for safe area
-              SliverToBoxAdapter(
-                child: AssistantCategories(
-                  onCategoryChanged: _onMainCategoryChanged,
-                  showBackButton: true,
-                  showEditButton: _shouldShowEditIcon(),
-                  showMenuButton: isOwnProfile,
-                  onBackPressed: () => Navigator.pop(context),
-                  onEditPressed: _editTeachingSubjects,
-                  onMenuPressed: () => profile_options(context),
+    return PopScope(
+      canPop: true,
+      onPopInvoked: (didPop) {
+        if (didPop) {
+          // Only restore profile when actually navigating back
+          print(
+            'Navigating back from assistant profile, restoring logged-in user profile',
+          );
+          final userProfileProvider = Provider.of<UserProfileProvider>(
+            context,
+            listen: false,
+          );
+          userProfileProvider.restoreLoggedInUserProfile();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        resizeToAvoidBottomInset: true,
+        floatingActionButton:
+            isOwnProfile
+                ? FloatingActionButton(
+                  heroTag: 'assistant_profile_fab',
+                  onPressed: _showAddSectionDialog,
+                  backgroundColor: Colors.black,
+                  tooltip: 'إضافة سكشن جديد',
+                  child: const Icon(Icons.add, color: Colors.white),
+                )
+                : null,
+        body: SafeArea(
+          child: Padding(
+            padding: Responsive.paddingHorizontal(context),
+            child: CustomScrollView(
+              controller: _scrollController,
+              slivers: [
+                // Add top padding for safe area
+                SliverToBoxAdapter(
+                  child: AssistantCategories(
+                    onCategoryChanged: _onMainCategoryChanged,
+                    showBackButton: true,
+                    showEditButton: _shouldShowEditIcon(),
+                    showMenuButton: isOwnProfile,
+                    onBackPressed: _onBackPressed,
+                    onEditPressed: _editTeachingSubjects,
+                    onMenuPressed: () => profile_options(context),
+                  ),
                 ),
-              ),
-              const SliverToBoxAdapter(child: Divider(indent: 4, endIndent: 1)),
-              ...AssistantProfileContent.getCategoryContentSlivers(
-                context,
-                _currentCategory,
-                _displayedProfile!,
-                _localFilteredSubjects,
-                _selectedSubjectIndex,
-                _getSubjectTabController,
-                _onSubjectSelected,
-                isOwnProfile,
-                _isEditingAboutMe,
-                _aboutMeController,
-                _profileDetailsKey,
-                (updatedProfile) {
-                  setState(() {
-                    _displayedProfile = updatedProfile;
-                  });
-                },
-              ),
-              // Add bottom padding for floating action button
-              SliverToBoxAdapter(
-                child: SizedBox(
-                  height: 80, // Space for floating action button
+                const SliverToBoxAdapter(
+                  child: Divider(indent: 4, endIndent: 1),
                 ),
-              ),
-            ],
+                ...AssistantProfileContent.getCategoryContentSlivers(
+                  context,
+                  _currentCategory,
+                  _displayedProfile!,
+                  subjects,
+                  _selectedSubjectIndex,
+                  _getSubjectTabController,
+                  _onSubjectSelected,
+                  isOwnProfile,
+                  _isEditingAboutMe,
+                  _aboutMeController,
+                  _profileDetailsKey,
+                  (updatedProfile) {
+                    setState(() {
+                      _displayedProfile = updatedProfile;
+                    });
+                  },
+                ),
+                // Add bottom padding for floating action button
+                SliverToBoxAdapter(
+                  child: SizedBox(
+                    height: 80, // Space for floating action button
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

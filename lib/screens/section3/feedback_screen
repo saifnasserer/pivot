@@ -27,10 +27,6 @@ class _FeedbackScreenState extends State<FeedbackScreen>
   bool _isSubmitting = false;
   bool _showSuggestionField = false;
 
-  // ValueNotifiers for validation state - prevents full rebuilds
-  final ValueNotifier<bool> _isFeedbackValid = ValueNotifier<bool>(false);
-  final ValueNotifier<bool> _isSuggestionValid = ValueNotifier<bool>(false);
-
   final List<Map<String, dynamic>> _categories = [
     {
       'name': 'فيدباك عام',
@@ -83,8 +79,6 @@ class _FeedbackScreenState extends State<FeedbackScreen>
     _animationController.dispose();
     _feedbackController.dispose();
     _suggestionController.dispose();
-    _isFeedbackValid.dispose();
-    _isSuggestionValid.dispose();
     super.dispose();
   }
 
@@ -114,31 +108,15 @@ class _FeedbackScreenState extends State<FeedbackScreen>
     return null;
   }
 
-  void _onFeedbackChanged(String value) {
-    final isValidNow = _validateFeedback(value) == null;
-    if (_isFeedbackValid.value != isValidNow) {
-      _isFeedbackValid.value = isValidNow;
-    }
-  }
-
-  void _onSuggestionChanged(String value) {
-    final isValidNow = _validateSuggestion(value) == null;
-    if (_isSuggestionValid.value != isValidNow) {
-      _isSuggestionValid.value = isValidNow;
-    }
-  }
-
-  void _onCategorySelected(String category) {
-    setState(() {
-      _selectedCategory = category;
-    });
-  }
-
   Widget _buildCategoryCard(Map<String, dynamic> category) {
     final isSelected = _selectedCategory == category['name'];
 
     return GestureDetector(
-      onTap: () => _onCategorySelected(category['name']),
+      onTap: () {
+        setState(() {
+          _selectedCategory = category['name'];
+        });
+      },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
@@ -187,79 +165,68 @@ class _FeedbackScreenState extends State<FeedbackScreen>
     required TextEditingController controller,
     required String hint,
     required String? Function(String?) validator,
-    required Function(String) onChanged,
-    required ValueNotifier<bool> isValidNotifier,
     int maxLines = 4,
     bool isOptional = false,
   }) {
-    return ValueListenableBuilder<bool>(
-      valueListenable: isValidNotifier,
-      builder: (context, isValid, child) {
-        return Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: isValid ? Colors.green : Colors.grey[200]!,
-              width: isValid ? 2 : 1,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.1),
-                spreadRadius: 1,
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
-            ],
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey[200]!),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
           ),
-          child: TextFormField(
-            controller: controller,
-            maxLines: maxLines,
-            validator: validator,
-            onChanged: onChanged,
-            decoration: InputDecoration(
-              hintText: hint,
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.all(
-                Responsive.space(context, size: Space.medium),
-              ),
-              hintStyle: TextStyle(
-                color: Colors.grey[500],
-                fontSize: Responsive.text(context, size: TextSize.medium),
-              ),
-              suffixIcon:
-                  isOptional
-                      ? Container(
-                        padding: EdgeInsets.all(
-                          Responsive.space(context, size: Space.small),
-                        ),
-                        margin: EdgeInsets.all(
-                          Responsive.space(context, size: Space.small),
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[100],
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          'اختياري',
-                          style: TextStyle(
-                            fontSize: Responsive.text(
-                              context,
-                              size: TextSize.small,
-                            ),
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      )
-                      : null,
-            ),
-            style: TextStyle(
-              fontSize: Responsive.text(context, size: TextSize.medium),
-              color: Colors.black87,
-            ),
+        ],
+      ),
+      child: TextFormField(
+        controller: controller,
+        maxLines: maxLines,
+        validator: validator,
+        decoration: InputDecoration(
+          hintText: hint,
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.all(
+            Responsive.space(context, size: Space.medium),
           ),
-        );
-      },
+          hintStyle: TextStyle(
+            color: Colors.grey[500],
+            fontSize: Responsive.text(context, size: TextSize.medium),
+          ),
+          suffixIcon:
+              isOptional
+                  ? Container(
+                    padding: EdgeInsets.all(
+                      Responsive.space(context, size: Space.small),
+                    ),
+                    margin: EdgeInsets.all(
+                      Responsive.space(context, size: Space.small),
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'اختياري',
+                      style: TextStyle(
+                        fontSize: Responsive.text(
+                          context,
+                          size: TextSize.small,
+                        ),
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  )
+                  : null,
+        ),
+        style: TextStyle(
+          fontSize: Responsive.text(context, size: TextSize.medium),
+          color: Colors.black87,
+        ),
+      ),
     );
   }
 
@@ -433,8 +400,6 @@ class _FeedbackScreenState extends State<FeedbackScreen>
                         controller: _feedbackController,
                         hint: 'اكتب رأيك هنا...',
                         validator: _validateFeedback,
-                        onChanged: _onFeedbackChanged,
-                        isValidNotifier: _isFeedbackValid,
                       ),
 
                       SizedBox(
@@ -451,7 +416,6 @@ class _FeedbackScreenState extends State<FeedbackScreen>
                                 _showSuggestionField = value;
                                 if (!value) {
                                   _suggestionController.clear();
-                                  _isSuggestionValid.value = false;
                                 }
                               });
                             },
@@ -497,8 +461,6 @@ class _FeedbackScreenState extends State<FeedbackScreen>
                           controller: _suggestionController,
                           hint: 'اكتب اقتراحك هنا...',
                           validator: _validateSuggestion,
-                          onChanged: _onSuggestionChanged,
-                          isValidNotifier: _isSuggestionValid,
                           isOptional: true,
                         ),
                       ],
@@ -507,97 +469,77 @@ class _FeedbackScreenState extends State<FeedbackScreen>
                         height: Responsive.space(context, size: Space.large),
                       ),
 
-                      // Submit Button - Uses ValueListenableBuilder to avoid rebuilds
-                      ValueListenableBuilder<bool>(
-                        valueListenable: _isFeedbackValid,
-                        builder: (context, isFeedbackValid, child) {
-                          return ValueListenableBuilder<bool>(
-                            valueListenable: _isSuggestionValid,
-                            builder: (context, isSuggestionValid, child) {
-                              final canSubmit =
-                                  isFeedbackValid &&
-                                  (!_showSuggestionField || isSuggestionValid);
-
-                              return Container(
-                                width: double.infinity,
-                                height: 56,
-                                child: ElevatedButton(
-                                  onPressed:
-                                      _isSubmitting || !canSubmit
-                                          ? null
-                                          : _submitFeedback,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor:
-                                        canSubmit ? Colors.black : Colors.grey,
-                                    foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                    elevation: 4,
-                                  ),
-                                  child:
-                                      _isSubmitting
-                                          ? Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            children: [
-                                              SizedBox(
-                                                width: 20,
-                                                height: 20,
-                                                child: CircularProgressIndicator(
-                                                  strokeWidth: 2,
-                                                  valueColor:
-                                                      AlwaysStoppedAnimation<
-                                                        Color
-                                                      >(Colors.white),
-                                                ),
+                      // Submit Button
+                      Container(
+                        width: double.infinity,
+                        height: 56,
+                        child: ElevatedButton(
+                          onPressed: _isSubmitting ? null : _submitFeedback,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.black,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            elevation: 4,
+                          ),
+                          child:
+                              _isSubmitting
+                                  ? Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                Colors.white,
                                               ),
-                                              SizedBox(
-                                                width: Responsive.space(
-                                                  context,
-                                                  size: Space.small,
-                                                ),
-                                              ),
-                                              Text(
-                                                'جاري الإرسال...',
-                                                style: TextStyle(
-                                                  fontSize: Responsive.text(
-                                                    context,
-                                                    size: TextSize.medium,
-                                                  ),
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ],
-                                          )
-                                          : Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            children: [
-                                              Icon(Icons.send, size: 20),
-                                              SizedBox(
-                                                width: Responsive.space(
-                                                  context,
-                                                  size: Space.small,
-                                                ),
-                                              ),
-                                              Text(
-                                                'إرسال الملاحظات',
-                                                style: TextStyle(
-                                                  fontSize: Responsive.text(
-                                                    context,
-                                                    size: TextSize.medium,
-                                                  ),
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ],
+                                        ),
+                                      ),
+                                      SizedBox(
+                                        width: Responsive.space(
+                                          context,
+                                          size: Space.small,
+                                        ),
+                                      ),
+                                      Text(
+                                        'جاري الإرسال...',
+                                        style: TextStyle(
+                                          fontSize: Responsive.text(
+                                            context,
+                                            size: TextSize.medium,
                                           ),
-                                ),
-                              );
-                            },
-                          );
-                        },
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                  : Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.send, size: 20),
+                                      SizedBox(
+                                        width: Responsive.space(
+                                          context,
+                                          size: Space.small,
+                                        ),
+                                      ),
+                                      Text(
+                                        'إرسال الملاحظات',
+                                        style: TextStyle(
+                                          fontSize: Responsive.text(
+                                            context,
+                                            size: TextSize.medium,
+                                          ),
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                        ),
                       ),
                     ],
                   ),

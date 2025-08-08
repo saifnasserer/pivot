@@ -5,9 +5,7 @@ import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/providers/subject_provider.dart';
 import 'package:pivot/responsive.dart';
-import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:pivot/screens/section3/subject_selection_screen.dart';
-import 'profile_provider.dart';
 
 class QuickActionsSection extends StatefulWidget {
   final UserProfile userProfile;
