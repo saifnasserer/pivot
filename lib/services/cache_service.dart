@@ -31,7 +31,23 @@ class CacheService {
       await Hive.initFlutter(); // Works for both web and mobile
       print('Hive initialized successfully');
 
-      // Register adapters
+      // Register adapters with error handling
+      await _registerAdapters();
+
+      // Open boxes with error handling
+      await _openBoxes();
+
+      print('All Hive boxes opened successfully');
+    } catch (e, stackTrace) {
+      print('Error initializing CacheService: $e');
+      print('Stack trace: $stackTrace');
+      // Don't rethrow - allow app to continue without cache
+      _initialized = false;
+    }
+  }
+
+  Future<void> _registerAdapters() async {
+    try {
       if (!Hive.isAdapterRegistered(SocialMediaLinkAdapter().typeId)) {
         Hive.registerAdapter(SocialMediaLinkAdapter());
         print('SocialMediaLinkAdapter registered');
@@ -66,8 +82,14 @@ class CacheService {
         Hive.registerAdapter(AnnouncementDataAdapter());
         print('AnnouncementDataAdapter registered');
       }
+    } catch (e) {
+      print('Error registering adapters: $e');
+      rethrow;
+    }
+  }
 
-      // Open boxes
+  Future<void> _openBoxes() async {
+    try {
       await Hive.openBox<UserProfile>(_usersBoxName);
       print('UserProfile box opened');
       await Hive.openBox<Section>(_sectionsBoxName);
@@ -78,10 +100,8 @@ class CacheService {
       print('ScheduleItem box opened');
       await Hive.openBox<AnnouncementData>(_announcementsBoxName);
       print('AnnouncementData box opened');
-      print('All Hive boxes opened successfully');
-    } catch (e, stackTrace) {
-      print('Error initializing CacheService: $e');
-      print('Stack trace: $stackTrace');
+    } catch (e) {
+      print('Error opening Hive boxes: $e');
       rethrow;
     }
   }

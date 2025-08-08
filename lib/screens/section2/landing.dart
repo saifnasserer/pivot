@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import 'package:pivot/screens/models/card_model.dart';
 import 'package:pivot/screens/models/search_card.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
+import 'package:pivot/services/category_service.dart';
 
 class Landing extends StatefulWidget {
   const Landing({super.key});
@@ -21,28 +22,36 @@ class Landing extends StatefulWidget {
 class LandingState extends State<Landing> with TickerProviderStateMixin {
   String? _userDepartment;
   int _currentCategoryIndex = 0;
+  List<String> _categories = []; // Add categories list to ensure consistency
+  bool _isInitialized =
+      false; // Add flag to prevent listener during initialization
 
   final TextEditingController _userSearchController = TextEditingController();
   final PageController _pageController = PageController();
   final PageController _categoryPageController = PageController();
-  late TabController _tabController; // Add TabController
+  late TabController _tabController;
+
   @override
   void initState() {
     super.initState();
 
-    // Initialize TabController
-    final categories = _getCategories(_userDepartment);
+    // Initialize categories first
+    _categories = CategoryService.getCategories(_userDepartment);
+
+    // Initialize TabController with categories
     _tabController = TabController(
-      length: categories.length,
+      length: _categories.length,
       vsync: this,
-      initialIndex: 0,
+      initialIndex: _categories.length - 1, // Start from rightmost tab
     );
 
     // Listen to tab changes and sync with PageController
     _tabController.addListener(() {
-      if (_tabController.indexIsChanging) {
+      if (_tabController.indexIsChanging && _isInitialized) {
         final newIndex = _tabController.index;
+        print('🔍 [Landing] TabController changed to index: $newIndex');
         if (newIndex != _currentCategoryIndex) {
+          print('🔍 [Landing] Syncing PageView to index: $newIndex');
           _categoryPageController.animateToPage(
             newIndex,
             duration: const Duration(milliseconds: 300),
@@ -62,32 +71,70 @@ class LandingState extends State<Landing> with TickerProviderStateMixin {
       );
       _userDepartment = userProfileProvider.loggedInUserProfile?.department;
 
-      // Normalize department for initial fetch
-      String? normalizedDepartment;
-      if (_userDepartment != null &&
-          _userDepartment!.startsWith('اخبار قسم ')) {
-        normalizedDepartment = _userDepartment!.replaceFirst('اخبار قسم ', '');
-      } else {
-        normalizedDepartment = _userDepartment;
-      }
+      // Update categories with actual user department
+      _categories = CategoryService.getCategories(_userDepartment);
 
-      final announcementProvider = Provider.of<AnnouncementProvider>(
-        context,
-        listen: false,
+      // Use CategoryService for initial fetch
+      final normalizedDepartment = CategoryService.normalizeDepartment(
+        _userDepartment,
       );
 
-      // Use normalizedDepartment for initial fetch
-      String? departmentCode;
-      if (normalizedDepartment != null) {
-        departmentCode = 'today_mixed:اخبار قسم $normalizedDepartment';
-      } else {
-        departmentCode = 'عام';
-      }
-
-      announcementProvider.fetchAnnouncements(
-        timeFilter: 'today',
-        department: departmentCode,
+      print(
+        '🔍 [Landing] Initial setup - normalizedDepartment: $normalizedDepartment',
       );
+      print('🔍 [Landing] Initial categories: $_categories');
+
+      if (_categories.isNotEmpty) {
+        final lastCategory =
+            _categories[_categories.length -
+                1]; // Use last category (rightmost)
+        print(
+          '🔍 [Landing] Initial category: $lastCategory (index: ${_categories.length - 1})',
+        );
+
+        // Set initial state properly
+        setState(() {
+          _currentCategoryIndex = _categories.length - 1;
+        });
+
+        // Ensure PageView is at the correct initial position
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_categoryPageController.hasClients) {
+            _categoryPageController.jumpToPage(_categories.length - 1);
+            print(
+              '🔍 [Landing] Set PageView to initial index: ${_categories.length - 1}',
+            );
+          }
+
+          // Ensure TabController is at the correct initial position
+          if (_tabController.index != _categories.length - 1) {
+            _tabController.index = _categories.length - 1;
+            print(
+              '🔍 [Landing] Set TabController to initial index: ${_categories.length - 1}',
+            );
+          }
+
+          // Mark as initialized after setup is complete
+          _isInitialized = true;
+          print('🔍 [Landing] Initialization complete, listener enabled');
+        });
+
+        final departmentCode = CategoryService.getDepartmentCode(
+          lastCategory,
+          _userDepartment,
+        );
+        final timeFilter = CategoryService.getTimeFilter(lastCategory);
+
+        final announcementProvider = Provider.of<AnnouncementProvider>(
+          context,
+          listen: false,
+        );
+
+        announcementProvider.fetchAnnouncements(
+          timeFilter: timeFilter,
+          department: departmentCode,
+        );
+      }
     });
   }
 
@@ -100,80 +147,22 @@ class LandingState extends State<Landing> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  List<String> _getCategories(String? userDepartment) {
-    final baseCategories = [
-      'اخبار النهاردة',
-      'عام',
-      'SC',
-      'AI',
-      'CS',
-      'IS',
-      'General',
-    ];
-
-    // If no user department, return default order
-    if (userDepartment == null) {
-      return baseCategories; // Don't reverse - keep natural order for RTL
-    }
-
-    // Create ordered list: Today's News - General - User's Department - Other Departments
-    final orderedCategories = <String>[];
-
-    // 1. Today's News (always first)
-    orderedCategories.add('اخبار النهاردة');
-
-    // 2. General (always second)
-    orderedCategories.add('عام');
-
-    // 3. User's Department (if it exists in the list)
-    if (baseCategories.contains(userDepartment)) {
-      orderedCategories.add(userDepartment);
-    }
-
-    // 4. Other departments (excluding the ones already added)
-    for (final category in baseCategories) {
-      if (!orderedCategories.contains(category)) {
-        orderedCategories.add(category);
-      }
-    }
-
-    return orderedCategories; // Don't reverse - keep natural order for RTL
-  }
-
   void _handleCategoryChange(String category) {
+    print('🔍 [Landing] Handling category change: $category');
     final announcementProvider = Provider.of<AnnouncementProvider>(
       context,
       listen: false,
     );
 
-    String? departmentCode;
-    String? timeFilter;
+    final departmentCode = CategoryService.getDepartmentCode(
+      category,
+      _userDepartment,
+    );
+    final timeFilter = CategoryService.getTimeFilter(category);
 
-    if (category == 'SC' ||
-        category == 'AI' ||
-        category == 'CS' ||
-        category == 'IS' ||
-        category == 'General') {
-      departmentCode = 'اخبار قسم $category';
-    } else if (category == 'اخبار النهاردة') {
-      // Handle today's news with mixed department content
-      String? normalizedDepartment;
-      if (_userDepartment != null &&
-          _userDepartment!.startsWith('اخبار قسم ')) {
-        normalizedDepartment = _userDepartment!.replaceFirst('اخبار قسم ', '');
-      } else {
-        normalizedDepartment = _userDepartment;
-      }
-
-      if (normalizedDepartment != null) {
-        departmentCode = 'today_mixed:اخبار قسم $normalizedDepartment';
-      } else {
-        departmentCode = 'عام';
-      }
-      timeFilter = 'today';
-    } else if (category == 'عام') {
-      departmentCode = 'عام';
-    }
+    print(
+      '🔍 [Landing] Fetching with department: $departmentCode, timeFilter: $timeFilter',
+    );
 
     // Fetch announcements with the determined parameters
     announcementProvider.fetchAnnouncements(
@@ -258,6 +247,7 @@ class LandingState extends State<Landing> with TickerProviderStateMixin {
               LandingCategories(
                 userDepartment: normalizedDepartment,
                 tabController: _tabController,
+                categories: _categories, // Pass categories for consistency
                 onCategoryChanged: (category) {
                   // Category change is now handled by TabController listener
                   // This callback can be used for additional UI updates if needed
@@ -269,21 +259,28 @@ class LandingState extends State<Landing> with TickerProviderStateMixin {
                   controller: _categoryPageController,
                   scrollDirection: Axis.horizontal,
                   onPageChanged: (index) {
+                    print('🔍 [Landing] PageView changed to index: $index');
                     setState(() {
                       _currentCategoryIndex = index;
                     });
                     // Sync with TabController
                     if (_tabController.index != index) {
+                      print(
+                        '🔍 [Landing] Syncing TabController to index: $index',
+                      );
                       _tabController.animateTo(index);
                     }
                     // Trigger category change when swiping
-                    final categories = _getCategories(normalizedDepartment);
-                    if (index < categories.length) {
-                      _handleCategoryChange(categories[index]);
+                    if (index < _categories.length) {
+                      final category = _categories[index];
+                      print(
+                        '🔍 [Landing] Category changed to: $category (index: $index)',
+                      );
+                      _handleCategoryChange(category);
                     }
                   },
                   children:
-                      _getCategories(normalizedDepartment).map((category) {
+                      _categories.map((category) {
                         return _buildCategoryContent(category);
                       }).toList(),
                 ),

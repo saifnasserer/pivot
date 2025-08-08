@@ -54,6 +54,7 @@ class _CardModelState extends State<CardModel> {
   bool _isLinksExpanded = false;
   bool _isImagesExpanded = false;
   final PageController _cardPageController = PageController();
+  bool _isCalculatingPages = false; // Add flag to prevent multiple calculations
 
   @override
   void initState() {
@@ -75,9 +76,21 @@ class _CardModelState extends State<CardModel> {
   }
 
   void _generateContentPages(double availableHeight) {
+    if (_isCalculatingPages || _availableHeight == availableHeight) {
+      return; // Prevent multiple calculations
+    }
+
+    _isCalculatingPages = true;
     _contentPages.clear();
     _availableHeight = availableHeight;
 
+    // Move heavy calculations to background
+    Future.microtask(() {
+      _calculatePagesInBackground(availableHeight);
+    });
+  }
+
+  void _calculatePagesInBackground(double availableHeight) {
     debugPrint('CardModel: Available height for content: $availableHeight');
 
     // Calculate fixed elements heights (title is in main layout, date is in content)
@@ -131,16 +144,21 @@ class _CardModelState extends State<CardModel> {
     );
 
     // Create final pages with ONLY variable content (no title/date)
-    _contentPages =
+    final newContentPages =
         variableContentPages.map((variableContentPage) {
           return _buildFullPage(variableContentPage);
         }).toList();
 
     debugPrint(
-      'CardModel: Generated ${_contentPages.length} pages for card ${widget.id}',
+      'CardModel: Generated ${newContentPages.length} pages for card ${widget.id}',
     );
+
+    // Update UI on main thread
     if (mounted) {
-      setState(() {});
+      setState(() {
+        _contentPages = newContentPages;
+        _isCalculatingPages = false;
+      });
     }
   }
 

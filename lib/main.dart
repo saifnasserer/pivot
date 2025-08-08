@@ -140,21 +140,38 @@ void _initializeAppBackgroundServices(UserProfileProvider userProfileProvider) {
   if (kIsWeb) {
     _setupFirebaseMessagingWeb().catchError((_) {});
   }
-  RemoteConfigService.instance.initialize().catchError((_) {});
+
+  // Add error handling for Google Play Services
+  try {
+    RemoteConfigService.instance.initialize().catchError((error) {
+      debugPrint('RemoteConfigService initialization failed: $error');
+    });
+  } catch (e) {
+    debugPrint('Error initializing RemoteConfigService: $e');
+  }
+
   if (FirebaseAuth.instance.currentUser != null) {
     userProfileProvider
         .loadLoggedInUserProfile()
         .timeout(const Duration(seconds: 10))
-        .catchError((_) {});
+        .catchError((error) {
+          debugPrint('Error loading user profile: $error');
+        });
   }
-  final notificationTrigger = NotificationTriggerService();
-  notificationTrigger.startBatchProcessing();
-  Timer.periodic(const Duration(minutes: 15), (_) {
-    notificationTrigger.checkAndSendPeriodicNotifications();
-  });
-  Timer.periodic(const Duration(days: 1), (_) {
-    notificationTrigger.cleanupOldNotifications();
-  });
+
+  try {
+    final notificationTrigger = NotificationTriggerService();
+    notificationTrigger.startBatchProcessing();
+    Timer.periodic(const Duration(minutes: 15), (_) {
+      notificationTrigger.checkAndSendPeriodicNotifications();
+    });
+    Timer.periodic(const Duration(days: 1), (_) {
+      notificationTrigger.cleanupOldNotifications();
+    });
+  } catch (e) {
+    debugPrint('Error initializing notification services: $e');
+  }
+
   if (kIsWeb) {
     FirebaseAuth.instance.setPersistence(Persistence.LOCAL).catchError((_) {});
   }
