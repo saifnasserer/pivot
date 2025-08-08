@@ -27,7 +27,8 @@ class AddAnnouncementMain extends StatefulWidget {
 class _AddAnnouncementMainState extends State<AddAnnouncementMain>
     with TickerProviderStateMixin {
   int _currentStep = 0;
-  final int _totalSteps = 3;
+  final int _totalSteps =
+      3; // Basic Info, Attachments (Images & Links), Styling
 
   // Animation controllers
   late AnimationController _pageController;
@@ -118,7 +119,7 @@ class _AddAnnouncementMainState extends State<AddAnnouncementMain>
             _description.trim().isNotEmpty &&
             _title.length <= 50;
       case 1: // Attachments
-        return true; // Optional step
+        return true; // Optional step - images and links only
       case 2: // Styling
         return _selectedTags.isNotEmpty && _selectedLevel != null;
       default:
@@ -434,7 +435,7 @@ class _AddAnnouncementMainState extends State<AddAnnouncementMain>
                         ),
                       ),
                       child: Icon(
-                        Icons.arrow_forward,
+                        Icons.arrow_back,
                         color: Colors.white,
                         size: Responsive.space(context, size: Space.medium),
                       ),
@@ -487,7 +488,7 @@ class _AddAnnouncementMainState extends State<AddAnnouncementMain>
                           ),
                         ),
                         child: Icon(
-                          Icons.arrow_back,
+                          Icons.arrow_forward,
                           color: Colors.blue,
                           size: Responsive.space(context, size: Space.medium),
                         ),

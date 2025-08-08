@@ -3,7 +3,8 @@ import 'package:pivot/responsive.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:pivot/services/permission_service.dart';
 import 'package:pivot/screens/section2/adminstration/announcement/add_announcement_controller.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:pivot/models/material_link.dart';
+import 'package:pivot/screens/section2/adminstration/announcement/steps/material_browser_bottom_sheet.dart';
 import 'dart:io';
 
 class AttachmentsStep extends StatelessWidget {
@@ -41,79 +42,96 @@ class AttachmentsStep extends StatelessWidget {
     }
   }
 
-  Future<void> _pickPdfFile(BuildContext context) async {
-    try {
-      FilePickerResult? result = await AddAnnouncementController.pickPdfFile();
+  Future<void> _showAddLinkDialog(BuildContext context) async {
+    final TextEditingController titleController = TextEditingController();
+    final TextEditingController urlController = TextEditingController();
+    final TextEditingController descriptionController = TextEditingController();
 
-      if (result != null && result.files.single.path != null) {
-        // Show loading dialog
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder:
-              (context) => AlertDialog(
-                content: Row(
-                  children: [
-                    const CircularProgressIndicator(),
-                    SizedBox(
-                      width: Responsive.space(context, size: Space.medium),
-                    ),
-                    const Text('جاري رفع الملف...'),
-                  ],
+    final result = await showDialog<Map<String, String>>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Text('إضافة رابط جديد'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: titleController,
+                  decoration: InputDecoration(
+                    labelText: 'عنوان الرابط',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
+                SizedBox(height: 16),
+                TextField(
+                  controller: urlController,
+                  decoration: InputDecoration(
+                    labelText: 'الرابط',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                SizedBox(height: 16),
+                TextField(
+                  controller: descriptionController,
+                  decoration: InputDecoration(
+                    labelText: 'الوصف (اختياري)',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 2,
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text('إلغاء'),
               ),
-        );
-
-        final file = File(result.files.single.path!);
-        final fileName = result.files.single.name;
-
-        final downloadUrl = await AddAnnouncementController.uploadPdfFile(
-          file,
-          fileName,
-        );
-
-        Navigator.of(context).pop(); // Close loading dialog
-
-        // Get custom title for the file
-        String? linkTitle = await AddAnnouncementController.showFileTitleDialog(
-          context,
-          fileName,
-        );
-
-        final newLinks = List<Map<String, String>>.from(links);
-        if (!newLinks.any((l) => l['url'] == downloadUrl)) {
-          newLinks.add({'title': linkTitle ?? fileName, 'url': downloadUrl!});
-        }
-        onLinksChanged(newLinks);
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('تم رفع الملف بنجاح'),
-            backgroundColor: Colors.green,
+              ElevatedButton(
+                onPressed: () {
+                  if (titleController.text.isNotEmpty &&
+                      urlController.text.isNotEmpty) {
+                    Navigator.of(context).pop({
+                      'title': titleController.text,
+                      'url': urlController.text,
+                      'description': descriptionController.text,
+                      'type': 'link',
+                    });
+                  }
+                },
+                child: Text('إضافة'),
+              ),
+            ],
           ),
-        );
+    );
+
+    if (result != null) {
+      final newLinks = List<Map<String, String>>.from(links);
+      if (!newLinks.any((l) => l['url'] == result['url'])) {
+        newLinks.add(result);
       }
-    } catch (e) {
-      if (Navigator.canPop(context)) {
-        Navigator.of(context).pop(); // Close loading dialog
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('فشل في رفع الملف: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      onLinksChanged(newLinks);
     }
   }
 
-  void _showAddLinkDialog(BuildContext context) {
-    AddAnnouncementController.showAddLinkDialog(context, (newLink) {
+  Future<void> _showMaterialBrowser(BuildContext context) async {
+    final MaterialLink? materialLink = await showModalBottomSheet<MaterialLink>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => const MaterialBrowserBottomSheet(),
+    );
+
+    if (materialLink != null) {
       final newLinks = List<Map<String, String>>.from(links);
-      if (!newLinks.any((l) => l['url'] == newLink['url'])) {
-        newLinks.add(newLink);
+      if (!newLinks.any((l) => l['url'] == materialLink.url)) {
+        newLinks.add({
+          'title': materialLink.title,
+          'url': materialLink.url,
+          'description': materialLink.description ?? '',
+          'type': materialLink.type.name,
+        });
       }
       onLinksChanged(newLinks);
-    });
+    }
   }
 
   Widget _buildAttachmentButton(
@@ -154,6 +172,38 @@ class AttachmentsStep extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  IconData _getMaterialTypeIcon(String type) {
+    switch (type) {
+      case 'video':
+        return Icons.play_circle_outline;
+      case 'pdf':
+        return Icons.picture_as_pdf;
+      case 'document':
+        return Icons.description;
+      case 'image':
+        return Icons.image;
+      case 'link':
+      default:
+        return Icons.link;
+    }
+  }
+
+  Color _getMaterialTypeColor(String type) {
+    switch (type) {
+      case 'video':
+        return Colors.red;
+      case 'pdf':
+        return Colors.orange;
+      case 'document':
+        return Colors.blue;
+      case 'image':
+        return Colors.green;
+      case 'link':
+      default:
+        return Colors.grey;
+    }
   }
 
   @override
@@ -203,7 +253,7 @@ class AttachmentsStep extends StatelessWidget {
                                     textAlign: TextAlign.right,
                                   ),
                                   Text(
-                                    'أضف الصور والملفات والروابط (اختياري)',
+                                    'أضف الصور والروابط واختر من المواد الموجودة (اختياري)',
                                     style: TextStyle(
                                       fontSize: Responsive.text(
                                         context,
@@ -240,26 +290,46 @@ class AttachmentsStep extends StatelessWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          _buildAttachmentButton(
-                            context,
-                            icon: Icons.image,
-                            label: 'صورة',
-                            color: Colors.green,
-                            onTap: () => _pickImages(context),
+                          Expanded(
+                            child: _buildAttachmentButton(
+                              context,
+                              icon: Icons.image,
+                              label: 'صورة',
+                              color: Colors.green,
+                              onTap: () => _pickImages(context),
+                            ),
                           ),
-                          _buildAttachmentButton(
-                            context,
-                            icon: Icons.picture_as_pdf,
-                            label: 'ملف PDF',
-                            color: Colors.orange,
-                            onTap: () => _pickPdfFile(context),
+                          SizedBox(
+                            width: Responsive.space(
+                              context,
+                              size: Space.medium,
+                            ),
                           ),
-                          _buildAttachmentButton(
-                            context,
-                            icon: Icons.add_link,
-                            label: 'رابط',
-                            color: Colors.blue,
-                            onTap: () => _showAddLinkDialog(context),
+                          Expanded(
+                            child: _buildAttachmentButton(
+                              context,
+                              icon: Icons.add_link,
+                              label: 'رابط',
+                              color: Colors.orange,
+                              onTap: () => _showAddLinkDialog(context),
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.medium),
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          Expanded(
+                            child: _buildAttachmentButton(
+                              context,
+                              icon: Icons.search,
+                              label: 'اختيار من المواد',
+                              color: Colors.blue,
+                              onTap: () => _showMaterialBrowser(context),
+                            ),
                           ),
                         ],
                       ),
@@ -403,52 +473,51 @@ class AttachmentsStep extends StatelessWidget {
                                 ...links.asMap().entries.map((entry) {
                                   final idx = entry.key;
                                   final link = entry.value;
-                                  return ListTile(
-                                    leading: Icon(
-                                      Icons.link,
-                                      color: Colors.blue,
-                                    ),
-                                    title: Text(link['title'] ?? ''),
-                                    subtitle: Text(link['url'] ?? ''),
-                                    trailing: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        IconButton(
-                                          icon: Icon(
-                                            Icons.edit,
-                                            color: Colors.blue,
-                                          ),
-                                          onPressed: () async {
-                                            final result =
-                                                await AddAnnouncementController.showEditLinkDialog(
+                                  final materialType = link['type'] ?? 'link';
+                                  final description = link['description'] ?? '';
+
+                                  return Directionality(
+                                    textDirection: TextDirection.rtl,
+                                    child: ListTile(
+                                      leading: Icon(
+                                        _getMaterialTypeIcon(materialType),
+                                        color: _getMaterialTypeColor(
+                                          materialType,
+                                        ),
+                                      ),
+                                      title: Text(link['title'] ?? ''),
+                                      subtitle: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(link['url'] ?? ''),
+                                          if (description.isNotEmpty)
+                                            Text(
+                                              description,
+                                              style: TextStyle(
+                                                fontSize: Responsive.text(
                                                   context,
-                                                  link['title'] ?? '',
-                                                  link['url'] ?? '',
-                                                );
-                                            if (result != null) {
-                                              final newLinks = List<
-                                                Map<String, String>
-                                              >.from(links);
-                                              newLinks[idx] = result;
-                                              onLinksChanged(newLinks);
-                                            }
-                                          },
+                                                  size: TextSize.small,
+                                                ),
+                                                color: Colors.grey[600],
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                      trailing: IconButton(
+                                        icon: Icon(
+                                          Icons.delete,
+                                          color: Colors.red,
                                         ),
-                                        IconButton(
-                                          icon: Icon(
-                                            Icons.delete,
-                                            color: Colors.red,
-                                          ),
-                                          onPressed: () {
-                                            final newLinks =
-                                                List<Map<String, String>>.from(
-                                                  links,
-                                                );
-                                            newLinks.removeAt(idx);
-                                            onLinksChanged(newLinks);
-                                          },
-                                        ),
-                                      ],
+                                        onPressed: () {
+                                          final newLinks =
+                                              List<Map<String, String>>.from(
+                                                links,
+                                              );
+                                          newLinks.removeAt(idx);
+                                          onLinksChanged(newLinks);
+                                        },
+                                      ),
                                     ),
                                   );
                                 }),
