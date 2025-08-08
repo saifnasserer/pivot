@@ -2,9 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:pivot/responsive.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:pivot/widgets/no_internet_message.dart';
+import 'package:pivot/services/permission_service.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'dart:io';
+import 'dart:typed_data';
 
 class FeedbackScreen extends StatefulWidget {
   const FeedbackScreen({super.key});
@@ -17,7 +24,7 @@ class _FeedbackScreenState extends State<FeedbackScreen>
     with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _feedbackController = TextEditingController();
-  final _suggestionController = TextEditingController();
+  final ImagePicker _imagePicker = ImagePicker();
 
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -25,11 +32,12 @@ class _FeedbackScreenState extends State<FeedbackScreen>
 
   String _selectedCategory = 'فيدباك عام';
   bool _isSubmitting = false;
-  bool _showSuggestionField = false;
+  File? _selectedImage;
+  String? _uploadedImageUrl;
+  bool _isUploadingImage = false;
 
   // ValueNotifiers for validation state - prevents full rebuilds
   final ValueNotifier<bool> _isFeedbackValid = ValueNotifier<bool>(false);
-  final ValueNotifier<bool> _isSuggestionValid = ValueNotifier<bool>(false);
 
   final List<Map<String, dynamic>> _categories = [
     {
@@ -41,11 +49,6 @@ class _FeedbackScreenState extends State<FeedbackScreen>
       'name': 'مشكلة تقنية',
       'icon': Icons.bug_report_outlined,
       'color': Colors.red,
-    },
-    {
-      'name': 'اقتراح تحسين',
-      'icon': Icons.lightbulb_outline,
-      'color': Colors.orange,
     },
     {
       'name': 'شكوى',
@@ -82,9 +85,8 @@ class _FeedbackScreenState extends State<FeedbackScreen>
   void dispose() {
     _animationController.dispose();
     _feedbackController.dispose();
-    _suggestionController.dispose();
     _isFeedbackValid.dispose();
-    _isSuggestionValid.dispose();
+    _selectedImage?.delete();
     super.dispose();
   }
 
@@ -101,30 +103,10 @@ class _FeedbackScreenState extends State<FeedbackScreen>
     return null;
   }
 
-  String? _validateSuggestion(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return null; // Optional field
-    }
-    if (value.trim().length < 5) {
-      return 'يجب أن يكون الاقتراح أكثر من 5 أحرف';
-    }
-    if (value.trim().length > 500) {
-      return 'يجب أن يكون الاقتراح أقل من 500 حرف';
-    }
-    return null;
-  }
-
   void _onFeedbackChanged(String value) {
     final isValidNow = _validateFeedback(value) == null;
     if (_isFeedbackValid.value != isValidNow) {
       _isFeedbackValid.value = isValidNow;
-    }
-  }
-
-  void _onSuggestionChanged(String value) {
-    final isValidNow = _validateSuggestion(value) == null;
-    if (_isSuggestionValid.value != isValidNow) {
-      _isSuggestionValid.value = isValidNow;
     }
   }
 
@@ -265,24 +247,24 @@ class _FeedbackScreenState extends State<FeedbackScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: NoInternetMessage(
-        child: Scaffold(
-          backgroundColor: Colors.grey[50],
-          appBar: AppBar(
-            title: Text(
-              'إرسال ملاحظات',
-              style: TextStyle(
-                fontSize: Responsive.text(context, size: TextSize.heading),
-                fontWeight: FontWeight.bold,
-              ),
+    return NoInternetMessage(
+      child: Scaffold(
+        backgroundColor: Colors.grey[50],
+        appBar: AppBar(
+          title: Text(
+            'إرسال ملاحظات',
+            style: TextStyle(
+              fontSize: Responsive.text(context, size: TextSize.heading),
+              fontWeight: FontWeight.bold,
             ),
-            backgroundColor: Colors.white,
-            elevation: 0,
-            iconTheme: const IconThemeData(color: Colors.black),
           ),
-          body: FadeTransition(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          iconTheme: const IconThemeData(color: Colors.black),
+        ),
+        body: Directionality(
+          textDirection: TextDirection.rtl,
+          child: FadeTransition(
             opacity: _fadeAnimation,
             child: SlideTransition(
               position: _slideAnimation,
@@ -441,45 +423,101 @@ class _FeedbackScreenState extends State<FeedbackScreen>
                         height: Responsive.space(context, size: Space.large),
                       ),
 
-                      // Suggestion Toggle
-                      Row(
-                        children: [
-                          Switch(
-                            value: _showSuggestionField,
-                            onChanged: (value) {
-                              setState(() {
-                                _showSuggestionField = value;
-                                if (!value) {
-                                  _suggestionController.clear();
-                                  _isSuggestionValid.value = false;
-                                }
-                              });
-                            },
-                            activeColor: Colors.blue,
+                      // Image Upload Section
+                      Text(
+                        'إرفاق صورة (اختياري)',
+                        style: TextStyle(
+                          fontSize: Responsive.text(
+                            context,
+                            size: TextSize.medium,
                           ),
-                          SizedBox(
-                            width: Responsive.space(context, size: Space.small),
-                          ),
-                          Text(
-                            'إضافة اقتراح تحسين',
-                            style: TextStyle(
-                              fontSize: Responsive.text(
-                                context,
-                                size: TextSize.medium,
-                              ),
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black87,
-                            ),
-                          ),
-                        ],
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.small),
                       ),
 
-                      if (_showSuggestionField) ...[
+                      // Image Upload Button
+                      if (_selectedImage == null) ...[
+                        Container(
+                          width: double.infinity,
+                          height: 120,
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: Colors.grey[300]!,
+                              width: 2,
+                              style: BorderStyle.solid,
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                            color: Colors.grey[50],
+                          ),
+                          child: InkWell(
+                            onTap: _isUploadingImage ? null : _pickImage,
+                            borderRadius: BorderRadius.circular(16),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                if (_isUploadingImage)
+                                  Column(
+                                    children: [
+                                      const CircularProgressIndicator(),
+                                      SizedBox(
+                                        height: Responsive.space(
+                                          context,
+                                          size: Space.small,
+                                        ),
+                                      ),
+                                      Text(
+                                        'جاري رفع الصورة...',
+                                        style: TextStyle(
+                                          fontSize: Responsive.text(
+                                            context,
+                                            size: TextSize.small,
+                                          ),
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                else ...[
+                                  Icon(
+                                    Icons.add_photo_alternate_outlined,
+                                    size: 48,
+                                    color: Colors.grey[600],
+                                  ),
+                                  SizedBox(
+                                    height: Responsive.space(
+                                      context,
+                                      size: Space.small,
+                                    ),
+                                  ),
+                                  Text(
+                                    'اضغط لإضافة صورة',
+                                    style: TextStyle(
+                                      fontSize: Responsive.text(
+                                        context,
+                                        size: TextSize.medium,
+                                      ),
+                                      color: Colors.grey[600],
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+
+                      // Display Uploaded Image
+                      if (_selectedImage != null) ...[
                         SizedBox(
                           height: Responsive.space(context, size: Space.medium),
                         ),
                         Text(
-                          'اقتراحك',
+                          'الصورة المرفوعة',
                           style: TextStyle(
                             fontSize: Responsive.text(
                               context,
@@ -492,14 +530,39 @@ class _FeedbackScreenState extends State<FeedbackScreen>
                         SizedBox(
                           height: Responsive.space(context, size: Space.small),
                         ),
-
-                        _buildEnhancedTextField(
-                          controller: _suggestionController,
-                          hint: 'اكتب اقتراحك هنا...',
-                          validator: _validateSuggestion,
-                          onChanged: _onSuggestionChanged,
-                          isValidNotifier: _isSuggestionValid,
-                          isOptional: true,
+                        Container(
+                          width: 200,
+                          height: 200,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey[300]!),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.file(
+                              _selectedImage!,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                        SizedBox(
+                          height: Responsive.space(context, size: Space.small),
+                        ),
+                        ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              _selectedImage = null;
+                              _uploadedImageUrl = null;
+                            });
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: Text('حذف الصورة'),
                         ),
                       ],
 
@@ -511,91 +574,84 @@ class _FeedbackScreenState extends State<FeedbackScreen>
                       ValueListenableBuilder<bool>(
                         valueListenable: _isFeedbackValid,
                         builder: (context, isFeedbackValid, child) {
-                          return ValueListenableBuilder<bool>(
-                            valueListenable: _isSuggestionValid,
-                            builder: (context, isSuggestionValid, child) {
-                              final canSubmit =
-                                  isFeedbackValid &&
-                                  (!_showSuggestionField || isSuggestionValid);
-
-                              return Container(
-                                width: double.infinity,
-                                height: 56,
-                                child: ElevatedButton(
-                                  onPressed:
-                                      _isSubmitting || !canSubmit
-                                          ? null
-                                          : _submitFeedback,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor:
-                                        canSubmit ? Colors.black : Colors.grey,
-                                    foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                    elevation: 4,
-                                  ),
-                                  child:
-                                      _isSubmitting
-                                          ? Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            children: [
-                                              SizedBox(
-                                                width: 20,
-                                                height: 20,
-                                                child: CircularProgressIndicator(
-                                                  strokeWidth: 2,
-                                                  valueColor:
-                                                      AlwaysStoppedAnimation<
-                                                        Color
-                                                      >(Colors.white),
-                                                ),
-                                              ),
-                                              SizedBox(
-                                                width: Responsive.space(
-                                                  context,
-                                                  size: Space.small,
-                                                ),
-                                              ),
-                                              Text(
-                                                'جاري الإرسال...',
-                                                style: TextStyle(
-                                                  fontSize: Responsive.text(
-                                                    context,
-                                                    size: TextSize.medium,
-                                                  ),
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ],
-                                          )
-                                          : Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            children: [
-                                              Icon(Icons.send, size: 20),
-                                              SizedBox(
-                                                width: Responsive.space(
-                                                  context,
-                                                  size: Space.small,
-                                                ),
-                                              ),
-                                              Text(
-                                                'إرسال الملاحظات',
-                                                style: TextStyle(
-                                                  fontSize: Responsive.text(
-                                                    context,
-                                                    size: TextSize.medium,
-                                                  ),
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
+                          return Container(
+                            width: double.infinity,
+                            height: 56,
+                            child: ElevatedButton(
+                              onPressed:
+                                  _isSubmitting || !isFeedbackValid
+                                      ? null
+                                      : _submitFeedback,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor:
+                                    isFeedbackValid
+                                        ? Colors.black
+                                        : Colors.grey,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
                                 ),
-                              );
-                            },
+                                elevation: 4,
+                              ),
+                              child:
+                                  _isSubmitting
+                                      ? Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              valueColor:
+                                                  AlwaysStoppedAnimation<Color>(
+                                                    Colors.white,
+                                                  ),
+                                            ),
+                                          ),
+                                          SizedBox(
+                                            width: Responsive.space(
+                                              context,
+                                              size: Space.small,
+                                            ),
+                                          ),
+                                          Text(
+                                            'جاري الإرسال...',
+                                            style: TextStyle(
+                                              fontSize: Responsive.text(
+                                                context,
+                                                size: TextSize.medium,
+                                              ),
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      )
+                                      : Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.send, size: 20),
+                                          SizedBox(
+                                            width: Responsive.space(
+                                              context,
+                                              size: Space.small,
+                                            ),
+                                          ),
+                                          Text(
+                                            'إرسال الملاحظات',
+                                            style: TextStyle(
+                                              fontSize: Responsive.text(
+                                                context,
+                                                size: TextSize.medium,
+                                              ),
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                            ),
                           );
                         },
                       ),
@@ -641,7 +697,7 @@ class _FeedbackScreenState extends State<FeedbackScreen>
         'userEmail': userProfile.email,
         'category': _selectedCategory,
         'feedback': _feedbackController.text.trim(),
-        'suggestion': _suggestionController.text.trim(),
+        'imageUrl': _uploadedImageUrl,
         'timestamp': FieldValue.serverTimestamp(),
         'status': 'pending',
       };
@@ -690,6 +746,111 @@ class _FeedbackScreenState extends State<FeedbackScreen>
         setState(() {
           _isSubmitting = false;
         });
+      }
+    }
+  }
+
+  Future<void> _pickImage() async {
+    // Check if user is authenticated
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('يجب تسجيل الدخول أولاً لرفع الصور'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
+    // Check permissions first
+    final hasPermission =
+        await PermissionService.requestPhotosPermissionWithRationale(context);
+    if (!hasPermission) return;
+
+    final pickedFile = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      imageQuality: 80,
+    );
+
+    if (pickedFile != null) {
+      setState(() {
+        _isUploadingImage = true;
+      });
+
+      try {
+        // Compress the image
+        final compressedBytes = await FlutterImageCompress.compressWithFile(
+          pickedFile.path,
+          minWidth: 1024,
+          minHeight: 1024,
+          quality: 80,
+        );
+
+        if (compressedBytes != null) {
+          final fileName =
+              'feedback_${DateTime.now().millisecondsSinceEpoch}.jpg';
+          final ref = FirebaseStorage.instance.ref().child(
+            'feedback/$fileName',
+          );
+
+          final uploadTask = ref.putData(compressedBytes);
+          final snapshot = await uploadTask;
+
+          if (snapshot.state == TaskState.success) {
+            final downloadUrl = await snapshot.ref.getDownloadURL();
+            setState(() {
+              _selectedImage = File(pickedFile.path);
+              _uploadedImageUrl = downloadUrl;
+              _isUploadingImage = false;
+            });
+          } else {
+            throw Exception('Upload failed');
+          }
+        } else {
+          throw Exception('Image compression failed');
+        }
+      } catch (e) {
+        setState(() {
+          _isUploadingImage = false;
+        });
+        if (mounted) {
+          String errorMessage =
+              'حدث خطأ أثناء رفع الصورة. يرجى المحاولة مرة أخرى';
+
+          // Provide more specific error messages
+          if (e.toString().contains('Permission denied') ||
+              e.toString().contains('403')) {
+            errorMessage =
+                'لا توجد صلاحية لرفع الصورة. يرجى التأكد من تسجيل الدخول';
+          } else if (e.toString().contains('network') ||
+              e.toString().contains('connection')) {
+            errorMessage =
+                'خطأ في الاتصال. يرجى التحقق من الإنترنت والمحاولة مرة أخرى';
+          } else if (e.toString().contains('storage')) {
+            errorMessage = 'خطأ في التخزين. يرجى المحاولة مرة أخرى';
+          }
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(errorMessage),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
       }
     }
   }

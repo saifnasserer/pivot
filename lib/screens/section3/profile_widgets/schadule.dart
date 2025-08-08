@@ -279,14 +279,7 @@ class ScheduleCalendarBuilder {
       builder: (BuildContext context) {
         return AddEditScheduleDialog(day: selectedDay);
       },
-    ).then((_) {
-      // Refresh schedule data after dialog is closed
-      final scheduleProvider = Provider.of<ScheduleProvider>(
-        context,
-        listen: false,
-      );
-      scheduleProvider.fetchSchedule();
-    });
+    );
   }
 
   /// Builds enhanced empty state with action button

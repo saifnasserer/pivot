@@ -998,14 +998,15 @@ class _CommentSectionState extends State<CommentSection> {
   late String? _userRole;
   // In _CommentSectionState, add a character limit
   static const int _maxCommentLength = 300;
-  bool get _canSend =>
-      _controller.text.trim().isNotEmpty &&
-      _controller.text.length <= _maxCommentLength;
   String? _sendError;
   // In CommentSection, add a FocusNode for the input
   final FocusNode _inputFocusNode = FocusNode();
   // In _CommentSectionState, add state for pagination
   int _rootCommentsLimit = 30;
+
+  // Add ValueNotifier for efficient state management
+  final ValueNotifier<bool> _canSendNotifier = ValueNotifier<bool>(false);
+  final ValueNotifier<String> _errorTextNotifier = ValueNotifier<String>('');
 
   @override
   void initState() {
@@ -1015,6 +1016,9 @@ class _CommentSectionState extends State<CommentSection> {
       listen: false,
     );
     _userRole = userProfileProvider.loggedInUserProfile?.role;
+
+    // Listen to text changes
+    _controller.addListener(_updateSendState);
   }
 
   @override
@@ -1022,7 +1026,25 @@ class _CommentSectionState extends State<CommentSection> {
     _controller.dispose();
     _editController?.dispose();
     _inputFocusNode.dispose();
+    _canSendNotifier.dispose();
+    _errorTextNotifier.dispose();
     super.dispose();
+  }
+
+  void _updateSendState() {
+    final text = _controller.text;
+    final newCanSend =
+        text.trim().isNotEmpty && text.length <= _maxCommentLength;
+    final newErrorText =
+        text.length > _maxCommentLength ? 'تجاوزت الحد الأقصى لعدد الأحرف' : '';
+
+    if (_canSendNotifier.value != newCanSend) {
+      _canSendNotifier.value = newCanSend;
+    }
+
+    if (_errorTextNotifier.value != newErrorText) {
+      _errorTextNotifier.value = newErrorText;
+    }
   }
 
   void _toggleReplies(String commentId) {
@@ -1496,35 +1518,42 @@ class _CommentSectionState extends State<CommentSection> {
                                 counterText:
                                     '${_controller.text.length}/$_maxCommentLength',
                                 errorText:
-                                    _controller.text.length > _maxCommentLength
-                                        ? 'تجاوزت الحد الأقصى لعدد الأحرف'
+                                    _errorTextNotifier.value.isNotEmpty
+                                        ? _errorTextNotifier.value
                                         : null,
                               ),
                               minLines: 1,
                               maxLines: 3,
                               autofocus: _replyToUserName != null,
-                              onChanged: (_) => setState(() {}),
+                              // onChanged is no longer needed since we use controller listener
                             ),
                           ),
                           SizedBox(
                             width: Responsive.space(context, size: Space.small),
                           ),
-                          IconButton(
-                            icon: const Icon(
-                              Icons.send,
-                              color: Colors.blue,
-                              semanticLabel: 'إرسال التعليق',
-                            ),
-                            onPressed:
-                                _canSend ? () => _sendComment(context) : null,
-                            splashRadius: Responsive.space(
-                              context,
-                              size: Space.large,
-                            ),
-                            constraints: BoxConstraints(
-                              minWidth: 48,
-                              minHeight: 48,
-                            ),
+                          ValueListenableBuilder<bool>(
+                            valueListenable: _canSendNotifier,
+                            builder: (context, canSend, child) {
+                              return IconButton(
+                                icon: Icon(
+                                  Icons.send,
+                                  color: canSend ? Colors.blue : Colors.grey,
+                                  semanticLabel: 'إرسال التعليق',
+                                ),
+                                onPressed:
+                                    canSend
+                                        ? () => _sendComment(context)
+                                        : null,
+                                splashRadius: Responsive.space(
+                                  context,
+                                  size: Space.large,
+                                ),
+                                constraints: BoxConstraints(
+                                  minWidth: 48,
+                                  minHeight: 48,
+                                ),
+                              );
+                            },
                           ),
                         ],
                       ),

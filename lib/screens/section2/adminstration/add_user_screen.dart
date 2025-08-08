@@ -7,6 +7,7 @@ import 'package:pivot/data/form_options.dart';
 import 'package:pivot/widgets/custom_dropdown.dart';
 import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/providers/subject_provider.dart';
+import 'package:pivot/providers/settings_provider.dart';
 import 'package:provider/provider.dart';
 
 class AddUserScreen extends StatefulWidget {
@@ -46,6 +47,10 @@ class _AddUserScreenState extends State<AddUserScreen> {
     _availableDepartments = FormOptions.getDepartmentsForYear(null);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<SubjectProvider>(context, listen: false).fetchAllSubjects();
+      Provider.of<SettingsProvider>(
+        context,
+        listen: false,
+      ).fetchSectionCounts();
     });
   }
 
@@ -557,10 +562,26 @@ class _AddUserScreenState extends State<AddUserScreen> {
                           setState(() {
                             _selectedDepartment = newValue;
                             _selectedSection = null;
-                            _availableSections = FormOptions.getSectionsForYear(
-                              _selectedYear,
-                              newValue,
-                            );
+
+                            // Get section count from settings provider
+                            final settingsProvider =
+                                Provider.of<SettingsProvider>(
+                                  context,
+                                  listen: false,
+                                );
+                            if (newValue != null &&
+                                settingsProvider.sectionCounts.containsKey(
+                                  newValue,
+                                )) {
+                              final sectionCount =
+                                  settingsProvider.sectionCounts[newValue] ?? 0;
+                              _availableSections = List<String>.generate(
+                                sectionCount,
+                                (i) => '${i + 1}',
+                              );
+                            } else {
+                              _availableSections = [];
+                            }
                           });
                         },
                         isValid:

@@ -177,6 +177,19 @@ void _initializeAppBackgroundServices(UserProfileProvider userProfileProvider) {
   }
 }
 
+// Cached deferred loading futures
+final Map<String, Future<void>> _deferredFutures = {};
+
+Future<void> _getCachedDeferredFuture(
+  String key,
+  Future<void> Function() loader,
+) {
+  if (!_deferredFutures.containsKey(key)) {
+    _deferredFutures[key] = loader();
+  }
+  return _deferredFutures[key]!;
+}
+
 class Pivot extends StatelessWidget {
   const Pivot({super.key, required this.userProfileProvider});
   final UserProfileProvider userProfileProvider;
@@ -282,82 +295,130 @@ class Pivot extends StatelessWidget {
               ),
           routeFeedback:
               (context) => FutureBuilder(
-                future: feedback_screen.loadLibrary(),
+                future: _getCachedDeferredFuture(
+                  'feedback',
+                  feedback_screen.loadLibrary,
+                ),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.done) {
                     return feedback_screen.FeedbackScreen();
                   }
-                  return const Center(child: CircularProgressIndicator());
+                  return const Scaffold(
+                    backgroundColor: Colors.white,
+                    body: Center(child: CircularProgressIndicator()),
+                  );
                 },
               ),
           routeAnalytics:
               (context) => FutureBuilder(
-                future: analytics_screen.loadLibrary(),
+                future: _getCachedDeferredFuture(
+                  'analytics',
+                  analytics_screen.loadLibrary,
+                ),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.done) {
                     return analytics_screen.AnalyticsScreen();
                   }
-                  return const Center(child: CircularProgressIndicator());
+                  return const Scaffold(
+                    backgroundColor: Colors.white,
+                    body: Center(child: CircularProgressIndicator()),
+                  );
                 },
               ),
           routeSectionManagement:
               (context) => FutureBuilder(
-                future: section_management_screen.loadLibrary(),
+                future: _getCachedDeferredFuture(
+                  'section_management',
+                  section_management_screen.loadLibrary,
+                ),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.done) {
                     return section_management_screen.SectionManagementScreen();
                   }
-                  return const Center(child: CircularProgressIndicator());
+                  return const Scaffold(
+                    backgroundColor: Colors.white,
+                    body: Center(child: CircularProgressIndicator()),
+                  );
                 },
               ),
           routeSuperAdminPanel:
               (context) => FutureBuilder(
-                future: super_admin_panel_screen.loadLibrary(),
+                future: _getCachedDeferredFuture(
+                  'super_admin_panel',
+                  super_admin_panel_screen.loadLibrary,
+                ),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.done) {
                     return super_admin_panel_screen.SuperAdminPanelScreen();
                   }
-                  return const Center(child: CircularProgressIndicator());
+                  return const Scaffold(
+                    backgroundColor: Colors.white,
+                    body: Center(child: CircularProgressIndicator()),
+                  );
                 },
               ),
           routeFeedbackManagement:
               (context) => FutureBuilder(
-                future: feedback_management_screen.loadLibrary(),
+                future: _getCachedDeferredFuture(
+                  'feedback_management',
+                  feedback_management_screen.loadLibrary,
+                ),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.done) {
                     return feedback_management_screen.FeedbackManagementScreen();
                   }
-                  return const Center(child: CircularProgressIndicator());
+                  return const Scaffold(
+                    backgroundColor: Colors.white,
+                    body: Center(child: CircularProgressIndicator()),
+                  );
                 },
               ),
           routeUpcomingNotifications:
               (context) => FutureBuilder(
-                future: upcoming_notifications_screen.loadLibrary(),
+                future: _getCachedDeferredFuture(
+                  'upcoming_notifications',
+                  upcoming_notifications_screen.loadLibrary,
+                ),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.done) {
                     return upcoming_notifications_screen.UpcomingNotificationsScreen();
                   }
-                  return const Center(child: CircularProgressIndicator());
+                  return const Scaffold(
+                    backgroundColor: Colors.white,
+                    body: Center(child: CircularProgressIndicator()),
+                  );
                 },
               ),
           routeSendNotifications:
               (context) => FutureBuilder(
-                future: send_notification_screen.loadLibrary(),
+                future: _getCachedDeferredFuture(
+                  'send_notifications',
+                  send_notification_screen.loadLibrary,
+                ),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.done) {
                     return send_notification_screen.SendNotificationScreen();
                   }
-                  return const Center(child: CircularProgressIndicator());
+                  return const Scaffold(
+                    backgroundColor: Colors.white,
+                    body: Center(child: CircularProgressIndicator()),
+                  );
                 },
               ),
           routeAddUser:
               (context) => FutureBuilder(
-                future: add_user_screen.loadLibrary(),
+                future: _getCachedDeferredFuture(
+                  'add_user',
+                  add_user_screen.loadLibrary,
+                ),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.done) {
                     return add_user_screen.AddUserScreen();
                   }
-                  return const Center(child: CircularProgressIndicator());
+                  return const Scaffold(
+                    backgroundColor: Colors.white,
+                    body: Center(child: CircularProgressIndicator()),
+                  );
                 },
               ),
           '/teams': (context) => const TeamsScreen(),
@@ -372,8 +433,6 @@ class Pivot extends StatelessWidget {
             );
           },
           '/tasks-control': (context) {
-            final sectionId =
-                ModalRoute.of(context)?.settings.arguments as String?;
             return TasksControl(
               key: UniqueKey(),
             ); // sectionId is accessed inside TasksControl
