@@ -478,6 +478,7 @@ class _TeamFormationScreenState extends State<TeamFormationScreen> {
       floatingActionButton:
           !hasJoinedTeam
               ? FloatingActionButton.extended(
+                heroTag: 'team_formation_fab',
                 onPressed: _showAddDialog,
                 label: Row(
                   children: [

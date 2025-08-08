@@ -58,6 +58,16 @@ class _AboutMeWidgetState extends State<AboutMeWidget> {
   @override
   Widget build(BuildContext context) {
     final canEdit = widget.userProfile.role != 'student';
+    String displayTitle = widget.userProfile.name;
+    if (widget.userProfile.role.toLowerCase() == 'professor') {
+      String title =
+          widget.userProfile.gender == 'ذكر' ? 'الدكتور ' : 'الدكتورة ';
+      displayTitle = title;
+    } else if (widget.userProfile.role.toLowerCase() == 'miniprofessor') {
+      String title =
+          widget.userProfile.gender == 'ذكر' ? 'البشمهندس ' : 'البشمهندسة ';
+      displayTitle = title;
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -66,7 +76,7 @@ class _AboutMeWidgetState extends State<AboutMeWidget> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'عن دكتور ${widget.userProfile.name}',
+              'عن $displayTitle${widget.userProfile.name}',
               style: TextStyle(
                 fontSize: Responsive.text(context, size: TextSize.heading),
                 fontWeight: FontWeight.bold,

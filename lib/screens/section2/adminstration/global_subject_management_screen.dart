@@ -560,6 +560,7 @@ class _GlobalSubjectManagementScreenState
           ],
         ),
         child: FloatingActionButton.extended(
+          heroTag: 'global_subject_management_fab',
           onPressed: _addSubject,
           label: Text(
             'إضافة مادة',

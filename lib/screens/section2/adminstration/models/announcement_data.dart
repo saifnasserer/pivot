@@ -32,6 +32,8 @@ class AnnouncementData extends HiveObject {
   final int? publishAtMillis;
   @HiveField(12)
   final int? expireAtMillis;
+  @HiveField(13)
+  final String? level;
 
   AnnouncementData({
     this.id,
@@ -47,6 +49,7 @@ class AnnouncementData extends HiveObject {
     this.draft = false,
     DateTime? publishAt,
     DateTime? expireAt,
+    this.level,
   }) : colorValue = color?.value ?? 0xFFFFFFFF,
        timestampMillis = (timestamp ?? DateTime.now()).millisecondsSinceEpoch,
        publishAtMillis = publishAt?.millisecondsSinceEpoch,
@@ -67,6 +70,7 @@ class AnnouncementData extends HiveObject {
     this.draft = false,
     this.publishAtMillis,
     this.expireAtMillis,
+    this.level,
   });
 
   Color get color => Color(colorValue);
@@ -96,6 +100,7 @@ class AnnouncementData extends HiveObject {
     bool draft = false,
     int? publishAtMillis,
     int? expireAtMillis,
+    String? level,
   }) {
     return AnnouncementData._hive(
       id: id,
@@ -111,6 +116,7 @@ class AnnouncementData extends HiveObject {
       draft: draft,
       publishAtMillis: publishAtMillis,
       expireAtMillis: expireAtMillis,
+      level: level,
     );
   }
 
@@ -148,6 +154,7 @@ class AnnouncementData extends HiveObject {
       draft: data['draft'] as bool? ?? false,
       publishAtMillis: data['publishAtMillis'] as int?,
       expireAtMillis: data['expireAtMillis'] as int?,
+      level: data['level'] as String?,
     );
   }
 
@@ -166,6 +173,7 @@ class AnnouncementData extends HiveObject {
       'draft': draft,
       'publishAt': publishAtMillis,
       'expireAt': expireAtMillis,
+      'level': level,
     };
   }
 
@@ -211,6 +219,7 @@ class AnnouncementData extends HiveObject {
       publishAt:
           data['publishAt'] != null ? parseDate(data['publishAt']) : null,
       expireAt: data['expireAt'] != null ? parseDate(data['expireAt']) : null,
+      level: data['level'] as String?,
     );
   }
 }

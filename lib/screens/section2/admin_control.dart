@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/section2/adminstration/announcement_card.dart';
-import 'package:pivot/screens/section2/adminstration/add_announcement_screen.dart';
+import 'package:pivot/screens/section2/adminstration/announcement/index.dart';
 import 'package:pivot/screens/section2/adminstration/animated_route.dart';
 import 'package:provider/provider.dart';
 import 'package:pivot/providers/announcement_provider.dart';
@@ -865,7 +865,7 @@ class _AdminControlState extends State<AdminControl> {
                       Navigator.of(context).push(
                         AnimatedAddRoute(
                           startPosition: Offset.zero,
-                          child: AddAnnouncementScreen(),
+                          child: AddAnnouncementMain(),
                         ),
                       );
                     },
@@ -885,10 +885,7 @@ class _AdminControlState extends State<AdminControl> {
     Navigator.of(context).push(
       AnimatedAddRoute(
         startPosition: Offset.zero,
-        child: AddAnnouncementScreen(
-          isEditing: true,
-          announcement: announcement,
-        ),
+        child: AddAnnouncementMain(isEditing: true, announcement: announcement),
       ),
     );
   }

@@ -51,6 +51,7 @@ class TeamMembersScreen extends StatelessWidget {
           );
           if (isMember) return const SizedBox.shrink();
           return FloatingActionButton.extended(
+            heroTag: 'team_members_fab',
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(
                 Responsive.space(context, size: Space.large),

@@ -355,6 +355,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
       floatingActionButton:
           _isAdmin()
               ? FloatingActionButton(
+                heroTag: 'teams_fab',
                 onPressed: () {
                   final TextEditingController controller =
                       TextEditingController();
