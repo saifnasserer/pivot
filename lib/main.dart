@@ -56,7 +56,9 @@ import 'package:pivot/screens/section2/super_admin_panel/analytics_screen.dart'
     deferred as analytics_screen;
 import 'package:pivot/services/cache_service.dart';
 import 'package:pivot/services/notification_service.dart';
+import 'package:pivot/services/local_notification_service.dart';
 import 'package:pivot/services/notification_trigger_service.dart';
+import 'package:pivot/services/permission_service.dart';
 import 'dart:async';
 import 'package:pivot/screens/section2/adminstration/add_user_screen.dart'
     deferred as add_user_screen;
@@ -136,7 +138,9 @@ Future<void> _setupFirebaseMessagingWeb() async {
   });
 }
 
-void _initializeAppBackgroundServices(UserProfileProvider userProfileProvider) {
+void _initializeAppBackgroundServices(
+  UserProfileProvider userProfileProvider,
+) async {
   if (kIsWeb) {
     _setupFirebaseMessagingWeb().catchError((_) {});
   }
@@ -160,6 +164,13 @@ void _initializeAppBackgroundServices(UserProfileProvider userProfileProvider) {
   }
 
   try {
+    // Initialize local notifications on mobile platforms
+    if (!kIsWeb) {
+      LocalNotificationService.instance.initialize();
+      // Ensure notification permission is requested every launch if not granted
+      PermissionService.requestNotificationPermission();
+    }
+
     final notificationTrigger = NotificationTriggerService();
     notificationTrigger.startBatchProcessing();
     Timer.periodic(const Duration(minutes: 15), (_) {
@@ -265,32 +276,50 @@ class Pivot extends StatelessWidget {
           // Deferred and custom routes
           routeUserManagement:
               (context) => FutureBuilder(
-                future: user_management_page.loadLibrary(),
+                future: _getCachedDeferredFuture(
+                  'user_management',
+                  user_management_page.loadLibrary,
+                ),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.done) {
                     return user_management_page.UserManagementPage();
                   }
-                  return const Center(child: CircularProgressIndicator());
+                  return const Scaffold(
+                    backgroundColor: Colors.white,
+                    body: Center(child: CircularProgressIndicator()),
+                  );
                 },
               ),
           routeGlobalSubjectManagement:
               (context) => FutureBuilder(
-                future: global_subject_management_screen.loadLibrary(),
+                future: _getCachedDeferredFuture(
+                  'global_subject_management',
+                  global_subject_management_screen.loadLibrary,
+                ),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.done) {
                     return global_subject_management_screen.GlobalSubjectManagementScreen();
                   }
-                  return const Center(child: CircularProgressIndicator());
+                  return const Scaffold(
+                    backgroundColor: Colors.white,
+                    body: Center(child: CircularProgressIndicator()),
+                  );
                 },
               ),
           routeEditProfile:
               (context) => FutureBuilder(
-                future: edit_profile.loadLibrary(),
+                future: _getCachedDeferredFuture(
+                  'edit_profile',
+                  edit_profile.loadLibrary,
+                ),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.done) {
                     return edit_profile.EditProfile();
                   }
-                  return const Center(child: CircularProgressIndicator());
+                  return const Scaffold(
+                    backgroundColor: Colors.white,
+                    body: Center(child: CircularProgressIndicator()),
+                  );
                 },
               ),
           routeFeedback:
@@ -437,6 +466,7 @@ class Pivot extends StatelessWidget {
               key: UniqueKey(),
             ); // sectionId is accessed inside TasksControl
           },
+          '/notifications-test': (context) => const NotificationTestWidget(),
         },
         theme: ThemeData(
           colorScheme: ColorScheme.fromSwatch().copyWith(

@@ -18,7 +18,7 @@ class _ProfileDetailsState extends State<ProfileDetails>
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
-  bool _isImageLoading = false;
+  final bool _isImageLoading = false;
 
   @override
   void initState() {

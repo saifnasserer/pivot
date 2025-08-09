@@ -499,7 +499,9 @@ class _MaterialCardState extends State<MaterialCard>
             Text(
               userRating != null
                   ? '${userRating.toInt()}'
-                  : '${widget.materialLink.averageRatingCalculated.toStringAsFixed(1)}',
+                  : widget.materialLink.averageRatingCalculated.toStringAsFixed(
+                    1,
+                  ),
               style: TextStyle(
                 fontSize: Responsive.text(context, size: TextSize.small),
                 fontWeight: FontWeight.bold,

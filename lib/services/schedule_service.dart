@@ -17,19 +17,52 @@ class ScheduleService {
         .doc(user.uid)
         .collection('schedule')
         .withConverter<ScheduleItem>(
-          fromFirestore: (snapshot, _) => ScheduleItem.fromJson(snapshot.data()!),
+          fromFirestore:
+              (snapshot, _) => ScheduleItem.fromJson(snapshot.data()!),
           toFirestore: (item, _) => item.toJson(),
         );
   }
 
   // Fetch all schedule items for the logged-in user
   Future<Map<String, List<ScheduleItem>>> getSchedule() async {
+    print('🔄 ScheduleService: Fetching schedule from Firestore...');
     final snapshot = await _getScheduleCollection().get();
+    print('🔄 ScheduleService: Received ${snapshot.docs.length} documents');
+
     final scheduleMap = <String, List<ScheduleItem>>{};
     for (var doc in snapshot.docs) {
       final item = doc.data();
+      print(
+        '📄 Document: ${item.title} (day: ${item.day}, order: ${item.order ?? 'null'})',
+      );
       scheduleMap.putIfAbsent(item.day, () => []).add(item);
     }
+
+    // Sort each day's items by order
+    for (var entry in scheduleMap.entries) {
+      final day = entry.key;
+      final dayItems = entry.value;
+      print('📅 Day $day: Before sorting - ${dayItems.length} items');
+      for (int i = 0; i < dayItems.length; i++) {
+        print(
+          '  [$i] ${dayItems[i].title} (order: ${dayItems[i].order ?? 'null'})',
+        );
+      }
+
+      dayItems.sort((a, b) {
+        final aOrder = a.order ?? 0;
+        final bOrder = b.order ?? 0;
+        return aOrder.compareTo(bOrder);
+      });
+
+      print('📅 Day $day: After sorting by order');
+      for (int i = 0; i < dayItems.length; i++) {
+        print(
+          '  [$i] ${dayItems[i].title} (order: ${dayItems[i].order ?? 'null'})',
+        );
+      }
+    }
+
     return scheduleMap;
   }
 
@@ -41,5 +74,29 @@ class ScheduleService {
   // Remove a schedule item by its ID
   Future<void> removeScheduleItem(String itemId) async {
     await _getScheduleCollection().doc(itemId).delete();
+  }
+
+  // Reorder schedule items for a specific day
+  Future<void> reorderScheduleItems(
+    String day,
+    List<ScheduleItem> items,
+  ) async {
+    print('📝 ScheduleService: Reordering ${items.length} items for day: $day');
+
+    final batch = _firestore.batch();
+
+    for (int i = 0; i < items.length; i++) {
+      final item = items[i];
+      // Create a new item with the updated order
+      final updatedItem = item.copyWith(order: i);
+      print(
+        '  📝 Setting ${item.title} to order $i (was ${item.order ?? 'null'})',
+      );
+      batch.set(_getScheduleCollection().doc(item.id), updatedItem);
+    }
+
+    print('📝 ScheduleService: Committing batch to Firestore...');
+    await batch.commit();
+    print('✅ ScheduleService: Batch committed successfully');
   }
 }

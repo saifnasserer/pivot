@@ -26,4 +26,23 @@ class NotificationService {
   Future<List<String>> getAllUserFCMTokens() async => <String>[];
   Future<List<String>> getMultipleUserFCMTokens(List<String> userIds) async =>
       <String>[];
+
+  // FCM Token cleanup methods (stub implementations)
+  Future<Map<String, dynamic>> cleanupInvalidTokens() async => {
+    'totalUsers': 0,
+    'cleanedTokens': 0,
+    'errors': <String>[],
+    'timestamp': DateTime.now().toIso8601String(),
+  };
+
+  Future<Map<String, dynamic>> getTokenStatistics() async => {
+    'totalUsers': 0,
+    'usersWithTokens': 0,
+    'usersWithoutTokens': 0,
+    'recentTokens': 0,
+    'oldTokens': 0,
+    'timestamp': DateTime.now().toIso8601String(),
+  };
+
+  Future<bool> refreshCurrentUserToken() async => false;
 }

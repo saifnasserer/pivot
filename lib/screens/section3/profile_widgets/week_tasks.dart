@@ -560,65 +560,80 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
     );
   }
 
-  /// Build enhanced task item with swipe actions
+  /// Build enhanced task item with swipe actions (only for personal tasks)
   Widget _buildEnhancedTaskItem(Task task, TaskProvider taskProvider) {
-    return Dismissible(
-      key: Key(task.id),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        margin: EdgeInsets.only(
-          bottom: Responsive.space(context, size: Space.small),
-        ),
-        decoration: BoxDecoration(
-          color: Colors.red,
-          borderRadius: BorderRadius.circular(
-            Responsive.space(context, size: Space.large),
+    // Only allow dismissible delete for personal tasks
+    if (task.isPersonal) {
+      return Dismissible(
+        key: Key(task.id),
+        direction: DismissDirection.endToStart,
+        background: Container(
+          margin: EdgeInsets.only(
+            bottom: Responsive.space(context, size: Space.small),
           ),
+          decoration: BoxDecoration(
+            color: Colors.red,
+            borderRadius: BorderRadius.circular(
+              Responsive.space(context, size: Space.large),
+            ),
+          ),
+          alignment: Alignment.centerRight,
+          padding: EdgeInsets.only(
+            right: Responsive.space(context, size: Space.large),
+          ),
+          child: const Icon(Icons.delete, color: Colors.white, size: 24),
         ),
-        alignment: Alignment.centerRight,
-        padding: EdgeInsets.only(
-          right: Responsive.space(context, size: Space.large),
-        ),
-        child: const Icon(Icons.delete, color: Colors.white, size: 24),
-      ),
-      confirmDismiss: (direction) async {
-        return await showDialog<bool>(
-          context: context,
-          builder:
-              (context) => AlertDialog(
-                title: const Text('حذف'),
-                content: const Text('متأكد؟'),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(false),
-                    child: const Text('إلغاء'),
+        confirmDismiss: (direction) async {
+          return await showDialog<bool>(
+            context: context,
+            builder:
+                (context) => AlertDialog(
+                  title: const Text('حذف المهمة الشخصية'),
+                  content: const Text(
+                    'هل أنت متأكد من حذف هذه المهمة الشخصية؟',
                   ),
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(true),
-                    style: TextButton.styleFrom(foregroundColor: Colors.red),
-                    child: const Text('حذف'),
-                  ),
-                ],
-              ),
-        );
-      },
-      onDismissed: (direction) {
-        if (task.isPersonal) {
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: const Text('إلغاء'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      style: TextButton.styleFrom(foregroundColor: Colors.red),
+                      child: const Text('حذف'),
+                    ),
+                  ],
+                ),
+          );
+        },
+        onDismissed: (direction) {
           setState(() {
             _personalTasks.removeWhere((t) => t.id == task.id);
           });
-        } else {
-          taskProvider.deleteTask(task.id);
-        }
-      },
-      child: TaskModel(
-        task: task,
-        admin: false,
-        onStatusChanged: () => _handleTaskStatusChange(task, taskProvider),
-        onEdit: () => _showAddEditTaskDialog(context, task: task),
-        onDelete: () => _handleTaskDelete(task, taskProvider),
-      ),
-    );
+        },
+        child: TaskModel(
+          task: task,
+          admin: false,
+          onStatusChanged: () => _handleTaskStatusChange(task, taskProvider),
+          onEdit: () => _showAddEditTaskDialog(context, task: task),
+          onDelete: () => _handleTaskDelete(task, taskProvider),
+        ),
+      );
+    } else {
+      // For system tasks, return without dismissible wrapper
+      return Container(
+        margin: EdgeInsets.only(
+          bottom: Responsive.space(context, size: Space.small),
+        ),
+        child: TaskModel(
+          task: task,
+          admin: false,
+          onStatusChanged: () => _handleTaskStatusChange(task, taskProvider),
+          onEdit: () {}, // Disable editing for system tasks
+          onDelete: () {}, // Disable deletion for system tasks
+        ),
+      );
+    }
   }
 
   void _handleTaskStatusChange(Task task, TaskProvider taskProvider) {

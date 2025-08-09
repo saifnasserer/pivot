@@ -40,7 +40,12 @@ class DoctorSubjectService {
 
   Future<Lecture> addLecture(Lecture lecture) async {
     try {
-      final docRef = await _lecturesCollection.add(lecture.toJson());
+      final lectureData = lecture.toJson();
+      // Ensure we have a createdAt timestamp
+      lectureData['createdAt'] =
+          lectureData['createdAt'] ?? FieldValue.serverTimestamp();
+
+      final docRef = await _lecturesCollection.add(lectureData);
       // Create a new Lecture object that includes the generated ID
       return lecture.copyWith(id: docRef.id);
     } catch (e) {
@@ -77,9 +82,104 @@ class DoctorSubjectService {
     Map<String, dynamic> link,
   ) async {
     try {
-      await _lecturesCollection.doc(lectureId).update({
-        'links': FieldValue.arrayRemove([link]),
-      });
+      print('Attempting to delete link: $link');
+
+      // Get the current lecture to check what's actually stored
+      final lectureBefore = await getLectureById(lectureId);
+      if (lectureBefore == null) {
+        throw Exception('Lecture not found');
+      }
+
+      final linkUrl = link['url'];
+      if (linkUrl == null) {
+        throw Exception('Link URL is null');
+      }
+
+      final linksBefore = lectureBefore.links.length;
+      print('Links before deletion: $linksBefore');
+
+      // Find all links that match this URL
+      final matchingLinks =
+          lectureBefore.links.where((existingLink) {
+            return existingLink['url'] == linkUrl;
+          }).toList();
+
+      print('Found ${matchingLinks.length} matching links for URL: $linkUrl');
+
+      if (matchingLinks.isEmpty) {
+        throw Exception('No matching link found for URL: $linkUrl');
+      }
+
+      print('Existing link formats in database:');
+      for (int i = 0; i < matchingLinks.length; i++) {
+        print('  [$i]: ${matchingLinks[i]}');
+      }
+
+      bool deletionSuccessful = false;
+
+      // Try each matching link format from the database
+      for (int i = 0; i < matchingLinks.length; i++) {
+        final matchingLink = matchingLinks[i];
+        try {
+          print('Trying to delete link format [$i]: $matchingLink');
+
+          await _lecturesCollection.doc(lectureId).update({
+            'links': FieldValue.arrayRemove([matchingLink]),
+          });
+
+          // Verify the deletion actually worked
+          final lectureAfter = await getLectureById(lectureId);
+          if (lectureAfter != null) {
+            final linksAfter = lectureAfter.links.length;
+            print('Links after deletion attempt: $linksAfter');
+
+            if (linksAfter < linksBefore) {
+              print('✅ Successfully deleted link with format [$i]');
+              deletionSuccessful = true;
+              return; // Success - exit early
+            } else {
+              print(
+                '❌ arrayRemove operation completed but link count unchanged',
+              );
+            }
+          }
+        } catch (e) {
+          print('Failed to delete link format [$i]: $e');
+        }
+      }
+
+      // If arrayRemove failed, try direct array manipulation
+      if (!deletionSuccessful) {
+        print('arrayRemove failed, trying direct array manipulation');
+
+        final updatedLinks =
+            lectureBefore.links.where((existingLink) {
+              return existingLink['url'] != linkUrl;
+            }).toList();
+
+        print('Original links count: ${lectureBefore.links.length}');
+        print('Updated links count: ${updatedLinks.length}');
+
+        await _lecturesCollection.doc(lectureId).update({
+          'links': updatedLinks,
+        });
+
+        // Verify the manual deletion worked
+        final lectureAfter = await getLectureById(lectureId);
+        if (lectureAfter != null) {
+          final linksAfter = lectureAfter.links.length;
+          print('Links after manual deletion: $linksAfter');
+
+          if (linksAfter < linksBefore) {
+            print('✅ Successfully deleted link by manual array update');
+            return;
+          } else {
+            throw Exception(
+              'Manual deletion also failed - link count unchanged',
+            );
+          }
+        }
+      }
     } catch (e) {
       print('Error deleting link: $e');
       rethrow;

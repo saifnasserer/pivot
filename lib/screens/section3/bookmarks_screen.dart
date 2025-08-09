@@ -46,7 +46,13 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
               .where(FieldPath.documentId, whereIn: chunk)
               .get();
       for (var doc in querySnapshot.docs) {
-        fetchedAnnouncements.add(AnnouncementData.fromFirestore(doc));
+        try {
+          final announcement = AnnouncementData.fromFirestore(doc);
+          fetchedAnnouncements.add(announcement);
+        } catch (e) {
+          print('Error parsing announcement ${doc.id}: $e');
+          // Skip this announcement if it can't be parsed
+        }
       }
     }
 
@@ -72,9 +78,15 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
 
     final query = _searchQuery.toLowerCase();
     return bookmarks.where((bookmark) {
-      return bookmark.title.toLowerCase().contains(query) ||
-          bookmark.description.toLowerCase().contains(query) ||
-          bookmark.tags.any((tag) => tag.toLowerCase().contains(query));
+      try {
+        return (bookmark.title).toLowerCase().contains(query) ||
+            (bookmark.description).toLowerCase().contains(query) ||
+            bookmark.tags.any((tag) => tag.toLowerCase().contains(query));
+      } catch (e) {
+        // If there's any error accessing bookmark properties, exclude it from results
+        print('Error filtering bookmark: $e');
+        return false;
+      }
     }).toList();
   }
 
@@ -200,10 +212,21 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
       itemCount: filteredItems.length,
       itemBuilder: (context, index) {
         final bookmark = filteredItems[index];
+
+        // Add null safety check
+        try {
+          if (bookmark.title.isEmpty || bookmark.description.isEmpty) {
+            return const SizedBox.shrink(); // Skip invalid bookmarks
+          }
+        } catch (e) {
+          print('Error accessing bookmark properties: $e');
+          return const SizedBox.shrink(); // Skip invalid bookmarks
+        }
+
         return BookmarkCard(
           bookmark: bookmark,
           onRemove: () {
-            if (bookmark.id != null) {
+            if (bookmark.id != null && bookmark.id!.isNotEmpty) {
               bookmarksProvider.toggleBookmark(bookmark.id!);
             }
           },
@@ -323,9 +346,25 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
                     }
 
                     final bookmarkedItems = snapshot.data!;
-                    // Defensive: filter out nulls (should not happen, but just in case)
+                    // Defensive: filter out nulls and invalid items
                     final filteredBookmarks =
-                        bookmarkedItems.where((b) => b != null).toList();
+                        bookmarkedItems.where((b) {
+                          try {
+                            // Test access to critical properties
+                            final hasValidTitle = b.title.isNotEmpty;
+                            final hasValidDescription =
+                                b.description.isNotEmpty;
+                            final hasValidColor =
+                                b.colorValue != 0; // Basic color validation
+                            return hasValidTitle &&
+                                hasValidDescription &&
+                                hasValidColor;
+                          } catch (e) {
+                            print('Invalid bookmark data: $e');
+                            return false;
+                          }
+                        }).toList();
+
                     return _buildBookmarksList(
                       filteredBookmarks,
                       bookmarksProvider,

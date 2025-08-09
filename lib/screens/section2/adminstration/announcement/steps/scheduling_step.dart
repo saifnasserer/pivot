@@ -128,7 +128,7 @@ class SchedulingStep extends StatelessWidget {
             builder: (context, child) {
               return SlideTransition(
                 position: slideAnimation,
-                child: Container(
+                child: SizedBox(
                   width: double.infinity,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,

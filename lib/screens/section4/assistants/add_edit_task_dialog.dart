@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' as intl;
 import 'package:pivot/providers/section_provider.dart';
-import 'package:pivot/providers/subject_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/widgets/custom_text_field.dart';

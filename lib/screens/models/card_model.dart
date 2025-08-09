@@ -50,9 +50,9 @@ class _CardModelState extends State<CardModel> {
   int _currentPage = 0;
   List<Widget> _contentPages = [];
   double _availableHeight = 0;
-  bool _isExpanded = false;
-  bool _isLinksExpanded = false;
-  bool _isImagesExpanded = false;
+  final bool _isExpanded = false;
+  final bool _isLinksExpanded = false;
+  final bool _isImagesExpanded = false;
   final PageController _cardPageController = PageController();
   bool _isCalculatingPages = false; // Add flag to prevent multiple calculations
 
@@ -880,18 +880,6 @@ class _CardModelState extends State<CardModel> {
                                     debugPrint(
                                       'Bookmarks provider not available: $e',
                                     );
-                                    return IconButton(
-                                      onPressed: null,
-                                      icon: const Icon(
-                                        Icons.bookmark_border,
-                                        color: Colors.grey,
-                                      ),
-                                      splashRadius: 24,
-                                    );
-                                  }
-
-                                  // If provider is null or disposed, return fallback
-                                  if (bookmarks == null) {
                                     return IconButton(
                                       onPressed: null,
                                       icon: const Icon(

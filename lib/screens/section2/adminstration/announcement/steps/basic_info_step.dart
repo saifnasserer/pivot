@@ -36,7 +36,7 @@ class BasicInfoStep extends StatelessWidget {
             builder: (context, child) {
               return SlideTransition(
                 position: slideAnimation,
-                child: Container(
+                child: SizedBox(
                   width: double.infinity,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -147,7 +147,7 @@ class BasicInfoStep extends StatelessWidget {
                       ),
 
                       // Description field - Larger fixed height
-                      Container(
+                      SizedBox(
                         height:
                             Responsive.space(context, size: Space.large) * 15,
                         child: CustomTextField(

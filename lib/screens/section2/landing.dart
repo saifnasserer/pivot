@@ -327,16 +327,7 @@ class LandingState extends State<Landing> with TickerProviderStateMixin {
                 ),
               ),
               onTap: () {
-                final userProfileProvider = Provider.of<UserProfileProvider>(
-                  context,
-                  listen: false,
-                );
-                if (userProfileProvider.loggedInUserProfile?.role ==
-                    'Super Admin') {
-                  Navigator.pushNamed(context, '/super-admin-panel');
-                } else {
-                  Navigator.pushNamed(context, '/profile');
-                }
+                Navigator.pushNamed(context, '/profile');
               },
             ),
             SpeedDialChild(
@@ -407,6 +398,47 @@ class LandingState extends State<Landing> with TickerProviderStateMixin {
                   'Student',
               onTap: () {
                 Navigator.pushNamed(context, '/admin-control');
+              },
+            ),
+            SpeedDialChild(
+              child: Icon(
+                Icons.admin_panel_settings,
+                color: Colors.white,
+                size: 20,
+              ),
+              backgroundColor: Colors.red,
+              shape: const CircleBorder(),
+              labelWidget: Container(
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(
+                    Responsive.space(context, size: Space.large),
+                  ),
+                ),
+                alignment: Alignment.center,
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    vertical: Responsive.space(context, size: Space.small),
+                    horizontal: Responsive.space(context, size: Space.medium),
+                  ),
+                  child: Text(
+                    'لوحة السوبر أدمن',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+              visible:
+                  Provider.of<UserProfileProvider>(
+                    context,
+                    listen: false,
+                  ).loggedInUserProfile?.role ==
+                  'Super Admin',
+              onTap: () {
+                Navigator.pushNamed(context, '/super-admin-panel');
               },
             ),
             SpeedDialChild(

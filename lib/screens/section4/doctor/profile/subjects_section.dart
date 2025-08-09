@@ -173,8 +173,20 @@ class _SubjectsSectionState extends State<SubjectsSection>
         await tempProvider.fetchLecturesForSubject(doctorId, subjectId);
 
         if (mounted) {
+          // Sort lectures by creation date (newest first)
+          final sortedLectures = List<dynamic>.from(tempProvider.lectures);
+          sortedLectures.sort((a, b) {
+            final aDate =
+                a.createdAt ??
+                DateTime(1970); // Fallback for lectures without date
+            final bDate =
+                b.createdAt ??
+                DateTime(1970); // Fallback for lectures without date
+            return bDate.compareTo(aDate); // Newest first
+          });
+
           setState(() {
-            _lecturesBySubject[subjectId] = tempProvider.lectures;
+            _lecturesBySubject[subjectId] = sortedLectures;
             _loadingStates[subjectId] = false;
           });
         }

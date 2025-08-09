@@ -187,13 +187,18 @@ class _Signup_2State extends State<Signup_2> {
                                 selectedSection = null;
 
                                 // Get section count from settings provider
-                                if (selectedDepartment != null &&
+                                final settingsProvider =
+                                    Provider.of<SettingsProvider>(
+                                      context,
+                                      listen: false,
+                                    );
+                                if (newValue != null &&
                                     settingsProvider.sectionCounts.containsKey(
-                                      selectedDepartment,
+                                      newValue,
                                     )) {
                                   final sectionCount =
                                       settingsProvider
-                                          .sectionCounts[selectedDepartment] ??
+                                          .sectionCounts[newValue] ??
                                       0;
                                   _availableSections = List<String>.generate(
                                     sectionCount,

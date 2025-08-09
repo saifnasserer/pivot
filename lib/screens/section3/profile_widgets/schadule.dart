@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/models/schadule_card.dart';
 import 'package:pivot/screens/models/schedule_item.dart';
 import 'package:pivot/screens/section3/add_edit_schedule_dialog.dart';
-import 'package:pivot/providers/schadule_provider.dart';
 
 /// Enhanced schedule calendar builder with better UX and performance
 class ScheduleCalendarBuilder {
@@ -21,13 +19,13 @@ class ScheduleCalendarBuilder {
     bool enableAnimations = true,
     bool showFloatingActionButton = true,
     String? selectedDay,
+    Function(int oldIndex, int newIndex)? onReorder,
   }) {
     if (days.isEmpty) {
       return [_buildEmptyState(context, 'لا توجد أيام في الجدول')];
     }
 
     final int validIndex = selectedDayIndex.clamp(0, days.length - 1);
-    final currentDay = selectedDay ?? days[validIndex];
 
     return [
       _buildTopSpacing(context),
@@ -45,6 +43,7 @@ class ScheduleCalendarBuilder {
         handleDelete,
         onNotificationToggle,
         showEmptyState,
+        onReorder: onReorder,
       ),
     ];
   }
@@ -62,6 +61,7 @@ class ScheduleCalendarBuilder {
     bool enableAnimations = true,
     bool showFloatingActionButton = true,
     String? selectedDay,
+    Function(int oldIndex, int newIndex)? onReorder,
   }) {
     final int validIndex = selectedDayIndex.clamp(0, days.length - 1);
     final currentDay = selectedDay ?? days[validIndex];
@@ -80,6 +80,7 @@ class ScheduleCalendarBuilder {
           enableAnimations: enableAnimations,
           showFloatingActionButton: false, // Don't show FAB in slivers
           selectedDay: selectedDay,
+          onReorder: onReorder,
         ),
       ),
       floatingActionButton:
@@ -220,20 +221,60 @@ class ScheduleCalendarBuilder {
     );
   }
 
-  /// Builds schedule items with enhanced empty state
+  /// Builds schedule items with enhanced empty state and reordering
   static Widget _buildScheduleItems(
     BuildContext context,
     List<ScheduleItem> items,
     Function(String itemId) handleDelete,
     Function(String itemId)? onNotificationToggle,
-    bool showEmptyState,
-  ) {
+    bool showEmptyState, {
+    Function(int oldIndex, int newIndex)? onReorder,
+  }) {
     if (items.isEmpty) {
       return showEmptyState
           ? _buildEmptyState(context, 'لا توجد محاضرات أو سكاشن لهذا اليوم')
           : SliverToBoxAdapter(child: SizedBox.shrink());
     }
 
+    // If reordering is enabled, use ReorderableListView
+    if (onReorder != null) {
+      return SliverToBoxAdapter(
+        child: Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.7,
+          ),
+          child: ReorderableListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: items.length,
+            onReorder: onReorder,
+            padding: EdgeInsets.zero,
+            buildDefaultDragHandles: false,
+            proxyDecorator: (child, index, animation) {
+              return Material(
+                elevation: 2,
+                color: Colors.transparent,
+                shadowColor: Colors.black.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                child: child,
+              );
+            },
+            itemBuilder: (context, index) {
+              final item = items[index];
+              return _buildReorderableScheduleCard(
+                context,
+                item,
+                index,
+                handleDelete,
+                onNotificationToggle,
+              );
+            },
+          ),
+        ),
+      );
+    }
+
+    // Default non-reorderable list
     return SliverList(
       delegate: SliverChildBuilderDelegate((context, index) {
         final item = items[index];
@@ -268,6 +309,57 @@ class ScheduleCalendarBuilder {
             onNotificationToggle != null
                 ? () => onNotificationToggle(item.id)
                 : null,
+      ),
+    );
+  }
+
+  /// Builds reorderable schedule card with drag handle
+  static Widget _buildReorderableScheduleCard(
+    BuildContext context,
+    ScheduleItem item,
+    int index,
+    Function(String itemId) handleDelete,
+    Function(String itemId)? onNotificationToggle,
+  ) {
+    return Container(
+      key: ValueKey(item.id),
+      margin: EdgeInsets.only(
+        bottom: Responsive.space(context, size: Space.small) * 0.8,
+        left: Responsive.space(context, size: Space.small) * 0.8,
+        right: Responsive.space(context, size: Space.small) * 0.8,
+      ),
+      child: SchaduleCard(
+        item: item,
+        handleDelete: () => handleDelete(item.id),
+        onNotificationToggle:
+            onNotificationToggle != null
+                ? () => onNotificationToggle(item.id)
+                : null,
+        // Pass the drag handle as a trailing widget
+        trailingWidget: ReorderableDragStartListener(
+          index: index,
+          child: Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: Responsive.space(context, size: Space.small) * 0.8,
+              vertical: Responsive.space(context, size: Space.small) * 0.6,
+            ),
+            margin: EdgeInsets.only(
+              left: Responsive.space(context, size: Space.small) * 0.8,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(
+                Responsive.space(context, size: Space.small) * 0.8,
+              ),
+              border: Border.all(color: Colors.grey.shade300, width: 0.8),
+            ),
+            child: Icon(
+              Icons.drag_handle,
+              color: Colors.grey.shade600,
+              size: Responsive.text(context, size: TextSize.small) * 1.2,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -379,6 +471,7 @@ List<Widget> buildCalendar({
   required Function(int) onDaySelected,
   required Function(String itemId) handleDelete,
   Function(String itemId)? onNotificationToggle,
+  Function(int oldIndex, int newIndex)? onReorder,
 }) {
   return ScheduleCalendarBuilder.buildCalendar(
     selectedDayIndex: selectedDayIndex,
@@ -388,5 +481,6 @@ List<Widget> buildCalendar({
     onDaySelected: onDaySelected,
     handleDelete: handleDelete,
     onNotificationToggle: onNotificationToggle,
+    onReorder: onReorder,
   );
 }

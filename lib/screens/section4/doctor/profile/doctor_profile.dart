@@ -163,6 +163,7 @@ class _DoctorProfileState extends State<DoctorProfile>
           doctorId: userProfile.id,
           categoryName: 'المحاضرات',
           links: [],
+          createdAt: DateTime.now(),
         );
 
         await context.read<DoctorSubjectProvider>().addLecture(newLecture);
@@ -265,11 +266,21 @@ class _DoctorProfileState extends State<DoctorProfile>
   }
 
   bool _shouldShowAddLectureButton() {
-    final userProfile = _displayedProfile;
-    if (userProfile == null) return false;
+    final loggedInUser = context.read<UserProfileProvider>().userProfile;
+    print('=== DEBUG: FAB Visibility Check ===');
+    print('Logged in user: ${loggedInUser?.name}');
+    print('Logged in role: "${loggedInUser?.role}"');
+    print('Displayed profile: ${_displayedProfile?.name}');
+    print('Displayed role: "${_displayedProfile?.role}"');
+    print('Is logged in user Student: ${loggedInUser?.role == 'Student'}');
+    print(
+      'Should show button: ${loggedInUser != null && loggedInUser.role != 'Student'}',
+    );
 
-    // Show for all roles except Student and miniProfessor
-    return userProfile.role != 'Student' && userProfile.role != 'miniProfessor';
+    if (loggedInUser == null) return false;
+
+    // Show for all roles except Student (based on logged in user, not displayed profile)
+    return loggedInUser.role != 'Student';
   }
 
   Future<void> _editTeachingSubjects() async {

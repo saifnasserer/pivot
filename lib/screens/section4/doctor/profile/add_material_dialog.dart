@@ -17,6 +17,7 @@ class _AddMaterialDialogState extends State<AddMaterialDialog> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   MaterialType? _detectedType;
+  MaterialType? _selectedType;
   bool _isValidating = false;
 
   @override
@@ -38,18 +39,7 @@ class _AddMaterialDialogState extends State<AddMaterialDialog> {
       return MaterialType.video;
     }
 
-    // Document platforms
-    if (lowerUrl.contains('drive.google.com') && lowerUrl.contains('/file/')) {
-      return MaterialType.document;
-    }
-    if (lowerUrl.contains('docs.google.com')) {
-      return MaterialType.document;
-    }
-    if (lowerUrl.contains('onedrive.live.com')) {
-      return MaterialType.document;
-    }
-
-    // File extensions
+    // File extensions (check these first before platform detection)
     if (lowerUrl.endsWith('.pdf')) {
       return MaterialType.pdf;
     }
@@ -57,16 +47,50 @@ class _AddMaterialDialogState extends State<AddMaterialDialog> {
         lowerUrl.endsWith('.jpeg') ||
         lowerUrl.endsWith('.png') ||
         lowerUrl.endsWith('.gif') ||
-        lowerUrl.endsWith('.webp')) {
+        lowerUrl.endsWith('.webp') ||
+        lowerUrl.endsWith('.bmp') ||
+        lowerUrl.endsWith('.svg')) {
       return MaterialType.image;
+    }
+    if (lowerUrl.endsWith('.mp4') ||
+        lowerUrl.endsWith('.avi') ||
+        lowerUrl.endsWith('.mov') ||
+        lowerUrl.endsWith('.wmv') ||
+        lowerUrl.endsWith('.flv') ||
+        lowerUrl.endsWith('.webm') ||
+        lowerUrl.endsWith('.mkv') ||
+        lowerUrl.endsWith('.m4v')) {
+      return MaterialType.video;
     }
     if (lowerUrl.endsWith('.doc') ||
         lowerUrl.endsWith('.docx') ||
         lowerUrl.endsWith('.ppt') ||
         lowerUrl.endsWith('.pptx') ||
         lowerUrl.endsWith('.xls') ||
-        lowerUrl.endsWith('.xlsx')) {
+        lowerUrl.endsWith('.xlsx') ||
+        lowerUrl.endsWith('.txt') ||
+        lowerUrl.endsWith('.rtf')) {
       return MaterialType.document;
+    }
+
+    // Google Docs specific services (these are definitely documents)
+    if (lowerUrl.contains('docs.google.com/document') ||
+        lowerUrl.contains('docs.google.com/spreadsheets') ||
+        lowerUrl.contains('docs.google.com/presentation')) {
+      return MaterialType.document;
+    }
+
+    // Google Drive files - default to link since we can't determine type
+    if (lowerUrl.contains('drive.google.com') && lowerUrl.contains('/file/')) {
+      return MaterialType.link;
+    }
+
+    // OneDrive and other cloud storage - default to link
+    if (lowerUrl.contains('onedrive.live.com') ||
+        lowerUrl.contains('1drv.ms') ||
+        lowerUrl.contains('sharepoint.com') ||
+        lowerUrl.contains('dropbox.com')) {
+      return MaterialType.link;
     }
 
     return MaterialType.link;
@@ -74,12 +98,22 @@ class _AddMaterialDialogState extends State<AddMaterialDialog> {
 
   void _detectTypeFromUrl(String url) {
     if (url.isEmpty) {
-      setState(() => _detectedType = null);
+      setState(() {
+        _detectedType = null;
+        // Reset selected type if URL is empty
+        if (_selectedType != null) {
+          _selectedType = null;
+        }
+      });
       return;
     }
 
     setState(() {
       _detectedType = _detectType(url);
+      // Auto-select the detected type if no manual selection was made
+      if (_selectedType == null) {
+        _selectedType = _detectedType;
+      }
     });
   }
 
@@ -120,22 +154,22 @@ class _AddMaterialDialogState extends State<AddMaterialDialog> {
           _descriptionController.text.trim().isEmpty
               ? null
               : _descriptionController.text.trim(),
-      type: _detectedType ?? MaterialType.link,
+      type: _selectedType ?? _detectedType ?? MaterialType.link,
     );
   }
 
   String _getTypeDisplayName(MaterialType type) {
     switch (type) {
       case MaterialType.video:
-        return 'Video';
+        return 'فيديو';
       case MaterialType.pdf:
-        return 'PDF Document';
+        return 'ملف PDF';
       case MaterialType.document:
-        return 'Document';
+        return 'مستند';
       case MaterialType.image:
-        return 'Image';
+        return 'صورة';
       case MaterialType.link:
-        return 'Link';
+        return 'رابط';
     }
   }
 
@@ -167,7 +201,9 @@ class _AddMaterialDialogState extends State<AddMaterialDialog> {
             _buildTitleField(),
             SizedBox(height: Responsive.space(context, size: Space.medium)),
             _buildUrlField(),
-            if (_detectedType != null) ...[
+            SizedBox(height: Responsive.space(context, size: Space.medium)),
+            _buildTypeSelector(),
+            if (_detectedType != null && _detectedType != _selectedType) ...[
               SizedBox(height: Responsive.space(context, size: Space.small)),
               _buildTypeIndicator(),
             ],
@@ -249,30 +285,107 @@ class _AddMaterialDialogState extends State<AddMaterialDialog> {
     );
   }
 
+  Widget _buildTypeSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'نوع المحتوى',
+          style: TextStyle(
+            fontSize: Responsive.text(context, size: TextSize.medium),
+            fontWeight: FontWeight.w600,
+            color: Colors.grey.shade800,
+          ),
+        ),
+        SizedBox(height: Responsive.space(context, size: Space.small)),
+        Container(
+          width: double.infinity,
+          padding: EdgeInsets.symmetric(
+            horizontal: Responsive.space(context, size: Space.medium),
+            vertical: Responsive.space(context, size: Space.small),
+          ),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.shade300),
+            borderRadius: BorderRadius.circular(
+              Responsive.space(context, size: Space.small),
+            ),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<MaterialType>(
+              value: _selectedType,
+              hint: Text(
+                'اختر نوع المحتوى',
+                style: TextStyle(
+                  fontSize: Responsive.text(context, size: TextSize.medium),
+                  color: Colors.grey.shade600,
+                ),
+              ),
+              isExpanded: true,
+              items:
+                  MaterialType.values.map((MaterialType type) {
+                    return DropdownMenuItem<MaterialType>(
+                      value: type,
+                      child: Row(
+                        children: [
+                          Icon(
+                            _getTypeIcon(type),
+                            color: Colors.grey.shade600,
+                            size: Responsive.space(context, size: Space.medium),
+                          ),
+                          SizedBox(
+                            width: Responsive.space(context, size: Space.small),
+                          ),
+                          Text(
+                            _getTypeDisplayName(type),
+                            style: TextStyle(
+                              fontSize: Responsive.text(
+                                context,
+                                size: TextSize.medium,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+              onChanged: (MaterialType? newValue) {
+                setState(() {
+                  _selectedType = newValue;
+                });
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildTypeIndicator() {
     return Container(
       padding: EdgeInsets.all(Responsive.space(context, size: Space.small)),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: Colors.blue.shade50,
         borderRadius: BorderRadius.circular(
           Responsive.space(context, size: Space.small),
         ),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: Colors.blue.shade200),
       ),
       child: Row(
         children: [
           Icon(
-            _getTypeIcon(_detectedType!),
-            color: Colors.grey.shade600,
+            Icons.lightbulb_outline,
+            color: Colors.blue.shade600,
             size: Responsive.space(context, size: Space.medium),
           ),
           SizedBox(width: Responsive.space(context, size: Space.small)),
-          Text(
-            'نوع المحتوى: ${_getTypeDisplayName(_detectedType!)}',
-            style: TextStyle(
-              fontSize: Responsive.text(context, size: TextSize.small),
-              color: Colors.grey.shade700,
-              fontWeight: FontWeight.w500,
+          Expanded(
+            child: Text(
+              'تم اكتشاف نوع المحتوى تلقائياً: ${_getTypeDisplayName(_detectedType!)}',
+              style: TextStyle(
+                fontSize: Responsive.text(context, size: TextSize.small),
+                color: Colors.blue.shade700,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ],

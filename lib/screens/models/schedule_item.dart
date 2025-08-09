@@ -25,6 +25,8 @@ class ScheduleItem extends HiveObject {
   final ScheduleItemType type;
   @HiveField(6)
   final bool notificationEnabled;
+  @HiveField(7)
+  final int? order;
 
   ScheduleItem({
     required this.id,
@@ -34,6 +36,7 @@ class ScheduleItem extends HiveObject {
     required this.day,
     required this.type,
     this.notificationEnabled = true, // Default to enabled
+    this.order, // Can be null for legacy items
   });
 
   factory ScheduleItem.fromJson(Map<String, dynamic> json) {
@@ -48,6 +51,7 @@ class ScheduleItem extends HiveObject {
               ? ScheduleItemType.lecture
               : ScheduleItemType.section,
       notificationEnabled: json['notificationEnabled'] as bool? ?? true,
+      order: json['order'] as int? ?? 0,
     );
   }
 
@@ -60,6 +64,7 @@ class ScheduleItem extends HiveObject {
       'day': day,
       'type': type.toString().split('.').last, // e.g., 'lecture' or 'section'
       'notificationEnabled': notificationEnabled,
+      'order': order,
     };
   }
 
@@ -71,6 +76,7 @@ class ScheduleItem extends HiveObject {
     String? day,
     ScheduleItemType? type,
     bool? notificationEnabled,
+    int? order,
   }) {
     return ScheduleItem(
       id: id ?? this.id,
@@ -80,6 +86,7 @@ class ScheduleItem extends HiveObject {
       day: day ?? this.day,
       type: type ?? this.type,
       notificationEnabled: notificationEnabled ?? this.notificationEnabled,
+      order: order ?? this.order,
     );
   }
 }
@@ -103,13 +110,14 @@ class ScheduleItemCustomAdapter extends TypeAdapter<ScheduleItem> {
       day: fields[4] as String,
       type: fields[5] as ScheduleItemType,
       notificationEnabled: fields[6] as bool? ?? true, // Handle null values
+      order: fields[7] as int? ?? 0, // Handle null values
     );
   }
 
   @override
   void write(BinaryWriter writer, ScheduleItem obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(8)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -123,7 +131,9 @@ class ScheduleItemCustomAdapter extends TypeAdapter<ScheduleItem> {
       ..writeByte(5)
       ..write(obj.type)
       ..writeByte(6)
-      ..write(obj.notificationEnabled);
+      ..write(obj.notificationEnabled)
+      ..writeByte(7)
+      ..write(obj.order);
   }
 
   @override

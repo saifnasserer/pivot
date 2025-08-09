@@ -131,14 +131,39 @@ class MaterialLinksProvider with ChangeNotifier {
       _isLoading = true;
       _safeNotifyListeners();
 
-      // Convert to legacy format for service
-      final legacyMap = materialLink.toLegacyMap();
-      await _service.deleteLinkFromLecture(lectureId, legacyMap);
+      print('MaterialLinksProvider: Deleting material link');
+      print('- Title: ${materialLink.title}');
+      print('- URL: ${materialLink.url}');
+      print('- Type: ${materialLink.type}');
+      print('- Lecture ID: $lectureId');
 
-      // Remove from local list
+      // Try both legacy formats for deletion - first minimal, then full
+      final minimalMap = materialLink.toMinimalLegacyMap();
+      final fullLegacyMap = materialLink.toLegacyMap();
+
+      print('- Minimal map: $minimalMap');
+      print('- Full legacy map: $fullLegacyMap');
+
+      // The service method will handle trying different formats
+      await _service.deleteLinkFromLecture(lectureId, fullLegacyMap);
+
+      // Refresh from database to ensure we have the accurate state
+      print(
+        'MaterialLinksProvider: Refreshing data from database after deletion',
+      );
+      await fetchMaterialLinks(lectureId);
+
+      // Also verify deletion in local list as backup
+      final removedCount = _materialLinks.length;
       _materialLinks.removeWhere((link) => link.url == materialLink.url);
+      final newCount = _materialLinks.length;
+
+      print(
+        'MaterialLinksProvider: Local list changed by ${removedCount - newCount} links',
+      );
       _safeNotifyListeners();
     } catch (e) {
+      print('MaterialLinksProvider: Error deleting material link: $e');
       _error = 'Failed to delete material link: ${e.toString()}';
       _safeNotifyListeners();
       rethrow;

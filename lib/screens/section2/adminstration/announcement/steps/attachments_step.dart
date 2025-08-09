@@ -1,10 +1,11 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide MaterialType;
 import 'package:pivot/responsive.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:pivot/services/permission_service.dart';
 import 'package:pivot/screens/section2/adminstration/announcement/add_announcement_controller.dart';
 import 'package:pivot/models/material_link.dart';
 import 'package:pivot/screens/section2/adminstration/announcement/steps/material_browser_bottom_sheet.dart';
+import 'package:pivot/widgets/unified_dialog.dart';
 import 'dart:io';
 
 class AttachmentsStep extends StatelessWidget {
@@ -46,61 +47,184 @@ class AttachmentsStep extends StatelessWidget {
     final TextEditingController titleController = TextEditingController();
     final TextEditingController urlController = TextEditingController();
     final TextEditingController descriptionController = TextEditingController();
+    final GlobalKey<FormState> formKey = GlobalKey<FormState>();
+    MaterialType selectedType = MaterialType.link;
 
     final result = await showDialog<Map<String, String>>(
       context: context,
       builder:
-          (context) => AlertDialog(
-            title: Text('إضافة رابط جديد'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: titleController,
-                  decoration: InputDecoration(
-                    labelText: 'عنوان الرابط',
-                    border: OutlineInputBorder(),
+          (context) => StatefulBuilder(
+            builder:
+                (context, setState) => UnifiedDialog(
+                  title: 'إضافة رابط جديد',
+                  subtitle: 'أضف رابطاً جديداً للمحتوى',
+                  content: Form(
+                    key: formKey,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        UnifiedFormField(
+                          controller: titleController,
+                          label: 'عنوان الرابط',
+                          hint: 'أدخل عنوان الرابط',
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'يرجى إدخال عنوان الرابط';
+                            }
+                            return null;
+                          },
+                        ),
+                        SizedBox(
+                          height: Responsive.space(context, size: Space.medium),
+                        ),
+                        UnifiedFormField(
+                          controller: urlController,
+                          label: 'الرابط',
+                          hint: 'https://example.com',
+                          keyboardType: TextInputType.url,
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'يرجى إدخال الرابط';
+                            }
+                            final uri = Uri.tryParse(value.trim());
+                            if (uri == null || !uri.hasScheme) {
+                              return 'يرجى إدخال رابط صالح';
+                            }
+                            return null;
+                          },
+                        ),
+                        SizedBox(
+                          height: Responsive.space(context, size: Space.medium),
+                        ),
+                        // Custom Type Selector with Icons
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'نوع المحتوى',
+                              style: TextStyle(
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.medium,
+                                ),
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey.shade800,
+                              ),
+                            ),
+                            SizedBox(
+                              height: Responsive.space(
+                                context,
+                                size: Space.small,
+                              ),
+                            ),
+                            Container(
+                              width: double.infinity,
+                              padding: EdgeInsets.symmetric(
+                                horizontal: Responsive.space(
+                                  context,
+                                  size: Space.medium,
+                                ),
+                                vertical: Responsive.space(
+                                  context,
+                                  size: Space.small,
+                                ),
+                              ),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey.shade300),
+                                borderRadius: BorderRadius.circular(
+                                  Responsive.space(context, size: Space.large),
+                                ),
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<MaterialType>(
+                                  value: selectedType,
+                                  hint: Text(
+                                    'اختر نوع المحتوى',
+                                    style: TextStyle(
+                                      fontSize: Responsive.text(
+                                        context,
+                                        size: TextSize.medium,
+                                      ),
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                  isExpanded: true,
+                                  items:
+                                      MaterialType.values.map((
+                                        MaterialType type,
+                                      ) {
+                                        return DropdownMenuItem<MaterialType>(
+                                          value: type,
+                                          child: Row(
+                                            children: [
+                                              Icon(
+                                                _getMaterialTypeIcon(type.name),
+                                                color: _getMaterialTypeColor(
+                                                  type.name,
+                                                ),
+                                                size: Responsive.space(
+                                                  context,
+                                                  size: Space.medium,
+                                                ),
+                                              ),
+                                              SizedBox(
+                                                width: Responsive.space(
+                                                  context,
+                                                  size: Space.small,
+                                                ),
+                                              ),
+                                              Text(
+                                                _getTypeDisplayName(type),
+                                                style: TextStyle(
+                                                  fontSize: Responsive.text(
+                                                    context,
+                                                    size: TextSize.medium,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      }).toList(),
+                                  onChanged: (MaterialType? newValue) {
+                                    if (newValue != null) {
+                                      setState(() {
+                                        selectedType = newValue;
+                                      });
+                                    }
+                                  },
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(
+                          height: Responsive.space(context, size: Space.medium),
+                        ),
+                        UnifiedFormField(
+                          controller: descriptionController,
+                          label: 'الوصف (اختياري)',
+                          hint: 'أدخل وصفاً للمادة',
+                          maxLines: 3,
+                          keyboardType: TextInputType.multiline,
+                        ),
+                      ],
+                    ),
                   ),
+                  confirmText: 'إضافة',
+                  confirmIcon: Icons.add,
+                  onConfirm: () {
+                    if (formKey.currentState!.validate()) {
+                      Navigator.of(context).pop({
+                        'title': titleController.text.trim(),
+                        'url': urlController.text.trim(),
+                        'description': descriptionController.text.trim(),
+                        'type': selectedType.name,
+                      });
+                    }
+                  },
+                  onCancel: () => Navigator.of(context).pop(),
                 ),
-                SizedBox(height: 16),
-                TextField(
-                  controller: urlController,
-                  decoration: InputDecoration(
-                    labelText: 'الرابط',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                SizedBox(height: 16),
-                TextField(
-                  controller: descriptionController,
-                  decoration: InputDecoration(
-                    labelText: 'الوصف (اختياري)',
-                    border: OutlineInputBorder(),
-                  ),
-                  maxLines: 2,
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text('إلغاء'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  if (titleController.text.isNotEmpty &&
-                      urlController.text.isNotEmpty) {
-                    Navigator.of(context).pop({
-                      'title': titleController.text,
-                      'url': urlController.text,
-                      'description': descriptionController.text,
-                      'type': 'link',
-                    });
-                  }
-                },
-                child: Text('إضافة'),
-              ),
-            ],
           ),
     );
 
@@ -203,6 +327,21 @@ class AttachmentsStep extends StatelessWidget {
       case 'link':
       default:
         return Colors.grey;
+    }
+  }
+
+  String _getTypeDisplayName(MaterialType type) {
+    switch (type) {
+      case MaterialType.video:
+        return 'فيديو';
+      case MaterialType.pdf:
+        return 'ملف PDF';
+      case MaterialType.document:
+        return 'مستند';
+      case MaterialType.image:
+        return 'صورة';
+      case MaterialType.link:
+        return 'رابط';
     }
   }
 

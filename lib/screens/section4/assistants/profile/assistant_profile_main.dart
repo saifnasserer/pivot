@@ -29,7 +29,7 @@ class _AssistantProfileMainState extends State<AssistantProfileMain>
   int _selectedSubjectIndex = 0;
   UserProfile? _displayedProfile;
   String? _previousProfileId;
-  bool _isEditingAboutMe = false;
+  final bool _isEditingAboutMe = false;
   late TextEditingController _aboutMeController;
   late TabController _subjectTabController;
 

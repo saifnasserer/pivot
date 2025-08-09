@@ -268,7 +268,7 @@ class ContactInfoWidget extends StatelessWidget {
                   ),
                 ),
               );
-            }).toList(),
+            }),
             if (canEditSocial)
               Container(
                 margin: EdgeInsets.only(

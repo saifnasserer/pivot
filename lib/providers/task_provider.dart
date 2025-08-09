@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pivot/screens/models/task.dart';
 import 'package:pivot/services/notification_trigger_service.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:pivot/services/local_notification_service.dart';
 
 class TaskProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -40,13 +42,25 @@ class TaskProvider with ChangeNotifier {
 
     _tasksSubscription?.cancel();
     _tasksSubscription = _tasksCollection.snapshots().listen(
-      (snapshot) {
+      (snapshot) async {
         _tasks =
             snapshot.docs.map((doc) {
               return Task.fromMap(doc.data() as Map<String, dynamic>);
             }).toList();
         _isLoading = false;
         notifyListeners();
+
+        // After syncing tasks, (re)schedule local reminders on mobile
+        if (!kIsWeb) {
+          for (final t in _tasks) {
+            await LocalNotificationService.instance.scheduleTaskReminders(
+              taskId: t.id,
+              taskName: t.title,
+              dueDateTime: t.dueDate,
+              isCompleted: _isTaskCompletedForCurrentUser(t),
+            );
+          }
+        }
       },
       onError: (error) {
         _error = 'Failed to fetch tasks: $error';
@@ -54,6 +68,13 @@ class TaskProvider with ChangeNotifier {
         notifyListeners();
       },
     );
+  }
+
+  bool _isTaskCompletedForCurrentUser(Task task) {
+    final user = _auth.currentUser;
+    final uid = user?.uid;
+    if (uid == null) return false;
+    return task.completedBy.contains(uid);
   }
 
   // Returns tasks filtered by a specific section ID
@@ -65,13 +86,19 @@ class TaskProvider with ChangeNotifier {
   Future<void> addTask(Task task) async {
     try {
       await _tasksCollection.doc(task.id).set(task.toMap());
-      // Send auto notifications for new tasks
+
+      // Local scheduling for the current device
+      if (!kIsWeb) {
+        await LocalNotificationService.instance.scheduleTaskReminders(
+          taskId: task.id,
+          taskName: task.title,
+          dueDateTime: task.dueDate,
+          isCompleted: false,
+        );
+      }
+
+      // Keep legacy remote triggers if needed
       await NotificationTriggerService().sendTaskReminders();
-      await NotificationTriggerService().sendAnnouncement(
-        task.title,
-        task.description,
-      );
-      await NotificationTriggerService().sendClassReminders();
     } catch (e) {
       // Re-throw the exception to be handled by the UI
       throw Exception('Failed to add task: $e');
@@ -82,6 +109,16 @@ class TaskProvider with ChangeNotifier {
   Future<void> updateTask(String id, Task updatedTask) async {
     try {
       await _tasksCollection.doc(id).update(updatedTask.toMap());
+
+      // Re-schedule locally
+      if (!kIsWeb) {
+        await LocalNotificationService.instance.scheduleTaskReminders(
+          taskId: updatedTask.id,
+          taskName: updatedTask.title,
+          dueDateTime: updatedTask.dueDate,
+          isCompleted: _isTaskCompletedForCurrentUser(updatedTask),
+        );
+      }
     } catch (e) {
       throw Exception('Failed to update task: $e');
     }
@@ -99,7 +136,8 @@ class TaskProvider with ChangeNotifier {
 
     try {
       final task = _tasks.firstWhere((t) => t.id == taskId);
-      if (task.completedBy.contains(userId)) {
+      final currentlyCompleted = task.completedBy.contains(userId);
+      if (currentlyCompleted) {
         // If already completed, remove user from the list
         await taskRef.update({
           'completedBy': FieldValue.arrayRemove([userId]),
@@ -111,7 +149,18 @@ class TaskProvider with ChangeNotifier {
         });
       }
 
-      // Send overdue task notifications after status change
+      // Re-schedule (or cancel) local reminders according to new status
+      if (!kIsWeb) {
+        final updatedCompleted = !currentlyCompleted;
+        await LocalNotificationService.instance.scheduleTaskReminders(
+          taskId: task.id,
+          taskName: task.title,
+          dueDateTime: task.dueDate,
+          isCompleted: updatedCompleted,
+        );
+      }
+
+      // Send overdue task notifications after status change (legacy remote)
       await NotificationTriggerService().sendTaskReminders();
     } catch (e) {
       throw Exception('Failed to toggle task status: $e');
@@ -121,16 +170,11 @@ class TaskProvider with ChangeNotifier {
   // Deletes a task from Firestore
   Future<void> deleteTask(String id) async {
     try {
-      final doc = await _tasksCollection.doc(id).get();
-      String title = '';
-      if (doc.exists) {
-        final data = doc.data();
-        if (data != null &&
-            data is Map<String, dynamic> &&
-            data['title'] != null) {
-          title = data['title'] as String;
-        }
+      // Cancel local reminders first
+      if (!kIsWeb) {
+        await LocalNotificationService.instance.cancelTaskReminders(id);
       }
+
       await _tasksCollection.doc(id).delete();
     } catch (e) {
       throw Exception('Failed to delete task: $e');

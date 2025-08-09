@@ -16,6 +16,7 @@ class AssistantSelectionDialog extends StatefulWidget {
   final Function(String) onAssistantSelected;
 
   const AssistantSelectionDialog({
+    super.key,
     required this.subject,
     required this.section,
     required this.assistants,

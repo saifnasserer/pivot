@@ -24,6 +24,9 @@
   },
   "functions": {
       "source": "functions",
-      "runtime": "python313"
-    }
+      "runtime": "python312"
+    },
+  "firestore": {
+    "rules": "firestore.rules"
+  }
 }

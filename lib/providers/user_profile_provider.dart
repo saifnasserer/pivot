@@ -22,7 +22,7 @@ class UserProfileProvider with ChangeNotifier {
   Box? _profilePicsBox;
   bool _isLoading = false;
   String? _error;
-  bool _hasLoadedAllUsers = false;
+  final bool _hasLoadedAllUsers = false;
   Function? _onProfileRestored;
 
   // Getters
@@ -483,10 +483,8 @@ class UserProfileProvider with ChangeNotifier {
           );
         }
 
-        if (imageUrl != null) {
-          data['profileImageUrl'] = imageUrl;
-          debugPrint('Image URL added to update data: $imageUrl');
-        }
+        data['profileImageUrl'] = imageUrl;
+        debugPrint('Image URL added to update data: $imageUrl');
       }
 
       debugPrint('Updating Firestore document...');

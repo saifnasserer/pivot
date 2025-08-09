@@ -7,7 +7,6 @@ import 'package:pivot/providers/section_provider.dart';
 import 'package:pivot/providers/subject_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
-import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:provider/provider.dart';
 
 /// Enhanced sections builder with better structure and animations

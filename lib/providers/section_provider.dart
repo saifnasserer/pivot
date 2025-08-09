@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pivot/models/section_model.dart';
 import 'package:pivot/services/section_service.dart';

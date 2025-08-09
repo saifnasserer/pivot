@@ -82,6 +82,38 @@ class _ScheduleTabState extends State<ScheduleTab>
     scheduleProvider.toggleNotificationForItem(currentDay, itemId);
   }
 
+  void _handleReorder(int oldIndex, int newIndex) {
+    try {
+      print(
+        '🔄 UI: Reorder requested - oldIndex: $oldIndex, newIndex: $newIndex',
+      );
+
+      final scheduleProvider = context.read<ScheduleProvider>();
+      final profileProvider = context.read<ProfileProvider>();
+      final currentDay =
+          scheduleProvider.days.isNotEmpty
+              ? scheduleProvider.days[profileProvider.selectedDayIndex.clamp(
+                0,
+                scheduleProvider.days.length - 1,
+              )]
+              : '';
+
+      print('🔄 UI: Current day: "$currentDay"');
+
+      if (currentDay.isNotEmpty &&
+          oldIndex != newIndex &&
+          oldIndex >= 0 &&
+          newIndex >= 0) {
+        print('🔄 UI: Calling scheduleProvider.reorderScheduleItems');
+        scheduleProvider.reorderScheduleItems(currentDay, oldIndex, newIndex);
+      } else {
+        print('❌ UI: Invalid reorder parameters or empty day');
+      }
+    } catch (e) {
+      print('❌ UI: Error in reorder handler: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
@@ -172,6 +204,7 @@ class _ScheduleTabState extends State<ScheduleTab>
             showFloatingActionButton: true,
             selectedDay: currentDay,
             enableAnimations: true,
+            onReorder: _handleReorder,
           ),
         );
       },

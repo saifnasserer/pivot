@@ -47,6 +47,15 @@ class DoctorSubjectProvider with ChangeNotifier {
         doctorId,
         subjectId,
       );
+
+      // Sort lectures by creation date (newest first)
+      _lectures.sort((a, b) {
+        final aDate =
+            a.createdAt ?? DateTime(1970); // Fallback for lectures without date
+        final bDate =
+            b.createdAt ?? DateTime(1970); // Fallback for lectures without date
+        return bDate.compareTo(aDate); // Newest first
+      });
     } catch (e) {
       _error = 'Failed to fetch lectures: ${e.toString()}';
     } finally {
@@ -69,6 +78,17 @@ class DoctorSubjectProvider with ChangeNotifier {
 
       // Only update the current list if this is the currently displayed subject
       if (subjectId == _currentSubjectId) {
+        // Sort lectures by creation date (newest first)
+        lectures.sort((a, b) {
+          final aDate =
+              a.createdAt ??
+              DateTime(1970); // Fallback for lectures without date
+          final bDate =
+              b.createdAt ??
+              DateTime(1970); // Fallback for lectures without date
+          return bDate.compareTo(aDate); // Newest first
+        });
+
         _lectures = lectures;
         _safeNotifyListeners();
       }

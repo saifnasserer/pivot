@@ -143,7 +143,7 @@ class AssistantProfileContent {
                       final availableHeight =
                           screenHeight * 0.5; // Use 50% of screen height
 
-                      return Container(
+                      return SizedBox(
                         height: availableHeight,
                         child: TabBarView(
                           controller: tabController,

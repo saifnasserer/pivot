@@ -305,12 +305,15 @@ class _TeamFormationScreenState extends State<TeamFormationScreen> {
                           onChanged: (v) => newWhatsapp = v,
                           validator: (v) {
                             if (v == null || v.isEmpty) return 'مطلوب';
-                            if (!v.startsWith('0'))
+                            if (!v.startsWith('0')) {
                               return 'يجب أن يبدأ الرقم بـ 0';
-                            if (v.length != 11)
+                            }
+                            if (v.length != 11) {
                               return 'يجب أن يتكون الرقم من 11 رقم';
-                            if (!RegExp(r'^[0-9]+$').hasMatch(v))
+                            }
+                            if (!RegExp(r'^[0-9]+$').hasMatch(v)) {
                               return 'يجب أن يحتوي على أرقام فقط';
+                            }
                             return null;
                           },
                           keyboardType: TextInputType.phone,

@@ -203,7 +203,6 @@ class _EnhancedSectionListItemState extends State<EnhancedSectionListItem>
                                         ],
                                       )
                                       .expand((e) => e)
-                                      .toList()
                                 else
                                   _buildInfoChip(
                                     context,

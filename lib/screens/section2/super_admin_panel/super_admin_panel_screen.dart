@@ -5,7 +5,6 @@ import 'package:pivot/widgets/unified_dialog.dart';
 
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:pivot/services/remote_config_service.dart';
 import 'package:pivot/widgets/no_internet_message.dart';
 
 class SuperAdminPanelScreen extends StatefulWidget {
@@ -320,28 +319,6 @@ class _SuperAdminPanelScreenState extends State<SuperAdminPanelScreen> {
         children: [
           _buildSettingsTile(
             context,
-            Icons.sync,
-            'رفع الإبديت',
-            'تحديث إعدادات التطبيق من السيرفر',
-            () async {
-              final remoteConfigService = Provider.of<RemoteConfigService>(
-                context,
-                listen: false,
-              );
-              final success = await remoteConfigService.forceFetch();
-              if (!context.mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(success ? 'تم التحديث بنجاح!' : 'فشل التحديث.'),
-                  backgroundColor: success ? Colors.green : Colors.red,
-                ),
-              );
-            },
-            Colors.blue,
-          ),
-          _buildDivider(),
-          _buildSettingsTile(
-            context,
             Icons.logout,
             'تسجيل الخروج',
             'تسجيل الخروج من الحساب',
@@ -404,23 +381,12 @@ class _SuperAdminPanelScreenState extends State<SuperAdminPanelScreen> {
           _buildDivider(),
           _buildQuickActionTile(
             context,
-            Icons.refresh,
-            'تحديث البيانات',
-            'تحديث البيانات من السيرفر',
-            Colors.orange,
-            () async {
-              final provider = Provider.of<SuperAdminProvider>(
-                context,
-                listen: false,
-              );
-              await provider.fetchDashboardData();
-              if (!context.mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('تم تحديث البيانات بنجاح'),
-                  backgroundColor: Colors.green,
-                ),
-              );
+            Icons.notifications_active,
+            'اختبار الإشعارات',
+            'اختبار نظام الإشعارات وتشخيص المشاكل',
+            Colors.purple,
+            () {
+              Navigator.pushNamed(context, '/notifications-test');
             },
           ),
         ],

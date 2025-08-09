@@ -1,20 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/screens/models/schedule_item.dart';
 import 'package:pivot/responsive.dart';
-import 'package:pivot/services/permission_service.dart';
-import 'package:pivot/services/notification_service.dart';
+
 import 'package:auto_size_text/auto_size_text.dart';
 
 class SchaduleCard extends StatelessWidget {
   final ScheduleItem item;
   final VoidCallback handleDelete;
   final VoidCallback? onNotificationToggle;
+  final Widget? trailingWidget;
 
   const SchaduleCard({
     super.key,
     required this.item,
     required this.handleDelete,
     this.onNotificationToggle,
+    this.trailingWidget,
   });
 
   @override
@@ -23,14 +24,10 @@ class SchaduleCard extends StatelessWidget {
         item.type == ScheduleItemType.lecture
             ? Colors.blue.shade50
             : Colors.orange.shade50;
-    final IconData typeIcon =
-        item.type == ScheduleItemType.lecture
-            ? Icons.menu_book_rounded
-            : Icons.groups_rounded;
 
     return Container(
-      margin: EdgeInsets.only(bottom: Responsive.space(context)),
-      padding: EdgeInsets.all(Responsive.space(context)),
+      margin: EdgeInsets.only(bottom: Responsive.space(context) * 0.8),
+      padding: EdgeInsets.all(Responsive.space(context) * 0.8),
       width: double.infinity,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(Responsive.space(context) * 0.8),
@@ -39,48 +36,54 @@ class SchaduleCard extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              Icon(
-                typeIcon,
-                size: Responsive.text(context) * 1.1,
-                color:
-                    item.type == ScheduleItemType.lecture
-                        ? Colors.blue.shade700
-                        : Colors.orange.shade700,
-              ),
-              SizedBox(width: Responsive.space(context) * 0.5),
-              if (onNotificationToggle != null)
-                IconButton(
-                  icon: Icon(
-                    item.notificationEnabled
-                        ? Icons.notifications_active
-                        : Icons.notifications_off,
-                    color:
-                        item.notificationEnabled
-                            ? Colors.green.shade600
-                            : Colors.grey.shade500,
-                  ),
-                  iconSize: Responsive.text(context) * 1.1,
-                  onPressed: () async {
-                    final hasPermission =
-                        await NotificationService().areNotificationsEnabled();
-                    if (!hasPermission) {
-                      await PermissionService.showNotificationPermissionDialog(
-                        context,
-                      );
-                      return;
-                    }
-                    onNotificationToggle!();
-                  },
-                  tooltip:
-                      item.notificationEnabled
-                          ? 'إيقاف الإشعارات'
-                          : 'تفعيل الإشعارات',
-                ),
-              SizedBox(width: Responsive.space(context) * 0.5),
+              // Add trailing widget if provided (like drag handle)
+              if (trailingWidget != null) ...[
+                trailingWidget!,
+                SizedBox(width: Responsive.space(context) * 0.5),
+              ],
+              // Icon(
+              //   typeIcon,
+              //   size: Responsive.text(context) * 1.1,
+              //   color:
+              //       item.type == ScheduleItemType.lecture
+              //           ? Colors.blue.shade700
+              //           : Colors.orange.shade700,
+              // ),
+              // SizedBox(width: Responsive.space(context) * 0.5),
+              // if (onNotificationToggle != null)
+              //   IconButton(
+              //     icon: Icon(
+              //       item.notificationEnabled
+              //           ? Icons.notifications_active
+              //           : Icons.notifications_off,
+              //       color:
+              //           item.notificationEnabled
+              //               ? Colors.green.shade600
+              //               : Colors.grey.shade500,
+              //     ),
+              //     iconSize: Responsive.text(context) * 1.1,
+              //     onPressed: () async {
+              //       final hasPermission =
+              //           await NotificationService().areNotificationsEnabled();
+              //       if (!hasPermission) {
+              //         await PermissionService.showNotificationPermissionDialog(
+              //           context,
+              //         );
+              //         return;
+              //       }
+              //       onNotificationToggle!();
+              //     },
+              //     tooltip:
+              //         item.notificationEnabled
+              //             ? 'إيقاف الإشعارات'
+              //             : 'تفعيل الإشعارات',
+              //   ),
+              // SizedBox(width: Responsive.space(context) * 0.5),
               IconButton(
                 icon: Icon(Icons.delete_outline_rounded),
                 iconSize: Responsive.text(context) * 1.1,
@@ -98,7 +101,8 @@ class SchaduleCard extends StatelessWidget {
                   textAlign: TextAlign.right,
                   style: TextStyle(
                     color: Colors.black87,
-                    fontSize: Responsive.text(context) * 1.1,
+                    fontSize:
+                        Responsive.text(context) * 1.0, // Slightly smaller
                     fontWeight: FontWeight.bold,
                   ),
                   maxLines: 1,
@@ -108,38 +112,49 @@ class SchaduleCard extends StatelessWidget {
               ),
             ],
           ),
-          SizedBox(height: Responsive.space(context) * 0.75),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              Text(
-                item.location,
-                style: TextStyle(
-                  color: Colors.black87,
-                  fontSize: Responsive.text(context) * 0.95,
+          SizedBox(height: Responsive.space(context) * 0.5),
+          Flexible(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    item.location,
+                    style: TextStyle(
+                      color: Colors.black87,
+                      fontSize:
+                          Responsive.text(context) * 0.9, // Slightly smaller
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-              ),
-              SizedBox(width: Responsive.space(context) * 0.3),
-              Icon(
-                Icons.location_on_outlined,
-                size: Responsive.text(context),
-                color: Colors.black54,
-              ),
-              SizedBox(width: Responsive.space(context)),
-              Text(
-                item.time,
-                style: TextStyle(
-                  color: Colors.black87,
-                  fontSize: Responsive.text(context) * 0.95,
+                SizedBox(width: Responsive.space(context) * 0.2),
+                Icon(
+                  Icons.location_on_outlined,
+                  size: Responsive.text(context) * 0.9, // Slightly smaller
+                  color: Colors.black54,
                 ),
-              ),
-              SizedBox(width: Responsive.space(context) * 0.3),
-              Icon(
-                Icons.access_time_outlined,
-                size: Responsive.text(context),
-                color: Colors.black54,
-              ),
-            ],
+                SizedBox(width: Responsive.space(context) * 0.8),
+                Flexible(
+                  child: Text(
+                    item.time,
+                    style: TextStyle(
+                      color: Colors.black87,
+                      fontSize:
+                          Responsive.text(context) * 0.9, // Slightly smaller
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                SizedBox(width: Responsive.space(context) * 0.2),
+                Icon(
+                  Icons.access_time_outlined,
+                  size: Responsive.text(context) * 0.9, // Slightly smaller
+                  color: Colors.black54,
+                ),
+              ],
+            ),
           ),
         ],
       ),

@@ -1,9 +1,9 @@
-
 import 'package:pivot/services/notification_service.dart';
 import 'package:pivot/services/notification_trigger_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:intl/intl.dart';
 
 class NotificationTestService {
   static final NotificationTestService _instance =
@@ -206,20 +206,33 @@ class NotificationTestService {
     }
   }
 
-  // Send a test notification to current user
+  // Send a test notification to current user only
   Future<bool> sendTestNotification() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return false;
+      if (user == null) {
+        print('Error: No authenticated user');
+        return false;
+      }
 
-      final token = await _notificationService.getUserFCMToken(user.uid);
-      if (token == null) return false;
+      // Get current user's FCM token directly
+      final token = await _notificationService.getToken();
+      if (token == null || token.isEmpty) {
+        print('Error: No FCM token available for current user');
+        return false;
+      }
 
+      // Send notification only to current user's device
       return await _notificationService.sendNotification(
         targetToken: token,
-        title: 'Test Notification',
+        title: 'Test Notification - Current User Only',
         body:
-            'This is a test notification sent at ${DateTime.now().toString()}',
+            'This is a test notification sent to your device only at ${DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now())}',
+        userId: user.uid,
+        data: {
+          'test_type': 'current_user_only',
+          'timestamp': DateTime.now().millisecondsSinceEpoch.toString(),
+        },
       );
     } catch (e) {
       print('Error sending test notification: $e');
@@ -292,4 +305,3 @@ class NotificationTestService {
     return health;
   }
 }
- 

@@ -58,6 +58,16 @@ class _BookmarkCardState extends State<BookmarkCard>
     super.dispose();
   }
 
+  /// Safe getter for bookmark color with fallback
+  Color get _safeBookmarkColor {
+    try {
+      return widget.bookmark.color;
+    } catch (e) {
+      print('Error accessing bookmark color: $e');
+      return Colors.blue; // Fallback color
+    }
+  }
+
   void _showBookmarkBadge(BuildContext context) {
     showDialog(
       context: context,
@@ -93,8 +103,8 @@ class _BookmarkCardState extends State<BookmarkCard>
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
-                            widget.bookmark.color.withOpacity(0.2),
-                            widget.bookmark.color.withOpacity(0.1),
+                            _safeBookmarkColor.withOpacity(0.2),
+                            _safeBookmarkColor.withOpacity(0.1),
                           ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,

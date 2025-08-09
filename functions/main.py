@@ -46,7 +46,7 @@ def send_notification(req: https_fn.Request) -> https_fn.Response:
         token = data.get("token")
         title = data.get("title", "No Title")
         body = data.get("body", "No Body")
-        icon = data.get("icon", "ic_launcher")  # Default to app icon
+        icon = data.get("icon", "ic_notification")  # Default to notification icon
         color = data.get("color", "#000000")    # Default to black
         sound = data.get("sound", "default")    # Default sound
         

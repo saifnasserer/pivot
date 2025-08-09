@@ -7,6 +7,7 @@ class Lecture {
   final String doctorId;
   final String categoryName;
   final List<Map<String, dynamic>> links;
+  final DateTime? createdAt;
 
   Lecture({
     required this.id,
@@ -15,6 +16,7 @@ class Lecture {
     required this.doctorId,
     required this.categoryName,
     this.links = const [],
+    this.createdAt,
   });
 
   Lecture copyWith({
@@ -24,6 +26,7 @@ class Lecture {
     String? doctorId,
     String? categoryName,
     List<Map<String, dynamic>>? links,
+    DateTime? createdAt,
   }) {
     return Lecture(
       id: id ?? this.id,
@@ -32,11 +35,22 @@ class Lecture {
       doctorId: doctorId ?? this.doctorId,
       categoryName: categoryName ?? this.categoryName,
       links: links ?? this.links,
+      createdAt: createdAt ?? this.createdAt,
     );
   }
 
   factory Lecture.fromFirestore(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+
+    DateTime? createdAt;
+    if (data['createdAt'] != null) {
+      if (data['createdAt'] is Timestamp) {
+        createdAt = (data['createdAt'] as Timestamp).toDate();
+      } else if (data['createdAt'] is String) {
+        createdAt = DateTime.tryParse(data['createdAt']);
+      }
+    }
+
     return Lecture(
       id: doc.id,
       title: data['title'] ?? '',
@@ -46,6 +60,7 @@ class Lecture {
       links: List<Map<String, dynamic>>.from(
         data['links']?.map((item) => Map<String, dynamic>.from(item)) ?? [],
       ),
+      createdAt: createdAt,
     );
   }
 
@@ -56,6 +71,7 @@ class Lecture {
       'doctorId': doctorId,
       'categoryName': categoryName,
       'links': links,
+      'createdAt': createdAt ?? DateTime.now(),
     };
   }
 }

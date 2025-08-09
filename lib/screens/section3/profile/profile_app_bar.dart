@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
 import 'package:pivot/responsive.dart';
-import 'profile_provider.dart';
 
 class ProfileAppBar extends StatelessWidget implements PreferredSizeWidget {
   final TabController tabController;

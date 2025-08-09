@@ -166,6 +166,11 @@ class MaterialLink extends HiveObject {
     };
   }
 
+  /// Creates a minimal legacy map for deletion purposes that matches original simple format
+  Map<String, dynamic> toMinimalLegacyMap() {
+    return {'title': title, 'url': url};
+  }
+
   static MaterialType _detectType(String url) {
     final lowerUrl = url.toLowerCase();
 
@@ -177,18 +182,7 @@ class MaterialLink extends HiveObject {
       return MaterialType.video;
     }
 
-    // Document platforms
-    if (lowerUrl.contains('drive.google.com') && lowerUrl.contains('/file/')) {
-      return MaterialType.document;
-    }
-    if (lowerUrl.contains('docs.google.com')) {
-      return MaterialType.document;
-    }
-    if (lowerUrl.contains('onedrive.live.com')) {
-      return MaterialType.document;
-    }
-
-    // File extensions
+    // File extensions (check these first before platform detection)
     if (lowerUrl.endsWith('.pdf')) {
       return MaterialType.pdf;
     }
@@ -196,18 +190,75 @@ class MaterialLink extends HiveObject {
         lowerUrl.endsWith('.jpeg') ||
         lowerUrl.endsWith('.png') ||
         lowerUrl.endsWith('.gif') ||
-        lowerUrl.endsWith('.webp')) {
+        lowerUrl.endsWith('.webp') ||
+        lowerUrl.endsWith('.bmp') ||
+        lowerUrl.endsWith('.svg')) {
       return MaterialType.image;
+    }
+    if (lowerUrl.endsWith('.mp4') ||
+        lowerUrl.endsWith('.avi') ||
+        lowerUrl.endsWith('.mov') ||
+        lowerUrl.endsWith('.wmv') ||
+        lowerUrl.endsWith('.flv') ||
+        lowerUrl.endsWith('.webm') ||
+        lowerUrl.endsWith('.mkv') ||
+        lowerUrl.endsWith('.m4v')) {
+      return MaterialType.video;
     }
     if (lowerUrl.endsWith('.doc') ||
         lowerUrl.endsWith('.docx') ||
         lowerUrl.endsWith('.ppt') ||
         lowerUrl.endsWith('.pptx') ||
         lowerUrl.endsWith('.xls') ||
-        lowerUrl.endsWith('.xlsx')) {
+        lowerUrl.endsWith('.xlsx') ||
+        lowerUrl.endsWith('.txt') ||
+        lowerUrl.endsWith('.rtf')) {
       return MaterialType.document;
     }
 
+    // Google Drive file detection with better logic
+    if (lowerUrl.contains('drive.google.com') && lowerUrl.contains('/file/')) {
+      // Try to detect file type from URL parameters or export format
+      if (lowerUrl.contains('export=download') ||
+          lowerUrl.contains('&export=')) {
+        // Check for specific export formats
+        if (lowerUrl.contains('exportFormat=pdf') ||
+            lowerUrl.contains('format=pdf')) {
+          return MaterialType.pdf;
+        }
+        if (lowerUrl.contains('exportFormat=jpg') ||
+            lowerUrl.contains('exportFormat=png') ||
+            lowerUrl.contains('format=jpg') ||
+            lowerUrl.contains('format=png')) {
+          return MaterialType.image;
+        }
+      }
+      // Default to link for Google Drive files since we can't determine the type
+      return MaterialType.link;
+    }
+
+    // Google Docs specific services (these are definitely documents)
+    if (lowerUrl.contains('docs.google.com/document') ||
+        lowerUrl.contains('docs.google.com/spreadsheets') ||
+        lowerUrl.contains('docs.google.com/presentation')) {
+      return MaterialType.document;
+    }
+
+    // OneDrive detection
+    if (lowerUrl.contains('onedrive.live.com') ||
+        lowerUrl.contains('1drv.ms') ||
+        lowerUrl.contains('sharepoint.com')) {
+      // Default to link for OneDrive since we can't determine the type reliably
+      return MaterialType.link;
+    }
+
+    // Dropbox detection
+    if (lowerUrl.contains('dropbox.com')) {
+      // Default to link for Dropbox since we can't determine the type reliably
+      return MaterialType.link;
+    }
+
+    // Default to link for unknown types
     return MaterialType.link;
   }
 
