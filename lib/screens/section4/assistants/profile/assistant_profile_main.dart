@@ -322,7 +322,9 @@ class _AssistantProfileMainState extends State<AssistantProfileMain>
         backgroundColor: Colors.white,
         resizeToAvoidBottomInset: true,
         floatingActionButton:
-            isOwnProfile
+            (isOwnProfile ||
+                    loggedInUser?.role == 'Super Admin' ||
+                    loggedInUser?.role == 'Admin')
                 ? FloatingActionButton(
                   heroTag: 'assistant_profile_fab',
                   onPressed: _showAddSectionDialog,

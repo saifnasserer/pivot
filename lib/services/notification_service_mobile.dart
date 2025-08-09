@@ -26,7 +26,46 @@ class NotificationService {
     final token = await getToken();
     if (token != null && token.isNotEmpty) {
       await saveTokenToFirestore(token);
+      print('FCM Init: ✅ Token saved: ${token.substring(0, 20)}...');
+    } else {
+      print('FCM Init: ❌ No token available');
     }
+
+    // Set up foreground message handler
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      print('FCM Foreground: 📱 Received message while app is in foreground');
+      print('FCM Foreground: Title: ${message.notification?.title}');
+      print('FCM Foreground: Body: ${message.notification?.body}');
+      print('FCM Foreground: Data: ${message.data}');
+
+      // Show local notification for foreground messages
+      if (message.notification != null) {
+        _showForegroundNotification(message);
+      }
+    });
+
+    // Handle notification taps when app is terminated
+    FirebaseMessaging.instance.getInitialMessage().then((
+      RemoteMessage? message,
+    ) {
+      if (message != null) {
+        print('FCM Terminated: 📱 App launched from notification');
+        print('FCM Terminated: Data: ${message.data}');
+      }
+    });
+
+    // Handle notification taps when app is in background
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      print('FCM Background: 📱 App opened from notification');
+      print('FCM Background: Data: ${message.data}');
+    });
+  }
+
+  void _showForegroundNotification(RemoteMessage message) {
+    // Since FCM notifications don't show automatically when app is in foreground,
+    // we can show a local notification instead
+    print('FCM Foreground: 🔔 Would show local notification here');
+    // TODO: Integrate with LocalNotificationService to show the notification
 
     // Listen for token refresh
     _messaging.onTokenRefresh.listen((newToken) async {
@@ -35,6 +74,8 @@ class NotificationService {
   }
 
   Future<bool> requestPermissionsExplicitly() async {
+    print('FCM Permissions: Requesting notification permissions...');
+
     final settings = await _messaging.requestPermission(
       alert: true,
       announcement: false,
@@ -44,8 +85,25 @@ class NotificationService {
       provisional: false,
       sound: true,
     );
-    return settings.authorizationStatus == AuthorizationStatus.authorized ||
+
+    print(
+      'FCM Permissions: Authorization status: ${settings.authorizationStatus}',
+    );
+    print('FCM Permissions: Alert: ${settings.alert}');
+    print('FCM Permissions: Badge: ${settings.badge}');
+    print('FCM Permissions: Sound: ${settings.sound}');
+
+    final granted =
+        settings.authorizationStatus == AuthorizationStatus.authorized ||
         settings.authorizationStatus == AuthorizationStatus.provisional;
+
+    if (granted) {
+      print('FCM Permissions: ✅ Permissions granted');
+    } else {
+      print('FCM Permissions: ❌ Permissions denied');
+    }
+
+    return granted;
   }
 
   Future<bool> areNotificationsEnabled() async {
@@ -144,6 +202,10 @@ class NotificationService {
         if (imageUrl != null) 'image': imageUrl,
         if (data != null) 'data': data,
       };
+
+      print('FCM: Sending notification to function: $_functionUrl');
+      print('FCM: Payload: ${jsonEncode(payload)}');
+
       final resp = await http
           .post(
             Uri.parse(_functionUrl),
@@ -151,8 +213,19 @@ class NotificationService {
             body: jsonEncode(payload),
           )
           .timeout(const Duration(seconds: 15));
-      return resp.statusCode == 200;
-    } catch (_) {
+
+      print('FCM: Response status: ${resp.statusCode}');
+      print('FCM: Response body: ${resp.body}');
+
+      if (resp.statusCode == 200) {
+        print('FCM: ✅ Notification sent successfully');
+        return true;
+      } else {
+        print('FCM: ❌ Notification failed with status: ${resp.statusCode}');
+        return false;
+      }
+    } catch (e) {
+      print('FCM: ❌ Exception occurred: $e');
       return false;
     }
   }

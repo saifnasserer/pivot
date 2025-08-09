@@ -7,6 +7,7 @@ import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/models/task.dart';
 import 'package:pivot/screens/models/task_model.dart';
 import 'package:pivot/models/section_model.dart';
+import 'package:pivot/services/local_notification_service.dart';
 import 'package:provider/provider.dart';
 
 import 'add_edit_task_dialog.dart';
@@ -26,6 +27,10 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
   late AnimationController _listAnimationController;
   late Animation<double> _progressAnimation;
   late Animation<double> _listAnimation;
+
+  // Track previous tasks to detect new ones
+  List<String> _previousTaskIds = [];
+  bool _isInitialLoad = true;
 
   @override
   void initState() {
@@ -161,6 +166,156 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
       }
     } catch (e) {
       print('WeekTasks: Failed to update assistant preferences: $e');
+    }
+  }
+
+  /// Check for new tasks and send instant notifications
+  void _checkForNewTasks(List<Task> currentTasks) async {
+    try {
+      if (_isInitialLoad) {
+        // On first load, just store the current task IDs
+        _previousTaskIds = currentTasks.map((task) => task.id).toList();
+        _isInitialLoad = false;
+        print(
+          'WeekTasks: Initial load, storing ${_previousTaskIds.length} task IDs',
+        );
+        return;
+      }
+
+      final currentTaskIds = currentTasks.map((task) => task.id).toList();
+      final newTaskIds =
+          currentTaskIds.where((id) => !_previousTaskIds.contains(id)).toList();
+
+      if (newTaskIds.isNotEmpty) {
+        print('WeekTasks: Found ${newTaskIds.length} new tasks: $newTaskIds');
+
+        for (final taskId in newTaskIds) {
+          final newTask = currentTasks.firstWhere((task) => task.id == taskId);
+          print(
+            'WeekTasks: Processing new task: ${newTask.title} (ID: ${newTask.id})',
+          );
+          print('WeekTasks: Task is personal: ${newTask.isPersonal}');
+          print('WeekTasks: Task section ID: ${newTask.sectionId}');
+          await _sendNewTaskNotification(newTask);
+        }
+      } else {
+        print(
+          'WeekTasks: No new tasks detected. Current: ${currentTaskIds.length}, Previous: ${_previousTaskIds.length}',
+        );
+      }
+
+      // Update the previous task IDs
+      _previousTaskIds = currentTaskIds;
+    } catch (e) {
+      print('WeekTasks: Error checking for new tasks: $e');
+    }
+  }
+
+  /// Send instant notification for a new task
+  Future<void> _sendNewTaskNotification(Task task) async {
+    try {
+      print(
+        'WeekTasks: _sendNewTaskNotification called for task: ${task.title}',
+      );
+
+      final userProfileProvider = Provider.of<UserProfileProvider>(
+        context,
+        listen: false,
+      );
+      final sectionProvider = Provider.of<SectionProvider>(
+        context,
+        listen: false,
+      );
+      final subjectProvider = Provider.of<SubjectProvider>(
+        context,
+        listen: false,
+      );
+      final loggedInUser = userProfileProvider.loggedInUserProfile;
+
+      if (loggedInUser == null) {
+        print('WeekTasks: No logged-in user found, skipping notification');
+        return;
+      }
+
+      // Skip personal tasks (they're added locally by the user)
+      if (task.isPersonal) {
+        print('WeekTasks: Skipping personal task notification');
+        return;
+      }
+
+      // Get task section details
+      final taskSection =
+          sectionProvider.sections
+              .where((section) => section.id == task.sectionId)
+              .firstOrNull;
+
+      print(
+        'WeekTasks: Task section found: ${taskSection?.name ?? 'Not found'}',
+      );
+
+      // Get subject details
+      final subject =
+          subjectProvider.filteredSubjects
+              .where((subject) => subject.id == (taskSection?.subjectId ?? ''))
+              .firstOrNull;
+
+      final subjectName = subject?.name ?? 'مادة غير معروفة';
+      final sectionName = taskSection?.name ?? 'قسم غير معروف';
+
+      print('WeekTasks: Subject: $subjectName, Section: $sectionName');
+
+      // Format due date
+      final dueDate = task.dueDate;
+      final now = DateTime.now();
+      final difference = dueDate.difference(now).inDays;
+
+      String dueDateText;
+      if (difference == 0) {
+        dueDateText = 'اليوم';
+      } else if (difference == 1) {
+        dueDateText = 'غداً';
+      } else if (difference > 1) {
+        dueDateText = 'خلال $difference أيام';
+      } else {
+        dueDateText = 'متأخر';
+      }
+
+      // Determine notification title and body based on task priority
+      String notificationTitle;
+      String notificationBody;
+
+      switch (task.importance) {
+        case TaskImportance.high:
+          notificationTitle = '🔥 تاسك مهم جديد!';
+          notificationBody = '${task.title}\n $subjectName \n';
+          break;
+        case TaskImportance.mid:
+          notificationTitle = '📋 تاسك جديد';
+          notificationBody = '${task.title}\n $subjectName \n';
+          break;
+        case TaskImportance.low:
+          notificationTitle = '📝 تاسك جديد';
+          notificationBody = '${task.title}\n $subjectName \n';
+          break;
+        default:
+          notificationTitle = '📋 تاسك جديد';
+          notificationBody = '${task.title}\n $subjectName \n';
+      }
+
+      // Send instant notification
+      print('WeekTasks: Sending notification with title: $notificationTitle');
+      print('WeekTasks: Notification body: $notificationBody');
+
+      await LocalNotificationService.instance.sendTestNotification(
+        title: notificationTitle,
+        body: notificationBody,
+      );
+
+      print(
+        'WeekTasks: ✅ Successfully sent instant notification for new task: ${task.title}',
+      );
+    } catch (e) {
+      print('WeekTasks: Error sending new task notification: $e');
     }
   }
 
@@ -358,6 +513,13 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
           // Include task if its section is in our relevant sections
           return taskSection != null;
         }).toList();
+
+    // Check for new tasks and send instant notifications
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _checkForNewTasks(filteredTasks);
+      }
+    });
 
     final userId = loggedInUser.id;
     final pendingTasks =

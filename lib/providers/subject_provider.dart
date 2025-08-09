@@ -43,9 +43,9 @@ class SubjectProvider with ChangeNotifier {
         lowerRole == 'doctor';
   }
 
-  /// Helper method to check if a user is a student
+  /// Helper method to check if a user is a student (including admins who can register like students)
   bool _isStudent(String role) {
-    return role == 'Student';
+    return role == 'Student' || role == 'Admin' || role == 'Super Admin';
   }
 
   void buildInstructorsMap(List<UserProfile> allUsers) {

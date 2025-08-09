@@ -871,7 +871,9 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
                             success = true;
                           } else {
                             // Normal flow - user editing their own subjects
-                            if (userRole == 'Student' || userRole == 'Admin') {
+                            if (userRole == 'Student' ||
+                                userRole == 'Admin' ||
+                                userRole == 'Super Admin') {
                               updatedProfile = await userProfileProvider
                                   .updateEnrolledSubjects(
                                     _selectedSubjectIds.toList(),

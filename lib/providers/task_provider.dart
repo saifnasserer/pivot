@@ -97,8 +97,15 @@ class TaskProvider with ChangeNotifier {
         );
       }
 
-      // Keep legacy remote triggers if needed
-      await NotificationTriggerService().sendTaskReminders();
+      // Send immediate FCM notification for new task
+      final currentUser = _auth.currentUser;
+      if (currentUser != null) {
+        await NotificationTriggerService().sendNewTaskNotification(
+          currentUser.uid,
+          task.title,
+          task.dueDate,
+        );
+      }
     } catch (e) {
       // Re-throw the exception to be handled by the UI
       throw Exception('Failed to add task: $e');
@@ -161,7 +168,12 @@ class TaskProvider with ChangeNotifier {
       }
 
       // Send overdue task notifications after status change (legacy remote)
-      await NotificationTriggerService().sendTaskReminders();
+      try {
+        await NotificationTriggerService().sendTaskReminders();
+      } catch (e) {
+        print('Warning: Failed to send task reminders after status change: $e');
+        // Don't throw here as it's not critical for task completion
+      }
     } catch (e) {
       throw Exception('Failed to toggle task status: $e');
     }

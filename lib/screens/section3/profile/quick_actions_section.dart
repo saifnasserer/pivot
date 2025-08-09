@@ -201,7 +201,8 @@ class _QuickActionsSectionState extends State<QuickActionsSection>
     int animationIndex,
   ) {
     if (widget.userProfile.role == 'Student' ||
-        widget.userProfile.role == 'Admin') {
+        widget.userProfile.role == 'Admin' ||
+        widget.userProfile.role == 'Super Admin') {
       return _buildActionItem(
         context,
         animationIndex,

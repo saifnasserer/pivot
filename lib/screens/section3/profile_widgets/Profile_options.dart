@@ -115,7 +115,9 @@ Future<void> profile_options(BuildContext context) async {
   }
 
   // Add subject selection options for own profile
-  if (loggedInUser?.role == 'Student' || loggedInUser?.role == 'Admin') {
+  if (loggedInUser?.role == 'Student' ||
+      loggedInUser?.role == 'Admin' ||
+      loggedInUser?.role == 'Super Admin') {
     menuItems.insert(
       1, // Insert after 'edit_profile'
       PopupMenuItem<String>(

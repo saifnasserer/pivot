@@ -209,33 +209,47 @@ class NotificationTestService {
   // Send a test notification to current user only
   Future<bool> sendTestNotification() async {
     try {
+      print('FCM Test: Starting test notification process...');
+
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
-        print('Error: No authenticated user');
+        print('FCM Test: ❌ No authenticated user');
         return false;
       }
+      print('FCM Test: ✅ User authenticated: ${user.uid}');
 
       // Get current user's FCM token directly
       final token = await _notificationService.getToken();
       if (token == null || token.isEmpty) {
-        print('Error: No FCM token available for current user');
+        print('FCM Test: ❌ No FCM token available for current user');
         return false;
       }
+      print('FCM Test: ✅ FCM token found: ${token.substring(0, 20)}...');
 
       // Send notification only to current user's device
-      return await _notificationService.sendNotification(
+      print('FCM Test: Sending notification...');
+      final result = await _notificationService.sendNotification(
         targetToken: token,
         title: 'Test Notification - Current User Only',
         body:
             'This is a test notification sent to your device only at ${DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now())}',
         userId: user.uid,
+        icon: 'ic_notification',
         data: {
           'test_type': 'current_user_only',
           'timestamp': DateTime.now().millisecondsSinceEpoch.toString(),
         },
       );
+
+      if (result) {
+        print('FCM Test: ✅ Test notification completed successfully');
+      } else {
+        print('FCM Test: ❌ Test notification failed');
+      }
+
+      return result;
     } catch (e) {
-      print('Error sending test notification: $e');
+      print('FCM Test: ❌ Exception occurred: $e');
       return false;
     }
   }

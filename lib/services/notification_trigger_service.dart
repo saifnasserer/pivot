@@ -343,7 +343,7 @@ class NotificationTriggerService {
     });
   }
 
-  // Send task reminder notifications
+  // Send task reminder notifications for tasks due today
   Future<void> sendTaskReminders() async {
     try {
       final now = DateTime.now();
@@ -381,6 +381,63 @@ class NotificationTriggerService {
       }
     } catch (e) {
       print('Error sending task reminders: $e');
+    }
+  }
+
+  // Send immediate notification for newly added task
+  Future<void> sendNewTaskNotification(
+    String userId,
+    String taskName,
+    DateTime dueDate,
+  ) async {
+    try {
+      print('FCM Task: Sending new task notification for user: $userId');
+      print('FCM Task: Task: $taskName, Due: $dueDate');
+
+      final token = await _notificationService.getUserFCMToken(userId);
+      if (token != null) {
+        print('FCM Task: Found token for user: ${token.substring(0, 20)}...');
+
+        // Format due date for display
+        final now = DateTime.now();
+        final daysUntilDue = dueDate.difference(now).inDays;
+
+        String dueText;
+        if (daysUntilDue == 0) {
+          dueText = 'اليوم';
+        } else if (daysUntilDue == 1) {
+          dueText = 'غداً';
+        } else if (daysUntilDue > 1) {
+          dueText = 'خلال $daysUntilDue أيام';
+        } else {
+          dueText = 'متأخر';
+        }
+
+        print('FCM Task: Sending notification with title: تاسك جديد تم إضافته');
+        print('FCM Task: Body: تم إضافة التاسك "$taskName" - مطلوب $dueText');
+
+        final success = await _notificationService.sendNotification(
+          targetToken: token,
+          userId: userId,
+          title: 'تاسك جديد تم إضافته',
+          body: 'تم إضافة التاسك "$taskName"',
+          data: {
+            'type': 'new_task',
+            'taskName': taskName,
+            'dueDate': dueDate.toIso8601String(),
+          },
+        );
+
+        if (success) {
+          print('FCM Task: ✅ New task notification sent successfully');
+        } else {
+          print('FCM Task: ❌ Failed to send new task notification');
+        }
+      } else {
+        print('FCM Task: ❌ No FCM token found for user: $userId');
+      }
+    } catch (e) {
+      print('FCM Task: ❌ Error sending new task notification: $e');
     }
   }
 
