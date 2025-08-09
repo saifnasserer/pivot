@@ -60,6 +60,10 @@
 		<string>Our app needs access to your camera to let you take and upload photos.</string>
 		<key>NSUserNotificationUsageDescription</key>
 		<string>Our app uses notifications to keep you updated.</string>
+		<key>UIBackgroundModes</key>
+		<array>
+			<string>remote-notification</string>
+		</array>
 		<key>UIStatusBarHidden</key>
 		<false/>
 	</dict>
