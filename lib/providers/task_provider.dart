@@ -6,6 +6,7 @@ import 'package:pivot/screens/models/task.dart';
 import 'package:pivot/services/notification_trigger_service.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:pivot/services/local_notification_service.dart';
+import 'package:pivot/services/sound_service.dart';
 
 class TaskProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -77,6 +78,51 @@ class TaskProvider with ChangeNotifier {
     return task.completedBy.contains(uid);
   }
 
+  // Send immediate local notification for new task
+  Future<void> _sendLocalNewTaskNotification(Task task) async {
+    try {
+      if (kIsWeb) return; // Local notifications are for mobile only
+
+      print(
+        'TaskProvider: Sending local notification for new task: ${task.title}',
+      );
+
+      // Determine notification title and body based on task priority
+      String notificationTitle;
+      String notificationBody;
+
+      switch (task.importance) {
+        case TaskImportance.high:
+          notificationTitle = '🔥 تاسك مهم جديد!';
+          notificationBody = '${task.title}';
+          break;
+        case TaskImportance.mid:
+          notificationTitle = '📋 تاسك جديد';
+          notificationBody = '${task.title}';
+          break;
+        case TaskImportance.low:
+          notificationTitle = '📝 تاسك جديد';
+          notificationBody = '${task.title}';
+          break;
+        default:
+          notificationTitle = '📋 تاسك جديد';
+          notificationBody = '${task.title}';
+      }
+
+      // Send instant notification
+      await LocalNotificationService.instance.sendTestNotification(
+        title: notificationTitle,
+        body: notificationBody,
+      );
+
+      print(
+        'TaskProvider: ✅ Successfully sent local notification for new task: ${task.title}',
+      );
+    } catch (e) {
+      print('TaskProvider: Error sending local new task notification: $e');
+    }
+  }
+
   // Returns tasks filtered by a specific section ID
   List<Task> tasksForSection(String sectionId) {
     return _tasks.where((task) => task.sectionId == sectionId).toList();
@@ -105,6 +151,11 @@ class TaskProvider with ChangeNotifier {
           task.title,
           task.dueDate,
         );
+
+        // Send immediate local notification for new task (only for non-personal tasks)
+        if (!task.isPersonal) {
+          await _sendLocalNewTaskNotification(task);
+        }
       }
     } catch (e) {
       // Re-throw the exception to be handled by the UI
@@ -165,6 +216,12 @@ class TaskProvider with ChangeNotifier {
           dueDateTime: task.dueDate,
           isCompleted: updatedCompleted,
         );
+      }
+
+      // Play sound when task is completed
+      if (!currentlyCompleted) {
+        // Task was just completed
+        await SoundService().playCorrectSound();
       }
 
       // Send overdue task notifications after status change (legacy remote)
