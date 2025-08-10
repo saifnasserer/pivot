@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pivot/models/lecture_model.dart';
-import 'package:pivot/models/material_link.dart';
 
 class DoctorSubjectService {
   final CollectionReference _lecturesCollection = FirebaseFirestore.instance

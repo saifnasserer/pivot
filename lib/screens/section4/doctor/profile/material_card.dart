@@ -205,51 +205,6 @@ class _MaterialCardState extends State<MaterialCard>
     );
   }
 
-  Widget _buildMaterialTypeBadge(BuildContext context) {
-    final typeColors = {
-      MaterialType.video: Colors.red,
-      MaterialType.pdf: Colors.orange,
-      MaterialType.document: Colors.blue,
-      MaterialType.image: Colors.green,
-      MaterialType.link: Colors.purple,
-    };
-
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: Responsive.space(context, size: Space.small),
-        vertical: Responsive.space(context, size: Space.tiny),
-      ),
-      decoration: BoxDecoration(
-        color: typeColors[widget.materialLink.type]?.withOpacity(0.9),
-        borderRadius: BorderRadius.circular(
-          Responsive.space(context, size: Space.medium),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(widget.materialLink.typeIcon, size: 16, color: Colors.white),
-          SizedBox(width: 4),
-          Text(
-            widget.materialLink.typeDisplayName,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildEnhancedPlaceholder(BuildContext context) {
     return Container(
       width: double.infinity,

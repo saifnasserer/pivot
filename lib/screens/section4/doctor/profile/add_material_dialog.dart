@@ -117,33 +117,6 @@ class _AddMaterialDialogState extends State<AddMaterialDialog> {
     });
   }
 
-  Future<void> _validateUrl() async {
-    if (_urlController.text.isEmpty) return;
-
-    setState(() => _isValidating = true);
-
-    try {
-      final uri = Uri.tryParse(_urlController.text);
-      if (uri == null || !uri.hasScheme) {
-        throw Exception('رابط غير صالح');
-      }
-
-      // For now, we'll just validate the URL format
-      // In the future, we could add actual URL validation
-      await Future.delayed(const Duration(milliseconds: 500));
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('خطأ في الرابط: ${e.toString()}')),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isValidating = false);
-      }
-    }
-  }
-
   MaterialLink? _createMaterialLink() {
     if (!_formKey.currentState!.validate()) return null;
 

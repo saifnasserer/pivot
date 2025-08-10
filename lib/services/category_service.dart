@@ -56,7 +56,6 @@ class CategoryService {
   /// Get department code for API calls
   static String? getDepartmentCode(String category, String? userDepartment) {
     String? departmentCode;
-    String? timeFilter;
 
     if (category == 'SC' ||
         category == 'AI' ||
@@ -73,7 +72,6 @@ class CategoryService {
       } else {
         departmentCode = 'عام';
       }
-      timeFilter = 'today';
     } else if (category == 'عام') {
       departmentCode = 'عام';
     }

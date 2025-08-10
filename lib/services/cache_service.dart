@@ -174,8 +174,7 @@ class CacheService {
     for (var ann in announcements) {
       final key =
           ann.id ??
-          ann.title ??
-          DateTime.now().millisecondsSinceEpoch.toString();
+          (ann.title ?? DateTime.now().millisecondsSinceEpoch.toString());
       await box.put(key, ann);
     }
   }

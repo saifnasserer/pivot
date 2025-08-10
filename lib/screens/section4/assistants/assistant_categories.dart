@@ -29,7 +29,6 @@ class AssistantCategoriesState extends State<AssistantCategories>
     with TickerProviderStateMixin {
   int selectedIndex = 1; // Default to المواد (Materials)
   late AnimationController _animationController;
-  late Animation<double> _slideAnimation;
 
   @override
   void initState() {
@@ -37,9 +36,6 @@ class AssistantCategoriesState extends State<AssistantCategories>
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
-    );
-    _slideAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
   }
 

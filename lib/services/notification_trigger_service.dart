@@ -233,14 +233,7 @@ class NotificationTriggerService {
     _updateAnalytics('opened', type);
   }
 
-  // Convert to Egypt time
-  DateTime _toEgyptTime(DateTime dateTime) {
-    final utc = dateTime.toUtc();
-    return utc.add(const Duration(hours: egyptTimeZoneOffset));
-  }
-
-  // Override the existing sendScheduledNotification method
-  @override
+  // Send scheduled notification
   Future<void> sendScheduledNotification(
     ScheduledNotification notification,
   ) async {
@@ -513,7 +506,6 @@ class NotificationTriggerService {
         final userId = scheduleData['userId'] as String?;
         final subjectName = scheduleData['subjectName'] as String?;
         final startTime = scheduleData['startTime'] as String?;
-        final endTime = scheduleData['endTime'] as String?;
 
         if (userId != null && subjectName != null && startTime != null) {
           // Parse start time and check if it's within 15 minutes

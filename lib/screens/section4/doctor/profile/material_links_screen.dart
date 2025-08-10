@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart' hide MaterialType;
-import 'package:flutter/services.dart';
 import 'package:pivot/services/haptic_service.dart';
 import 'package:pivot/models/lecture_model.dart';
 import 'package:pivot/models/material_link.dart';
@@ -416,32 +415,6 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
   //     ),
   //   );
   // }
-
-  Widget _buildStatItem({
-    required IconData icon,
-    required String label,
-    required String value,
-    required Color color,
-  }) {
-    return Column(
-      children: [
-        Icon(icon, color: color, size: 24),
-        SizedBox(height: 4),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
-        ),
-        Text(
-          label,
-          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-        ),
-      ],
-    );
-  }
 
   Widget _buildFilterChips(MaterialLinksProvider provider) {
     final typeCounts = provider.typeCounts;

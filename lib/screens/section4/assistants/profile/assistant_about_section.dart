@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/responsive.dart';
-import 'package:pivot/screens/section4/doctor_details.dart';
+
 import 'assistant_about_me_widget.dart';
 import 'package:pivot/screens/section4/doctor/profile/contact_info_widget.dart';
 
@@ -104,32 +104,6 @@ class _AssistantAboutSectionState extends State<AssistantAboutSection>
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildAssistantDetailsSection() {
-    return FadeTransition(
-      opacity: _sectionAnimations[0],
-      child: Container(
-        width: double.infinity,
-        padding: EdgeInsets.all(Responsive.space(context, size: Space.large)),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(
-            Responsive.space(context, size: Space.large),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-              spreadRadius: 1,
-            ),
-          ],
-          border: Border.all(color: Colors.grey[200]!, width: 1),
-        ),
-        child: DoctorDetails(userProfile: widget.userProfile),
       ),
     );
   }

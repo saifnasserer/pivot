@@ -70,7 +70,6 @@ class _AddEditTaskDialogContentState extends State<_AddEditTaskDialogContent> {
   late TaskImportance _selectedImportance;
   String? _selectedSubjectId;
   String? _selectedSectionId;
-  bool _isLoadingSections = false;
   List<Map<String, String>> attachments = [];
   bool _isEditing = false;
 
@@ -126,21 +125,9 @@ class _AddEditTaskDialogContentState extends State<_AddEditTaskDialogContent> {
           );
         }
       }
-      if (mounted) {
-        setState(() => _isLoadingSections = false);
-      }
     } catch (e) {
       print('Error fetching initial data: $e');
-      if (mounted) {
-        setState(() => _isLoadingSections = false);
-      }
     }
-  }
-
-  void _onSectionChanged(String? newSectionId) {
-    setState(() {
-      _selectedSectionId = newSectionId;
-    });
   }
 
   Future<void> _selectDate(BuildContext context) async {
@@ -165,9 +152,6 @@ class _AddEditTaskDialogContentState extends State<_AddEditTaskDialogContent> {
         ).showSnackBar(const SnackBar(content: Text('من فضلك اختر المادة')));
         return;
       }
-
-      // Get the current user (assistant) ID
-      final currentUser = widget.currentUser;
 
       // Get the section to find its assistant ID
       final sectionProvider = Provider.of<SectionProvider>(

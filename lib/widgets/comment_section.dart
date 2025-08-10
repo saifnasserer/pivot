@@ -6,7 +6,6 @@ import 'package:pivot/responsive.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:provider/provider.dart';
 import 'package:pivot/models/user_profile.dart';
-import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:gradient_borders/gradient_borders.dart';
 import 'package:lottie/lottie.dart';
@@ -1047,12 +1046,6 @@ class _CommentSectionState extends State<CommentSection> {
     }
   }
 
-  void _toggleReplies(String commentId) {
-    setState(() {
-      _expandedReplies[commentId] = !(_expandedReplies[commentId] ?? false);
-    });
-  }
-
   void _sendComment(BuildContext context) async {
     final provider = Provider.of<AnnouncementProvider>(context, listen: false);
     final userProfileProvider = Provider.of<UserProfileProvider>(
@@ -1125,21 +1118,6 @@ class _CommentSectionState extends State<CommentSection> {
     }
   }
 
-  Widget _buildLikeButton(
-    CommentData comment,
-    String announcementId,
-    String userId,
-    AnnouncementProvider provider, {
-    required List<String> likerNames,
-    required bool isOwnLike,
-  }) {
-    return _LikeButton(
-      isLiked: comment.likes.contains(userId),
-      likeCount: comment.likes.length,
-      onTap: () => provider.likeComment(announcementId, comment.id, userId),
-    );
-  }
-
   Widget buildCommentText(
     BuildContext context,
     String text, {
@@ -1165,11 +1143,6 @@ class _CommentSectionState extends State<CommentSection> {
       trimLines: trimLines,
       trimChars: trimChars,
     );
-  }
-
-  String _exactTimestamp(DateTime timestamp) {
-    return '${timestamp.year}/${timestamp.month.toString().padLeft(2, '0')}/${timestamp.day.toString().padLeft(2, '0')} '
-        '${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}';
   }
 
   @override

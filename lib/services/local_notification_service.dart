@@ -259,7 +259,6 @@ class LocalNotificationService {
       return;
     }
 
-    final DateTime now = DateTime.now();
     final id = _stableIdFrom('class:$scheduleItemId');
     print('  - Generated notification ID: $id');
 

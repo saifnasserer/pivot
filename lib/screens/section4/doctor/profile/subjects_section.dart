@@ -27,7 +27,6 @@ class _SubjectsSectionState extends State<SubjectsSection>
   Map<String, List<dynamic>> _lecturesBySubject = {};
   Map<String, bool> _loadingStates = {};
   Map<String, String?> _errorStates = {};
-  String? _lastDoctorId;
   List<Subject> _previousSubjects = [];
   String? _previousDoctorId;
 
@@ -35,7 +34,6 @@ class _SubjectsSectionState extends State<SubjectsSection>
   void initState() {
     super.initState();
     _tabController = TabController(length: 0, vsync: this);
-    _lastDoctorId = widget.userProfile.id;
     _previousDoctorId = widget.userProfile.id;
   }
 
@@ -60,7 +58,6 @@ class _SubjectsSectionState extends State<SubjectsSection>
     if (_previousDoctorId != currentDoctorId) {
       _clearCache();
       _previousDoctorId = currentDoctorId;
-      _lastDoctorId = currentDoctorId;
       print('Doctor changed from $_previousDoctorId to $currentDoctorId');
     }
 

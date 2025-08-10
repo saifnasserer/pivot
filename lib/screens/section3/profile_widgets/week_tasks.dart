@@ -7,7 +7,7 @@ import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/models/task.dart';
 import 'package:pivot/screens/models/task_model.dart';
 import 'package:pivot/models/section_model.dart';
-import 'package:pivot/services/local_notification_service.dart';
+
 import 'package:pivot/services/sound_service.dart';
 import 'package:provider/provider.dart';
 
@@ -26,7 +26,6 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
   final List<Task> _personalTasks = [];
   late AnimationController _progressAnimationController;
   late AnimationController _listAnimationController;
-  late Animation<double> _progressAnimation;
   late Animation<double> _listAnimation;
 
   // Note: New task notifications are now handled in task_provider.dart when tasks are actually created
@@ -43,12 +42,6 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
       vsync: this,
     );
 
-    _progressAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _progressAnimationController,
-        curve: Curves.easeInOut,
-      ),
-    );
     _listAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _listAnimationController, curve: Curves.easeOut),
     );
@@ -337,7 +330,6 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
           sectionProvider.sections.where((section) {
             return section.subjectId == subjectId &&
                 section.assistantId == defaultAssistantId &&
-                userSection != null &&
                 _matchesUserSectionNumber(section.name, userSection);
           }).firstOrNull;
 
@@ -688,46 +680,6 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
   }
 
   /// Check if section name matches user's section
-  bool _matchesUserSection(String sectionName, String userSection) {
-    final cleanSectionName = sectionName.trim().toLowerCase();
-    final cleanUserSection = userSection.trim().toLowerCase();
-
-    // Try different patterns to match the section
-    final patterns = [
-      // Pattern 1: "سكشن A" or "Section A"
-      cleanUserSection,
-      // Pattern 2: "A" (just the letter)
-      cleanUserSection,
-      // Pattern 3: "سكشن" + userSection
-      'سكشن $cleanUserSection',
-      // Pattern 4: "section" + userSection
-      'section $cleanUserSection',
-    ];
-
-    // Check if any pattern matches
-    for (int i = 0; i < patterns.length; i++) {
-      final pattern = patterns[i];
-      final matches = cleanSectionName.contains(pattern);
-      if (matches) {
-        return true;
-      }
-    }
-
-    // Additional check: if section name ends with the user section
-    final endsWithMatch = cleanSectionName.endsWith(cleanUserSection);
-    if (endsWithMatch) {
-      return true;
-    }
-
-    // Additional check: if section name contains the user section as a word
-    final words = cleanSectionName.split(RegExp(r'[\s\-_]+'));
-    final wordMatch = words.contains(cleanUserSection);
-    if (wordMatch) {
-      return true;
-    }
-
-    return false;
-  }
 
   /// Check if section number matches user's section number
   bool _matchesUserSectionNumber(String sectionName, String userSection) {

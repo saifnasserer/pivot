@@ -156,23 +156,6 @@ class _AssistantProfileMainState extends State<AssistantProfileMain>
     });
   }
 
-  // Update TabController when subjects are loaded
-  void _updateSubjectTabController(List<Subject> subjects) {
-    if (_subjectTabController.length != subjects.length) {
-      _subjectTabController.dispose();
-      _subjectTabController = TabController(
-        length: subjects.length,
-        vsync: this,
-        initialIndex: subjects.isNotEmpty ? subjects.length - 1 : 0,
-      );
-      _subjectTabController.addListener(() {
-        if (_subjectTabController.indexIsChanging) {
-          _onSubjectSelected(_subjectTabController.index);
-        }
-      });
-    }
-  }
-
   // Get properly initialized TabController for subjects
   TabController _getSubjectTabController(List<Subject> subjects) {
     if (_subjectTabController.length != subjects.length) {

@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
-import 'package:pivot/screens/section4/doctor/edit_about_route.dart';
+
 import 'package:provider/provider.dart';
 
 class SocialMediaOption {
@@ -80,87 +79,6 @@ class ContactInfoWidget extends StatelessWidget {
       urlPrefix: 'https://',
     ),
   ];
-
-  Widget _buildContactRow(
-    BuildContext context,
-    IconData icon,
-    String label,
-    String value,
-    VoidCallback? onTap,
-  ) {
-    return Container(
-      margin: EdgeInsets.only(
-        bottom: Responsive.space(context, size: Space.medium),
-      ),
-      padding: EdgeInsets.all(Responsive.space(context, size: Space.medium)),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(
-          Responsive.space(context, size: Space.medium),
-        ),
-        border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: EdgeInsets.all(
-              Responsive.space(context, size: Space.small),
-            ),
-            decoration: BoxDecoration(
-              color: Colors.black,
-              borderRadius: BorderRadius.circular(
-                Responsive.space(context, size: Space.medium),
-              ),
-            ),
-            child: Icon(
-              icon,
-              size: Responsive.text(context, size: TextSize.medium),
-              color: Colors.white,
-            ),
-          ),
-          SizedBox(width: Responsive.space(context, size: Space.medium)),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: Responsive.text(context, size: TextSize.small),
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black54,
-                  ),
-                ),
-                SizedBox(height: Responsive.space(context, size: Space.small)),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: Responsive.text(context, size: TextSize.medium),
-                    fontWeight: FontWeight.w500,
-                    color: Colors.black87,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (onTap != null)
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.grey[200],
-                borderRadius: BorderRadius.circular(
-                  Responsive.space(context, size: Space.medium),
-                ),
-              ),
-              child: IconButton(
-                icon: Icon(Icons.open_in_new, size: 20),
-                onPressed: onTap,
-                color: Colors.black54,
-              ),
-            ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildSocialMediaIcons(BuildContext context) {
     final loggedInUser = context.watch<UserProfileProvider>().userProfile;
@@ -476,27 +394,6 @@ class ContactInfoWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final loggedInUser = context.watch<UserProfileProvider>().userProfile;
-    final canEdit =
-        isOwnProfile ||
-        loggedInUser?.role == 'Admin' ||
-        loggedInUser?.role == 'Super Admin';
-
     return _buildSocialMediaIcons(context);
-  }
-
-  void _navigateToEditAbout(BuildContext context) {
-    Navigator.push(
-      context,
-      AnimatedEditAboutRoute(
-        userProfile: userProfile,
-        initialAboutText: userProfile.aboutMe,
-      ),
-    ).then((result) {
-      if (result == true && onProfileUpdated != null) {
-        // Call the callback to refresh the profile data if edit was successful
-        onProfileUpdated!(userProfile);
-      }
-    });
   }
 }
