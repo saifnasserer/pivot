@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:pivot/services/haptic_service.dart';
 import 'package:pivot/screens/section1/signup/signup_page2.dart';
 import 'package:pivot/data/form_options.dart';
 import 'package:pivot/screens/models/circular_button.dart';
@@ -264,8 +265,9 @@ class _Signup_1State extends State<Signup_1> {
     );
   }
 
-  void _submitPage1() {
+  void _submitPage1() async {
     if (_formKey.currentState!.validate()) {
+      await HapticService().success();
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -280,6 +282,7 @@ class _Signup_1State extends State<Signup_1> {
         ),
       );
     } else {
+      await HapticService().error();
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('املي البيانات بشكل كامل')));

@@ -9,6 +9,7 @@ import 'package:pivot/services/auth_service.dart';
 import 'package:pivot/services/local_auth_service.dart';
 import 'package:pivot/services/introduction_service.dart';
 import 'package:pivot/widgets/no_internet_message.dart';
+import 'package:pivot/services/haptic_service.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -270,7 +271,8 @@ class _FirstLandingScreenState extends State<FirstLandingScreen> {
                             ),
                           ),
                         ),
-                        onPressed: () {
+                        onPressed: () async {
+                          await HapticService().navigation();
                           Navigator.pushReplacementNamed(context, '/signup-1');
                         },
                         child: Row(
@@ -300,7 +302,13 @@ class _FirstLandingScreenState extends State<FirstLandingScreen> {
                         width: Responsive.space(context, size: Space.medium),
                       ),
                       TextButton(
-                        onPressed: _isLoggingIn ? null : _handleLogin,
+                        onPressed:
+                            _isLoggingIn
+                                ? null
+                                : () async {
+                                  await HapticService().navigation();
+                                  _handleLogin();
+                                },
                         child:
                             _isLoggingIn
                                 ? const SizedBox(

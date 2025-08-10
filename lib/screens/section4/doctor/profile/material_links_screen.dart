@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart' hide MaterialType;
 import 'package:flutter/services.dart';
+import 'package:pivot/services/haptic_service.dart';
 import 'package:pivot/models/lecture_model.dart';
 import 'package:pivot/models/material_link.dart';
 import 'package:pivot/models/user_profile.dart';
@@ -52,7 +53,7 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
   }
 
   Future<void> _launchURL(String urlString) async {
-    HapticFeedback.lightImpact();
+    HapticService().lightImpact();
 
     final Uri? url = Uri.tryParse(urlString);
     if (url != null && await canLaunchUrl(url)) {
@@ -526,7 +527,7 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
         ),
         selected: isSelected,
         onSelected: (selected) {
-          HapticFeedback.selectionClick();
+          HapticService().selectionClick();
           context.read<MaterialLinksProvider>().setSelectedType(
             selected ? type : null,
           );

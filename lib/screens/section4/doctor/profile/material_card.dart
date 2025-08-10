@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart' hide MaterialType;
 import 'package:flutter/services.dart';
+import 'package:pivot/services/haptic_service.dart';
 import 'package:pivot/models/material_link.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/responsive.dart';
@@ -559,7 +560,7 @@ class _MaterialCardState extends State<MaterialCard>
                       setState(() {
                         selectedRating = rating;
                       });
-                      HapticFeedback.lightImpact();
+                      HapticService().selectionClick();
                       debugPrint(
                         'MaterialCard: User selected rating: $selectedRating',
                       );

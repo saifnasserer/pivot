@@ -15,6 +15,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../services/permission_service.dart';
 import '../../../services/notification_service.dart';
+import '../../../services/haptic_service.dart';
 import 'package:pivot/widgets/no_internet_message.dart';
 
 class Login extends StatefulWidget {
@@ -107,6 +108,7 @@ class _LoginState extends State<Login> {
 
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) {
+      await HapticService().error();
       return;
     }
 
@@ -139,6 +141,9 @@ class _LoginState extends State<Login> {
           _email.toLowerCase().trim(),
           _password,
         );
+
+        // Add haptic feedback for successful login
+        await HapticService().success();
 
         // Add a small delay to ensure AuthWrapper can detect the profile
         //debugprint('[Login] Waiting for AuthWrapper to detect profile...');
@@ -180,6 +185,7 @@ class _LoginState extends State<Login> {
         }
       }
     } on FirebaseAuthException catch (e) {
+      await HapticService().error();
       if (!mounted) return;
       String errorMessage = 'فية مشكلة من فضلك حاول مرة تانية.';
       if (e.code == 'user-not-found' ||
@@ -194,6 +200,7 @@ class _LoginState extends State<Login> {
         ),
       );
     } catch (e) {
+      await HapticService().error();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

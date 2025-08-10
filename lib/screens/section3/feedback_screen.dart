@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/responsive.dart';
+import 'package:pivot/services/haptic_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -110,7 +111,8 @@ class _FeedbackScreenState extends State<FeedbackScreen>
     }
   }
 
-  void _onCategorySelected(String category) {
+  void _onCategorySelected(String category) async {
+    await HapticService().selectionClick();
     setState(() {
       _selectedCategory = category;
     });
@@ -668,6 +670,7 @@ class _FeedbackScreenState extends State<FeedbackScreen>
 
   Future<void> _submitFeedback() async {
     if (!_formKey.currentState!.validate()) {
+      await HapticService().error();
       return;
     }
 

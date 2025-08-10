@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/services/haptic_service.dart';
 
-/// A reusable circular button component used throughout the app.
+/// An enhanced circular button component with haptic feedback.
 ///
-/// This button is designed to be used for primary actions like form submissions
-/// and navigation. It features a circular shape with customizable icon and color.
-class CircularButton extends StatelessWidget {
-  /// Creates a circular button.
+/// This button extends the original CircularButton with haptic feedback
+/// for better user experience.
+class EnhancedCircularButton extends StatelessWidget {
+  /// Creates an enhanced circular button.
   ///
   /// The [onPressed] and [icon] parameters are required.
-  const CircularButton({
+  const EnhancedCircularButton({
     super.key,
     required this.onPressed,
     required this.icon,
@@ -19,6 +19,7 @@ class CircularButton extends StatelessWidget {
     this.elevation = 5,
     this.iconSizeMultiplier = 1.5,
     this.sizeMultiplier = 4,
+    this.hapticType = HapticType.light,
   });
 
   /// The callback that is called when the button is tapped.
@@ -44,12 +45,15 @@ class CircularButton extends StatelessWidget {
   /// Defaults to 4.
   final double sizeMultiplier;
 
+  /// The type of haptic feedback to provide. Defaults to light.
+  final HapticType hapticType;
+
   @override
   Widget build(BuildContext context) {
     return ElevatedButton(
       onPressed: () async {
         // Provide haptic feedback
-        await HapticService().lightImpact();
+        await _provideHapticFeedback();
         // Call the original onPressed callback
         onPressed();
       },
@@ -71,4 +75,48 @@ class CircularButton extends StatelessWidget {
       ),
     );
   }
+
+  /// Provide haptic feedback based on the specified type
+  Future<void> _provideHapticFeedback() async {
+    final hapticService = HapticService();
+
+    switch (hapticType) {
+      case HapticType.light:
+        await hapticService.lightImpact();
+        break;
+      case HapticType.medium:
+        await hapticService.mediumImpact();
+        break;
+      case HapticType.heavy:
+        await hapticService.heavyImpact();
+        break;
+      case HapticType.selection:
+        await hapticService.selectionClick();
+        break;
+      case HapticType.success:
+        await hapticService.success();
+        break;
+      case HapticType.error:
+        await hapticService.error();
+        break;
+      case HapticType.warning:
+        await hapticService.warning();
+        break;
+      case HapticType.navigation:
+        await hapticService.navigation();
+        break;
+    }
+  }
+}
+
+/// Enum for different types of haptic feedback
+enum HapticType {
+  light,
+  medium,
+  heavy,
+  selection,
+  success,
+  error,
+  warning,
+  navigation,
 }

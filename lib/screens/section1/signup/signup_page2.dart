@@ -13,6 +13,7 @@ import '../../../services/auth_service.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import '../../../services/permission_service.dart';
 import '../../../services/notification_service.dart';
+import '../../../services/haptic_service.dart';
 
 class Signup_2 extends StatefulWidget {
   final String name;
@@ -265,6 +266,7 @@ class _Signup_2State extends State<Signup_2> {
     if (selectedYear == null ||
         selectedDepartment == null ||
         selectedSection == null) {
+      await HapticService().error();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('يرجى اختيار الفرقة والقسم والسكشن')),
@@ -315,6 +317,7 @@ class _Signup_2State extends State<Signup_2> {
           // );
 
           if (mounted) {
+            await HapticService().success();
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('تم التسجيل بنجاح.'),
@@ -354,6 +357,7 @@ class _Signup_2State extends State<Signup_2> {
           });
         }
       } on FirebaseAuthException catch (e) {
+        await HapticService().error();
         String errorMessage;
         switch (e.code) {
           case 'weak-password':
@@ -374,6 +378,7 @@ class _Signup_2State extends State<Signup_2> {
           );
         }
       } catch (e) {
+        await HapticService().error();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
