@@ -40,7 +40,12 @@ class _ProfileScreenState extends State<ProfileScreen>
 
     // Ensure we're showing the logged-in user's profile
     final userProfileProvider = context.read<UserProfileProvider>();
-    userProfileProvider.ensureLoggedInUserProfileIsCurrent();
+    // Defer this call to avoid build-time notifyListeners
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        userProfileProvider.ensureLoggedInUserProfileIsCurrent();
+      }
+    });
 
     // Check if we just returned from viewing another user's profile
     final loggedInUser = userProfileProvider.loggedInUserProfile;
@@ -179,7 +184,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         final sectionProvider = context.read<SectionProvider>();
 
         // Force refresh subject provider
-        subjectProvider.fetchAndFilterSubjects(userProfile);
+        subjectProvider.updateFilteredSubjectsOnly(userProfile);
 
         // Force refresh sections
         if (userProfile.enrolledSubjects.isNotEmpty) {

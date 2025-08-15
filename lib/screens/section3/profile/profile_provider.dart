@@ -102,13 +102,13 @@ class ProfileProvider with ChangeNotifier {
         if (userProfile.role == 'Student') {
           // For students, use enrolled subjects
           final enrolledIds = userProfile.enrolledSubjects ?? [];
-          _subjectProvider.fetchAndFilterSubjects(userProfile);
+          _subjectProvider.updateFilteredSubjectsOnly(userProfile);
           _sectionProvider.fetchSectionsForUserSubjects(enrolledIds);
         } else if (userProfile.role == 'Professor' ||
             userProfile.role == 'miniProfessor') {
           // For professors/assistants, use teaching subjects
           final teachingIds = userProfile.teachingSubjects ?? [];
-          _subjectProvider.fetchAndFilterSubjects(userProfile);
+          _subjectProvider.updateFilteredSubjectsOnly(userProfile);
           _sectionProvider.fetchSectionsForUserSubjects(teachingIds);
         } else {
           // For admins, show all subjects

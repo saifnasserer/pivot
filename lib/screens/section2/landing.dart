@@ -215,6 +215,9 @@ class LandingState extends State<Landing> with TickerProviderStateMixin {
                   tags: announcement.tags,
                   imageUrls: announcement.imageUrls,
                   links: announcement.links,
+                  availableHeight:
+                      Responsive.height(context) *
+                      0.95, // Pass available height
                 ),
               );
             },

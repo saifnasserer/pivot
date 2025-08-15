@@ -29,7 +29,7 @@ class _SubjectsTabState extends State<SubjectsTab> {
                 'SubjectsTab: Profile restored, refreshing data for: ${loggedInUser.name}',
               );
               final subjectProvider = context.read<SubjectProvider>();
-              subjectProvider.fetchAndFilterSubjects(loggedInUser);
+              subjectProvider.updateFilteredSubjectsOnly(loggedInUser);
             }
           }
         });

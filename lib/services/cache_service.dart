@@ -4,6 +4,7 @@ import 'package:pivot/models/section_model.dart';
 import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/screens/models/schedule_item.dart';
 import 'package:pivot/screens/section2/adminstration/models/announcement_data.dart';
+import 'dart:developer' as developer;
 
 class CacheService {
   // Singleton instance
@@ -141,16 +142,33 @@ class CacheService {
 
   // Subject Caching
   Future<void> cacheSubjects(List<Subject> subjects) async {
+    developer.log(
+      'CacheService: cacheSubjects called with ${subjects.length} subjects',
+      name: 'CacheService',
+    );
     final box = Hive.box<Subject>(_subjectsBoxName);
     await box.clear();
     for (var subject in subjects) {
       await box.put(subject.id, subject);
     }
+    developer.log(
+      'CacheService: cacheSubjects completed successfully',
+      name: 'CacheService',
+    );
   }
 
   List<Subject> getCachedSubjects() {
+    developer.log(
+      'CacheService: getCachedSubjects called',
+      name: 'CacheService',
+    );
     final box = Hive.box<Subject>(_subjectsBoxName);
-    return box.values.toList();
+    final subjects = box.values.toList();
+    developer.log(
+      'CacheService: getCachedSubjects returned ${subjects.length} subjects',
+      name: 'CacheService',
+    );
+    return subjects;
   }
 
   // Schedule Caching

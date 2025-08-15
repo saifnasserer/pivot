@@ -46,9 +46,15 @@ class UserProfileProvider with ChangeNotifier {
       // If we have a cached UserProfile, but no profileImageUrl, update it from Hive
       if (cachedPic != null &&
           _userProfilesCache[userId]?.profileImageUrl != cachedPic) {
-        _userProfilesCache[userId] = _userProfilesCache[userId]!.copyWith(
-          profileImageUrl: cachedPic,
-        );
+        // Defer the cache update to avoid build-time modifications
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_userProfilesCache.containsKey(userId)) {
+            _userProfilesCache[userId] = _userProfilesCache[userId]!.copyWith(
+              profileImageUrl: cachedPic,
+            );
+            notifyListeners();
+          }
+        });
       }
       return _userProfilesCache[userId];
     }

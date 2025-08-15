@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pivot/responsive.dart';
 import 'package:video_player/video_player.dart';
-import 'package:flutter/foundation.dart';
 import 'package:pivot/services/introduction_service.dart';
 import 'package:pivot/widgets/no_internet_message.dart';
+import 'dart:async';
 
 class IntroductionScreen extends StatefulWidget {
   const IntroductionScreen({super.key});
@@ -23,6 +23,7 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
   String _errorMessage = '';
   bool _hasStartedVideo = false;
   bool _videoEnded = false;
+  bool _showVideoControls = true;
 
   @override
   void initState() {
@@ -37,15 +38,42 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
         _hasVideoError = false;
         _errorMessage = '';
       });
-      final videoUrl =
-          'https://engseif.com/wp-content/uploads/2025/06/Pivot-intro.mp4';
-      _videoController = VideoPlayerController.networkUrl(Uri.parse(videoUrl));
-      await _videoController.initialize().timeout(
-        const Duration(seconds: 30),
-        onTimeout: () {
-          throw Exception('Video initialization timed out after 30 seconds');
-        },
-      );
+
+      // Try HTTPS first, then HTTP as fallback
+      final videoUrls = [
+        'https://engseif.com/wp-content/uploads/2025/08/Pivot-intro-1.mp4',
+        'http://engseif.com/wp-content/uploads/2025/08/Pivot-intro-1.mp4',
+      ];
+
+      Exception? lastError;
+
+      for (String videoUrl in videoUrls) {
+        try {
+          _videoController = VideoPlayerController.networkUrl(
+            Uri.parse(videoUrl),
+          );
+          await _videoController.initialize().timeout(
+            const Duration(seconds: 15),
+            onTimeout: () {
+              throw Exception(
+                'Video initialization timed out after 15 seconds',
+              );
+            },
+          );
+          // If we reach here, video loaded successfully
+          break;
+        } catch (e) {
+          lastError = e as Exception;
+          // Dispose the failed controller before trying the next URL
+          _videoController.dispose();
+          continue;
+        }
+      }
+
+      // If we get here and controller is not initialized, all URLs failed
+      if (!_videoController.value.isInitialized) {
+        throw lastError ?? Exception('Failed to load video from all sources');
+      }
       _videoController.addListener(() {
         final isEnded =
             _videoController.value.isInitialized &&
@@ -70,7 +98,15 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
         setState(() {
           _hasVideoError = true;
           _isVideoLoading = false;
-          _errorMessage = 'Error loading video: $e';
+          if (e.toString().contains('CleartextNotPermittedException') ||
+              e.toString().contains('cleartext')) {
+            _errorMessage =
+                'خطأ في الاتصال: يرجى التأكد من اتصال الإنترنت أو تحديث التطبيق';
+          } else if (e.toString().contains('timeout')) {
+            _errorMessage = 'انتهت مهلة الاتصال: يرجى المحاولة مرة أخرى';
+          } else {
+            _errorMessage = 'خطأ في تحميل الفيديو: $e';
+          }
         });
       }
     }
@@ -80,11 +116,13 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
   void dispose() {
     _pageController.dispose();
     _videoController.dispose();
+    // Restore status bar when leaving introduction screen
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
   }
 
   void _nextPage() async {
-    if (_currentPage < 2) {
+    if (_currentPage < 1) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 400),
         curve: Curves.ease,
@@ -101,6 +139,24 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
         );
       }
     }
+  }
+
+  void _toggleVideoPlayPause() {
+    if (_videoController.value.isInitialized) {
+      setState(() {
+        if (_videoController.value.isPlaying) {
+          _videoController.pause();
+        } else {
+          _videoController.play();
+        }
+      });
+    }
+  }
+
+  void _toggleVideoControls() {
+    setState(() {
+      _showVideoControls = !_showVideoControls;
+    });
   }
 
   Widget _buildPageIndicator(int pageCount) {
@@ -126,6 +182,9 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Hide status bar for introduction screens
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);
+
     return Directionality(
       textDirection: TextDirection.rtl,
       child: NoInternetMessage(
@@ -158,44 +217,14 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
                     description:
                         'Pivot يعني "نقطة التغيير" أو "التحوّل".\nوإحنا هنا علشان نكون النقطة دي في طريقتك لمتابعة الدراسة.',
                     currentPage: _currentPage,
-                    pageCount: 3,
+                    pageCount: 2,
                     onNext: _nextPage,
                     buttonText: 'التالي',
                   ),
                 ],
               ),
-              // Screen 2: Intro Video
-              Column(
-                children: [Expanded(child: Center(child: _buildVideoPage()))],
-              ),
-              // Screen 3: First Step
-              Stack(
-                children: [
-                  Positioned.fill(
-                    child: Image.asset(
-                      'assets/images/first_step.jpeg',
-                      // fit: BoxFit.cover,
-                    ),
-                  ),
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Flexible(
-                        child: _BottomCard(
-                          heightFactor: 0.32,
-                          title: 'أول خطوة',
-                          description:
-                              'ادخل علي البروفايل واعمل تسجيل مواد عشان المحتوى يظهرلك',
-                          currentPage: _currentPage,
-                          pageCount: 3,
-                          onNext: _nextPage,
-                          buttonText: 'ابدأ',
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+              // Screen 2: Intro Video - Full Screen
+              _buildVideoPage(),
             ],
           ),
         ),
@@ -210,14 +239,14 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
         width: double.infinity,
         height: double.infinity,
         color: Colors.black,
-        child: Center(
-          child: GestureDetector(
-            onTap: () {
-              setState(() {
-                _hasStartedVideo = true;
-                _videoController.play();
-              });
-            },
+        child: GestureDetector(
+          onTap: () {
+            setState(() {
+              _hasStartedVideo = true;
+              _videoController.play();
+            });
+          },
+          child: Center(
             child: Container(
               decoration: BoxDecoration(
                 color: Colors.black.withOpacity(0.6),
@@ -230,6 +259,7 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
         ),
       );
     }
+
     if (_hasVideoError || !_isVideoInitialized) {
       return Container(
         color: Colors.black,
@@ -295,6 +325,7 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
         ),
       );
     }
+
     if (_isVideoLoading) {
       return Container(
         color: Colors.black,
@@ -308,130 +339,184 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
 
     return Stack(
       children: [
+        // Full screen video player
         SizedBox.expand(
-          child: FittedBox(
-            fit: BoxFit.cover,
-            child: SizedBox(
-              width: _videoController.value.size.width,
-              height: _videoController.value.size.height,
-              child: VideoPlayer(_videoController),
+          child: GestureDetector(
+            onTap: _toggleVideoPlayPause,
+            onDoubleTap: _toggleVideoControls,
+            child: FittedBox(
+              fit: BoxFit.cover,
+              child: SizedBox(
+                width: _videoController.value.size.width,
+                height: _videoController.value.size.height,
+                child: VideoPlayer(_videoController),
+              ),
             ),
           ),
         ),
-        // Video controls overlay
-        if (_videoController.value.isInitialized &&
-            !_videoController.value.isPlaying &&
-            !_videoEnded)
-          Positioned(
-            bottom: 100,
-            left: 0,
-            right: 0,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.6),
-                    borderRadius: BorderRadius.circular(25),
+
+        // Video controls overlay - only show when controls are visible
+        if (_showVideoControls && _videoController.value.isInitialized)
+          Stack(
+            children: [
+              // Top controls
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  padding: EdgeInsets.only(
+                    top: MediaQuery.of(context).padding.top + 16,
+                    left: 16,
+                    right: 16,
+                    bottom: 16,
                   ),
-                  child: IconButton(
-                    onPressed: () {
-                      setState(() {
-                        _videoController.play();
-                      });
-                    },
-                    icon: const Icon(
-                      Icons.play_arrow,
-                      color: Colors.white,
-                      size: 32,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        if (_videoController.value.isInitialized &&
-            _videoController.value.isPlaying)
-          Positioned(
-            bottom: 100,
-            left: 0,
-            right: 0,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.6),
-                    borderRadius: BorderRadius.circular(25),
-                  ),
-                  child: IconButton(
-                    onPressed: () {
-                      setState(() {
-                        _videoController.pause();
-                      });
-                    },
-                    icon: const Icon(
-                      Icons.pause,
-                      color: Colors.white,
-                      size: 32,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.6),
-                    borderRadius: BorderRadius.circular(25),
-                  ),
-                  child: IconButton(
-                    onPressed: () {
-                      _videoController.seekTo(Duration.zero);
-                      _videoController.pause();
-                      setState(() {});
-                    },
-                    icon: const Icon(
-                      Icons.replay,
-                      color: Colors.white,
-                      size: 32,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        // Show Next button when video ends
-        if (_videoEnded)
-          Positioned(
-            bottom: 40,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: SizedBox(
-                width: 180,
-                child: ElevatedButton(
-                  onPressed: _nextPage,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    padding: EdgeInsets.symmetric(
-                      vertical: Responsive.space(context, size: Space.medium),
-                    ),
-                    elevation: 4,
-                  ),
-                  child: Text(
-                    'التالي',
-                    style: TextStyle(
-                      fontSize: Responsive.text(context, size: TextSize.medium),
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'NotoSansArabic',
-                    ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      GestureDetector(
+                        onTap: () {
+                          _pageController.previousPage(
+                            duration: Duration(milliseconds: 400),
+                            curve: Curves.ease,
+                          );
+                        },
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.6),
+                            shape: BoxShape.circle,
+                          ),
+                          padding: EdgeInsets.all(8),
+                          child: Icon(
+                            Icons.arrow_back,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        'فيديو تعريفي',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: Responsive.text(
+                            context,
+                            size: TextSize.medium,
+                          ),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(width: 40), // Balance the layout
+                    ],
                   ),
                 ),
               ),
-            ),
+
+              // Center play/pause button
+              if (!_videoController.value.isPlaying && !_videoEnded)
+                Center(
+                  child: GestureDetector(
+                    onTap: _toggleVideoPlayPause,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.6),
+                        shape: BoxShape.circle,
+                      ),
+                      padding: EdgeInsets.all(24),
+                      child: Icon(
+                        Icons.play_arrow,
+                        color: Colors.white,
+                        size: 48,
+                      ),
+                    ),
+                  ),
+                ),
+
+              // Bottom controls
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  padding: EdgeInsets.only(
+                    left: 16,
+                    right: 16,
+                    bottom: MediaQuery.of(context).padding.bottom + 16,
+                    top: 16,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      // Play/Pause button
+                      GestureDetector(
+                        onTap: _toggleVideoPlayPause,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.6),
+                            shape: BoxShape.circle,
+                          ),
+                          padding: EdgeInsets.all(12),
+                          child: Icon(
+                            _videoController.value.isPlaying
+                                ? Icons.pause
+                                : Icons.play_arrow,
+                            color: Colors.white,
+                            size: 28,
+                          ),
+                        ),
+                      ),
+
+                      // Replay button
+                      GestureDetector(
+                        onTap: () {
+                          _videoController.seekTo(Duration.zero);
+                          _videoController.play();
+                          setState(() {});
+                        },
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.6),
+                            shape: BoxShape.circle,
+                          ),
+                          padding: EdgeInsets.all(12),
+                          child: Icon(
+                            Icons.replay,
+                            color: Colors.white,
+                            size: 28,
+                          ),
+                        ),
+                      ),
+
+                      // Next button (when video ends)
+                      if (_videoEnded)
+                        GestureDetector(
+                          onTap: _nextPage,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
+                            ),
+                            child: Text(
+                              'ابدأ',
+                              style: TextStyle(
+                                color: Colors.black,
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.medium,
+                                ),
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
       ],
     );

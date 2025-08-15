@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pivot/models/subject_model.dart';
+import 'dart:developer' as developer;
 
 class SubjectService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -17,10 +18,38 @@ class SubjectService {
 
   /// Fetches all subjects from the Firestore 'subjects' collection.
   Future<List<Subject>> getSubjects() async {
+    developer.log('SubjectService: getSubjects called', name: 'SubjectService');
     try {
+      developer.log(
+        'SubjectService: Fetching from Firestore collection: subjects',
+        name: 'SubjectService',
+      );
       final snapshot = await _subjectsCollection.get();
-      return snapshot.docs.map((doc) => doc.data()).toList();
+      developer.log(
+        'SubjectService: Firestore returned ${snapshot.docs.length} documents',
+        name: 'SubjectService',
+      );
+
+      final subjects = snapshot.docs.map((doc) => doc.data()).toList();
+      developer.log(
+        'SubjectService: Parsed ${subjects.length} subjects from documents',
+        name: 'SubjectService',
+      );
+
+      // Log first few subjects for debugging
+      if (subjects.isNotEmpty) {
+        developer.log(
+          'SubjectService: First 3 subjects: ${subjects.take(3).map((s) => '${s.id}:${s.name}').toList()}',
+          name: 'SubjectService',
+        );
+      }
+
+      return subjects;
     } catch (e) {
+      developer.log(
+        'SubjectService: Error fetching subjects: $e',
+        name: 'SubjectService',
+      );
       print('Error fetching subjects: $e');
       rethrow;
     }

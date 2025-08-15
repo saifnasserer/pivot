@@ -1,10 +1,8 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:pivot/providers/bookmarks.dart';
 import 'package:pivot/responsive.dart';
 import 'package:provider/provider.dart';
-import 'package:auto_size_text/auto_size_text.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:pivot/widgets/comment_section.dart';
@@ -23,6 +21,7 @@ class CardModel extends StatefulWidget {
   final List<Map<String, String>> links;
   final DateTime? publishAt;
   final DateTime? expireAt;
+  final double? availableHeight; // New parameter for available height
 
   const CardModel({
     super.key,
@@ -39,6 +38,7 @@ class CardModel extends StatefulWidget {
     this.links = const [],
     this.publishAt,
     this.expireAt,
+    this.availableHeight, // New parameter
   });
 
   @override
@@ -49,12 +49,7 @@ class _CardModelState extends State<CardModel> {
   // State variables
   int _currentPage = 0;
   List<Widget> _contentPages = [];
-  double _availableHeight = 0;
-  final bool _isExpanded = false;
-  final bool _isLinksExpanded = false;
-  final bool _isImagesExpanded = false;
   final PageController _cardPageController = PageController();
-  bool _isCalculatingPages = false; // Add flag to prevent multiple calculations
 
   @override
   void initState() {
@@ -75,251 +70,66 @@ class _CardModelState extends State<CardModel> {
     super.dispose();
   }
 
-  void _generateContentPages(double availableHeight) {
-    if (_isCalculatingPages || _availableHeight == availableHeight) {
-      return; // Prevent multiple calculations
-    }
-
-    _isCalculatingPages = true;
-    _contentPages.clear();
-    _availableHeight = availableHeight;
-
-    // Move heavy calculations to background
-    Future.microtask(() {
-      _calculatePagesInBackground(availableHeight);
-    });
-  }
-
-  void _calculatePagesInBackground(double availableHeight) {
-    debugPrint('CardModel: Available height for content: $availableHeight');
-
-    // Calculate fixed elements heights (title is in main layout, date is in content)
-    final titleHeight = _calculateTitleHeight();
-    final dateHeight = _calculateDateHeight();
-    final footerHeight = _calculateFooterHeight();
-    final padding =
-        Responsive.space(context, size: Space.large) * 2; // Card padding
-
-    // Calculate available space for content (date is now part of content distribution)
-    final contentHeight =
-        availableHeight - titleHeight - footerHeight - padding;
-
-    debugPrint(
-      'CardModel: Fixed elements - Title: $titleHeight, Footer: $footerHeight, Padding: $padding',
-    );
-    debugPrint('CardModel: Available content height: $contentHeight');
-
-    // Create ONLY variable content widgets (description, images, links) + date
-    final List<Widget> variableContentWidgets = [];
-
-    // Description (variable height - this is what we distribute)
-    variableContentWidgets.add(_buildDescription());
-
-    // Images
-    if (widget.imageUrls.isNotEmpty) {
-      variableContentWidgets.add(
-        SizedBox(height: Responsive.space(context, size: Space.medium)),
-      );
-      variableContentWidgets.add(_buildImageGallery(context));
-    }
-
-    // Links
-    if (widget.links.isNotEmpty) {
-      variableContentWidgets.add(
-        SizedBox(height: Responsive.space(context, size: Space.medium)),
-      );
-      variableContentWidgets.add(_buildLinksList(context));
-    }
-
-    // Date widget (now part of content distribution)
-    variableContentWidgets.add(
-      SizedBox(height: Responsive.space(context, size: Space.small)),
-    );
-    variableContentWidgets.add(_buildDate());
-
-    // Distribute ONLY variable content using the calculated content height
-    final variableContentPages = _distributeContentWithFixedHeight(
-      variableContentWidgets,
-      contentHeight,
-    );
-
-    // Create final pages with ONLY variable content (no title/date)
-    final newContentPages =
-        variableContentPages.map((variableContentPage) {
-          return _buildFullPage(variableContentPage);
-        }).toList();
-
-    debugPrint(
-      'CardModel: Generated ${newContentPages.length} pages for card ${widget.id}',
-    );
-
-    // Update UI on main thread
-    if (mounted) {
-      setState(() {
-        _contentPages = newContentPages;
-        _isCalculatingPages = false;
-      });
-    }
-  }
-
-  Widget _buildFullPage(Widget variableContent) {
-    return Container(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Only variable content (description, images, links) - date is already included in variableContent
-          Expanded(
-            child: SingleChildScrollView(
-              physics:
-                  const NeverScrollableScrollPhysics(), // Disable scrolling within page
-              child: variableContent,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  double _calculateTitleHeight() {
-    // Title has max 2 lines
-    final fontSize = Responsive.text(context, size: TextSize.heading);
-    final lineHeight = fontSize * 1.2; // Approximate line height
-    final maxLines = 2;
-    return lineHeight * maxLines +
-        Responsive.space(context, size: Space.medium);
-  }
-
-  double _calculateDateHeight() {
-    // Date container has fixed height
-    return Responsive.space(context, size: Space.large) * 1.5;
-  }
-
-  double _calculateFooterHeight() {
-    // Footer now only includes buttons since page indicator moved to header
-    final buttonsHeight = Responsive.space(context, size: Space.large) * 2.5;
-    final footerPadding = Responsive.space(context, size: Space.medium);
-    final bottomMargin = Responsive.space(context, size: Space.large);
-    return buttonsHeight + footerPadding + bottomMargin;
-  }
-
-  List<Widget> _distributeContentWithFixedHeight(
-    List<Widget> widgets,
-    double maxContentHeight,
+  // Simple text splitting based on available height
+  List<Widget> _splitTextIntoChunks(
+    String text,
+    double maxHeight,
+    double maxWidth,
   ) {
-    if (widgets.isEmpty) return [];
+    final List<Widget> textChunks = [];
+    final fontSize = Responsive.text(context, size: TextSize.medium);
 
-    final List<Widget> pages = [];
-    final List<Widget> currentPageWidgets = [];
-    double currentHeight = 0;
+    final textStyle = TextStyle(fontSize: fontSize, height: 1.2);
 
-    // Use a larger safety margin to prevent overflow
-    final safetyMargin = Responsive.space(context, size: Space.large);
-    final effectiveMaxHeight = maxContentHeight - safetyMargin;
-
-    debugPrint(
-      'CardModel: Distributing content with maxContentHeight: $maxContentHeight, effectiveMaxHeight: $effectiveMaxHeight',
+    // Check if entire text fits
+    final fullTextSpan = TextSpan(text: text, style: textStyle);
+    final fullTextPainter = TextPainter(
+      text: fullTextSpan,
+      textDirection: TextDirection.rtl,
+      maxLines: null,
     );
+    fullTextPainter.layout(maxWidth: maxWidth);
 
-    for (int i = 0; i < widgets.length; i++) {
-      final widget = widgets[i];
-      final widgetHeight = _calculateWidgetHeight(widget);
-
-      debugPrint(
-        'CardModel: Widget $i height: $widgetHeight, currentHeight: $currentHeight',
-      );
-
-      // If adding this widget would exceed the content height, start a new page
-      if (currentHeight + widgetHeight > effectiveMaxHeight &&
-          currentPageWidgets.isNotEmpty) {
-        debugPrint(
-          'CardModel: Starting new page at widget $i, currentHeight: $currentHeight',
-        );
-        pages.add(_buildContentPage(currentPageWidgets));
-        currentPageWidgets.clear();
-        currentHeight = 0;
-      }
-
-      currentPageWidgets.add(widget);
-      currentHeight += widgetHeight;
+    if (fullTextPainter.height <= maxHeight) {
+      return [Text(text, textAlign: TextAlign.right, style: textStyle)];
     }
 
-    // Add the last page
-    if (currentPageWidgets.isNotEmpty) {
-      debugPrint(
-        'CardModel: Adding final page with ${currentPageWidgets.length} widgets, height: $currentHeight',
-      );
-      pages.add(_buildContentPage(currentPageWidgets));
-    }
+    // Split by words
+    final words = text.split(' ');
+    String currentChunk = '';
 
-    // Ensure we always have at least one page
-    if (pages.isEmpty) {
-      debugPrint(
-        'CardModel: No pages created, creating single page with all widgets',
-      );
-      pages.add(_buildContentPage(widgets));
-    }
+    for (final word in words) {
+      final testChunk = currentChunk.isEmpty ? word : '$currentChunk $word';
 
-    debugPrint('CardModel: Created ${pages.length} pages');
-    return pages;
-  }
-
-  double _calculateWidgetHeight(Widget widget) {
-    if (widget is SizedBox) {
-      return widget.height ?? 0;
-    } else if (widget is Text) {
-      // Calculate text height based on content
-      final text = widget.data ?? '';
-      final fontSize = Responsive.text(context, size: TextSize.medium);
-      final maxWidth =
-          Responsive.width(context) -
-          (Responsive.space(context, size: Space.large) * 4);
-
-      final textSpan = TextSpan(
-        text: text,
-        style: TextStyle(
-          fontSize: fontSize,
-          fontWeight: widget.style?.fontWeight ?? FontWeight.normal,
-        ),
-      );
-
-      final textPainter = TextPainter(
-        text: textSpan,
+      final testSpan = TextSpan(text: testChunk, style: textStyle);
+      final testPainter = TextPainter(
+        text: testSpan,
         textDirection: TextDirection.rtl,
         maxLines: null,
       );
+      testPainter.layout(maxWidth: maxWidth);
 
-      textPainter.layout(maxWidth: maxWidth);
-      return textPainter.height + Responsive.space(context, size: Space.small);
-    } else if (widget is Container) {
-      return Responsive.space(context, size: Space.large) * 1.2;
-    } else if (widget is Column) {
-      return Responsive.space(context, size: Space.large) * 1.5;
-    } else if (widget is Row) {
-      return Responsive.space(context, size: Space.large) * 0.8;
-    } else if (widget is ListView) {
-      return Responsive.space(context, size: Space.large) * 1.5;
-    } else {
-      return Responsive.space(context, size: Space.large) * 0.6;
+      if (testPainter.height > maxHeight && currentChunk.isNotEmpty) {
+        textChunks.add(
+          Text(
+            currentChunk.trim(),
+            textAlign: TextAlign.right,
+            style: textStyle,
+          ),
+        );
+        currentChunk = word;
+      } else {
+        currentChunk = testChunk;
+      }
     }
-  }
 
-  Widget _buildContentPage(List<Widget> widgets) {
-    return Container(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        mainAxisSize: MainAxisSize.min,
-        children:
-            widgets.map((widget) {
-              return Padding(
-                padding: EdgeInsets.only(
-                  bottom: Responsive.space(context, size: Space.small),
-                ),
-                child: widget,
-              );
-            }).toList(),
-      ),
-    );
+    if (currentChunk.isNotEmpty) {
+      textChunks.add(
+        Text(currentChunk.trim(), textAlign: TextAlign.right, style: textStyle),
+      );
+    }
+
+    return textChunks;
   }
 
   Widget _buildTitle() {
@@ -376,19 +186,7 @@ class _CardModelState extends State<CardModel> {
             ),
           ),
         ),
-
-        // Large calendar icon
       ],
-    );
-  }
-
-  Widget _buildDescription() {
-    return Text(
-      widget.description,
-      textAlign: TextAlign.right,
-      style: TextStyle(
-        fontSize: Responsive.text(context, size: TextSize.medium),
-      ),
     );
   }
 
@@ -620,6 +418,113 @@ class _CardModelState extends State<CardModel> {
         widget.publishAt != null && widget.publishAt!.isAfter(now);
     final isExpired = widget.expireAt != null && widget.expireAt!.isBefore(now);
 
+    // Calculate available height for content
+    final availableHeight =
+        widget.availableHeight ?? Responsive.height(context) * 0.8;
+
+    // Calculate content height (subtract title, footer, and padding)
+    final titleHeight =
+        Responsive.text(context, size: TextSize.heading) * 2.4 +
+        Responsive.space(context, size: Space.medium);
+    final footerHeight = Responsive.space(context, size: Space.large) * 3;
+    final padding = Responsive.space(context, size: Space.large) * 2;
+    final contentHeight =
+        availableHeight - titleHeight - footerHeight - padding;
+
+    // Generate content pages if not already generated
+    if (_contentPages.isEmpty) {
+      final maxWidth =
+          Responsive.width(context) -
+          (Responsive.space(context, size: Space.large) * 4);
+
+      // Split description into chunks
+      final descriptionChunks = _splitTextIntoChunks(
+        widget.description,
+        contentHeight * 0.8, // Use 80% of content height for description
+        maxWidth,
+      );
+
+      // Create pages
+      final List<Widget> pages = [];
+
+      // Add description chunks
+      for (final chunk in descriptionChunks) {
+        pages.add(
+          Container(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: [chunk],
+            ),
+          ),
+        );
+      }
+
+      // Add images and links to the last page
+      if (widget.imageUrls.isNotEmpty || widget.links.isNotEmpty) {
+        final lastPage = pages.isNotEmpty ? pages.last : Container();
+        final List<Widget> lastPageChildren = [];
+
+        if (lastPage is Container && lastPage.child is Column) {
+          final column = lastPage.child as Column;
+          lastPageChildren.addAll(column.children);
+        }
+
+        if (widget.imageUrls.isNotEmpty) {
+          lastPageChildren.add(
+            SizedBox(height: Responsive.space(context, size: Space.medium)),
+          );
+          lastPageChildren.add(_buildImageGallery(context));
+        }
+
+        if (widget.links.isNotEmpty) {
+          lastPageChildren.add(
+            SizedBox(height: Responsive.space(context, size: Space.medium)),
+          );
+          lastPageChildren.add(_buildLinksList(context));
+        }
+
+        // Add date to the last page
+        lastPageChildren.add(
+          SizedBox(height: Responsive.space(context, size: Space.small)),
+        );
+        lastPageChildren.add(_buildDate());
+
+        if (pages.isNotEmpty) {
+          pages[pages.length - 1] = Container(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: lastPageChildren,
+            ),
+          );
+        }
+      } else {
+        // Add date to the last page if no images/links
+        if (pages.isNotEmpty) {
+          final lastPage = pages.last;
+          if (lastPage is Container && lastPage.child is Column) {
+            final column = lastPage.child as Column;
+            final children = List<Widget>.from(column.children);
+            children.add(
+              SizedBox(height: Responsive.space(context, size: Space.small)),
+            );
+            children.add(_buildDate());
+
+            pages[pages.length - 1] = Container(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: children,
+              ),
+            );
+          }
+        }
+      }
+
+      _contentPages = pages;
+    }
+
     return Container(
       margin: EdgeInsets.all(Responsive.space(context, size: Space.small)),
       decoration: BoxDecoration(
@@ -632,232 +537,203 @@ class _CardModelState extends State<CardModel> {
                 : widget.color.withValues(alpha: 0.15),
       ),
       child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: Responsive.height(context) * 0.8, // 80% of screen height
-        ),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            // Calculate available height as 80% of screen height
-            final screenHeight = Responsive.height(context);
-            final totalCardHeight = screenHeight * 0.8;
+        constraints: BoxConstraints(maxHeight: availableHeight),
+        child: Padding(
+          padding: EdgeInsets.all(Responsive.space(context, size: Space.large)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Visual indicator for scheduled/expired
+              if (isScheduled)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Icon(Icons.schedule, color: Colors.blue, size: 18),
+                    SizedBox(
+                      width: Responsive.space(context, size: Space.small),
+                    ),
+                    Text(
+                      'مجدول',
+                      style: TextStyle(
+                        color: Colors.blue,
+                        fontSize: Responsive.text(
+                          context,
+                          size: TextSize.small,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              if (isExpired)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Icon(Icons.event_busy, color: Colors.grey, size: 18),
+                    SizedBox(
+                      width: Responsive.space(context, size: Space.small),
+                    ),
+                    Text(
+                      'منتهي',
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontSize: Responsive.text(
+                          context,
+                          size: TextSize.small,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
 
-            // Calculate available height for content area
-            final cardPadding =
-                Responsive.space(context, size: Space.large) * 2;
-            final headerHeight =
-                Responsive.space(context, size: Space.large) * 2;
-            final pageIndicatorHeight =
-                _contentPages.length > 1
-                    ? Responsive.space(context, size: Space.large)
-                    : 0;
-            final footerHeight =
-                Responsive.space(context, size: Space.large) * 3;
-            final safetyMargin = Responsive.space(context, size: Space.large);
+              // Title
+              _buildTitle(),
+              SizedBox(height: Responsive.space(context, size: Space.medium)),
 
-            final availableHeight =
-                totalCardHeight -
-                cardPadding -
-                headerHeight -
-                pageIndicatorHeight -
-                footerHeight -
-                safetyMargin;
-
-            debugPrint(
-              'CardModel: Screen height: $screenHeight, Total card height: $totalCardHeight, Available height: $availableHeight',
-            );
-
-            // Generate content pages if not already generated or if height changed
-            if (_contentPages.isEmpty || _availableHeight != availableHeight) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) {
-                  _generateContentPages(availableHeight);
-                }
-              });
-            }
-
-            return Padding(
-              padding: EdgeInsets.all(
-                Responsive.space(context, size: Space.large),
+              // Content area
+              Expanded(
+                child:
+                    _contentPages.isEmpty
+                        ? const Center(child: CircularProgressIndicator())
+                        : PageView(
+                          controller: _cardPageController,
+                          scrollDirection: Axis.horizontal,
+                          reverse: true, // RTL support
+                          children: _contentPages,
+                        ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                mainAxisSize: MainAxisSize.min,
+
+              // Footer
+              SizedBox(height: Responsive.space(context, size: Space.medium)),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // Visual indicator for scheduled/expired
-                  if (isScheduled)
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Icon(Icons.schedule, color: Colors.blue, size: 18),
-                        SizedBox(
-                          width: Responsive.space(context, size: Space.small),
-                        ),
-                        Text(
-                          'مجدول',
-                          style: TextStyle(
-                            color: Colors.blue,
-                            fontSize: Responsive.text(
-                              context,
-                              size: TextSize.small,
-                            ),
-                          ),
-                        ),
-                      ],
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(
+                        Responsive.space(context, size: Space.large),
+                      ),
+                      color: Colors.white,
+                      border: Border.all(color: Colors.black),
                     ),
-                  if (isExpired)
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Icon(Icons.event_busy, color: Colors.grey, size: 18),
-                        SizedBox(
-                          width: Responsive.space(context, size: Space.small),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: Responsive.space(
+                          context,
+                          size: Space.medium,
                         ),
-                        Text(
-                          'منتهي',
-                          style: TextStyle(
-                            color: Colors.grey,
-                            fontSize: Responsive.text(
-                              context,
-                              size: TextSize.small,
-                            ),
+                        vertical: Responsive.space(context, size: Space.small),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            onPressed: () async {
+                              if (!mounted) return;
+
+                              String shareText = '';
+                              shareText += '\n\n${widget.title}';
+
+                              if (widget.description.isNotEmpty) {
+                                shareText += '\n\n${widget.description}';
+                              }
+
+                              if (widget.links.isNotEmpty) {
+                                shareText += '\n\nالروابط:';
+                                for (var link in widget.links) {
+                                  shareText +=
+                                      '\n- ${link['title']}: ${link['url']}';
+                                }
+                              }
+
+                              if (mounted) {
+                                await Share.share(shareText);
+                              }
+                            },
+                            icon: const Icon(Icons.share),
+                            splashRadius: 24,
                           ),
-                        ),
-                      ],
-                    ),
-
-                  // Title and Date (fixed elements)
-                  _buildTitle(),
-                  SizedBox(
-                    height: Responsive.space(context, size: Space.medium),
-                  ),
-                  // Date moved to end of content
-                  SizedBox(
-                    height: Responsive.space(context, size: Space.small),
-                  ),
-
-                  // Horizontal paging content area
-                  Expanded(
-                    child:
-                        _contentPages.isEmpty
-                            ? const Center(child: CircularProgressIndicator())
-                            : PageView(
-                              controller: _cardPageController,
-                              scrollDirection: Axis.horizontal,
-                              reverse: true, // RTL support
-                              children: _contentPages,
-                            ),
-                  ),
-
-                  // Static footer area
-                  SizedBox(
-                    height: Responsive.space(context, size: Space.medium),
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(
-                            Responsive.space(context, size: Space.large),
+                          SizedBox(
+                            width: Responsive.space(context, size: Space.small),
                           ),
-                          color: Colors.white,
-                          border: Border.all(color: Colors.black),
-                        ),
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: Responsive.space(
-                              context,
-                              size: Space.medium,
-                            ),
-                            vertical: Responsive.space(
-                              context,
-                              size: Space.small,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                onPressed: () async {
-                                  if (!mounted) return;
+                          IconButton(
+                            onPressed: () {
+                              if (!mounted) return;
 
-                                  String shareText = '';
-                                  shareText += '\n\n${widget.title}';
-
-                                  if (widget.description.isNotEmpty) {
-                                    shareText += '\n\n${widget.description}';
-                                  }
-
-                                  if (widget.links.isNotEmpty) {
-                                    shareText += '\n\nالروابط:';
-                                    for (var link in widget.links) {
-                                      shareText +=
-                                          '\n- ${link['title']}: ${link['url']}';
-                                    }
-                                  }
-
-                                  if (mounted) {
-                                    await Share.share(shareText);
-                                  }
-                                },
-                                icon: const Icon(Icons.share),
-                                splashRadius: 24,
-                              ),
-                              SizedBox(
-                                width: Responsive.space(
-                                  context,
-                                  size: Space.small,
-                                ),
-                              ),
-                              IconButton(
-                                onPressed: () {
-                                  if (!mounted) return;
-
-                                  showModalBottomSheet(
-                                    context: context,
-                                    isScrollControlled: true,
-                                    enableDrag: true,
-                                    isDismissible: true,
-                                    backgroundColor: Colors.transparent,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.vertical(
-                                        top: Radius.circular(
-                                          Responsive.space(
-                                            context,
-                                            size: Space.large,
-                                          ),
-                                        ),
+                              showModalBottomSheet(
+                                context: context,
+                                isScrollControlled: true,
+                                enableDrag: true,
+                                isDismissible: true,
+                                backgroundColor: Colors.transparent,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.vertical(
+                                    top: Radius.circular(
+                                      Responsive.space(
+                                        context,
+                                        size: Space.large,
                                       ),
                                     ),
-                                    builder:
-                                        (context) => DraggableScrollableSheet(
-                                          initialChildSize: 0.9,
-                                          minChildSize: 0.5,
-                                          maxChildSize: 0.95,
-                                          expand: false,
-                                          builder:
-                                              (context, scrollController) =>
-                                                  CommentSection(
-                                                    announcementId: widget.id!,
-                                                    scrollController:
-                                                        scrollController,
-                                                  ),
-                                        ),
-                                  );
-                                },
-                                icon: const Icon(Icons.question_mark_rounded),
-                                splashRadius: 24,
-                              ),
-                              SizedBox(
-                                width: Responsive.space(
-                                  context,
-                                  size: Space.small,
+                                  ),
                                 ),
-                              ),
-                              Builder(
-                                builder: (context) {
-                                  // Check if widget is mounted first
+                                builder:
+                                    (context) => DraggableScrollableSheet(
+                                      initialChildSize: 0.9,
+                                      minChildSize: 0.5,
+                                      maxChildSize: 0.95,
+                                      expand: false,
+                                      builder:
+                                          (context, scrollController) =>
+                                              CommentSection(
+                                                announcementId: widget.id!,
+                                                scrollController:
+                                                    scrollController,
+                                              ),
+                                    ),
+                              );
+                            },
+                            icon: const Icon(Icons.question_mark_rounded),
+                            splashRadius: 24,
+                          ),
+                          SizedBox(
+                            width: Responsive.space(context, size: Space.small),
+                          ),
+                          Builder(
+                            builder: (context) {
+                              // Check if widget is mounted first
+                              if (!mounted) {
+                                return IconButton(
+                                  onPressed: null,
+                                  icon: const Icon(
+                                    Icons.bookmark_border,
+                                    color: Colors.grey,
+                                  ),
+                                  splashRadius: 24,
+                                );
+                              }
+
+                              // Try to access the provider safely
+                              try {
+                                Provider.of<Bookmarks>(context, listen: false);
+                              } catch (e) {
+                                debugPrint(
+                                  'Bookmarks provider not available: $e',
+                                );
+                                return IconButton(
+                                  onPressed: null,
+                                  icon: const Icon(
+                                    Icons.bookmark_border,
+                                    color: Colors.grey,
+                                  ),
+                                  splashRadius: 24,
+                                );
+                              }
+
+                              // Use Consumer only if provider is available
+                              return Consumer<Bookmarks>(
+                                builder: (context, bookmarksConsumer, child) {
+                                  // Final mounted check
                                   if (!mounted) {
                                     return IconButton(
                                       onPressed: null,
@@ -869,17 +745,35 @@ class _CardModelState extends State<CardModel> {
                                     );
                                   }
 
-                                  // Try to access the provider safely
-                                  Bookmarks? bookmarks;
                                   try {
-                                    bookmarks = Provider.of<Bookmarks>(
-                                      context,
-                                      listen: false,
+                                    final bool isBookmarked = bookmarksConsumer
+                                        .isBookmarked(widget.id!);
+
+                                    return IconButton(
+                                      onPressed: () {
+                                        // Final mounted check before action
+                                        if (!mounted) return;
+
+                                        try {
+                                          bookmarksConsumer.toggleBookmark(
+                                            widget.id!,
+                                          );
+                                        } catch (e) {
+                                          debugPrint(
+                                            'Bookmarks toggle error: $e',
+                                          );
+                                        }
+                                      },
+                                      icon: Icon(
+                                        isBookmarked
+                                            ? Icons.bookmark
+                                            : Icons.bookmark_border,
+                                        color: Colors.black,
+                                      ),
+                                      splashRadius: 24,
                                     );
                                   } catch (e) {
-                                    debugPrint(
-                                      'Bookmarks provider not available: $e',
-                                    );
+                                    debugPrint('Bookmarks consumer error: $e');
                                     return IconButton(
                                       onPressed: null,
                                       icon: const Icon(
@@ -889,82 +783,18 @@ class _CardModelState extends State<CardModel> {
                                       splashRadius: 24,
                                     );
                                   }
-
-                                  // Use Consumer only if provider is available
-                                  return Consumer<Bookmarks>(
-                                    builder: (
-                                      context,
-                                      bookmarksConsumer,
-                                      child,
-                                    ) {
-                                      // Final mounted check
-                                      if (!mounted) {
-                                        return IconButton(
-                                          onPressed: null,
-                                          icon: const Icon(
-                                            Icons.bookmark_border,
-                                            color: Colors.grey,
-                                          ),
-                                          splashRadius: 24,
-                                        );
-                                      }
-
-                                      try {
-                                        final bool isBookmarked =
-                                            bookmarksConsumer.isBookmarked(
-                                              widget.id!,
-                                            );
-
-                                        return IconButton(
-                                          onPressed: () {
-                                            // Final mounted check before action
-                                            if (!mounted) return;
-
-                                            try {
-                                              bookmarksConsumer.toggleBookmark(
-                                                widget.id!,
-                                              );
-                                            } catch (e) {
-                                              debugPrint(
-                                                'Bookmarks toggle error: $e',
-                                              );
-                                            }
-                                          },
-                                          icon: Icon(
-                                            isBookmarked
-                                                ? Icons.bookmark
-                                                : Icons.bookmark_border,
-                                            color: Colors.black,
-                                          ),
-                                          splashRadius: 24,
-                                        );
-                                      } catch (e) {
-                                        debugPrint(
-                                          'Bookmarks consumer error: $e',
-                                        );
-                                        return IconButton(
-                                          onPressed: null,
-                                          icon: const Icon(
-                                            Icons.bookmark_border,
-                                            color: Colors.grey,
-                                          ),
-                                          splashRadius: 24,
-                                        );
-                                      }
-                                    },
-                                  );
                                 },
-                              ),
-                            ],
+                              );
+                            },
                           ),
-                        ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ],
               ),
-            );
-          },
+            ],
+          ),
         ),
       ),
     );

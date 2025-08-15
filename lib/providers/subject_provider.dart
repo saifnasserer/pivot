@@ -3,6 +3,7 @@ import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/services/subject_service.dart';
 import 'package:pivot/services/cache_service.dart';
+import 'dart:developer' as developer;
 
 class SubjectProvider with ChangeNotifier {
   final SubjectService _subjectService = SubjectService();
@@ -13,7 +14,14 @@ class SubjectProvider with ChangeNotifier {
   String? _error;
   bool _disposed = false;
 
-  List<Subject> get allSubjects => _allSubjects;
+  List<Subject> get allSubjects {
+    developer.log(
+      'SubjectProvider: allSubjects getter called, count: ${_allSubjects.length}',
+      name: 'SubjectProvider',
+    );
+    return _allSubjects;
+  }
+
   List<Subject> get filteredSubjects => _filteredSubjects;
   bool get isLoading => _isLoading;
   String? get error => _error;
@@ -84,6 +92,14 @@ class SubjectProvider with ChangeNotifier {
   }
 
   Future<void> fetchAllSubjects() async {
+    developer.log(
+      'SubjectProvider: fetchAllSubjects called',
+      name: 'SubjectProvider',
+    );
+    developer.log(
+      'SubjectProvider: fetchAllSubjects - current _allSubjects count: ${_allSubjects.length}',
+      name: 'SubjectProvider',
+    );
     _checkDisposed();
     _isLoading = true;
     _error = null;
@@ -92,22 +108,35 @@ class SubjectProvider with ChangeNotifier {
     }
 
     try {
-      // Step 1: Load from cache first
-      final cachedSubjects = CacheService.instance.getCachedSubjects();
-      if (cachedSubjects.isNotEmpty) {
-        _allSubjects = cachedSubjects;
-        if (!_disposed) {
-          notifyListeners();
-        }
-      }
+      // For subject selection, always fetch fresh data from server
+      developer.log(
+        'SubjectProvider: Fetching fresh data from server for subject selection',
+        name: 'SubjectProvider',
+      );
 
-      // Step 2: Fetch from server in the background
       _allSubjects = await _subjectService.getSubjects();
+      developer.log(
+        'SubjectProvider: Server returned ${_allSubjects.length} subjects',
+        name: 'SubjectProvider',
+      );
+
       await CacheService.instance.cacheSubjects(_allSubjects);
+      developer.log(
+        'SubjectProvider: Subjects cached successfully',
+        name: 'SubjectProvider',
+      );
     } catch (e) {
+      developer.log(
+        'SubjectProvider: Error fetching subjects: $e',
+        name: 'SubjectProvider',
+      );
       _error = 'Failed to fetch all subjects: ${e.toString()}';
     } finally {
       _isLoading = false;
+      developer.log(
+        'SubjectProvider: fetchAllSubjects completed, final count: ${_allSubjects.length}',
+        name: 'SubjectProvider',
+      );
       if (!_disposed) {
         notifyListeners();
       }
@@ -242,6 +271,59 @@ class SubjectProvider with ChangeNotifier {
       print('Error in fetchAndFilterSubjects: $e');
     } finally {
       _isLoading = false;
+      if (!_disposed) {
+        notifyListeners();
+      }
+    }
+  }
+
+  /// Updates only the filtered subjects without affecting allSubjects
+  /// This is used when we want to keep allSubjects intact (e.g., in subject selection)
+  Future<void> updateFilteredSubjectsOnly(UserProfile? userProfile) async {
+    _checkDisposed();
+    if (userProfile == null) return;
+
+    developer.log(
+      'SubjectProvider: updateFilteredSubjectsOnly called for user: ${userProfile.name}',
+      name: 'SubjectProvider',
+    );
+
+    try {
+      List<String> userSubjectIds = [];
+
+      if (_isStudent(userProfile.role)) {
+        userSubjectIds = userProfile.enrolledSubjects;
+      } else if (_isInstructor(userProfile.role)) {
+        userSubjectIds = userProfile.teachingSubjects;
+      }
+
+      developer.log(
+        'SubjectProvider: updateFilteredSubjectsOnly - userSubjectIds: $userSubjectIds',
+        name: 'SubjectProvider',
+      );
+
+      if (userSubjectIds.isNotEmpty) {
+        _filteredSubjects = await _subjectService.getSubjectsByIds(
+          userSubjectIds,
+        );
+        developer.log(
+          'SubjectProvider: updateFilteredSubjectsOnly - fetched ${_filteredSubjects.length} filtered subjects',
+          name: 'SubjectProvider',
+        );
+      } else {
+        _filteredSubjects = [];
+        developer.log(
+          'SubjectProvider: updateFilteredSubjectsOnly - no subjects, setting empty filtered list',
+          name: 'SubjectProvider',
+        );
+      }
+    } catch (e) {
+      developer.log(
+        'SubjectProvider: updateFilteredSubjectsOnly - error: $e',
+        name: 'SubjectProvider',
+      );
+      _filteredSubjects = [];
+    } finally {
       if (!_disposed) {
         notifyListeners();
       }
