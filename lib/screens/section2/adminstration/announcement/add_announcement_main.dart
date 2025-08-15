@@ -44,7 +44,7 @@ class _AddAnnouncementMainState extends State<AddAnnouncementMain>
   String _description = '';
   Color _selectedColor = AddAnnouncementController.availableColors[0];
   List<String> _selectedTags = [];
-  String? _selectedLevel;
+  List<String> _selectedLevels = [];
   final List<XFile> _pickedImages = [];
   List<Map<String, String>> _links = [];
 
@@ -84,7 +84,10 @@ class _AddAnnouncementMainState extends State<AddAnnouncementMain>
       _title = widget.announcement!.title;
       _description = widget.announcement!.description;
       _selectedColor = widget.announcement!.color;
-      _selectedLevel = widget.announcement!.level;
+      // Convert single level to list for backward compatibility
+      if (widget.announcement!.level != null) {
+        _selectedLevels = widget.announcement!.level!.split(',');
+      }
 
       // Convert full tags to display names
       _selectedTags =
@@ -99,7 +102,7 @@ class _AddAnnouncementMainState extends State<AddAnnouncementMain>
               .whereType<String>()
               .toList();
 
-      _links = List<Map<String, String>>.from(widget.announcement!.links ?? []);
+      _links = List<Map<String, String>>.from(widget.announcement!.links);
     }
   }
 
@@ -121,7 +124,7 @@ class _AddAnnouncementMainState extends State<AddAnnouncementMain>
       case 1: // Attachments
         return true; // Optional step - images and links only
       case 2: // Styling
-        return _selectedTags.isNotEmpty && _selectedLevel != null;
+        return _selectedTags.isNotEmpty && _selectedLevels.isNotEmpty;
       default:
         return false;
     }
@@ -240,7 +243,7 @@ class _AddAnnouncementMainState extends State<AddAnnouncementMain>
         pinned: false, // Default to not pinned
         publishAt: DateTime.now(), // Publish immediately
         expireAt: null, // No expiration
-        level: _selectedLevel,
+        level: _selectedLevels.join(','), // Store as comma-separated string
       );
 
       // Hide loading indicator
@@ -310,10 +313,10 @@ class _AddAnnouncementMainState extends State<AddAnnouncementMain>
         return StylingStep(
           selectedColor: _selectedColor,
           selectedTags: _selectedTags,
-          selectedLevel: _selectedLevel,
+          selectedLevels: _selectedLevels,
           onColorChanged: (color) => setState(() => _selectedColor = color),
           onTagsChanged: (tags) => setState(() => _selectedTags = tags),
-          onLevelChanged: (level) => setState(() => _selectedLevel = level),
+          onLevelsChanged: (levels) => setState(() => _selectedLevels = levels),
           fadeAnimation: _fadeAnimation,
           slideAnimation: _slideAnimation,
         );

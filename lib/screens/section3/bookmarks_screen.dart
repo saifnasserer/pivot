@@ -230,6 +230,20 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
               bookmarksProvider.toggleBookmark(bookmark.id!);
             }
           },
+          onCardTap: () {
+            // Clear search when card is tapped with a small delay
+            if (_searchQuery.isNotEmpty) {
+              // Add a small delay to ensure UI updates properly
+              Future.delayed(const Duration(milliseconds: 100), () {
+                if (mounted) {
+                  setState(() {
+                    _searchQuery = '';
+                    _searchController.clear();
+                  });
+                }
+              });
+            }
+          },
         );
       },
     );

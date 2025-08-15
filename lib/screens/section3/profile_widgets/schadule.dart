@@ -447,7 +447,7 @@ class ScheduleCalendarBuilder {
       case 2:
         return 'الثلاثاء';
       case 3:
-        return 'الأربعاء';
+        return 'الاربعاء';
       case 4:
         return 'الخميس';
       case 5:
@@ -455,7 +455,7 @@ class ScheduleCalendarBuilder {
       case 6:
         return 'السبت';
       case 7:
-        return 'الأحد';
+        return 'الاحد';
       default:
         return '';
     }

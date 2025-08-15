@@ -10,6 +10,7 @@ class BookmarkCard extends StatefulWidget {
   final AnnouncementData bookmark;
   final VoidCallback? onRemove;
   final VoidCallback? onShare;
+  final VoidCallback? onCardTap; // Add callback for card tap
   final bool showRemoveButton;
 
   const BookmarkCard({
@@ -17,6 +18,7 @@ class BookmarkCard extends StatefulWidget {
     required this.bookmark,
     this.onRemove,
     this.onShare,
+    this.onCardTap, // Add the new parameter
     this.showRemoveButton = true,
   });
 
@@ -69,6 +71,23 @@ class _BookmarkCardState extends State<BookmarkCard>
   }
 
   void _showBookmarkBadge(BuildContext context) {
+    // Call the onCardTap callback if provided
+    widget.onCardTap?.call();
+
+    // Add null safety checks before showing dialog
+    try {
+      // Validate bookmark data before showing dialog
+      if (widget.bookmark.title.isEmpty ||
+          widget.bookmark.description.isEmpty ||
+          widget.bookmark.id == null) {
+        print('Invalid bookmark data, cannot show dialog');
+        return;
+      }
+    } catch (e) {
+      print('Error validating bookmark data: $e');
+      return;
+    }
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -132,6 +151,7 @@ class _BookmarkCardState extends State<BookmarkCard>
                               onPressed: () {
                                 if (context.mounted) {
                                   Navigator.of(context).pop();
+                                  widget.onRemove?.call();
                                 }
                               },
                             ),

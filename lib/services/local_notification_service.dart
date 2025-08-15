@@ -1,5 +1,8 @@
 import 'dart:io' show Platform;
 import 'package:awesome_notifications/awesome_notifications.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:pivot/services/sound_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -30,6 +33,7 @@ class LocalNotificationService {
           importance: NotificationImportance.High,
           channelShowBadge: true,
           defaultRingtoneType: DefaultRingtoneType.Notification,
+          playSound: true,
         ),
       ],
       debug: false,
@@ -74,6 +78,136 @@ class LocalNotificationService {
       default:
         return 'Unknown';
     }
+  }
+
+  // Check if a task belongs to the current user based on week_tasks.dart filtering logic
+  Future<bool> _isTaskForCurrentUser(String taskId) async {
+    try {
+      // Import necessary services
+      final firestore = FirebaseFirestore.instance;
+      final auth = FirebaseAuth.instance;
+
+      final currentUser = auth.currentUser;
+      if (currentUser == null) {
+        print('LocalNotification: No current user found');
+        return false;
+      }
+
+      // Get the task details
+      final taskDoc = await firestore.collection('tasks').doc(taskId).get();
+      if (!taskDoc.exists) {
+        print('LocalNotification: Task $taskId not found');
+        return false;
+      }
+
+      final taskData = taskDoc.data()!;
+      final taskSectionId = taskData['sectionId'] as String?;
+
+      if (taskSectionId == null) {
+        print('LocalNotification: Task $taskId has no sectionId');
+        return false;
+      }
+
+      // Get current user's profile
+      final userDoc =
+          await firestore.collection('users').doc(currentUser.uid).get();
+      if (!userDoc.exists) {
+        print('LocalNotification: User profile not found');
+        return false;
+      }
+
+      final userData = userDoc.data()!;
+      final userEnrolledSubjectIds = List<String>.from(
+        userData['enrolledSubjects'] ?? [],
+      );
+      final userSection = userData['section'] as String?;
+      final assistantPreferences = Map<String, String>.from(
+        userData['assistantPreferences'] ?? {},
+      );
+
+      // Get the section details
+      final sectionDoc =
+          await firestore.collection('sections').doc(taskSectionId).get();
+      if (!sectionDoc.exists) {
+        print('LocalNotification: Section $taskSectionId not found');
+        return false;
+      }
+
+      final sectionData = sectionDoc.data()!;
+      final sectionSubjectId = sectionData['subjectId'] as String?;
+      final sectionAssistantId = sectionData['assistantId'] as String?;
+
+      if (sectionSubjectId == null || sectionAssistantId == null) {
+        print(
+          'LocalNotification: Section $taskSectionId missing subjectId or assistantId',
+        );
+        return false;
+      }
+
+      // Check if user is enrolled in this subject
+      if (!userEnrolledSubjectIds.contains(sectionSubjectId)) {
+        print(
+          'LocalNotification: User not enrolled in subject $sectionSubjectId',
+        );
+        return false;
+      }
+
+      // Check if this is the user's preferred assistant for this subject
+      final preferredAssistantId = assistantPreferences[sectionSubjectId];
+      if (preferredAssistantId != null &&
+          preferredAssistantId != sectionAssistantId) {
+        print(
+          'LocalNotification: User prefers different assistant for subject $sectionSubjectId',
+        );
+        return false;
+      }
+
+      // Check if section matches user's section (if user has a section)
+      if (userSection != null) {
+        final sectionName = sectionData['name'] as String?;
+        if (sectionName != null &&
+            !_matchesUserSectionNumber(sectionName, userSection)) {
+          print(
+            'LocalNotification: Section $sectionName does not match user section $userSection',
+          );
+          return false;
+        }
+      }
+
+      print('LocalNotification: ✅ Task $taskId belongs to current user');
+      return true;
+    } catch (e) {
+      print('LocalNotification: Error checking if task belongs to user: $e');
+      return false;
+    }
+  }
+
+  // Helper method to check if section number matches user's section number
+  bool _matchesUserSectionNumber(String sectionName, String userSection) {
+    // Extract number from section name (e.g., "سكشن 1" -> "1", "Section A" -> "A")
+    final sectionNumber = _extractSectionNumber(sectionName);
+    final cleanUserSection = userSection.trim();
+    return sectionNumber == cleanUserSection;
+  }
+
+  // Extract section number from section name
+  String _extractSectionNumber(String sectionName) {
+    final cleanName = sectionName.trim().toLowerCase();
+
+    // Try to extract number after "سكشن" or "section"
+    final arabicMatch = RegExp(r'سكشن\s*(\w+)').firstMatch(cleanName);
+    if (arabicMatch != null) {
+      return arabicMatch.group(1) ?? '';
+    }
+
+    final englishMatch = RegExp(r'section\s*(\w+)').firstMatch(cleanName);
+    if (englishMatch != null) {
+      return englishMatch.group(1) ?? '';
+    }
+
+    // If no prefix found, try to extract the last word/number
+    final words = cleanName.split(RegExp(r'[\s\-_]+'));
+    return words.isNotEmpty ? words.last : '';
   }
 
   // ===== Class Reminders =====
@@ -125,7 +259,6 @@ class LocalNotificationService {
       return;
     }
 
-    final DateTime now = DateTime.now();
     final id = _stableIdFrom('class:$scheduleItemId');
     print('  - Generated notification ID: $id');
 
@@ -328,6 +461,10 @@ class LocalNotificationService {
         ),
         // No schedule = immediate notification
       );
+
+      // Play custom notification sound for immediate notifications
+      await SoundService().playNotificationSound();
+
       print('  - ✅ Immediate notification sent successfully');
     } else {
       // Schedule future reminder (15 minutes before class)
@@ -412,6 +549,12 @@ class LocalNotificationService {
 
     if (isCompleted) {
       print('  - ✅ Task completed, no reminders needed');
+      return;
+    }
+
+    // Check if this task belongs to the current user
+    if (!await _isTaskForCurrentUser(taskId)) {
+      print('  - ❌ Task does not belong to current user, skipping reminders');
       return;
     }
 
@@ -571,7 +714,11 @@ class LocalNotificationService {
   // ===== Debug & Test Methods =====
 
   // Send immediate test notification to verify local notifications are working
-  Future<bool> sendTestNotification({String? title, String? body}) async {
+  Future<bool> sendTestNotification({
+    String? title,
+    String? body,
+    String? sound,
+  }) async {
     if (kIsWeb) return false;
 
     try {
@@ -594,6 +741,10 @@ class LocalNotificationService {
           },
         ),
       );
+
+      // Play custom notification sound
+      await SoundService().playNotificationSound();
+
       return true;
     } catch (e) {
       print('❌ Error sending test notification: $e');

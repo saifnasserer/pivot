@@ -5,10 +5,11 @@ import 'package:pivot/screens/section2/adminstration/announcement/add_announceme
 class StylingStep extends StatelessWidget {
   final Color selectedColor;
   final List<String> selectedTags;
-  final String? selectedLevel;
+  final List<String> selectedLevels; // Changed from String? to List<String>
   final Function(Color) onColorChanged;
   final Function(List<String>) onTagsChanged;
-  final Function(String?) onLevelChanged;
+  final Function(List<String>)
+  onLevelsChanged; // Changed from Function(String?)
   final Animation<double> fadeAnimation;
   final Animation<Offset> slideAnimation;
 
@@ -16,31 +17,52 @@ class StylingStep extends StatelessWidget {
     super.key,
     required this.selectedColor,
     required this.selectedTags,
-    required this.selectedLevel,
+    required this.selectedLevels, // Changed from selectedLevel
     required this.onColorChanged,
     required this.onTagsChanged,
-    required this.onLevelChanged,
+    required this.onLevelsChanged, // Changed from onLevelChanged
     required this.fadeAnimation,
     required this.slideAnimation,
   });
 
-  List<String> _getAvailableTagsForLevel(String? selectedLevel) {
+  List<String> _getAvailableTagsForLevels(List<String> selectedLevels) {
     // Always include "عام" tag
     final availableTags = ['عام'];
 
-    if (selectedLevel == null) {
-      // If no level selected, show all tags
+    if (selectedLevels.isEmpty) {
+      // If no levels selected, show all tags
       return AddAnnouncementController.availableTags;
     }
 
-    // Add department tags based on level
-    if (selectedLevel == 'الفرقة الأولى' || selectedLevel == 'الفرقة الثانية') {
-      // Levels 1 & 2: Only General department
+    // If ALL levels are selected, only show "عام" tag
+    final allLevels = [
+      'الفرقة الأولى',
+      'الفرقة الثانية',
+      'الفرقة الثالثة',
+      'الفرقة الرابعة',
+    ];
+    if (selectedLevels.length == allLevels.length &&
+        selectedLevels.every((level) => allLevels.contains(level))) {
+      return availableTags; // Only "عام"
+    }
+
+    // Check if all selected levels have the same department filter
+    final hasLevel1Or2 = selectedLevels.any(
+      (level) => level == 'الفرقة الأولى' || level == 'الفرقة الثانية',
+    );
+    final hasLevel3Or4 = selectedLevels.any(
+      (level) => level == 'الفرقة الثالثة' || level == 'الفرقة الرابعة',
+    );
+
+    if (hasLevel1Or2 && !hasLevel3Or4) {
+      // Only levels 1 & 2: Only General department
       availableTags.add('General');
-    } else if (selectedLevel == 'الفرقة الثالثة' ||
-        selectedLevel == 'الفرقة الرابعة') {
-      // Levels 3 & 4: All departments except General
+    } else if (hasLevel3Or4 && !hasLevel1Or2) {
+      // Only levels 3 & 4: All departments except General
       availableTags.addAll(['SC', 'AI', 'CS', 'IS']);
+    } else {
+      // Mixed levels: Only "عام" is available
+      // No additional departments added
     }
 
     return availableTags;
@@ -246,7 +268,7 @@ class StylingStep extends StatelessWidget {
                               'الفرقة الثالثة',
                               'الفرقة الرابعة',
                             ].map((level) {
-                              final isSelected = selectedLevel == level;
+                              final isSelected = selectedLevels.contains(level);
                               return FilterChip(
                                 label: Text(
                                   level,
@@ -264,11 +286,21 @@ class StylingStep extends StatelessWidget {
                                 ),
                                 selected: isSelected,
                                 onSelected: (selected) {
-                                  final newLevel = selected ? level : null;
-                                  onLevelChanged(newLevel);
+                                  final newLevels = List<String>.from(
+                                    selectedLevels,
+                                  );
+                                  if (selected) {
+                                    if (!newLevels.contains(level)) {
+                                      newLevels.add(level);
+                                    }
+                                  } else {
+                                    newLevels.remove(level);
+                                  }
+                                  onLevelsChanged(newLevels);
 
                                   // Clear selected tags when level changes to prevent invalid selections
-                                  if (newLevel != selectedLevel) {
+                                  if (newLevels.isEmpty) {
+                                    // If no levels selected
                                     onTagsChanged([]);
                                   }
                                 },
@@ -308,7 +340,7 @@ class StylingStep extends StatelessWidget {
                         ),
                         textAlign: TextAlign.center,
                       ),
-                      if (selectedLevel == null)
+                      if (selectedLevels.isEmpty)
                         Padding(
                           padding: EdgeInsets.only(
                             top: Responsive.space(context, size: Space.small),
@@ -338,11 +370,13 @@ class StylingStep extends StatelessWidget {
                         ),
                         alignment: WrapAlignment.center,
                         children:
-                            _getAvailableTagsForLevel(selectedLevel).map((tag) {
+                            _getAvailableTagsForLevels(selectedLevels).map((
+                              tag,
+                            ) {
                               final isSelected = selectedTags.contains(tag);
                               final isEnabled =
-                                  selectedLevel !=
-                                  null; // Disable if no level selected
+                                  selectedLevels
+                                      .isNotEmpty; // Disable if no levels selected
                               return FilterChip(
                                 label: Text(
                                   tag,

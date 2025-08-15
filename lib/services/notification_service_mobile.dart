@@ -22,6 +22,9 @@ class NotificationService {
     // Request permissions (no-op on Android < 13, prompts on iOS and Android 13 for post notifications)
     await requestPermissionsExplicitly();
 
+    // Set up token refresh listener BEFORE getting initial token
+    _setupTokenRefreshListener();
+
     // Save initial token
     final token = await getToken();
     if (token != null && token.isNotEmpty) {
@@ -61,16 +64,23 @@ class NotificationService {
     });
   }
 
+  void _setupTokenRefreshListener() {
+    _messaging.onTokenRefresh.listen((newToken) async {
+      print('FCM Token Refresh: 🔄 Token refreshed, updating in Firestore...');
+      try {
+        await saveTokenToFirestore(newToken);
+        print('FCM Token Refresh: ✅ New token saved successfully');
+      } catch (e) {
+        print('FCM Token Refresh: ❌ Failed to save new token: $e');
+      }
+    });
+  }
+
   void _showForegroundNotification(RemoteMessage message) {
     // Since FCM notifications don't show automatically when app is in foreground,
     // we can show a local notification instead
     print('FCM Foreground: 🔔 Would show local notification here');
     // TODO: Integrate with LocalNotificationService to show the notification
-
-    // Listen for token refresh
-    _messaging.onTokenRefresh.listen((newToken) async {
-      await saveTokenToFirestore(newToken);
-    });
   }
 
   Future<bool> requestPermissionsExplicitly() async {
@@ -127,9 +137,11 @@ class NotificationService {
       await _firestore.collection('users').doc(user.uid).set({
         'fcmToken': token,
         'lastTokenUpdate': FieldValue.serverTimestamp(),
+        'tokenStatus': 'active', // Track token status
       }, SetOptions(merge: true));
-    } catch (_) {
-      // ignore
+      print('FCM Token Save: ✅ Token saved for user ${user.uid}');
+    } catch (e) {
+      print('FCM Token Save: ❌ Failed to save token: $e');
     }
   }
 
@@ -139,8 +151,17 @@ class NotificationService {
       if (!doc.exists) return null;
       final data = doc.data();
       if (data == null) return null;
-      return data['fcmToken'] as String?;
-    } catch (_) {
+
+      final token = data['fcmToken'] as String?;
+      final status = data['tokenStatus'] as String?;
+
+      // Only return token if it's marked as active
+      if (token != null && token.isNotEmpty && status == 'active') {
+        return token;
+      }
+      return null;
+    } catch (e) {
+      print('FCM Get Token: ❌ Error getting token for user $userId: $e');
       return null;
     }
   }
@@ -151,12 +172,19 @@ class NotificationService {
           await _firestore
               .collection('users')
               .where('fcmToken', isGreaterThan: '')
+              .where('tokenStatus', isEqualTo: 'active')
               .get();
-      return query.docs
-          .map((d) => (d.data()['fcmToken'] as String?) ?? '')
-          .where((t) => t.isNotEmpty)
-          .toList();
-    } catch (_) {
+
+      final tokens =
+          query.docs
+              .map((d) => (d.data()['fcmToken'] as String?) ?? '')
+              .where((t) => t.isNotEmpty)
+              .toList();
+
+      print('FCM Get All Tokens: ✅ Found ${tokens.length} active tokens');
+      return tokens;
+    } catch (e) {
+      print('FCM Get All Tokens: ❌ Error getting tokens: $e');
       return <String>[];
     }
   }
@@ -172,10 +200,18 @@ class NotificationService {
         if (!doc.exists) continue;
         final data = doc.data();
         final token = data?['fcmToken'] as String?;
-        if (token != null && token.isNotEmpty) tokens.add(token);
+        final status = data?['tokenStatus'] as String?;
+
+        // Only include active tokens
+        if (token != null && token.isNotEmpty && status == 'active') {
+          tokens.add(token);
+        }
       }
-    } catch (_) {
-      // ignore errors, return what we have
+      print(
+        'FCM Get Multiple Tokens: ✅ Found ${tokens.length} active tokens for ${userIds.length} users',
+      );
+    } catch (e) {
+      print('FCM Get Multiple Tokens: ❌ Error getting tokens: $e');
     }
     return tokens;
   }
@@ -220,6 +256,17 @@ class NotificationService {
       if (resp.statusCode == 200) {
         print('FCM: ✅ Notification sent successfully');
         return true;
+      } else if (resp.statusCode == 400) {
+        // Handle invalid token error
+        final responseBody = jsonDecode(resp.body);
+        if (responseBody['error']?.toString().contains(
+              'Invalid or unregistered token',
+            ) ==
+            true) {
+          print('FCM: ❌ Invalid token detected: $targetToken');
+          await _handleInvalidToken(targetToken, userId);
+        }
+        return false;
       } else {
         print('FCM: ❌ Notification failed with status: ${resp.statusCode}');
         return false;
@@ -227,6 +274,41 @@ class NotificationService {
     } catch (e) {
       print('FCM: ❌ Exception occurred: $e');
       return false;
+    }
+  }
+
+  // Handle invalid token by marking it as inactive
+  Future<void> _handleInvalidToken(String token, String? userId) async {
+    try {
+      if (userId != null) {
+        // If we know the user ID, mark their token as invalid
+        await _firestore.collection('users').doc(userId).update({
+          'fcmToken': FieldValue.delete(),
+          'tokenStatus': 'invalid',
+          'lastTokenError': FieldValue.serverTimestamp(),
+        });
+        print('FCM Invalid Token: ✅ Marked token as invalid for user $userId');
+      } else {
+        // Find user by token and mark as invalid
+        final query =
+            await _firestore
+                .collection('users')
+                .where('fcmToken', isEqualTo: token)
+                .get();
+
+        for (final doc in query.docs) {
+          await _firestore.collection('users').doc(doc.id).update({
+            'fcmToken': FieldValue.delete(),
+            'tokenStatus': 'invalid',
+            'lastTokenError': FieldValue.serverTimestamp(),
+          });
+          print(
+            'FCM Invalid Token: ✅ Marked token as invalid for user ${doc.id}',
+          );
+        }
+      }
+    } catch (e) {
+      print('FCM Invalid Token: ❌ Error handling invalid token: $e');
     }
   }
 
@@ -264,16 +346,20 @@ class NotificationService {
               lastUpdate == null ||
               DateTime.now().difference(lastUpdate.toDate()).inDays > 60;
 
-          // Try to validate token by sending a test message (dry run)
+          // Try to validate token by sending a test message
           final isValidToken = await _validateToken(token);
 
           if (!isValidToken || isOldToken) {
-            // Remove invalid/old token
+            // Mark token as invalid
             await _firestore.collection('users').doc(userDoc.id).update({
               'fcmToken': FieldValue.delete(),
-              'lastTokenUpdate': FieldValue.delete(),
+              'tokenStatus': 'invalid',
+              'lastTokenError': FieldValue.serverTimestamp(),
             });
             results['cleanedTokens'] = (results['cleanedTokens'] as int) + 1;
+            print(
+              'FCM Cleanup: ✅ Cleaned invalid token for user ${userDoc.id}',
+            );
           }
         } catch (e) {
           (results['errors'] as List<String>).add('User ${userDoc.id}: $e');
@@ -283,18 +369,21 @@ class NotificationService {
       (results['errors'] as List<String>).add('General error: $e');
     }
 
+    print(
+      'FCM Cleanup: ✅ Cleanup completed. Cleaned ${results['cleanedTokens']} tokens',
+    );
     return results;
   }
 
-  // Validate if a token is still valid by testing it (without actually sending)
+  // Validate if a token is still valid by testing it
   Future<bool> _validateToken(String token) async {
     try {
-      // Send a dry-run test to validate token
+      // Send a test notification to validate token
       final payload = {
         'token': token,
         'title': 'Token Validation',
         'body': 'This is a validation test',
-        'dry_run': true, // This tells the server to validate but not send
+        'data': {'validation': 'true'},
       };
 
       final response = await http.post(
@@ -303,8 +392,15 @@ class NotificationService {
         body: json.encode(payload),
       );
 
-      return response.statusCode == 200;
+      final isValid = response.statusCode == 200;
+      if (!isValid) {
+        print(
+          'FCM Token Validation: ❌ Token validation failed for token: ${token.substring(0, 20)}...',
+        );
+      }
+      return isValid;
     } catch (e) {
+      print('FCM Token Validation: ❌ Error validating token: $e');
       return false;
     }
   }
@@ -313,17 +409,24 @@ class NotificationService {
   Future<Map<String, dynamic>> getTokenStatistics() async {
     try {
       final usersSnapshot = await _firestore.collection('users').get();
-      final usersWithTokens =
+      final usersWithActiveTokens =
           await _firestore
               .collection('users')
               .where('fcmToken', isNotEqualTo: null)
+              .where('tokenStatus', isEqualTo: 'active')
+              .get();
+
+      final usersWithInvalidTokens =
+          await _firestore
+              .collection('users')
+              .where('tokenStatus', isEqualTo: 'invalid')
               .get();
 
       final now = DateTime.now();
       int recentTokens = 0;
       int oldTokens = 0;
 
-      for (final doc in usersWithTokens.docs) {
+      for (final doc in usersWithActiveTokens.docs) {
         final lastUpdate = doc.data()['lastTokenUpdate'] as Timestamp?;
         if (lastUpdate != null) {
           final daysSinceUpdate = now.difference(lastUpdate.toDate()).inDays;
@@ -339,9 +442,10 @@ class NotificationService {
 
       return {
         'totalUsers': usersSnapshot.docs.length,
-        'usersWithTokens': usersWithTokens.docs.length,
+        'usersWithActiveTokens': usersWithActiveTokens.docs.length,
+        'usersWithInvalidTokens': usersWithInvalidTokens.docs.length,
         'usersWithoutTokens':
-            usersSnapshot.docs.length - usersWithTokens.docs.length,
+            usersSnapshot.docs.length - usersWithActiveTokens.docs.length,
         'recentTokens': recentTokens, // Updated within 30 days
         'oldTokens': oldTokens, // Older than 30 days or no update date
         'timestamp': DateTime.now().toIso8601String(),
@@ -360,18 +464,93 @@ class NotificationService {
       final user = _auth.currentUser;
       if (user == null) return false;
 
+      print('FCM Token Refresh: 🔄 Forcing token refresh for user ${user.uid}');
+
       // Delete current token to force refresh
       await _messaging.deleteToken();
 
       // Get new token
       final newToken = await _messaging.getToken();
-      if (newToken == null) return false;
+      if (newToken == null) {
+        print('FCM Token Refresh: ❌ Failed to get new token');
+        return false;
+      }
 
       // Save new token
       await saveTokenToFirestore(newToken);
+      print('FCM Token Refresh: ✅ Token refreshed successfully');
       return true;
     } catch (e) {
+      print('FCM Token Refresh: ❌ Error refreshing token: $e');
       return false;
     }
+  }
+
+  // Request new token from user (for manual refresh)
+  Future<bool> requestNewTokenFromUser(String userId) async {
+    try {
+      // Mark current token as invalid to force refresh
+      await _firestore.collection('users').doc(userId).update({
+        'fcmToken': FieldValue.delete(),
+        'tokenStatus': 'pending_refresh',
+        'lastTokenError': FieldValue.serverTimestamp(),
+      });
+
+      print('FCM Manual Refresh: ✅ Requested new token for user $userId');
+      return true;
+    } catch (e) {
+      print('FCM Manual Refresh: ❌ Error requesting new token: $e');
+      return false;
+    }
+  }
+
+  // Batch send notifications with automatic invalid token handling
+  Future<Map<String, dynamic>> sendBatchNotifications({
+    required List<String> tokens,
+    required String title,
+    required String body,
+    Map<String, String>? data,
+    String? icon,
+    String? color,
+    String? sound,
+    String? imageUrl,
+  }) async {
+    final results = {
+      'totalTokens': tokens.length,
+      'successCount': 0,
+      'failureCount': 0,
+      'invalidTokens': <String>[],
+      'errors': <String>[],
+    };
+
+    for (final token in tokens) {
+      try {
+        final success = await sendNotification(
+          targetToken: token,
+          title: title,
+          body: body,
+          data: data,
+          icon: icon,
+          color: color,
+          sound: sound,
+          imageUrl: imageUrl,
+        );
+
+        if (success) {
+          results['successCount'] = (results['successCount'] as int) + 1;
+        } else {
+          results['failureCount'] = (results['failureCount'] as int) + 1;
+          (results['invalidTokens'] as List<String>).add(token);
+        }
+      } catch (e) {
+        results['failureCount'] = (results['failureCount'] as int) + 1;
+        (results['errors'] as List<String>).add('Token $token: $e');
+      }
+    }
+
+    print(
+      'FCM Batch Send: ✅ Completed. Success: ${results['successCount']}, Failed: ${results['failureCount']}',
+    );
+    return results;
   }
 }

@@ -12,6 +12,7 @@ class NotificationTriggerService {
   NotificationTriggerService._internal();
 
   final NotificationService _notificationService = NotificationService();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // Rate limiting cache
   final Map<String, List<DateTime>> _userNotificationTimes = {};
@@ -233,14 +234,7 @@ class NotificationTriggerService {
     _updateAnalytics('opened', type);
   }
 
-  // Convert to Egypt time
-  DateTime _toEgyptTime(DateTime dateTime) {
-    final utc = dateTime.toUtc();
-    return utc.add(const Duration(hours: egyptTimeZoneOffset));
-  }
-
-  // Override the existing sendScheduledNotification method
-  @override
+  // Send scheduled notification
   Future<void> sendScheduledNotification(
     ScheduledNotification notification,
   ) async {
@@ -513,7 +507,6 @@ class NotificationTriggerService {
         final userId = scheduleData['userId'] as String?;
         final subjectName = scheduleData['subjectName'] as String?;
         final startTime = scheduleData['startTime'] as String?;
-        final endTime = scheduleData['endTime'] as String?;
 
         if (userId != null && subjectName != null && startTime != null) {
           // Parse start time and check if it's within 15 minutes
@@ -583,33 +576,87 @@ class NotificationTriggerService {
   }
 
   // Send notification to users in specific department
-  Future<void> sendDepartmentNotification(
+  Future<bool> sendDepartmentNotification(
     String department,
     String title,
-    String body,
-  ) async {
+    String body, {
+    Map<String, String>? data,
+    String? icon,
+    String? color,
+    String? sound,
+    String? imageUrl,
+  }) async {
     try {
-      final querySnapshot =
-          await FirebaseFirestore.instance
-              .collection('users')
-              .where('department', isEqualTo: department)
-              .get();
-
-      final userIds = querySnapshot.docs.map((doc) => doc.id).toList();
-      final tokens = await _notificationService.getMultipleUserFCMTokens(
-        userIds,
+      print(
+        'Notification Trigger: 🚀 Sending department notification to $department',
       );
 
-      for (String token in tokens) {
-        await _notificationService.sendNotification(
-          targetToken: token,
-          userId: userIds[tokens.indexOf(token)],
-          title: title,
-          body: body,
+      // Get all users in the department with active FCM tokens
+      final usersSnapshot =
+          await _firestore
+              .collection('users')
+              .where('department', isEqualTo: department)
+              .where('fcmToken', isNotEqualTo: null)
+              .where('tokenStatus', isEqualTo: 'active')
+              .get();
+
+      if (usersSnapshot.docs.isEmpty) {
+        print(
+          'Notification Trigger: ⚠️ No users found in department $department with active tokens',
+        );
+        return false;
+      }
+
+      final tokens =
+          usersSnapshot.docs
+              .map((doc) => doc.data()['fcmToken'] as String)
+              .where((token) => token.isNotEmpty)
+              .toList();
+
+      if (tokens.isEmpty) {
+        print(
+          'Notification Trigger: ⚠️ No valid FCM tokens found for department $department',
+        );
+        return false;
+      }
+
+      print(
+        'Notification Trigger: 📱 Sending to ${tokens.length} users in department $department',
+      );
+
+      // Use batch notification sending for better error handling
+      final results = await _notificationService.sendBatchNotifications(
+        tokens: tokens,
+        title: title,
+        body: body,
+        data: data,
+        icon: icon,
+        color: color,
+        sound: sound,
+        imageUrl: imageUrl,
+      );
+
+      final successCount = results['successCount'] as int;
+      final failureCount = results['failureCount'] as int;
+      final invalidTokens = results['invalidTokens'] as List<String>;
+
+      print('Notification Trigger: ✅ Department notification completed');
+      print(
+        'Notification Trigger: 📊 Results - Success: $successCount, Failed: $failureCount',
+      );
+
+      if (invalidTokens.isNotEmpty) {
+        print(
+          'Notification Trigger: ⚠️ ${invalidTokens.length} invalid tokens detected and cleaned up',
         );
       }
+
+      return successCount > 0;
     } catch (e) {
-      print('Error sending department notification: $e');
+      print(
+        'Notification Trigger: ❌ Error sending department notification: $e',
+      );
+      return false;
     }
   }
 
@@ -1228,5 +1275,169 @@ class NotificationTriggerService {
     } catch (e) {
       // print('Error rescheduling user notifications: $e');
     }
+  }
+
+  // Send notification to multiple users by IDs
+  Future<bool> sendMultiUserNotification(
+    List<String> userIds,
+    String title,
+    String body, {
+    Map<String, String>? data,
+    String? icon,
+    String? color,
+    String? sound,
+    String? imageUrl,
+  }) async {
+    try {
+      print(
+        'Notification Trigger: 🚀 Sending multi-user notification to ${userIds.length} users',
+      );
+
+      // Get FCM tokens for the specified users
+      final tokens = await _notificationService.getMultipleUserFCMTokens(
+        userIds,
+      );
+
+      if (tokens.isEmpty) {
+        print(
+          'Notification Trigger: ⚠️ No valid FCM tokens found for the specified users',
+        );
+        return false;
+      }
+
+      print('Notification Trigger: 📱 Sending to ${tokens.length} users');
+
+      // Use batch notification sending
+      final results = await _notificationService.sendBatchNotifications(
+        tokens: tokens,
+        title: title,
+        body: body,
+        data: data,
+        icon: icon,
+        color: color,
+        sound: sound,
+        imageUrl: imageUrl,
+      );
+
+      final successCount = results['successCount'] as int;
+      final failureCount = results['failureCount'] as int;
+
+      print('Notification Trigger: ✅ Multi-user notification completed');
+      print(
+        'Notification Trigger: 📊 Results - Success: $successCount, Failed: $failureCount',
+      );
+
+      return successCount > 0;
+    } catch (e) {
+      print(
+        'Notification Trigger: ❌ Error sending multi-user notification: $e',
+      );
+      return false;
+    }
+  }
+
+  // Send notification to all users
+  Future<bool> sendGlobalNotification(
+    String title,
+    String body, {
+    Map<String, String>? data,
+    String? icon,
+    String? color,
+    String? sound,
+    String? imageUrl,
+  }) async {
+    try {
+      print(
+        'Notification Trigger: 🚀 Sending global notification to all users',
+      );
+
+      // Get all active FCM tokens
+      final tokens = await _notificationService.getAllUserFCMTokens();
+
+      if (tokens.isEmpty) {
+        print('Notification Trigger: ⚠️ No active FCM tokens found');
+        return false;
+      }
+
+      print(
+        'Notification Trigger: 📱 Sending to ${tokens.length} users globally',
+      );
+
+      // Use batch notification sending
+      final results = await _notificationService.sendBatchNotifications(
+        tokens: tokens,
+        title: title,
+        body: body,
+        data: data,
+        icon: icon,
+        color: color,
+        sound: sound,
+        imageUrl: imageUrl,
+      );
+
+      final successCount = results['successCount'] as int;
+      final failureCount = results['failureCount'] as int;
+      final invalidTokens = results['invalidTokens'] as List<String>;
+
+      print('Notification Trigger: ✅ Global notification completed');
+      print(
+        'Notification Trigger: 📊 Results - Success: $successCount, Failed: $failureCount',
+      );
+
+      if (invalidTokens.isNotEmpty) {
+        print(
+          'Notification Trigger: ⚠️ ${invalidTokens.length} invalid tokens detected and cleaned up',
+        );
+      }
+
+      return successCount > 0;
+    } catch (e) {
+      print('Notification Trigger: ❌ Error sending global notification: $e');
+      return false;
+    }
+  }
+
+  // Clean up invalid tokens (can be called periodically)
+  Future<Map<String, dynamic>> cleanupInvalidTokens() async {
+    print('Notification Trigger: 🧹 Starting token cleanup process');
+    final results = await _notificationService.cleanupInvalidTokens();
+    print('Notification Trigger: ✅ Token cleanup completed');
+    return results;
+  }
+
+  // Get token statistics
+  Future<Map<String, dynamic>> getTokenStatistics() async {
+    print('Notification Trigger: 📊 Getting token statistics');
+    final stats = await _notificationService.getTokenStatistics();
+    print('Notification Trigger: ✅ Token statistics retrieved');
+    return stats;
+  }
+
+  // Refresh current user's token
+  Future<bool> refreshCurrentUserToken() async {
+    print('Notification Trigger: 🔄 Refreshing current user token');
+    final success = await _notificationService.refreshCurrentUserToken();
+    if (success) {
+      print(
+        'Notification Trigger: ✅ Current user token refreshed successfully',
+      );
+    } else {
+      print('Notification Trigger: ❌ Failed to refresh current user token');
+    }
+    return success;
+  }
+
+  // Request new token from specific user
+  Future<bool> requestNewTokenFromUser(String userId) async {
+    print('Notification Trigger: 🔄 Requesting new token from user $userId');
+    final success = await _notificationService.requestNewTokenFromUser(userId);
+    if (success) {
+      print('Notification Trigger: ✅ New token requested for user $userId');
+    } else {
+      print(
+        'Notification Trigger: ❌ Failed to request new token for user $userId',
+      );
+    }
+    return success;
   }
 }

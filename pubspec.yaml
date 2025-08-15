@@ -82,6 +82,7 @@ dependencies:
   flutter_svg: ^2.2.0
   flutter_speed_dial: ^7.0.0
   syncfusion_flutter_pdfviewer: ^30.1.42
+  audioplayers: ^5.2.1
 
 flutter_launcher_icons:
   android: "launcher_icon"
@@ -117,6 +118,7 @@ flutter:
     - assets/images/
     - assets/animation/
     - assets/
+    - assets/sounds/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
