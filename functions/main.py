@@ -1,6 +1,6 @@
 import firebase_functions
 from firebase_functions import https_fn
-from firebase_admin import initialize_app, messaging, exceptions
+from firebase_admin import initialize_app, messaging, exceptions, firestore
 import json
 
 # Initialize Firebase app
@@ -131,6 +131,71 @@ def send_notification(req: https_fn.Request) -> https_fn.Response:
             status=401,
             headers=headers
         )
+    except Exception as e:
+        return https_fn.Response(
+            json.dumps({'error': f'Internal server error: {str(e)}'}),
+            status=500,
+            headers=headers
+        )
+
+@https_fn.on_request()
+def sync_remote_config(req: https_fn.Request) -> https_fn.Response:
+    # Handle CORS
+    if req.method == 'OPTIONS':
+        headers = {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST',
+            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Max-Age': '3600'
+        }
+        return https_fn.Response('', status=204, headers=headers)
+    
+    # Set CORS headers for the main request
+    headers = {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST',
+        'Access-Control-Allow-Headers': 'Content-Type'
+    }
+    
+    try:
+        # Only allow POST requests
+        if req.method != 'POST':
+            return https_fn.Response(
+                json.dumps({'error': 'Method not allowed'}),
+                status=405,
+                headers=headers
+            )
+        
+        # Get Firestore client
+        db = firestore.client()
+        
+        # Get update management settings from Firestore
+        doc_ref = db.collection('settings').document('update_management')
+        doc = doc_ref.get()
+        
+        if not doc.exists:
+            return https_fn.Response(
+                json.dumps({'error': 'Update management settings not found'}),
+                status=404,
+                headers=headers
+            )
+        
+        settings = doc.to_dict()
+        
+        # Here you would typically update Firebase Remote Config
+        # For now, we'll just return the settings
+        # In a real implementation, you'd use the Firebase Admin SDK to update Remote Config
+        
+        return https_fn.Response(
+            json.dumps({
+                'success': True,
+                'message': 'Settings retrieved successfully',
+                'settings': settings
+            }),
+            status=200,
+            headers=headers
+        )
+        
     except Exception as e:
         return https_fn.Response(
             json.dumps({'error': f'Internal server error: {str(e)}'}),

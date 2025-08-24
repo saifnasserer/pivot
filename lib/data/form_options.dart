@@ -17,14 +17,14 @@ class FormOptions {
   ];
 
   static List<String> getDepartmentsForYear(String? year) {
-    if (year == 'الفرقة الأولى') {
+    if (year == 'الفرقة الأولى' || year == 'الفرقة الثانية') {
       return ['General'];
     }
     return allDepartments.where((d) => d != 'General').toList();
   }
 
   static List<String> getSectionsForYear(String? year, String? department) {
-    if (year == 'الفرقة الأولى') {
+    if (year == 'الفرقة الأولى' || year == 'الفرقة الثانية') {
       return List.generate(8, (index) => (index + 1).toString());
     }
     if (year != null && department != null && department != 'General') {

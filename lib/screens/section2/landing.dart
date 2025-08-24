@@ -10,6 +10,7 @@ import 'package:pivot/screens/models/card_model.dart';
 import 'package:pivot/screens/models/search_card.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:pivot/services/category_service.dart';
+import 'package:pivot/services/update_service.dart';
 
 class Landing extends StatefulWidget {
   const Landing({super.key});
@@ -117,6 +118,11 @@ class LandingState extends State<Landing> with TickerProviderStateMixin {
           // Mark as initialized after setup is complete
           _isInitialized = true;
           print('🔍 [Landing] Initialization complete, listener enabled');
+        });
+
+        // Check for app updates after initialization
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          UpdateService().checkForUpdates(context);
         });
 
         final departmentCode = CategoryService.getDepartmentCode(

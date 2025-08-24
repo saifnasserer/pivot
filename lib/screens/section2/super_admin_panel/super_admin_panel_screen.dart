@@ -389,6 +389,17 @@ class _SuperAdminPanelScreenState extends State<SuperAdminPanelScreen> {
               Navigator.pushNamed(context, '/notifications-test');
             },
           ),
+          _buildDivider(),
+          _buildQuickActionTile(
+            context,
+            Icons.system_update,
+            'إدارة التحديثات',
+            'إدارة تحديثات التطبيق ووضع الصيانة',
+            Colors.orange,
+            () {
+              Navigator.pushNamed(context, '/update-management');
+            },
+          ),
         ],
       ),
     );

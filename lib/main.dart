@@ -69,6 +69,7 @@ import 'package:pivot/screens/section2/adminstration/feedback_management_screen.
     deferred as feedback_management_screen;
 import 'package:pivot/screens/section2/super_admin_panel/upcoming_notifications_screen.dart'
     deferred as upcoming_notifications_screen;
+import 'package:pivot/screens/section2/super_admin_panel/update_management_screen.dart';
 import 'package:pivot/providers/team_provider.dart';
 import 'package:pivot/providers/teams_provider.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -89,6 +90,7 @@ const String routeFeedbackManagement = '/feedback-management';
 const String routeUpcomingNotifications = '/upcoming-notifications';
 const String routeSendNotifications = '/send-notifications';
 const String routeAddUser = '/add-user';
+const String routeUpdateManagement = '/update-management';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -450,6 +452,7 @@ class Pivot extends StatelessWidget {
                   );
                 },
               ),
+          routeUpdateManagement: (context) => const UpdateManagementScreen(),
           '/teams': (context) => const TeamsScreen(),
           '/subject-selection': (context) {
             final args =
