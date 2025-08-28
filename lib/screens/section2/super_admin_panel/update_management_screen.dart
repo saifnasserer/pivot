@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/services/remote_config_service.dart';
+import 'package:pivot/services/remote_config_bridge_service.dart';
 import 'package:pivot/services/update_service.dart';
 import 'package:pivot/widgets/custom_text_field.dart';
-import 'package:pivot/widgets/custom_dropdown.dart';
 
 class UpdateManagementScreen extends StatefulWidget {
   const UpdateManagementScreen({super.key});
@@ -13,7 +13,8 @@ class UpdateManagementScreen extends StatefulWidget {
   State<UpdateManagementScreen> createState() => _UpdateManagementScreenState();
 }
 
-class _UpdateManagementScreenState extends State<UpdateManagementScreen> {
+class _UpdateManagementScreenState extends State<UpdateManagementScreen>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _messageController = TextEditingController();
@@ -22,25 +23,28 @@ class _UpdateManagementScreenState extends State<UpdateManagementScreen> {
   final _changelogController = TextEditingController();
   final _maintenanceMessageController = TextEditingController();
 
-  bool _isUpdateRequired = false;
   bool _isUpdateForce = false;
-  bool _isMaintenanceMode = false;
+  bool _showUpdateButton = false;
   bool _isLoading = false;
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 1, vsync: this);
+    print('🔧 [UpdateManagement] initState called');
     _loadCurrentSettings();
   }
 
   @override
   void dispose() {
+    _tabController.dispose();
     _titleController.dispose();
     _messageController.dispose();
     _downloadUrlController.dispose();
     _versionController.dispose();
     _changelogController.dispose();
-    _maintenanceMessageController.dispose();
+
     super.dispose();
   }
 
@@ -48,47 +52,33 @@ class _UpdateManagementScreenState extends State<UpdateManagementScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // First try to load from Firestore (most recent)
-      final firestoreDoc =
-          await FirebaseFirestore.instance
-              .collection('settings')
-              .doc('update_management')
-              .get();
+      final bridgeService = RemoteConfigBridgeService();
+      final firestoreData = await bridgeService.loadSettings();
 
-      if (firestoreDoc.exists) {
-        final data = firestoreDoc.data()!;
+      if (firestoreData != null) {
         print('📄 [UpdateManagement] Loading settings from Firestore');
+        print('📄 [UpdateManagement] Firestore data: $firestoreData');
 
-        _titleController.text = data['app_update_title'] ?? '';
-        _messageController.text = data['app_update_message'] ?? '';
-        _downloadUrlController.text = data['app_update_download_url'] ?? '';
-        _versionController.text = data['app_update_version'] ?? '';
-        _changelogController.text = data['app_update_changelog'] ?? '';
-        _maintenanceMessageController.text = data['maintenance_message'] ?? '';
-
-        _isUpdateRequired = data['app_update_required'] ?? false;
-        _isUpdateForce = data['app_update_force'] ?? false;
-        _isMaintenanceMode = data['maintenance_mode'] ?? false;
-      } else {
-        // Fallback to Remote Config if Firestore document doesn't exist
-        print(
-          '📄 [UpdateManagement] Loading settings from Remote Config (fallback)',
-        );
-        final remoteConfig = RemoteConfigService.instance;
-
-        _titleController.text = remoteConfig.updateTitle;
-        _messageController.text = remoteConfig.updateMessage;
-        _downloadUrlController.text = remoteConfig.updateDownloadUrl;
-        _versionController.text = remoteConfig.updateVersion;
-        _changelogController.text = remoteConfig.updateChangelog;
-        _maintenanceMessageController.text = remoteConfig.maintenanceMessage;
-
-        _isUpdateRequired = remoteConfig.isUpdateRequired;
-        _isUpdateForce = remoteConfig.isUpdateForce;
-        _isMaintenanceMode = remoteConfig.isMaintenanceMode;
+        _titleController.text = firestoreData['app_update_title'] ?? '';
+        _messageController.text = firestoreData['app_update_message'] ?? '';
+        _downloadUrlController.text =
+            firestoreData['app_update_download_url'] ?? '';
+        _versionController.text = firestoreData['app_update_version'] ?? '';
+        _changelogController.text = firestoreData['app_update_changelog'] ?? '';
+        _isUpdateForce = firestoreData['app_update_force'] ?? false;
+        _showUpdateButton = firestoreData['show_update_button'] ?? false;
       }
 
-      setState(() {}); // Trigger rebuild with new values
+      print('📄 [UpdateManagement] Loaded values:');
+      print('  - Title: "${_titleController.text}"');
+      print('  - Message: "${_messageController.text}"');
+      print('  - Version: "${_versionController.text}"');
+      print('  - Download URL: "${_downloadUrlController.text}"');
+      print('  - Changelog: "${_changelogController.text}"');
+      print('  - Update Force: $_isUpdateForce');
+      print('  - Show Update Button: $_showUpdateButton');
+
+      setState(() {});
     } catch (e) {
       print('❌ [UpdateManagement] Error loading settings: $e');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -120,39 +110,39 @@ class _UpdateManagementScreenState extends State<UpdateManagementScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // Update Firestore with new settings
-      await FirebaseFirestore.instance
-          .collection('settings')
-          .doc('update_management')
-          .set({
-            'app_update_required': _isUpdateRequired,
-            'app_update_force': _isUpdateForce,
-            'app_update_message': _messageController.text.trim(),
-            'app_update_title': _titleController.text.trim(),
-            'app_update_download_url': _downloadUrlController.text.trim(),
-            'app_update_version': _versionController.text.trim(),
-            'app_update_changelog': _changelogController.text.trim(),
-            'maintenance_mode': _isMaintenanceMode,
-            'maintenance_message': _maintenanceMessageController.text.trim(),
-            'updated_at': FieldValue.serverTimestamp(),
-            'updated_by': 'super_admin', // You can get actual user ID here
-          }, SetOptions(merge: true));
+      final settings = {
+        'app_update_force': _isUpdateForce,
+        'app_update_message': _messageController.text.trim(),
+        'app_update_title': _titleController.text.trim(),
+        'app_update_download_url': _downloadUrlController.text.trim(),
+        'app_update_version': _versionController.text.trim(),
+        'app_update_changelog': _changelogController.text.trim(),
 
-      // Force refresh remote config
-      final success = await RemoteConfigService.instance.forceFetch();
+        'show_update_button': _showUpdateButton,
+      };
+
+      print('🔧 [UpdateManagement] Saving settings: $settings');
+
+      final bridgeService = RemoteConfigBridgeService();
+      final success = await bridgeService.saveSettings(settings);
 
       if (success) {
+        final syncSuccess = await bridgeService.forceSync();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('تم حفظ الإعدادات بنجاح'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: Text(
+              syncSuccess
+                  ? 'تم حفظ الإعدادات ومزامنتها مع Remote Config بنجاح'
+                  : 'تم الحفظ ولكن فشل في المزامنة مع Remote Config',
+            ),
+            backgroundColor: syncSuccess ? Colors.green : Colors.orange,
           ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('تم الحفظ ولكن فشل في تحديث التطبيق'),
-            backgroundColor: Colors.orange,
+            content: Text('فشل في حفظ الإعدادات'),
+            backgroundColor: Colors.red,
           ),
         );
       }
@@ -168,750 +158,210 @@ class _UpdateManagementScreenState extends State<UpdateManagementScreen> {
     }
   }
 
-  Future<void> _testUpdateDialog() async {
+  Future<void> _testUpdateService() async {
     try {
-      // Force show the update dialog for testing purposes
-      final remoteConfig = RemoteConfigService.instance;
+      print('🧪 [UpdateManagement] Testing Update Service...');
 
-      // Temporarily set test values
-      final testTitle =
-          _titleController.text.trim().isNotEmpty
-              ? _titleController.text.trim()
-              : 'تحديث التطبيق';
-      final testMessage =
-          _messageController.text.trim().isNotEmpty
-              ? _messageController.text.trim()
-              : 'تحديث جديد متاح للتطبيق';
-      final testVersion =
-          _versionController.text.trim().isNotEmpty
-              ? _versionController.text.trim()
-              : '1.1.0';
-      final testDownloadUrl =
-          _downloadUrlController.text.trim().isNotEmpty
-              ? _downloadUrlController.text.trim()
-              : 'https://example.com/download';
-      final testChangelog =
-          _changelogController.text.trim().isNotEmpty
-              ? _changelogController.text.trim()
-              : 'تحسينات عامة وإصلاحات للأخطاء';
-      final testForceUpdate = _isUpdateForce;
+      final updateService = UpdateService();
+      final updatesAvailable = await updateService.areUpdatesAvailable();
+      final shouldShowButton = updateService.shouldShowUpdateButton();
 
-      // Show test dialog
-      _showTestUpdateDialog(
-        context,
-        title: testTitle,
-        message: testMessage,
-        version: testVersion,
-        downloadUrl: testDownloadUrl,
-        changelog: testChangelog,
-        isForceUpdate: testForceUpdate,
+      print('🧪 [UpdateManagement] Updates Available: $updatesAvailable');
+      print(
+        '🧪 [UpdateManagement] Should Show Update Button: $shouldShowButton',
+      );
+
+      showDialog(
+        context: context,
+        builder:
+            (context) => AlertDialog(
+              title: const Text('Update Service Test Results'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Updates Available: $updatesAvailable'),
+                  const SizedBox(height: 8),
+                  Text('Should Show Update Button: $shouldShowButton'),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'This tests the actual UpdateService that the app uses to check for updates.',
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Close'),
+                ),
+              ],
+            ),
       );
     } catch (e) {
+      print('❌ [UpdateManagement] Error testing Update Service: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('خطأ في اختبار التحديث: $e'),
+          content: Text('خطأ في اختبار خدمة التحديث: $e'),
           backgroundColor: Colors.red,
         ),
       );
     }
   }
 
-  void _showTestUpdateDialog(
-    BuildContext context, {
-    required String title,
-    required String message,
-    required String version,
-    required String downloadUrl,
-    required String changelog,
-    required bool isForceUpdate,
-  }) {
-    showDialog(
-      context: context,
-      barrierDismissible: !isForceUpdate,
-      builder:
-          (context) => Directionality(
-            textDirection: TextDirection.rtl,
-            child: Dialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(
-                  Responsive.space(context, size: Space.large),
-                ),
-              ),
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(
-                    Responsive.space(context, size: Space.large),
-                  ),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Colors.blue[600]!,
-                      Colors.blue[700]!,
-                      Colors.purple[600]!,
-                    ],
-                  ),
-                ),
+  Future<void> _debugRemoteConfig() async {
+    try {
+      print('🐛 [UpdateManagement] Starting Remote Config debug...');
+
+      final remoteConfig = RemoteConfigService.instance;
+      final bridgeService = RemoteConfigBridgeService();
+
+      final syncStatus = await bridgeService.getSyncStatus();
+      final remoteConfigValues = bridgeService.getCurrentRemoteConfigValues();
+      final currentVersion = await remoteConfig.getCurrentAppVersion();
+      final isUpdateNeeded = await remoteConfig.isAppUpdateNeeded();
+
+      print('🐛 [UpdateManagement] Sync Status: $syncStatus');
+      print('🐛 [UpdateManagement] Remote Config Values: $remoteConfigValues');
+      print('🐛 [UpdateManagement] Current App Version: $currentVersion');
+      print('🐛 [UpdateManagement] Update Needed: $isUpdateNeeded');
+
+      showDialog(
+        context: context,
+        builder:
+            (context) => AlertDialog(
+              title: const Text('Remote Config Debug Info'),
+              content: SingleChildScrollView(
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Header with animated background
-                    Container(
-                      padding: Responsive.padding(context, size: Space.large),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(
-                            Responsive.space(context, size: Space.large),
-                          ),
-                          topRight: Radius.circular(
-                            Responsive.space(context, size: Space.large),
-                          ),
-                        ),
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.white.withOpacity(0.1),
-                            Colors.transparent,
-                          ],
-                        ),
-                      ),
-                      child: Column(
-                        children: [
-                          // Animated icon container
-                          Container(
-                            padding: Responsive.padding(
-                              context,
-                              size: Space.medium,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(
-                                Responsive.space(context, size: Space.medium),
-                              ),
-                              border: Border.all(
-                                color: Colors.white.withOpacity(0.3),
-                                width: 2,
-                              ),
-                            ),
-                            child: Stack(
-                              children: [
-                                // Background glow
-                                Container(
-                                  width: Responsive.space(
-                                    context,
-                                    size: Space.xlarge,
-                                  ),
-                                  height: Responsive.space(
-                                    context,
-                                    size: Space.xlarge,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    gradient: RadialGradient(
-                                      colors: [
-                                        Colors.white.withOpacity(0.3),
-                                        Colors.transparent,
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                // Main icon
-                                Icon(
-                                  Icons.system_update,
-                                  color: Colors.white,
-                                  size: Responsive.space(
-                                    context,
-                                    size: Space.large,
-                                  ),
-                                ),
-                                // Sparkle effects
-                                Positioned(
-                                  top: Responsive.space(
-                                    context,
-                                    size: Space.tiny,
-                                  ),
-                                  right: Responsive.space(
-                                    context,
-                                    size: Space.tiny,
-                                  ),
-                                  child: Icon(
-                                    Icons.star,
-                                    color: Colors.yellow[300],
-                                    size: Responsive.space(
-                                      context,
-                                      size: Space.small,
-                                    ),
-                                  ),
-                                ),
-                                Positioned(
-                                  bottom: Responsive.space(
-                                    context,
-                                    size: Space.tiny,
-                                  ),
-                                  left: Responsive.space(
-                                    context,
-                                    size: Space.tiny,
-                                  ),
-                                  child: Icon(
-                                    Icons.star,
-                                    color: Colors.yellow[300],
-                                    size: Responsive.space(
-                                      context,
-                                      size: Space.small,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          SizedBox(
-                            height: Responsive.space(
-                              context,
-                              size: Space.medium,
-                            ),
-                          ),
-
-                          // Title with glow effect
-                          Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: Responsive.space(
-                                context,
-                                size: Space.medium,
-                              ),
-                              vertical: Responsive.space(
-                                context,
-                                size: Space.small,
-                              ),
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(
-                                Responsive.space(context, size: Space.medium),
-                              ),
-                              border: Border.all(
-                                color: Colors.white.withOpacity(0.2),
-                              ),
-                            ),
-                            child: Text(
-                              title,
-                              style: TextStyle(
-                                fontSize: Responsive.text(
-                                  context,
-                                  size: TextSize.heading,
-                                ),
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                                shadows: [
-                                  Shadow(
-                                    offset: Offset(0, 2),
-                                    blurRadius: 4,
-                                    color: Colors.black26,
-                                  ),
-                                ],
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        ],
-                      ),
+                    Text('Current App Version: $currentVersion'),
+                    const SizedBox(height: 8),
+                    Text('Update Force: ${remoteConfig.isUpdateForce}'),
+                    Text('Update Needed: $isUpdateNeeded'),
+                    const SizedBox(height: 8),
+                    Text('Update Title: ${remoteConfig.updateTitle}'),
+                    Text('Update Version: ${remoteConfig.updateVersion}'),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Firestore Has Data: ${syncStatus['firestore_has_data']}',
                     ),
-
-                    // Content
-                    Container(
-                      padding: Responsive.padding(context, size: Space.large),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.only(
-                          bottomLeft: Radius.circular(
-                            Responsive.space(context, size: Space.large),
-                          ),
-                          bottomRight: Radius.circular(
-                            Responsive.space(context, size: Space.large),
-                          ),
-                        ),
-                      ),
-                      child: Column(
-                        children: [
-                          // Exciting message
-                          Container(
-                            padding: Responsive.padding(
-                              context,
-                              size: Space.medium,
-                            ),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [Colors.blue[50]!, Colors.purple[50]!],
-                              ),
-                              borderRadius: BorderRadius.circular(
-                                Responsive.space(context, size: Space.medium),
-                              ),
-                              border: Border.all(color: Colors.blue[200]!),
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: Responsive.padding(
-                                    context,
-                                    size: Space.small,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.blue[600],
-                                    borderRadius: BorderRadius.circular(
-                                      Responsive.space(
-                                        context,
-                                        size: Space.small,
-                                      ),
-                                    ),
-                                  ),
-                                  child: Icon(
-                                    Icons.celebration,
-                                    color: Colors.white,
-                                    size: Responsive.space(
-                                      context,
-                                      size: Space.medium,
-                                    ),
-                                  ),
-                                ),
-                                SizedBox(
-                                  width: Responsive.space(
-                                    context,
-                                    size: Space.small,
-                                  ),
-                                ),
-                                Expanded(
-                                  child: Text(
-                                    message,
-                                    style: TextStyle(
-                                      fontSize: Responsive.text(
-                                        context,
-                                        size: TextSize.medium,
-                                      ),
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.blue[800],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          SizedBox(
-                            height: Responsive.space(
-                              context,
-                              size: Space.medium,
-                            ),
-                          ),
-
-                          // Version badge
-                          Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: Responsive.space(
-                                context,
-                                size: Space.medium,
-                              ),
-                              vertical: Responsive.space(
-                                context,
-                                size: Space.small,
-                              ),
-                            ),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  Colors.green[400]!,
-                                  Colors.green[600]!,
-                                ],
-                              ),
-                              borderRadius: BorderRadius.circular(
-                                Responsive.space(context, size: Space.medium),
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.green.withOpacity(0.3),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.new_releases,
-                                  color: Colors.white,
-                                  size: Responsive.space(
-                                    context,
-                                    size: Space.small,
-                                  ),
-                                ),
-                                SizedBox(
-                                  width: Responsive.space(
-                                    context,
-                                    size: Space.small,
-                                  ),
-                                ),
-                                Text(
-                                  'الإصدار الجديد: $version',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: Responsive.text(
-                                      context,
-                                      size: TextSize.small,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          SizedBox(
-                            height: Responsive.space(
-                              context,
-                              size: Space.medium,
-                            ),
-                          ),
-
-                          // Changelog with enhanced styling
-                          Container(
-                            padding: Responsive.padding(
-                              context,
-                              size: Space.medium,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.grey[50],
-                              borderRadius: BorderRadius.circular(
-                                Responsive.space(context, size: Space.medium),
-                              ),
-                              border: Border.all(color: Colors.grey[200]!),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: EdgeInsets.all(
-                                        Responsive.space(
-                                          context,
-                                          size: Space.tiny,
-                                        ),
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.orange[600],
-                                        borderRadius: BorderRadius.circular(
-                                          Responsive.space(
-                                            context,
-                                            size: Space.tiny,
-                                          ),
-                                        ),
-                                      ),
-                                      child: Icon(
-                                        Icons.whatshot,
-                                        color: Colors.white,
-                                        size: Responsive.space(
-                                          context,
-                                          size: Space.small,
-                                        ),
-                                      ),
-                                    ),
-                                    SizedBox(
-                                      width: Responsive.space(
-                                        context,
-                                        size: Space.small,
-                                      ),
-                                    ),
-                                    Text(
-                                      'ما الجديد في هذا التحديث:',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: Responsive.text(
-                                          context,
-                                          size: TextSize.medium,
-                                        ),
-                                        color: Colors.orange[700],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                SizedBox(
-                                  height: Responsive.space(
-                                    context,
-                                    size: Space.small,
-                                  ),
-                                ),
-                                Container(
-                                  padding: Responsive.padding(
-                                    context,
-                                    size: Space.small,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(
-                                      Responsive.space(
-                                        context,
-                                        size: Space.small,
-                                      ),
-                                    ),
-                                    border: Border.all(
-                                      color: Colors.orange[200]!,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    changelog,
-                                    style: TextStyle(
-                                      fontSize: Responsive.text(
-                                        context,
-                                        size: TextSize.small,
-                                      ),
-                                      color: Colors.grey[700],
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          // Force update warning
-                          if (isForceUpdate) ...[
-                            SizedBox(
-                              height: Responsive.space(
-                                context,
-                                size: Space.medium,
-                              ),
-                            ),
-                            Container(
-                              padding: Responsive.padding(
-                                context,
-                                size: Space.medium,
-                              ),
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [Colors.red[50]!, Colors.orange[50]!],
-                                ),
-                                borderRadius: BorderRadius.circular(
-                                  Responsive.space(context, size: Space.medium),
-                                ),
-                                border: Border.all(color: Colors.red[200]!),
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    padding: Responsive.padding(
-                                      context,
-                                      size: Space.small,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.red[600],
-                                      borderRadius: BorderRadius.circular(
-                                        Responsive.space(
-                                          context,
-                                          size: Space.small,
-                                        ),
-                                      ),
-                                    ),
-                                    child: Icon(
-                                      Icons.priority_high,
-                                      color: Colors.white,
-                                      size: Responsive.space(
-                                        context,
-                                        size: Space.medium,
-                                      ),
-                                    ),
-                                  ),
-                                  SizedBox(
-                                    width: Responsive.space(
-                                      context,
-                                      size: Space.small,
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: Text(
-                                      'تحديث إجباري - لا يمكن تخطي هذا التحديث',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: Responsive.text(
-                                          context,
-                                          size: TextSize.small,
-                                        ),
-                                        color: Colors.red[700],
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-
-                          SizedBox(
-                            height: Responsive.space(
-                              context,
-                              size: Space.large,
-                            ),
-                          ),
-
-                          // Action buttons
-                          Row(
-                            children: [
-                              if (!isForceUpdate) ...[
-                                Expanded(
-                                  child: Container(
-                                    height:
-                                        Responsive.space(
-                                          context,
-                                          size: Space.xlarge,
-                                        ) *
-                                        1.5,
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey[100],
-                                      borderRadius: BorderRadius.circular(
-                                        Responsive.space(
-                                          context,
-                                          size: Space.medium,
-                                        ),
-                                      ),
-                                      border: Border.all(
-                                        color: Colors.grey[300]!,
-                                      ),
-                                    ),
-                                    child: TextButton(
-                                      onPressed:
-                                          () => Navigator.of(context).pop(),
-                                      style: TextButton.styleFrom(
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            Responsive.space(
-                                              context,
-                                              size: Space.medium,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      child: Text(
-                                        'لاحقاً',
-                                        style: TextStyle(
-                                          color: Colors.grey[600],
-                                          fontSize: Responsive.text(
-                                            context,
-                                            size: TextSize.medium,
-                                          ),
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                SizedBox(
-                                  width: Responsive.space(
-                                    context,
-                                    size: Space.small,
-                                  ),
-                                ),
-                              ],
-                              Expanded(
-                                flex: 2,
-                                child: Container(
-                                  height: Responsive.space(
-                                    context,
-                                    size: Space.xlarge,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [
-                                        Colors.green[500]!,
-                                        Colors.green[600]!,
-                                      ],
-                                    ),
-                                    borderRadius: BorderRadius.circular(
-                                      Responsive.space(
-                                        context,
-                                        size: Space.medium,
-                                      ),
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.green.withOpacity(0.3),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 4),
-                                      ),
-                                    ],
-                                  ),
-                                  child: ElevatedButton(
-                                    onPressed: () {
-                                      Navigator.of(context).pop();
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            'سيتم فتح رابط التحميل: $downloadUrl',
-                                          ),
-                                          backgroundColor: Colors.green,
-                                        ),
-                                      );
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.transparent,
-                                      shadowColor: Colors.transparent,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(
-                                          Responsive.space(
-                                            context,
-                                            size: Space.medium,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Icon(
-                                          Icons.download,
-                                          color: Colors.white,
-                                          size: Responsive.space(
-                                            context,
-                                            size: Space.medium,
-                                          ),
-                                        ),
-                                        SizedBox(
-                                          width: Responsive.space(
-                                            context,
-                                            size: Space.small,
-                                          ),
-                                        ),
-                                        Flexible(
-                                          child: Text(
-                                            'تحميل التحديث',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: Responsive.text(
-                                                context,
-                                                size: TextSize.small,
-                                              ),
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                            maxLines: 1,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+                    Text('Synced: ${syncStatus['synced']}'),
+                    const SizedBox(height: 8),
+                    const Text('Remote Config Values:'),
+                    ...remoteConfigValues.entries.map(
+                      (entry) => Text('  ${entry.key}: ${entry.value}'),
                     ),
                   ],
                 ),
               ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Close'),
+                ),
+              ],
             ),
-          ),
-    );
+      );
+    } catch (e) {
+      print('❌ [UpdateManagement] Error debugging Remote Config: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('خطأ في تصحيح Remote Config: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _testRemoteConfigSync() async {
+    try {
+      print('🧪 [UpdateManagement] Testing Remote Config sync...');
+
+      // Step 1: Check current Firestore values
+      final bridgeService = RemoteConfigBridgeService();
+      final firestoreData = await bridgeService.loadSettings();
+      print('🧪 [UpdateManagement] Firestore data: $firestoreData');
+
+      // Step 2: Check current Remote Config values
+      final remoteConfig = RemoteConfigService.instance;
+      final currentShowUpdateButton = remoteConfig.showUpdateButton;
+      print(
+        '🧪 [UpdateManagement] Current Remote Config showUpdateButton: $currentShowUpdateButton',
+      );
+
+      // Step 3: Force sync from Firestore to Remote Config
+      print('🧪 [UpdateManagement] Force syncing...');
+      final syncSuccess = await bridgeService.forceSync();
+      print('🧪 [UpdateManagement] Sync success: $syncSuccess');
+
+      // Step 4: Check Remote Config values after sync
+      final afterSyncShowUpdateButton = remoteConfig.showUpdateButton;
+      print(
+        '🧪 [UpdateManagement] After sync - showUpdateButton: $afterSyncShowUpdateButton',
+      );
+
+      // Step 5: Test UpdateService
+      final updateService = UpdateService();
+      final shouldShow = updateService.shouldShowUpdateButton();
+      print(
+        '🧪 [UpdateManagement] UpdateService.shouldShowUpdateButton(): $shouldShow',
+      );
+
+      // Step 6: Force refresh Remote Config
+      print('🧪 [UpdateManagement] Force refreshing Remote Config...');
+      await updateService.forceRefreshRemoteConfig();
+
+      // Step 7: Check final values
+      final finalShowUpdateButton = remoteConfig.showUpdateButton;
+      final finalShouldShow = updateService.shouldShowUpdateButton();
+      print('🧪 [UpdateManagement] Final values:');
+      print('  - Remote Config showUpdateButton: $finalShowUpdateButton');
+      print('  - UpdateService shouldShowUpdateButton: $finalShouldShow');
+
+      showDialog(
+        context: context,
+        builder:
+            (context) => AlertDialog(
+              title: const Text('Remote Config Sync Test Results'),
+              content: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Firestore showUpdateButton: ${firestoreData?['show_update_button']}',
+                    ),
+                    const SizedBox(height: 8),
+                    Text('Before sync: $currentShowUpdateButton'),
+                    Text('After sync: $afterSyncShowUpdateButton'),
+                    Text('After refresh: $finalShowUpdateButton'),
+                    const SizedBox(height: 8),
+                    Text(
+                      'UpdateService.shouldShowUpdateButton(): $finalShouldShow',
+                    ),
+                    const SizedBox(height: 8),
+                    Text('Sync success: $syncSuccess'),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Close'),
+                ),
+              ],
+            ),
+      );
+    } catch (e) {
+      print('❌ [UpdateManagement] Error testing Remote Config sync: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('خطأ في اختبار مزامنة Remote Config: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
@@ -942,7 +392,7 @@ class _UpdateManagementScreenState extends State<UpdateManagementScreen> {
               child: IconButton(
                 icon: Icon(Icons.refresh, color: Colors.blue[600]),
                 onPressed: () async {
-                  print('🔄 [UpdateManagement] Manual refresh requested');
+                  print('�� [UpdateManagement] Manual refresh requested');
                   await _loadCurrentSettings();
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -953,6 +403,87 @@ class _UpdateManagementScreenState extends State<UpdateManagementScreen> {
                   );
                 },
                 tooltip: 'تحديث الإعدادات من Firestore',
+              ),
+            ),
+            Container(
+              margin: const EdgeInsets.only(right: 8),
+              decoration: BoxDecoration(
+                color: Colors.green[50],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: IconButton(
+                icon: Icon(Icons.sync, color: Colors.green[600]),
+                onPressed: () async {
+                  print('🔄 [UpdateManagement] Manual sync requested');
+                  final bridgeService = RemoteConfigBridgeService();
+                  final success = await bridgeService.forceSync();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        success ? 'تم المزامنة بنجاح' : 'فشل في المزامنة',
+                      ),
+                      backgroundColor: success ? Colors.green : Colors.red,
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                },
+                tooltip: 'مزامنة مع Remote Config',
+              ),
+            ),
+            Container(
+              margin: const EdgeInsets.only(right: 8),
+              decoration: BoxDecoration(
+                color: Colors.orange[50],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: IconButton(
+                icon: Icon(Icons.bug_report, color: Colors.orange[600]),
+                onPressed: () async {
+                  print('🐛 [UpdateManagement] Debug Remote Config requested');
+                  await _debugRemoteConfig();
+                },
+                tooltip: 'تصحيح Remote Config',
+              ),
+            ),
+            Container(
+              margin: const EdgeInsets.only(right: 8),
+              decoration: BoxDecoration(
+                color: Colors.purple[50],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: IconButton(
+                icon: Icon(Icons.science, color: Colors.purple[600]),
+                onPressed: () async {
+                  print(
+                    '🧪 [UpdateManagement] Remote Config sync test requested',
+                  );
+                  await _testRemoteConfigSync();
+                },
+                tooltip: 'اختبار مزامنة Remote Config',
+              ),
+            ),
+            Container(
+              margin: const EdgeInsets.only(right: 8),
+              decoration: BoxDecoration(
+                color: Colors.teal[50],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: IconButton(
+                icon: Icon(Icons.refresh, color: Colors.purple[600]),
+                onPressed: () async {
+                  print(
+                    '🔄 [UpdateManagement] Force refresh Remote Config requested',
+                  );
+                  await UpdateService().forceRefreshRemoteConfig();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('تم تحديث Remote Config'),
+                      backgroundColor: Colors.purple,
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
+                tooltip: 'تحديث Remote Config',
               ),
             ),
           ],
@@ -1028,41 +559,57 @@ class _UpdateManagementScreenState extends State<UpdateManagementScreen> {
                   ),
                   child: Form(
                     key: _formKey,
-                    child: SingleChildScrollView(
-                      padding: Responsive.padding(context, size: Space.large),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _buildHeaderCard(),
-                          SizedBox(
-                            height: Responsive.space(
-                              context,
-                              size: Space.large,
-                            ),
+                    child: Column(
+                      children: [
+                        // Action Buttons at Top
+                        _buildActionButtons(),
+
+                        // Tabs
+                        Container(
+                          margin: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 10,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
                           ),
-                          _buildUpdateSettingsCard(),
-                          SizedBox(
-                            height: Responsive.space(
-                              context,
-                              size: Space.large,
-                            ),
+                          child: Column(
+                            children: [
+                              TabBar(
+                                controller: _tabController,
+                                labelColor: Colors.white,
+                                unselectedLabelColor: Colors.grey[600],
+                                indicator: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(16),
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Colors.blue[600]!,
+                                      Colors.blue[700]!,
+                                    ],
+                                  ),
+                                ),
+                                tabs: const [
+                                  Tab(text: 'التحديثات'),
+                                  Tab(text: 'الصيانة'),
+                                ],
+                              ),
+                              SizedBox(
+                                height:
+                                    MediaQuery.of(context).size.height * 0.6,
+                                child: TabBarView(
+                                  controller: _tabController,
+                                  children: [_buildUpdateTab()],
+                                ),
+                              ),
+                            ],
                           ),
-                          _buildMaintenanceSettingsCard(),
-                          SizedBox(
-                            height: Responsive.space(
-                              context,
-                              size: Space.large,
-                            ),
-                          ),
-                          _buildActionButtons(),
-                          SizedBox(
-                            height: Responsive.space(
-                              context,
-                              size: Space.large,
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -1070,58 +617,93 @@ class _UpdateManagementScreenState extends State<UpdateManagementScreen> {
     );
   }
 
-  Widget _buildHeaderCard() {
+  Widget _buildActionButtons() {
     return Container(
       padding: Responsive.padding(context, size: Space.large),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.blue[600]!, Colors.blue[700]!],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.blue.withOpacity(0.3),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.settings_system_daydream,
-              color: Colors.white,
-              size: 28,
+          Expanded(
+            child: Container(
+              height: 56,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.green[500]!, Colors.green[600]!],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.green.withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: ElevatedButton.icon(
+                onPressed: _isLoading ? null : _testUpdateService,
+                icon: const Icon(Icons.play_arrow, size: 20),
+                label: const Text(
+                  'اختبار خدمة التحديث',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  foregroundColor: Colors.white,
+                  shadowColor: Colors.transparent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+              ),
             ),
           ),
           const SizedBox(width: 16),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'نظام إدارة التحديثات',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: Responsive.text(context, size: TextSize.heading),
+            child: Container(
+              height: 56,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.blue[500]!, Colors.blue[600]!],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.blue.withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: ElevatedButton.icon(
+                onPressed: _isLoading ? null : _saveSettings,
+                icon:
+                    _isLoading
+                        ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
+                          ),
+                        )
+                        : const Icon(Icons.save, size: 20),
+                label: Text(
+                  _isLoading ? 'جاري الحفظ...' : 'حفظ الإعدادات',
+                  style: const TextStyle(
                     fontWeight: FontWeight.bold,
+                    fontSize: 16,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'تحكم في تحديثات التطبيق ووضع الصيانة',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
-                    fontSize: Responsive.text(context, size: TextSize.small),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  foregroundColor: Colors.white,
+                  shadowColor: Colors.transparent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
                   ),
                 ),
-              ],
+              ),
             ),
           ),
         ],
@@ -1129,116 +711,51 @@ class _UpdateManagementScreenState extends State<UpdateManagementScreen> {
     );
   }
 
-  Widget _buildUpdateSettingsCard() {
-    return Container(
+  Widget _buildUpdateTab() {
+    return SingleChildScrollView(
       padding: Responsive.padding(context, size: Space.large),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey[100]!),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header with gradient background
-          Container(
-            margin: const EdgeInsets.only(bottom: 20),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.blue[50]!, Colors.blue[100]!],
-              ),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.blue[600],
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.system_update,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'إعدادات التحديث',
-                        style: TextStyle(
-                          fontSize: Responsive.text(
-                            context,
-                            size: TextSize.heading,
-                          ),
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue[800],
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'تحكم في كيفية عرض التحديثات للمستخدمين',
-                        style: TextStyle(
-                          fontSize: Responsive.text(
-                            context,
-                            size: TextSize.small,
-                          ),
-                          color: Colors.blue[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Switches with enhanced styling
+          // Update Button Toggle
           Container(
             decoration: BoxDecoration(
               color: Colors.grey[50],
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: Colors.grey[200]!),
             ),
-            child: Column(
-              children: [
-                _buildEnhancedSwitchTile(
-                  title: 'تفعيل التحديث',
-                  subtitle: 'إظهار رسالة التحديث للمستخدمين',
-                  value: _isUpdateRequired,
-                  onChanged:
-                      (value) => setState(() => _isUpdateRequired = value),
-                  activeColor: Colors.blue[600]!,
-                  icon: Icons.notifications_active,
-                ),
-                Divider(height: 1, color: Colors.grey[200]),
-                _buildEnhancedSwitchTile(
-                  title: 'تحديث إجباري',
-                  subtitle: 'إجبار المستخدمين على التحديث',
-                  value: _isUpdateForce,
-                  onChanged: (value) => setState(() => _isUpdateForce = value),
-                  activeColor: Colors.red[600]!,
-                  icon: Icons.block,
-                ),
-              ],
+            child: _buildEnhancedSwitchTile(
+              title: 'إظهار زر التحديث',
+              subtitle: 'إظهار زر التحديث في القائمة السريعة',
+              value: _showUpdateButton,
+              onChanged: (value) => setState(() => _showUpdateButton = value),
+              activeColor: Colors.blue[600]!,
+              icon: Icons.system_update,
             ),
           ),
 
           const SizedBox(height: 24),
 
-          // Form fields with enhanced styling
+          // Force Update Toggle
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey[200]!),
+            ),
+            child: _buildEnhancedSwitchTile(
+              title: 'تحديث إجباري',
+              subtitle: 'إجبار المستخدمين على التحديث',
+              value: _isUpdateForce,
+              onChanged: (value) => setState(() => _isUpdateForce = value),
+              activeColor: Colors.red[600]!,
+              icon: Icons.block,
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // Update Details Form
           _buildFormSection(
             title: 'تفاصيل التحديث',
             icon: Icons.edit,
@@ -1248,7 +765,7 @@ class _UpdateManagementScreenState extends State<UpdateManagementScreen> {
                 hint: 'عنوان رسالة التحديث',
                 icon: Icons.title,
                 validator: (value) {
-                  if (_isUpdateRequired &&
+                  if (_showUpdateButton &&
                       (value == null || value.trim().isEmpty)) {
                     return 'يرجى إدخال عنوان رسالة التحديث';
                   }
@@ -1262,7 +779,7 @@ class _UpdateManagementScreenState extends State<UpdateManagementScreen> {
                 icon: Icons.message,
                 maxLines: 3,
                 validator: (value) {
-                  if (_isUpdateRequired &&
+                  if (_showUpdateButton &&
                       (value == null || value.trim().isEmpty)) {
                     return 'يرجى إدخال رسالة التحديث';
                   }
@@ -1283,11 +800,11 @@ class _UpdateManagementScreenState extends State<UpdateManagementScreen> {
                 hint: 'رقم الإصدار المطلوب (مثال: 1.2.0)',
                 icon: Icons.tag,
                 validator: (value) {
-                  if (_isUpdateRequired &&
+                  if (_showUpdateButton &&
                       (value == null || value.trim().isEmpty)) {
                     return 'يرجى إدخال رقم الإصدار';
                   }
-                  if (_isUpdateRequired &&
+                  if (_showUpdateButton &&
                       value != null &&
                       value.trim().isNotEmpty &&
                       !RegExp(r'^\d+\.\d+\.\d+$').hasMatch(value.trim())) {
@@ -1302,7 +819,7 @@ class _UpdateManagementScreenState extends State<UpdateManagementScreen> {
                 hint: 'رابط تحميل التحديث',
                 icon: Icons.link,
                 validator: (value) {
-                  if (_isUpdateRequired &&
+                  if (_showUpdateButton &&
                       (value == null || value.trim().isEmpty)) {
                     return 'يرجى إدخال رابط التحميل';
                   }
@@ -1316,7 +833,7 @@ class _UpdateManagementScreenState extends State<UpdateManagementScreen> {
                 icon: Icons.notes,
                 maxLines: 4,
                 validator: (value) {
-                  if (_isUpdateRequired &&
+                  if (_showUpdateButton &&
                       (value == null || value.trim().isEmpty)) {
                     return 'يرجى إدخال ملاحظات التحديث';
                   }
@@ -1460,387 +977,6 @@ class _UpdateManagementScreenState extends State<UpdateManagementScreen> {
           filled: true,
           fillColor: Colors.transparent,
         ),
-      ),
-    );
-  }
-
-  Widget _buildMaintenanceSettingsCard() {
-    return Container(
-      padding: Responsive.padding(context, size: Space.large),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey[100]!),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header with gradient background
-          Container(
-            margin: const EdgeInsets.only(bottom: 20),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.orange[50]!, Colors.orange[100]!],
-              ),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.orange[600],
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.engineering,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'وضع الصيانة',
-                        style: TextStyle(
-                          fontSize: Responsive.text(
-                            context,
-                            size: TextSize.heading,
-                          ),
-                          fontWeight: FontWeight.bold,
-                          color: Colors.orange[800],
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'إيقاف التطبيق مؤقتاً للصيانة والإصلاحات',
-                        style: TextStyle(
-                          fontSize: Responsive.text(
-                            context,
-                            size: TextSize.small,
-                          ),
-                          color: Colors.orange[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Maintenance switch with enhanced styling
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.grey[50],
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey[200]!),
-            ),
-            child: _buildEnhancedSwitchTile(
-              title: 'تفعيل وضع الصيانة',
-              subtitle: 'إيقاف التطبيق مؤقتاً للصيانة',
-              value: _isMaintenanceMode,
-              onChanged: (value) => setState(() => _isMaintenanceMode = value),
-              activeColor: Colors.orange[600]!,
-              icon: Icons.engineering,
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Maintenance message field
-          _buildFormSection(
-            title: 'رسالة الصيانة',
-            icon: Icons.message,
-            children: [
-              _buildEnhancedTextField(
-                controller: _maintenanceMessageController,
-                hint: 'رسالة الصيانة',
-                icon: Icons.warning,
-                maxLines: 3,
-                validator: (value) {
-                  if (_isMaintenanceMode &&
-                      (value == null || value.trim().isEmpty)) {
-                    return 'يرجى إدخال رسالة الصيانة';
-                  }
-                  return null;
-                },
-              ),
-            ],
-          ),
-
-          // Warning message when maintenance mode is enabled
-          if (_isMaintenanceMode) ...[
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.orange[50],
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.orange[200]!),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.warning_amber_rounded,
-                    color: Colors.orange[700],
-                    size: 24,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'تحذير',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.orange[700],
-                            fontSize: Responsive.text(
-                              context,
-                              size: TextSize.medium,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'سيتم إيقاف التطبيق لجميع المستخدمين حتى يتم إلغاء وضع الصيانة',
-                          style: TextStyle(
-                            color: Colors.orange[600],
-                            fontSize: Responsive.text(
-                              context,
-                              size: TextSize.small,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionButtons() {
-    return Container(
-      padding: Responsive.padding(context, size: Space.large),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey[100]!),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Header
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.green[50],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  Icons.play_arrow,
-                  color: Colors.green[600],
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'إجراءات التحديث',
-                style: TextStyle(
-                  fontSize: Responsive.text(context, size: TextSize.heading),
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-
-          // Buttons
-          Row(
-            children: [
-              Expanded(
-                child: Container(
-                  height: 56,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Colors.green[500]!, Colors.green[600]!],
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.green.withOpacity(0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: ElevatedButton.icon(
-                    onPressed: _isLoading ? null : _testUpdateDialog,
-                    icon: const Icon(Icons.preview, size: 20),
-                    label: const Text(
-                      'اختبار التحديث',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      foregroundColor: Colors.white,
-                      shadowColor: Colors.transparent,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Container(
-                  height: 56,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Colors.blue[500]!, Colors.blue[600]!],
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.blue.withOpacity(0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: ElevatedButton.icon(
-                    onPressed:
-                        _isLoading
-                            ? null
-                            : () {
-                              print(
-                                '🔧 [UpdateManagement] Save button pressed',
-                              );
-                              _saveSettings();
-                            },
-                    icon:
-                        _isLoading
-                            ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.white,
-                                ),
-                              ),
-                            )
-                            : const Icon(Icons.save, size: 20),
-                    label: Text(
-                      _isLoading ? 'جاري الحفظ...' : 'حفظ الإعدادات',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      foregroundColor: Colors.white,
-                      shadowColor: Colors.transparent,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          // Info text
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.blue[50],
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.blue[200]!),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.info_outline, color: Colors.blue[600], size: 16),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'معلومات الإعدادات',
-                        style: TextStyle(
-                          color: Colors.blue[700],
-                          fontSize: Responsive.text(
-                            context,
-                            size: TextSize.medium,
-                          ),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '• استخدم "اختبار التحديث" لمعاينة التحديث قبل النشر',
-                  style: TextStyle(
-                    color: Colors.blue[700],
-                    fontSize: Responsive.text(context, size: TextSize.small),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '• الإعدادات محفوظة في Firestore ويمكن تحديثها فوراً',
-                  style: TextStyle(
-                    color: Colors.blue[700],
-                    fontSize: Responsive.text(context, size: TextSize.small),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '• استخدم زر التحديث (🔄) لتحميل أحدث الإعدادات',
-                  style: TextStyle(
-                    color: Colors.blue[700],
-                    fontSize: Responsive.text(context, size: TextSize.small),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

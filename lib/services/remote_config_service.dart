@@ -18,15 +18,13 @@ class RemoteConfigService {
     'welcome_message': 'Welcome to our app!',
     'feature_enabled': false,
     // Update management defaults
-    'app_update_required': false,
     'app_update_force': false,
     'app_update_message': 'تحديث جديد متاح للتطبيق',
     'app_update_title': 'تحديث التطبيق',
     'app_update_download_url': '',
     'app_update_version': '1.0.0',
     'app_update_changelog': 'تحسينات عامة وإصلاحات للأخطاء',
-    'maintenance_mode': false,
-    'maintenance_message': 'التطبيق في وضع الصيانة',
+    'show_update_button': false, // Default to false, controlled by admin
   };
 
   // Getters for remote config values
@@ -34,17 +32,54 @@ class RemoteConfigService {
   bool get isFeatureEnabled => _remoteConfig.getBool('feature_enabled');
 
   // Update management getters
-  bool get isUpdateRequired => _remoteConfig.getBool('app_update_required');
-  bool get isUpdateForce => _remoteConfig.getBool('app_update_force');
-  String get updateMessage => _remoteConfig.getString('app_update_message');
-  String get updateTitle => _remoteConfig.getString('app_update_title');
-  String get updateDownloadUrl =>
-      _remoteConfig.getString('app_update_download_url');
-  String get updateVersion => _remoteConfig.getString('app_update_version');
-  String get updateChangelog => _remoteConfig.getString('app_update_changelog');
-  bool get isMaintenanceMode => _remoteConfig.getBool('maintenance_mode');
-  String get maintenanceMessage =>
-      _remoteConfig.getString('maintenance_message');
+  bool get isUpdateForce {
+    final value = _remoteConfig.getBool('app_update_force');
+    print('🔍 [RemoteConfig] Reading app_update_force: $value');
+    return value;
+  }
+
+  String get updateMessage {
+    final value = _remoteConfig.getString('app_update_message');
+    print('🔍 [RemoteConfig] Reading app_update_message: $value');
+    return value;
+  }
+
+  String get updateTitle {
+    final value = _remoteConfig.getString('app_update_title');
+    print('🔍 [RemoteConfig] Reading app_update_title: $value');
+    return value;
+  }
+
+  String get updateDownloadUrl {
+    final value = _remoteConfig.getString('app_update_download_url');
+    print('🔍 [RemoteConfig] Reading app_update_download_url: $value');
+    return value;
+  }
+
+  String get updateVersion {
+    final value = _remoteConfig.getString('app_update_version');
+    print('🔍 [RemoteConfig] Reading app_update_version: $value');
+    return value;
+  }
+
+  String get updateChangelog {
+    final value = _remoteConfig.getString('app_update_changelog');
+    print('🔍 [RemoteConfig] Reading app_update_changelog: $value');
+    return value;
+  }
+
+  bool get showUpdateButton {
+    try {
+      final value = _remoteConfig.getBool('show_update_button');
+      print('🔍 [RemoteConfig] Reading show_update_button: $value');
+      return value;
+    } catch (e) {
+      print(
+        '🔍 [RemoteConfig] Error reading show_update_button, using default: false',
+      );
+      return false;
+    }
+  }
 
   Future<void> initialize() async {
     _remoteConfig = FirebaseRemoteConfig.instance;
@@ -98,6 +133,31 @@ class RemoteConfigService {
     }
   }
 
+  // Force refresh and ensure values are read from local defaults
+  Future<bool> forceRefreshAndActivate() async {
+    try {
+      print('🔄 [RemoteConfig] Force refreshing and activating...');
+
+      // Force activation to ensure local defaults are used
+      await _remoteConfig.activate();
+
+      // Try to fetch from server but don't fail if it doesn't work
+      try {
+        await _remoteConfig.fetchAndActivate();
+        print('🔄 [RemoteConfig] ✅ Fetch and activate successful');
+      } catch (e) {
+        print('🔄 [RemoteConfig] ⚠️ Fetch failed, using local defaults: $e');
+        // Still activate to ensure local defaults are used
+        await _remoteConfig.activate();
+      }
+
+      return true;
+    } catch (e) {
+      print('❌ [RemoteConfig] Error in forceRefreshAndActivate: $e');
+      return false;
+    }
+  }
+
   // Check if app update is needed
   Future<bool> isAppUpdateNeeded() async {
     try {
@@ -105,31 +165,53 @@ class RemoteConfigService {
       final currentVersion = packageInfo.version;
       final requiredVersion = updateVersion;
 
+      print('🔍 [RemoteConfig] Current app version: $currentVersion');
+      print('🔍 [RemoteConfig] Required version: $requiredVersion');
+      print(
+        '🔍 [RemoteConfig] Version comparison result: ${_compareVersions(currentVersion, requiredVersion)}',
+      );
+
       return _compareVersions(currentVersion, requiredVersion) < 0;
     } catch (e) {
-      print('Error checking app update: $e');
+      print('❌ [RemoteConfig] Error checking app update: $e');
       return false;
     }
   }
 
   // Compare version strings (returns -1 if current < required, 0 if equal, 1 if current > required)
   int _compareVersions(String current, String required) {
-    final currentParts = current.split('.').map(int.parse).toList();
-    final requiredParts = required.split('.').map(int.parse).toList();
+    try {
+      // Clean version strings by removing any prefixes and extra spaces
+      final cleanCurrent = current.replaceAll(RegExp(r'[^0-9.]'), '').trim();
+      final cleanRequired = required.replaceAll(RegExp(r'[^0-9.]'), '').trim();
 
-    // Pad with zeros if needed
-    while (currentParts.length < requiredParts.length) {
-      currentParts.add(0);
-    }
-    while (requiredParts.length < currentParts.length) {
-      requiredParts.add(0);
-    }
+      print(
+        '🔍 [RemoteConfig] Cleaned versions - current: "$cleanCurrent", required: "$cleanRequired"',
+      );
 
-    for (int i = 0; i < currentParts.length; i++) {
-      if (currentParts[i] < requiredParts[i]) return -1;
-      if (currentParts[i] > requiredParts[i]) return 1;
+      final currentParts = cleanCurrent.split('.').map(int.parse).toList();
+      final requiredParts = cleanRequired.split('.').map(int.parse).toList();
+
+      // Pad with zeros if needed
+      while (currentParts.length < requiredParts.length) {
+        currentParts.add(0);
+      }
+      while (requiredParts.length < currentParts.length) {
+        requiredParts.add(0);
+      }
+
+      for (int i = 0; i < currentParts.length; i++) {
+        if (currentParts[i] < requiredParts[i]) return -1;
+        if (currentParts[i] > requiredParts[i]) return 1;
+      }
+      return 0;
+    } catch (e) {
+      print('❌ [RemoteConfig] Error comparing versions: $e');
+      print(
+        '❌ [RemoteConfig] Original versions - current: "$current", required: "$required"',
+      );
+      return 0; // Return 0 (equal) if there's an error
     }
-    return 0;
   }
 
   // Get current app version
@@ -141,10 +223,5 @@ class RemoteConfigService {
       print('Error getting app version: $e');
       return '1.0.0';
     }
-  }
-
-  // Check if app is in maintenance mode
-  bool isAppInMaintenance() {
-    return isMaintenanceMode;
   }
 }

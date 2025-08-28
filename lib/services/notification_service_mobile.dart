@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
+import 'package:pivot/services/fcm_token_manager.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -146,76 +147,28 @@ class NotificationService {
   }
 
   Future<String?> getUserFCMToken(String userId) async {
-    try {
-      final doc = await _firestore.collection('users').doc(userId).get();
-      if (!doc.exists) return null;
-      final data = doc.data();
-      if (data == null) return null;
-
-      final token = data['fcmToken'] as String?;
-      final status = data['tokenStatus'] as String?;
-
-      // Only return token if it's marked as active
-      if (token != null && token.isNotEmpty && status == 'active') {
-        return token;
-      }
-      return null;
-    } catch (e) {
-      print('FCM Get Token: ❌ Error getting token for user $userId: $e');
-      return null;
-    }
+    return await FCMTokenManager().getUserToken(userId);
   }
 
   Future<List<String>> getAllUserFCMTokens() async {
-    try {
-      final query =
-          await _firestore
-              .collection('users')
-              .where('fcmToken', isGreaterThan: '')
-              .where('tokenStatus', isEqualTo: 'active')
-              .get();
-
-      final tokens =
-          query.docs
-              .map((d) => (d.data()['fcmToken'] as String?) ?? '')
-              .where((t) => t.isNotEmpty)
-              .toList();
-
-      print('FCM Get All Tokens: ✅ Found ${tokens.length} active tokens');
-      return tokens;
-    } catch (e) {
-      print('FCM Get All Tokens: ❌ Error getting tokens: $e');
-      return <String>[];
-    }
+    return await FCMTokenManager().getAllActiveTokens();
   }
 
   Future<List<String>> getMultipleUserFCMTokens(List<String> userIds) async {
-    final List<String> tokens = [];
-    try {
-      final futures = userIds.map(
-        (id) => _firestore.collection('users').doc(id).get(),
-      );
-      final docs = await Future.wait(futures);
-      for (final doc in docs) {
-        if (!doc.exists) continue;
-        final data = doc.data();
-        final token = data?['fcmToken'] as String?;
-        final status = data?['tokenStatus'] as String?;
-
-        // Only include active tokens
-        if (token != null && token.isNotEmpty && status == 'active') {
-          tokens.add(token);
-        }
-      }
-      print(
-        'FCM Get Multiple Tokens: ✅ Found ${tokens.length} active tokens for ${userIds.length} users',
-      );
-    } catch (e) {
-      print('FCM Get Multiple Tokens: ❌ Error getting tokens: $e');
-    }
-    return tokens;
+    return await FCMTokenManager().getMultipleUserTokens(userIds);
   }
 
+  // Handle invalid token by marking it as inactive
+  Future<void> _handleInvalidToken(String token, String? userId) async {
+    await FCMTokenManager().markTokenAsInvalid(token, userId);
+  }
+
+  // Enhanced token validation with better error handling
+  Future<bool> _validateToken(String token) async {
+    return await FCMTokenManager().validateTokenWithFirebase(token);
+  }
+
+  // Enhanced send notification with better error handling
   Future<bool> sendNotification({
     required String targetToken,
     required String title,
@@ -228,25 +181,32 @@ class NotificationService {
     String? imageUrl,
   }) async {
     try {
-      final payload = <String, dynamic>{
+      print(
+        'FCM: 🚀 Sending notification to token: ${targetToken.substring(0, 20)}...',
+      );
+
+      // Validate token format before sending
+      if (!_isValidTokenFormat(targetToken)) {
+        print('FCM: ❌ Invalid token format detected');
+        await _handleInvalidToken(targetToken, userId);
+        return false;
+      }
+
+      final payload = {
         'token': targetToken,
         'title': title,
         'body': body,
-        if (icon != null) 'icon': icon,
-        if (color != null) 'color': color,
-        if (sound != null) 'sound': sound,
-        if (imageUrl != null) 'image': imageUrl,
-        if (data != null) 'data': data,
+        'data': data ?? {},
+        'icon': icon ?? 'ic_notification',
+        'color': color ?? '#000000',
+        'sound': sound ?? 'default',
       };
-
-      print('FCM: Sending notification to function: $_functionUrl');
-      print('FCM: Payload: ${jsonEncode(payload)}');
 
       final resp = await http
           .post(
             Uri.parse(_functionUrl),
             headers: {'Content-Type': 'application/json'},
-            body: jsonEncode(payload),
+            body: json.encode(payload),
           )
           .timeout(const Duration(seconds: 15));
 
@@ -259,12 +219,16 @@ class NotificationService {
       } else if (resp.statusCode == 400) {
         // Handle invalid token error
         final responseBody = jsonDecode(resp.body);
-        if (responseBody['error']?.toString().contains(
-              'Invalid or unregistered token',
-            ) ==
-            true) {
-          print('FCM: ❌ Invalid token detected: $targetToken');
+        final error = responseBody['error']?.toString() ?? '';
+
+        if (error.contains('Invalid or unregistered token') ||
+            error.contains('Invalid argument')) {
+          print(
+            'FCM: ❌ Invalid token detected: ${targetToken.substring(0, 20)}...',
+          );
           await _handleInvalidToken(targetToken, userId);
+        } else {
+          print('FCM: ❌ Bad request error: $error');
         }
         return false;
       } else {
@@ -277,39 +241,9 @@ class NotificationService {
     }
   }
 
-  // Handle invalid token by marking it as inactive
-  Future<void> _handleInvalidToken(String token, String? userId) async {
-    try {
-      if (userId != null) {
-        // If we know the user ID, mark their token as invalid
-        await _firestore.collection('users').doc(userId).update({
-          'fcmToken': FieldValue.delete(),
-          'tokenStatus': 'invalid',
-          'lastTokenError': FieldValue.serverTimestamp(),
-        });
-        print('FCM Invalid Token: ✅ Marked token as invalid for user $userId');
-      } else {
-        // Find user by token and mark as invalid
-        final query =
-            await _firestore
-                .collection('users')
-                .where('fcmToken', isEqualTo: token)
-                .get();
-
-        for (final doc in query.docs) {
-          await _firestore.collection('users').doc(doc.id).update({
-            'fcmToken': FieldValue.delete(),
-            'tokenStatus': 'invalid',
-            'lastTokenError': FieldValue.serverTimestamp(),
-          });
-          print(
-            'FCM Invalid Token: ✅ Marked token as invalid for user ${doc.id}',
-          );
-        }
-      }
-    } catch (e) {
-      print('FCM Invalid Token: ❌ Error handling invalid token: $e');
-    }
+  // Validate token format
+  bool _isValidTokenFormat(String token) {
+    return FCMTokenManager().isValidTokenFormat(token);
   }
 
   // Clean up invalid/expired FCM tokens
@@ -373,36 +307,6 @@ class NotificationService {
       'FCM Cleanup: ✅ Cleanup completed. Cleaned ${results['cleanedTokens']} tokens',
     );
     return results;
-  }
-
-  // Validate if a token is still valid by testing it
-  Future<bool> _validateToken(String token) async {
-    try {
-      // Send a test notification to validate token
-      final payload = {
-        'token': token,
-        'title': 'Token Validation',
-        'body': 'This is a validation test',
-        'data': {'validation': 'true'},
-      };
-
-      final response = await http.post(
-        Uri.parse(_functionUrl),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(payload),
-      );
-
-      final isValid = response.statusCode == 200;
-      if (!isValid) {
-        print(
-          'FCM Token Validation: ❌ Token validation failed for token: ${token.substring(0, 20)}...',
-        );
-      }
-      return isValid;
-    } catch (e) {
-      print('FCM Token Validation: ❌ Error validating token: $e');
-      return false;
-    }
   }
 
   // Get FCM token statistics

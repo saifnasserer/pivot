@@ -73,6 +73,8 @@ import 'package:pivot/screens/section2/super_admin_panel/update_management_scree
 import 'package:pivot/providers/team_provider.dart';
 import 'package:pivot/providers/teams_provider.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:pivot/services/fcm_token_manager.dart';
+import 'package:pivot/services/remote_config_bridge_service.dart';
 import 'web_service_worker.dart';
 import 'firebase_options.dart';
 import 'widgets/platform_service.dart';
@@ -152,6 +154,11 @@ void _initializeAppBackgroundServices(
     RemoteConfigService.instance.initialize().catchError((error) {
       debugPrint('RemoteConfigService initialization failed: $error');
     });
+
+    // Initialize Remote Config Bridge Service
+    RemoteConfigBridgeService().initialize().catchError((error) {
+      debugPrint('RemoteConfigBridgeService initialization failed: $error');
+    });
   } catch (e) {
     debugPrint('Error initializing RemoteConfigService: $e');
   }
@@ -173,14 +180,20 @@ void _initializeAppBackgroundServices(
       PermissionService.requestNotificationPermission();
     }
 
+    // Initialize FCM token manager
+    FCMTokenManager().initialize().catchError((error) {
+      debugPrint('FCM Token Manager initialization failed: $error');
+    });
+
     final notificationTrigger = NotificationTriggerService();
-    notificationTrigger.startBatchProcessing();
-    Timer.periodic(const Duration(minutes: 15), (_) {
-      notificationTrigger.checkAndSendPeriodicNotifications();
-    });
-    Timer.periodic(const Duration(days: 1), (_) {
-      notificationTrigger.cleanupOldNotifications();
-    });
+    // Completely disabled automatic notification sending to prevent test notifications and timeouts
+    // notificationTrigger.startBatchProcessing();
+    // Timer.periodic(const Duration(minutes: 15), (_) {
+    //   notificationTrigger.checkAndSendPeriodicNotifications();
+    // });
+    // Timer.periodic(const Duration(days: 1), (_) {
+    //   notificationTrigger.cleanupOldNotifications();
+    // });
   } catch (e) {
     debugPrint('Error initializing notification services: $e');
   }
@@ -555,26 +568,27 @@ class _PivotWithNotificationsState extends State<PivotWithNotifications> {
   }
 
   void _startPeriodicNotifications() {
+    // DISABLED: Automatic notifications to prevent test notifications
     // Initialize automatic notifications on app start
-    NotificationTriggerService().initializeAutomaticNotifications();
+    // NotificationTriggerService().initializeAutomaticNotifications();
 
     // Run notifications every 15 minutes
-    _notificationTimer = Timer.periodic(const Duration(minutes: 15), (timer) {
-      try {
-        NotificationTriggerService().checkAndSendPeriodicNotifications();
-        NotificationTriggerService().processScheduledNotifications();
-      } catch (e) {}
-    });
+    // _notificationTimer = Timer.periodic(const Duration(minutes: 15), (timer) {
+    //   try {
+    //     NotificationTriggerService().checkAndSendPeriodicNotifications();
+    //     NotificationTriggerService().processScheduledNotifications();
+    //   } catch (e) {}
+    // });
 
     // Clean up old notifications daily
-    Timer.periodic(const Duration(days: 1), (timer) {
-      try {
-        NotificationTriggerService().cleanupOldNotifications();
-      } catch (e) {}
-    });
+    // Timer.periodic(const Duration(days: 1), (timer) {
+    //   try {
+    //     NotificationTriggerService().cleanupOldNotifications();
+    //   } catch (e) {}
+    // });
 
     // Test function - remove this in production
-    _testAutomaticNotifications();
+    // _testAutomaticNotifications();
   }
 
   // Test function to manually trigger automatic notifications

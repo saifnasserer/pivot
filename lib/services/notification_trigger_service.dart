@@ -165,7 +165,7 @@ class NotificationTriggerService {
   Future<bool> _sendWithRetry(
     ScheduledNotification notification,
     String token,
-    String userId, {
+    String? userId, {
     int attempt = 1,
   }) async {
     try {
@@ -235,50 +235,69 @@ class NotificationTriggerService {
   }
 
   // Send scheduled notification
-  Future<void> sendScheduledNotification(
+  Future<void> _sendScheduledNotification(
     ScheduledNotification notification,
   ) async {
     try {
       if (notification.sendToAllUsers) {
         final tokens = await _notificationService.getAllUserFCMTokens();
+        print('FCM Scheduled: 📨 Sending to ${tokens.length} users');
+
         for (final token in tokens) {
-          await _sendWithRetry(notification, token, 'all_users');
+          // For "all_users" notifications, pass null as userId to let the token manager find the user
+          await _sendWithRetry(notification, token, null);
         }
       } else {
         for (final userId in notification.targetUserIds) {
-          // Get user profile to check preferences
-          final userDoc =
-              await FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(userId)
-                  .get();
+          try {
+            // Get user profile to check preferences
+            final userDoc =
+                await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(userId)
+                    .get();
 
-          if (!userDoc.exists) continue;
+            if (!userDoc.exists) {
+              print('FCM Scheduled: ⚠️ User document not found: $userId');
+              continue;
+            }
 
-          final userProfile = UserProfile.fromJson(userDoc.data()!);
+            final userProfile = UserProfile.fromJson(userDoc.data()!);
 
-          // Check user preferences
-          final type =
-              notification.additionalData?['type'] as String? ?? 'unknown';
-          if (!_shouldSendNotification(
-            type,
-            userProfile.notificationPreferences,
-          )) {
-            continue;
+            // Check user preferences
+            final type =
+                notification.additionalData?['type'] as String? ?? 'unknown';
+            if (!_shouldSendNotification(
+              type,
+              userProfile.notificationPreferences,
+            )) {
+              print(
+                'FCM Scheduled: ⚠️ Notification blocked by user preferences for user: $userId',
+              );
+              continue;
+            }
+
+            // Check rate limit
+            if (!_checkRateLimit(userId, userProfile)) {
+              print('FCM Scheduled: ⚠️ Rate limit reached for user $userId');
+              continue;
+            }
+
+            // Get user's FCM token
+            final token = await _notificationService.getUserFCMToken(userId);
+            if (token != null) {
+              await _sendWithRetry(notification, token, userId);
+            } else {
+              print('FCM Scheduled: ⚠️ No valid FCM token for user: $userId');
+            }
+          } catch (e) {
+            print('FCM Scheduled: ❌ Error processing user $userId: $e');
+            // Continue with other users
           }
-
-          // Check rate limit
-          if (!_checkRateLimit(userId, userProfile)) {
-            print('Rate limit reached for user $userId');
-            continue;
-          }
-
-          // Add to batch queue
-          _addToBatchQueue(notification);
         }
       }
     } catch (e) {
-      print('Error sending scheduled notification: $e');
+      print('FCM Scheduled: ❌ Error sending scheduled notification: $e');
       await _updateNotificationStatus(
         notification.id!,
         'failed',
@@ -1145,7 +1164,7 @@ class NotificationTriggerService {
         });
 
         // Send the notification
-        await sendScheduledNotification(notification);
+        await _sendScheduledNotification(notification);
       }
     } catch (e) {
       // print('Error processing scheduled notifications: $e');

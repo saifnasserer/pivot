@@ -192,17 +192,6 @@ class SuperAdminProvider with ChangeNotifier {
     return ['A', 'B', 'C', 'D'];
   }
 
-  //   Future<void> setMaintenanceMode(bool value) async {
-  //     _isMaintenanceMode = value;
-  //     notifyListeners();
-  //     try {
-  //       await _firestore.collection('settings').doc('app').set({'isMaintenanceMode': value});
-  //     } catch (e) {
-  //       // Handle error
-  //       print('Error setting maintenance mode: $e');
-  //     }
-  //   }
-
   //   Future<void> clearImageCache() async {
   //     await DefaultCacheManager().emptyCache();
   //     // Optionally, show a snackbar or some feedback to the user
