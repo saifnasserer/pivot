@@ -553,5 +553,3 @@ class _FCMTokenManagementScreenState extends State<FCMTokenManagementScreen> {
     );
   }
 }
-
-

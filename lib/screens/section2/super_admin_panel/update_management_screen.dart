@@ -23,6 +23,7 @@ class _UpdateManagementScreenState extends State<UpdateManagementScreen> {
 
   bool _isUpdateForce = false;
   bool _showUpdateButton = false;
+  bool _showTeamFormationButton = false;
   bool _isLoading = false;
 
   @override
@@ -61,6 +62,8 @@ class _UpdateManagementScreenState extends State<UpdateManagementScreen> {
         _changelogController.text = firestoreData['app_update_changelog'] ?? '';
         _isUpdateForce = firestoreData['app_update_force'] ?? false;
         _showUpdateButton = firestoreData['show_update_button'] ?? false;
+        _showTeamFormationButton =
+            firestoreData['show_team_formation_button'] ?? false;
       }
 
       print('📄 [UpdateManagement] Loaded values:');
@@ -71,6 +74,7 @@ class _UpdateManagementScreenState extends State<UpdateManagementScreen> {
       print('  - Changelog: "${_changelogController.text}"');
       print('  - Update Force: $_isUpdateForce');
       print('  - Show Update Button: $_showUpdateButton');
+      print('  - Show Team Formation Button: $_showTeamFormationButton');
 
       setState(() {});
     } catch (e) {
@@ -112,6 +116,7 @@ class _UpdateManagementScreenState extends State<UpdateManagementScreen> {
         'app_update_version': _versionController.text.trim(),
         'app_update_changelog': _changelogController.text.trim(),
         'show_update_button': _showUpdateButton,
+        'show_team_formation_button': _showTeamFormationButton,
       };
 
       print('🔧 [UpdateManagement] Saving settings: $settings');
@@ -447,6 +452,16 @@ class _UpdateManagementScreenState extends State<UpdateManagementScreen> {
             onChanged: (value) => setState(() => _showUpdateButton = value),
             activeColor: Colors.blue[600]!,
             icon: Icons.system_update,
+          ),
+          SizedBox(height: Responsive.space(context, size: Space.medium)),
+          _buildEnhancedSwitchTile(
+            title: 'إظهار زر تكوين الفريق',
+            subtitle: 'إظهار زر تكوين الفريق في القائمة السريعة',
+            value: _showTeamFormationButton,
+            onChanged:
+                (value) => setState(() => _showTeamFormationButton = value),
+            activeColor: Colors.green[600]!,
+            icon: Icons.group_add,
           ),
         ],
       ),

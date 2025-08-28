@@ -82,46 +82,99 @@ class _TeamsScreenState extends State<TeamsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
         title: Text(
           'تكوين فريق',
-          style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: Responsive.text(context, size: TextSize.heading),
+            color: Colors.black87,
+          ),
         ),
         centerTitle: true,
-        backgroundColor: Colors.grey[50],
-        elevation: 0,
+        backgroundColor: Colors.white,
+        elevation: 1,
+        iconTheme: const IconThemeData(color: Colors.black87),
         actions: [
           if (_isAdmin()) ...[
             DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: selectedYearFilter,
-                items: [
-                  ...years.map(
-                    (year) => DropdownMenuItem<String>(
-                      value: year,
+              child: Container(
+                margin: EdgeInsets.only(
+                  right: Responsive.space(context, size: Space.small),
+                ),
+                child: DropdownButton<String>(
+                  value: null, // Always null to prevent text display
+                  hint: Container(), // Empty container to show only icon
+                  items: [
+                    DropdownMenuItem<String>(
+                      value: null,
                       child: Align(
                         alignment: Alignment.centerRight,
-                        child: Text(year),
+                        child: Text(
+                          'الكل',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.small,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
+                    ...years.map(
+                      (year) => DropdownMenuItem<String>(
+                        value: year,
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            year,
+                            style: TextStyle(
+                              fontSize: Responsive.text(
+                                context,
+                                size: TextSize.small,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                  onChanged:
+                      (value) => setState(() => selectedYearFilter = value),
+                  icon: Icon(
+                    Icons.filter_list_outlined,
+                    size: Responsive.space(context, size: Space.medium),
+                    color:
+                        selectedYearFilter != null
+                            ? Colors.blue[600]!
+                            : Colors.grey[600],
                   ),
-                ],
-                onChanged:
-                    (value) => setState(() => selectedYearFilter = value),
-                icon: Icon(
-                  Icons.filter_list_outlined,
-                  size: Responsive.space(context, size: Space.medium),
-                ),
-                borderRadius: BorderRadius.circular(
-                  Responsive.space(context, size: Space.large),
+                  borderRadius: BorderRadius.circular(
+                    Responsive.space(context, size: Space.large),
+                  ),
+                  dropdownColor: Colors.white,
+                  style: TextStyle(
+                    color: Colors.black87,
+                    fontSize: Responsive.text(context, size: TextSize.small),
+                  ),
                 ),
               ),
             ),
-            IconButton(
-              icon: Icon(Icons.edit_outlined, color: Colors.black87),
-              tooltip: 'تعديل التيمات',
-              onPressed: _showEditTeamsDialog,
+            Container(
+              margin: EdgeInsets.only(
+                right: Responsive.space(context, size: Space.small),
+              ),
+              child: IconButton(
+                icon: Icon(
+                  Icons.edit_outlined,
+                  color: Colors.black87,
+                  size: Responsive.text(context, size: TextSize.medium),
+                ),
+                tooltip: 'تعديل التيمات',
+                onPressed: _showEditTeamsDialog,
+              ),
             ),
           ],
         ],

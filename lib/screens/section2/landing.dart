@@ -13,6 +13,7 @@ import 'package:pivot/services/category_service.dart';
 import 'package:pivot/services/update_service.dart';
 import 'package:pivot/services/remote_config_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:pivot/providers/settings_provider.dart';
 
 class Landing extends StatefulWidget {
   const Landing({super.key});
@@ -137,6 +138,13 @@ class LandingState extends State<Landing> with TickerProviderStateMixin {
           timeFilter: timeFilter,
           department: departmentCode,
         );
+
+        // Initialize team formation button visibility
+        final settingsProvider = Provider.of<SettingsProvider>(
+          context,
+          listen: false,
+        );
+        settingsProvider.fetchTeamFormationButtonVisibility();
       }
     });
   }
@@ -478,6 +486,11 @@ class LandingState extends State<Landing> with TickerProviderStateMixin {
                   ),
                 ),
               ),
+              visible:
+                  Provider.of<SettingsProvider>(
+                    context,
+                    listen: false,
+                  ).showTeamFormationButton,
               onTap: () {
                 Navigator.pushNamed(context, '/teams');
               },
