@@ -16,54 +16,80 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _auth = FirebaseAuth.instance;
   String _email = '';
   bool _isEmailValid = false;
+  bool _isLoading = false;
 
   Future<void> _sendPasswordResetEmail() async {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
       final email = _email.toLowerCase().trim();
-      try {
-        // Check if user exists
-        final userMethods = await _auth.fetchSignInMethodsForEmail(email);
-        if (userMethods.isEmpty) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  'لا يوجد مستخدم مسجل بهذا البريد الإلكتروني.',
-                  textAlign: TextAlign.center,
-                ),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-          return;
-        }
 
-        // Send password reset email
+      setState(() {
+        _isLoading = true;
+      });
+
+      try {
+        // Try to send password reset email directly
+        // Firebase will handle the user existence check internally
         await _auth.sendPasswordResetEmail(email: email);
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني.',
+                'تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني.\n\n💡 نصائح:\n• تحقق من مجلد الرسائل غير المرغوب فيها\n• أضف Pivot@engseif.com إلى جهات الاتصال\n• قد يستغرق وصول البريد دقيقة أو دقيقتين',
                 textAlign: TextAlign.center,
               ),
               backgroundColor: Colors.green,
+              duration: Duration(seconds: 5),
             ),
           );
           Navigator.of(context).pop();
         }
       } on FirebaseAuthException catch (e) {
+        String errorMessage = 'حدث خطأ ما.';
+
+        switch (e.code) {
+          case 'invalid-email':
+            errorMessage = 'البريد الإلكتروني غير صحيح.';
+            break;
+          case 'user-not-found':
+            errorMessage = 'لا يوجد مستخدم مسجل بهذا البريد الإلكتروني.';
+            break;
+          case 'too-many-requests':
+            errorMessage = 'تم إرسال طلبات كثيرة. يرجى المحاولة لاحقاً.';
+            break;
+          case 'network-request-failed':
+            errorMessage = 'خطأ في الاتصال بالإنترنت. يرجى التحقق من اتصالك.';
+            break;
+          default:
+            errorMessage = e.message ?? 'حدث خطأ ما.';
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(errorMessage, textAlign: TextAlign.center),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                e.message ?? 'حدث خطأ ما.',
+                'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.',
                 textAlign: TextAlign.center,
               ),
               backgroundColor: Colors.red,
             ),
           );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
         }
       }
     }
@@ -73,9 +99,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     if (value == null || value.isEmpty) {
       return 'الرجاء إدخال البريد الإلكتروني';
     }
-    if (!value.toLowerCase().endsWith('fci.bu.edu.eg')) {
-      return 'لازم يكون ايميل كلية حاسبات';
+
+    // Basic email validation
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (!emailRegex.hasMatch(value)) {
+      return 'الرجاء إدخال بريد إلكتروني صحيح';
     }
+
     return null;
   }
 
@@ -133,7 +163,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         height: Responsive.space(context, size: Space.xlarge),
                       ),
                       CustomTextField(
-                        hint: 'الايميل الجامعي',
+                        hint: 'البريد الإلكتروني',
                         validator: _validateEmail,
                         keyboardType: TextInputType.emailAddress,
                         isValid: _isEmailValid,
@@ -151,7 +181,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: _sendPasswordResetEmail,
+                          onPressed:
+                              _isLoading ? null : _sendPasswordResetEmail,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.black,
                             padding: EdgeInsets.symmetric(
@@ -166,17 +197,29 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                               ),
                             ),
                           ),
-                          child: Text(
-                            'إرسال',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: Responsive.text(
-                                context,
-                                size: TextSize.medium,
-                              ),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                          child:
+                              _isLoading
+                                  ? SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
+                                    ),
+                                  )
+                                  : Text(
+                                    'إرسال',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: Responsive.text(
+                                        context,
+                                        size: TextSize.medium,
+                                      ),
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                         ),
                       ),
                     ],

@@ -76,9 +76,13 @@ class _AddUserScreenState extends State<AddUserScreen> {
     if (value == null || value.isEmpty) {
       return 'الرجاء إدخال البريد الإلكتروني';
     }
-    if (!value.toLowerCase().endsWith('fci.bu.edu.eg')) {
-      return 'لازم يكون ايميل كلية حاسبات';
+
+    // Basic email validation
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (!emailRegex.hasMatch(value)) {
+      return 'الرجاء إدخال بريد إلكتروني صحيح';
     }
+
     return null;
   }
 
@@ -458,7 +462,7 @@ class _AddUserScreenState extends State<AddUserScreen> {
                     ),
                     CustomTextField(
                       controller: _emailController,
-                      hint: 'الايميل الجامعي',
+                      hint: 'البريد الإلكتروني',
                       keyboardType: TextInputType.emailAddress,
                       validator: _validateEmail,
                     ),

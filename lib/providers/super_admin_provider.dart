@@ -8,7 +8,6 @@ class SuperAdminProvider with ChangeNotifier {
   Map<String, int> _userRolesCount = {};
   Map<String, int> _departmentStats = {};
   Map<String, int> _levelStats = {};
-  Map<String, int> _sectionStats = {};
   Map<String, int> _genderStats = {};
   int _newUsersThisMonth = 0;
   bool _isLoading = false;
@@ -17,7 +16,6 @@ class SuperAdminProvider with ChangeNotifier {
   Map<String, int> get userRolesCount => _userRolesCount;
   Map<String, int> get departmentStats => _departmentStats;
   Map<String, int> get levelStats => _levelStats;
-  Map<String, int> get sectionStats => _sectionStats;
   Map<String, int> get genderStats => _genderStats;
   int get newUsersThisMonth => _newUsersThisMonth;
   bool get isLoading => _isLoading;
@@ -30,7 +28,12 @@ class SuperAdminProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    await _fetchUserStats();
+    try {
+      await _fetchUserStats();
+      print('✅ [SuperAdminProvider] Dashboard data fetched successfully');
+    } catch (e) {
+      print('❌ [SuperAdminProvider] Error fetching dashboard data: $e');
+    }
 
     _isLoading = false;
     notifyListeners();
@@ -38,8 +41,10 @@ class SuperAdminProvider with ChangeNotifier {
 
   Future<void> _fetchUserStats() async {
     try {
+      print('🔍 [SuperAdminProvider] Fetching user stats...');
       final usersSnapshot = await _firestore.collection('users').get();
       _totalUsers = usersSnapshot.docs.length;
+      print('🔍 [SuperAdminProvider] Total users found: $_totalUsers');
 
       // Reset all stats
       _userRolesCount = {
@@ -52,13 +57,16 @@ class SuperAdminProvider with ChangeNotifier {
 
       _departmentStats = {};
       _levelStats = {};
-      _sectionStats = {};
-      _genderStats = {'ذكر': 0, 'أنثى': 0};
+      _genderStats = {'ذكر': 0, 'أنثى': 0, 'غير محدد': 0};
 
       _newUsersThisMonth = 0;
 
       final now = DateTime.now();
       final firstDayOfMonth = DateTime(now.year, now.month, 1);
+      print('🔍 [SuperAdminProvider] Current date: $now');
+      print(
+        '🔍 [SuperAdminProvider] First day of current month: $firstDayOfMonth',
+      );
 
       for (var doc in usersSnapshot.docs) {
         final data = doc.data();
@@ -77,31 +85,83 @@ class SuperAdminProvider with ChangeNotifier {
         final level = data['level'] as String? ?? 'غير محدد';
         _levelStats[level] = (_levelStats[level] ?? 0) + 1;
 
-        // Section stats
-        final section = data['section'] as String? ?? 'غير محدد';
-        _sectionStats[section] = (_sectionStats[section] ?? 0) + 1;
-
         // Gender stats
         final gender = data['gender'] as String? ?? 'ذكر';
-        if (_genderStats.containsKey(gender)) {
-          _genderStats[gender] = _genderStats[gender]! + 1;
+        print('🔍 [SuperAdminProvider] User gender: "$gender"');
+
+        // Normalize gender values to handle different Arabic spellings
+        String normalizedGender = gender;
+        if (gender == 'انثى' || gender == 'أنثى') {
+          normalizedGender = 'أنثى'; // Use the standard spelling with hamza
+        } else if (gender == 'ذكر' || gender == 'male') {
+          normalizedGender = 'ذكر';
+        } else {
+          normalizedGender = 'غير محدد';
         }
 
-        // New users this month (assuming there's a createdAt field)
-        // If there's no createdAt field, we'll use a different approach
+        print('🔍 [SuperAdminProvider] Normalized gender: "$normalizedGender"');
+
+        // Initialize gender in stats if it doesn't exist
+        if (!_genderStats.containsKey(normalizedGender)) {
+          _genderStats[normalizedGender] = 0;
+        }
+        _genderStats[normalizedGender] = _genderStats[normalizedGender]! + 1;
+
+        // New users this month
         final createdAt = data['createdAt'];
+        print(
+          '🔍 [SuperAdminProvider] User createdAt: $createdAt (type: ${createdAt.runtimeType})',
+        );
+
         if (createdAt != null) {
-          final userCreatedAt =
-              createdAt is Timestamp
-                  ? createdAt.toDate()
-                  : DateTime.fromMillisecondsSinceEpoch(createdAt);
-          if (userCreatedAt.isAfter(firstDayOfMonth)) {
-            _newUsersThisMonth++;
+          DateTime? userCreatedAt;
+
+          try {
+            if (createdAt is Timestamp) {
+              userCreatedAt = createdAt.toDate();
+            } else if (createdAt is int) {
+              userCreatedAt = DateTime.fromMillisecondsSinceEpoch(createdAt);
+            } else if (createdAt is String) {
+              userCreatedAt = DateTime.parse(createdAt);
+            } else {
+              print(
+                '⚠️ [SuperAdminProvider] Unknown createdAt format: $createdAt',
+              );
+            }
+
+            if (userCreatedAt != null) {
+              print(
+                '🔍 [SuperAdminProvider] Parsed userCreatedAt: $userCreatedAt',
+              );
+              print(
+                '🔍 [SuperAdminProvider] firstDayOfMonth: $firstDayOfMonth',
+              );
+              print(
+                '🔍 [SuperAdminProvider] Is after first day: ${userCreatedAt.isAfter(firstDayOfMonth)}',
+              );
+
+              if (userCreatedAt.isAfter(firstDayOfMonth)) {
+                _newUsersThisMonth++;
+                print('✅ [SuperAdminProvider] Counted as new user this month');
+              }
+            }
+          } catch (e) {
+            print('❌ [SuperAdminProvider] Error parsing createdAt: $e');
           }
+        } else {
+          print('⚠️ [SuperAdminProvider] No createdAt field found for user');
         }
       }
+
+      print('🔍 [SuperAdminProvider] Final stats:');
+      print('  - Total users: $_totalUsers');
+      print('  - Role counts: $_userRolesCount');
+      print('  - Gender stats: $_genderStats');
+      print('  - New users this month: $_newUsersThisMonth');
+      print('  - Department count: ${_departmentStats.length}');
+      print('  - Level count: ${_levelStats.length}');
     } catch (e) {
-      print('Error fetching user stats: $e');
+      print('❌ [SuperAdminProvider] Error fetching user stats: $e');
     }
   }
 
@@ -143,23 +203,6 @@ class SuperAdminProvider with ChangeNotifier {
         .toList();
   }
 
-  List<Map<String, dynamic>> getTopSections() {
-    final sorted =
-        _sectionStats.entries.toList()
-          ..sort((a, b) => b.value.compareTo(a.value));
-    return sorted
-        .take(5)
-        .map(
-          (e) => {
-            'name': e.key,
-            'count': e.value,
-            'percentage':
-                _totalUsers > 0 ? ((e.value / _totalUsers) * 100).round() : 0,
-          },
-        )
-        .toList();
-  }
-
   // Get available departments from actual user data
   List<String> getAvailableDepartments() {
     return _departmentStats.keys.where((dept) => dept != 'غير محدد').toList();
@@ -170,13 +213,6 @@ class SuperAdminProvider with ChangeNotifier {
     return _levelStats.keys.where((level) => level != 'غير محدد').toList();
   }
 
-  // Get available sections from actual user data
-  List<String> getAvailableSections() {
-    return _sectionStats.keys
-        .where((section) => section != 'غير محدد')
-        .toList();
-  }
-
   // Get default departments if no data exists yet
   List<String> getDefaultDepartments() {
     return ['CS', 'IS', 'AI', 'SC', 'General'];
@@ -185,11 +221,6 @@ class SuperAdminProvider with ChangeNotifier {
   // Get default levels if no data exists yet
   List<String> getDefaultLevels() {
     return ['الأول', 'الثاني', 'الثالث', 'الرابع'];
-  }
-
-  // Get default sections if no data exists yet
-  List<String> getDefaultSections() {
-    return ['A', 'B', 'C', 'D'];
   }
 
   //   Future<void> clearImageCache() async {

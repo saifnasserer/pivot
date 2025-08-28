@@ -17,10 +17,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     super.initState();
     // Fetch data when the screen is first loaded
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<SuperAdminProvider>(
-        context,
-        listen: false,
-      ).fetchDashboardData();
+      final provider = Provider.of<SuperAdminProvider>(context, listen: false);
+      print('🔍 [AnalyticsScreen] Fetching dashboard data...');
+      provider.fetchDashboardData();
     });
   }
 
@@ -49,6 +48,12 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 child: CircularProgressIndicator(color: Colors.black),
               );
             }
+
+            // Debug: Print provider state
+            print('🔍 [AnalyticsScreen] Provider state:');
+            print('  - isLoading: ${provider.isLoading}');
+            print('  - totalUsers: ${provider.totalUsers}');
+            print('  - genderStats: ${provider.genderStats}');
             return RefreshIndicator(
               onRefresh: () => provider.fetchDashboardData(),
               child: SingleChildScrollView(
@@ -79,11 +84,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     ),
                     _buildSectionTitle(context, 'إحصائيات الجنس'),
                     _buildGenderStatsCard(provider),
-                    SizedBox(
-                      height: Responsive.space(context, size: Space.large),
-                    ),
-                    _buildSectionTitle(context, 'إحصائيات الأقسام الفرعية'),
-                    _buildSectionStatsCard(provider),
                   ],
                 ),
               ),
@@ -565,6 +565,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   }
 
   Widget _buildGenderStatsCard(SuperAdminProvider provider) {
+    // Debug: Print all gender stats to see what's available
+    print('🔍 [AnalyticsScreen] All gender stats: ${provider.genderStats}');
+
     final genders = [
       {
         'name': 'ذكور',
@@ -605,60 +608,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     gender['color'] as Color,
                   ),
                   if (gender != genders.last)
-                    SizedBox(
-                      height: Responsive.space(context, size: Space.medium),
-                    ),
-                ],
-              );
-            }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildSectionStatsCard(SuperAdminProvider provider) {
-    final sections = provider.getTopSections();
-
-    if (sections.isEmpty) {
-      return Container(
-        width: double.infinity,
-        padding: Responsive.padding(context, size: Space.large),
-        decoration: BoxDecoration(
-          color: Colors.grey[50],
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey[200]!),
-        ),
-        child: Center(
-          child: Text(
-            'لا توجد بيانات للأقسام الفرعية',
-            style: TextStyle(
-              fontSize: Responsive.text(context, size: TextSize.medium),
-              color: Colors.grey[600],
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Container(
-      width: double.infinity,
-      padding: Responsive.padding(context, size: Space.large),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: Column(
-        children:
-            sections.map((section) {
-              return Column(
-                children: [
-                  _buildSectionTile(
-                    context,
-                    section['name'] as String,
-                    section['count'] as int,
-                    section['percentage'] as int,
-                  ),
-                  if (section != sections.last)
                     SizedBox(
                       height: Responsive.space(context, size: Space.medium),
                     ),
@@ -737,62 +686,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 fontWeight: FontWeight.bold,
                 fontSize: Responsive.text(context, size: TextSize.small),
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSectionTile(
-    BuildContext context,
-    String section,
-    int count,
-    int percentage,
-  ) {
-    return Container(
-      padding: Responsive.padding(context, size: Space.medium),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: Responsive.padding(context, size: Space.small),
-            decoration: BoxDecoration(
-              color: Colors.teal.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              Icons.group_work,
-              size: Responsive.text(context, size: TextSize.heading),
-              color: Colors.teal,
-            ),
-          ),
-          SizedBox(width: Responsive.space(context, size: Space.medium)),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  section,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: Responsive.text(context, size: TextSize.medium),
-                    color: Colors.black87,
-                  ),
-                ),
-                Text(
-                  '$count طالب ($percentage%)',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: Responsive.text(context, size: TextSize.small),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
             ),
           ),
         ],

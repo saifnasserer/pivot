@@ -364,7 +364,7 @@ class _LoginState extends State<Login> {
                                 CustomTextField(
                                   controller: _emailController,
                                   focusNode: _emailFocus,
-                                  hint: 'الايميل الجامعي',
+                                  hint: 'البريد الإلكتروني',
                                   keyboardType: TextInputType.emailAddress,
                                   validator: _validateEmail,
                                   isValid: _isEmailValid,

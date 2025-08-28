@@ -486,11 +486,11 @@ class LandingState extends State<Landing> with TickerProviderStateMixin {
             if (UpdateService().shouldShowUpdateButtonSync()) ...[
               SpeedDialChild(
                 child: Icon(Icons.system_update, color: Colors.white, size: 20),
-                backgroundColor: Colors.blue[600]!,
+                backgroundColor: Colors.red,
                 shape: const CircleBorder(),
                 labelWidget: Container(
                   decoration: BoxDecoration(
-                    color: Colors.blue[600],
+                    color: Colors.red,
                     borderRadius: BorderRadius.circular(
                       Responsive.space(context, size: Space.large),
                     ),
@@ -502,7 +502,7 @@ class LandingState extends State<Landing> with TickerProviderStateMixin {
                       horizontal: Responsive.space(context, size: Space.medium),
                     ),
                     child: Text(
-                      'التحديثات',
+                      'تحديث جديد',
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -522,107 +522,6 @@ class LandingState extends State<Landing> with TickerProviderStateMixin {
                       const SnackBar(
                         content: Text('لا توجد تحديثات متاحة حالياً'),
                         backgroundColor: Colors.blue,
-                      ),
-                    );
-                  }
-                },
-              ),
-            ] else ...[
-              // Debug: Show a different button when update button is not shown
-              SpeedDialChild(
-                child: Icon(Icons.bug_report, color: Colors.white, size: 20),
-                backgroundColor: Colors.red,
-                shape: const CircleBorder(),
-                labelWidget: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                    borderRadius: BorderRadius.circular(
-                      Responsive.space(context, size: Space.large),
-                    ),
-                  ),
-                  alignment: Alignment.center,
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(
-                      vertical: Responsive.space(context, size: Space.small),
-                      horizontal: Responsive.space(context, size: Space.medium),
-                    ),
-                    child: Text(
-                      'Debug: Update Button Hidden',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 10,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
-                onTap: () async {
-                  print(
-                    '🐛 [SpeedDial] Debug button tapped - checking values...',
-                  );
-
-                  // Force refresh cache
-                  await UpdateService().forceRefreshCache();
-
-                  // Check Firestore values directly
-                  try {
-                    final docSnapshot =
-                        await FirebaseFirestore.instance
-                            .collection('settings')
-                            .doc('update_management')
-                            .get();
-
-                    if (docSnapshot.exists) {
-                      final data = docSnapshot.data()!;
-                      final showUpdateButton =
-                          data['show_update_button'] as bool? ?? false;
-
-                      print('🐛 [SpeedDial] Firestore values:');
-                      print('  - show_update_button: $showUpdateButton');
-                      print(
-                        '  - app_update_title: ${data['app_update_title']}',
-                      );
-                      print(
-                        '  - app_update_version: ${data['app_update_version']}',
-                      );
-
-                      // Also check Remote Config values
-                      final remoteConfig = RemoteConfigService.instance;
-                      print('🐛 [SpeedDial] Remote Config values:');
-                      print(
-                        '  - showUpdateButton: ${remoteConfig.showUpdateButton}',
-                      );
-                      print('  - updateVersion: ${remoteConfig.updateVersion}');
-                      print('  - updateTitle: ${remoteConfig.updateTitle}');
-
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Firestore: $showUpdateButton | Remote: ${remoteConfig.showUpdateButton}',
-                          ),
-                          backgroundColor:
-                              showUpdateButton ? Colors.green : Colors.red,
-                        ),
-                      );
-
-                      // Force rebuild the widget
-                      setState(() {});
-                    } else {
-                      print('🐛 [SpeedDial] Firestore document does not exist');
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Firestore document does not exist'),
-                          backgroundColor: Colors.orange,
-                        ),
-                      );
-                    }
-                  } catch (e) {
-                    print('🐛 [SpeedDial] Error reading Firestore: $e');
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Error: $e'),
-                        backgroundColor: Colors.red,
                       ),
                     );
                   }

@@ -248,32 +248,9 @@ class _ProfileDetailsTabState extends State<ProfileDetailsTab>
       barrierDismissible: false,
       builder: (BuildContext dialogContext) {
         return UnifiedDialog(
-          title: 'تسجيل الخروج؟',
-          subtitle: 'هل أنت متأكد من رغبتك في تسجيل الخروج؟',
-          content: Container(
-            padding: Responsive.padding(context, size: Space.medium),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.logout,
-                  color: Colors.orange,
-                  size: Responsive.text(context, size: TextSize.heading),
-                ),
-                SizedBox(width: Responsive.space(context, size: Space.medium)),
-                Expanded(
-                  child: Text(
-                    'سيتم تسجيل خروجك من التطبيق وستحتاج إلى تسجيل الدخول مرة أخرى للوصول إلى ملفك الشخصي.',
-                    style: TextStyle(
-                      fontSize: Responsive.text(context, size: TextSize.medium),
-                      color: Colors.grey[700],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          title: 'تسجيل الخروج',
+          content: Text('متأكد؟', textAlign: TextAlign.center),
           confirmText: 'تأكيد الخروج',
-          confirmIcon: Icons.logout,
           onConfirm: () async {
             final provider = context.read<ProfileProvider>();
             await provider.logout();

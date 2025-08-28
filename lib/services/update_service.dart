@@ -5,6 +5,7 @@ import 'package:pivot/responsive.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:pivot/widgets/update_bottom_sheet.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 class UpdateService {
   static final UpdateService _instance = UpdateService._internal();
@@ -122,12 +123,13 @@ class UpdateService {
     try {
       print('🔍 [UpdateService] Checking if updates are available...');
 
-      // Check if update button should be shown
-      final showUpdateButton = _remoteConfig.showUpdateButton;
+      // Check if update button should be shown from Firestore (consistent with button visibility)
+      final showUpdateButton = await shouldShowUpdateButton();
       print('🔍 [UpdateService] Show update button: $showUpdateButton');
 
       if (showUpdateButton) {
-        final isUpdateNeeded = await _remoteConfig.isAppUpdateNeeded();
+        // Read version from Firestore for accurate comparison
+        final isUpdateNeeded = await _isAppUpdateNeededFromFirestore();
         print('🔍 [UpdateService] Update needed: $isUpdateNeeded');
         return isUpdateNeeded;
       }
@@ -137,6 +139,82 @@ class UpdateService {
     } catch (e) {
       print('❌ [UpdateService] Error checking if updates are available: $e');
       return false;
+    }
+  }
+
+  // Check if app update is needed by reading from Firestore
+  Future<bool> _isAppUpdateNeededFromFirestore() async {
+    try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      final currentVersion = packageInfo.version;
+
+      // Read required version from Firestore
+      final docSnapshot =
+          await _firestore
+              .collection('settings')
+              .doc('update_management')
+              .get();
+
+      if (docSnapshot.exists) {
+        final data = docSnapshot.data()!;
+        final requiredVersion =
+            data['app_update_version'] as String? ?? '1.0.0';
+
+        print('🔍 [UpdateService] Current app version: $currentVersion');
+        print(
+          '🔍 [UpdateService] Required version from Firestore: $requiredVersion',
+        );
+
+        // Check if versions are different (not just if current < required)
+        final comparison = _compareVersions(currentVersion, requiredVersion);
+        print('🔍 [UpdateService] Version comparison result: $comparison');
+
+        return comparison != 0; // Update needed if versions are different
+      } else {
+        print(
+          '🔍 [UpdateService] Firestore document does not exist, no update needed',
+        );
+        return false;
+      }
+    } catch (e) {
+      print('❌ [UpdateService] Error checking app update from Firestore: $e');
+      return false;
+    }
+  }
+
+  // Compare version strings (same logic as Remote Config)
+  int _compareVersions(String current, String required) {
+    try {
+      // Clean version strings by removing any prefixes and extra spaces
+      final cleanCurrent = current.replaceAll(RegExp(r'[^0-9.]'), '').trim();
+      final cleanRequired = required.replaceAll(RegExp(r'[^0-9.]'), '').trim();
+
+      print(
+        '🔍 [UpdateService] Cleaned versions - current: "$cleanCurrent", required: "$cleanRequired"',
+      );
+
+      final currentParts = cleanCurrent.split('.').map(int.parse).toList();
+      final requiredParts = cleanRequired.split('.').map(int.parse).toList();
+
+      // Pad with zeros if needed
+      while (currentParts.length < requiredParts.length) {
+        currentParts.add(0);
+      }
+      while (requiredParts.length < currentParts.length) {
+        requiredParts.add(0);
+      }
+
+      for (int i = 0; i < currentParts.length; i++) {
+        if (currentParts[i] < requiredParts[i]) return -1;
+        if (currentParts[i] > requiredParts[i]) return 1;
+      }
+      return 0;
+    } catch (e) {
+      print('❌ [UpdateService] Error comparing versions: $e');
+      print(
+        '❌ [UpdateService] Original versions - current: "$current", required: "$required"',
+      );
+      return 0; // Return 0 (equal) if there's an error
     }
   }
 

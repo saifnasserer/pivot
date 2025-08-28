@@ -62,11 +62,16 @@ class AuthService {
         profileImageUrl: userData['profileImageUrl'], // Optional
       );
 
+      // Add createdAt and gender to the user data for Firestore
+      Map<String, dynamic> userDataForFirestore = newUserProfile.toJson();
+      userDataForFirestore['createdAt'] = FieldValue.serverTimestamp();
+      userDataForFirestore['gender'] = userData['gender'];
+
       // Store the user profile in Firestore
       await _firestore
           .collection('users')
           .doc(user.uid)
-          .set(newUserProfile.toJson());
+          .set(userDataForFirestore);
       return newUserProfile;
     }
     return null;
@@ -173,10 +178,13 @@ class AuthService {
   // Method to create user profile in Firestore
   Future<void> createUserProfile(UserProfile userProfile) async {
     try {
+      Map<String, dynamic> userDataForFirestore = userProfile.toJson();
+      userDataForFirestore['createdAt'] = FieldValue.serverTimestamp();
+
       await _firestore
           .collection('users')
           .doc(userProfile.id)
-          .set(userProfile.toJson());
+          .set(userDataForFirestore);
     } catch (e) {
       print('Error creating user profile: $e');
       rethrow;

@@ -1,22 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/providers/super_admin_provider.dart';
 import 'package:pivot/responsive.dart';
-import 'package:pivot/widgets/unified_dialog.dart';
-
 import 'package:provider/provider.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:pivot/widgets/no_internet_message.dart';
 
 class SuperAdminPanelScreen extends StatefulWidget {
   const SuperAdminPanelScreen({super.key});
-
   @override
   State<SuperAdminPanelScreen> createState() => _SuperAdminPanelScreenState();
 }
 
 class _SuperAdminPanelScreenState extends State<SuperAdminPanelScreen> {
-  bool _showAnalytics = true;
-
   @override
   void initState() {
     super.initState();
@@ -31,203 +24,83 @@ class _SuperAdminPanelScreenState extends State<SuperAdminPanelScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: NoInternetMessage(
-        child: Scaffold(
-          backgroundColor: Colors.white,
-          appBar: AppBar(
-            title: Text(
-              'لوحة الإدارة',
-              style: TextStyle(
-                fontSize: Responsive.text(context, size: TextSize.heading),
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            backgroundColor: Colors.white,
-            elevation: 0,
-            iconTheme: const IconThemeData(color: Colors.black),
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: Text(
+          'لوحة الإدارة',
+          style: TextStyle(
+            fontSize: Responsive.text(context, size: TextSize.heading),
+            fontWeight: FontWeight.bold,
           ),
-          body: Consumer<SuperAdminProvider>(
-            builder: (context, provider, child) {
-              if (provider.isLoading) {
-                return Center(
-                  child: CircularProgressIndicator(color: Colors.black),
-                );
-              }
-              return RefreshIndicator(
-                onRefresh: () => provider.fetchDashboardData(),
-                child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: Responsive.padding(context, size: Space.large),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Analytics Section (Collapsible)
-                      _buildAnalyticsSection(provider),
-                      SizedBox(
-                        height: Responsive.space(context, size: Space.large),
-                      ),
-                      _buildSectionTitle(context, 'إجراءات سريعة'),
-                      _buildQuickActionsCard(),
-                      SizedBox(
-                        height: Responsive.space(context, size: Space.large),
-                      ),
-                      _buildSectionTitle(context, 'إدارة'),
-                      _buildManagementCard(),
-                      SizedBox(
-                        height: Responsive.space(context, size: Space.large),
-                      ),
-                      _buildSectionTitle(context, 'إعدادات التطبيق'),
-                      _buildSettingsCard(provider),
-                    ],
-                  ),
-                ),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.black),
+      ),
+      body: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Consumer<SuperAdminProvider>(
+          builder: (context, provider, child) {
+            if (provider.isLoading) {
+              return Center(
+                child: CircularProgressIndicator(color: Colors.black),
               );
-            },
-          ),
+            }
+            return RefreshIndicator(
+              onRefresh: () => provider.fetchDashboardData(),
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: Responsive.padding(context, size: Space.large),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildSectionTitle(context, 'إجراءات سريعة'),
+                    _buildQuickActionsCard(),
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.large),
+                    ),
+                    _buildSectionTitle(context, 'إدارة'),
+                    _buildManagementCard(),
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.large),
+                    ),
+                    _buildAnalyticsSection(provider),
+                  ],
+                ),
+              ),
+            );
+          },
         ),
       ),
     );
   }
 
   Widget _buildAnalyticsSection(SuperAdminProvider provider) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _buildSectionTitle(context, 'إحصائيات'),
-            Row(
-              children: [
-                IconButton(
-                  onPressed: () {
-                    Navigator.pushNamed(context, '/analytics');
-                  },
-                  icon: Icon(
-                    Icons.analytics,
-                    color: Colors.blue,
-                    size: Responsive.text(context, size: TextSize.heading),
-                  ),
-                  tooltip: 'عرض التحليلات التفصيلية',
-                ),
-                IconButton(
-                  onPressed: () {
-                    setState(() {
-                      _showAnalytics = !_showAnalytics;
-                    });
-                  },
-                  icon: Icon(
-                    _showAnalytics ? Icons.expand_less : Icons.expand_more,
-                    color: Colors.blue,
-                    size: Responsive.text(context, size: TextSize.heading),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-        if (_showAnalytics) ...[
-          SizedBox(height: Responsive.space(context, size: Space.medium)),
-          _buildCompactAnalyticsCard(provider),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildCompactAnalyticsCard(SuperAdminProvider provider) {
-    return Container(
-      width: double.infinity,
-      padding: Responsive.padding(context, size: Space.large),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _buildCompactInfoTile(
-              context,
-              Icons.people,
-              'إجمالي',
-              provider.totalUsers.toString(),
-              Colors.blue,
-            ),
-          ),
-          SizedBox(width: Responsive.space(context, size: Space.medium)),
-          Expanded(
-            child: _buildCompactInfoTile(
-              context,
-              Icons.shield,
-              'الطلاب',
-              '${provider.userRolesCount['Student'] ?? 0}',
-              Colors.green,
-            ),
-          ),
-          SizedBox(width: Responsive.space(context, size: Space.medium)),
-          Expanded(
-            child: _buildCompactInfoTile(
-              context,
-              Icons.admin_panel_settings,
-              'المدراء',
-              '${provider.userRolesCount['admin'] ?? 0}',
-              Colors.orange,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCompactInfoTile(
-    BuildContext context,
-    IconData icon,
-    String title,
-    String value,
-    Color color,
-  ) {
-    return Container(
-      padding: Responsive.padding(context, size: Space.medium),
-      decoration: BoxDecoration(
+    return ElevatedButton.icon(
+      onPressed: () {
+        Navigator.pushNamed(context, '/analytics');
+      },
+      icon: Icon(
+        Icons.analytics,
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
+        size: Responsive.text(context, size: TextSize.medium),
       ),
-      child: Column(
-        children: [
-          Container(
-            padding: Responsive.padding(context, size: Space.small),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              icon,
-              size: Responsive.text(context, size: TextSize.medium),
-              color: color,
-            ),
-          ),
-          SizedBox(height: Responsive.space(context, size: Space.small)),
-          Text(
-            value,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: Responsive.text(context, size: TextSize.medium),
-              color: Colors.black87,
-            ),
-          ),
-          Text(
-            title,
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: Responsive.text(context, size: TextSize.small),
-              fontWeight: FontWeight.w500,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
+      label: Text(
+        'عرض الاحصائيات',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: Responsive.text(context, size: TextSize.medium),
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.blue[600],
+        padding: EdgeInsets.symmetric(
+          horizontal: Responsive.space(context, size: Space.medium),
+          vertical: Responsive.space(context, size: Space.small),
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
@@ -291,39 +164,6 @@ class _SuperAdminPanelScreenState extends State<SuperAdminPanelScreen> {
             () {
               Navigator.pushNamed(context, '/feedback-management');
             },
-          ),
-          _buildDivider(),
-          _buildManagementTile(
-            context,
-            Icons.schedule,
-            'الإشعارات المجدولة',
-            'إدارة الإشعارات المجدولة والقادمة',
-            () {
-              Navigator.pushNamed(context, '/upcoming-notifications');
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSettingsCard(SuperAdminProvider provider) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: Column(
-        children: [
-          _buildSettingsTile(
-            context,
-            Icons.logout,
-            'تسجيل الخروج',
-            'تسجيل الخروج من الحساب',
-            () => _showLogoutConfirmationDialog(),
-            Colors.red,
           ),
         ],
       ),
@@ -405,51 +245,6 @@ class _SuperAdminPanelScreenState extends State<SuperAdminPanelScreen> {
     );
   }
 
-  void _showLogoutConfirmationDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return UnifiedDialog(
-          title: 'تسجيل الخروج؟',
-          subtitle: 'هل أنت متأكد من رغبتك في تسجيل الخروج؟',
-          content: Container(
-            padding: Responsive.padding(context, size: Space.medium),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.logout,
-                  color: Colors.orange,
-                  size: Responsive.text(context, size: TextSize.heading),
-                ),
-                SizedBox(width: Responsive.space(context, size: Space.medium)),
-                Expanded(
-                  child: Text(
-                    'سيتم تسجيل خروجك من التطبيق وستحتاج إلى تسجيل الدخول مرة أخرى للوصول إلى لوحة الإدارة.',
-                    style: TextStyle(
-                      fontSize: Responsive.text(context, size: TextSize.medium),
-                      color: Colors.grey[700],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          confirmText: 'تأكيد الخروج',
-          confirmIcon: Icons.logout,
-          onConfirm: () async {
-            await FirebaseAuth.instance.signOut();
-            if (!mounted) return;
-            Navigator.of(context).pushNamedAndRemoveUntil(
-              '/auth-wrapper',
-              (Route<dynamic> route) => false,
-            );
-          },
-          onCancel: () => Navigator.pop(context),
-        );
-      },
-    );
-  }
-
   Widget _buildManagementTile(
     BuildContext context,
     IconData icon,
@@ -492,76 +287,6 @@ class _SuperAdminPanelScreenState extends State<SuperAdminPanelScreen> {
                         ),
                         fontWeight: FontWeight.w600,
                         color: Colors.black87,
-                      ),
-                    ),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        fontSize: Responsive.text(
-                          context,
-                          size: TextSize.small,
-                        ),
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(
-                Icons.arrow_forward_ios,
-                color: Colors.grey[400],
-                size: Responsive.text(context, size: TextSize.small),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSettingsTile(
-    BuildContext context,
-    IconData icon,
-    String title,
-    String subtitle,
-    VoidCallback onTap,
-    Color color,
-  ) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Container(
-          padding: Responsive.padding(context, size: Space.large),
-          child: Row(
-            children: [
-              Container(
-                padding: Responsive.padding(context, size: Space.small),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  icon,
-                  size: Responsive.text(context, size: TextSize.heading),
-                  color: color,
-                ),
-              ),
-              SizedBox(width: Responsive.space(context, size: Space.medium)),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: Responsive.text(
-                          context,
-                          size: TextSize.medium,
-                        ),
-                        fontWeight: FontWeight.w600,
-                        color: color,
                       ),
                     ),
                     Text(

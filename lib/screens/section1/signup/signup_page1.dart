@@ -39,9 +39,13 @@ class _Signup_1State extends State<Signup_1> {
     if (value == null || value.isEmpty) {
       return 'الرجاء إدخال البريد الإلكتروني';
     }
-    if (!value.toLowerCase().endsWith('fci.bu.edu.eg')) {
-      return 'لازم يكون ايميل كلية حاسبات';
+
+    // Basic email validation
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (!emailRegex.hasMatch(value)) {
+      return 'الرجاء إدخال بريد إلكتروني صحيح';
     }
+
     return null;
   }
 
@@ -158,7 +162,7 @@ class _Signup_1State extends State<Signup_1> {
                             CustomTextField(
                               controller: _emailController,
                               focusNode: _emailFocus,
-                              hint: 'الايميل الجامعي',
+                              hint: 'البريد الإلكتروني',
                               validator: _validateEmail,
                               keyboardType: TextInputType.emailAddress,
                               onEditingComplete: () {

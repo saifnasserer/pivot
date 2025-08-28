@@ -57,7 +57,7 @@ import 'package:pivot/screens/section2/super_admin_panel/analytics_screen.dart'
 import 'package:pivot/services/cache_service.dart';
 import 'package:pivot/services/notification_service.dart';
 import 'package:pivot/services/local_notification_service.dart';
-import 'package:pivot/services/notification_trigger_service.dart';
+// import 'package:pivot/services/notification_trigger_service.dart';
 import 'package:pivot/services/permission_service.dart';
 import 'dart:async';
 import 'package:pivot/screens/section2/adminstration/add_user_screen.dart'
@@ -67,8 +67,6 @@ import 'package:pivot/screens/section3/feedback_screen.dart'
 import 'package:pivot/screens/models/notification_test_widget.dart';
 import 'package:pivot/screens/section2/adminstration/feedback_management_screen.dart'
     deferred as feedback_management_screen;
-import 'package:pivot/screens/section2/super_admin_panel/upcoming_notifications_screen.dart'
-    deferred as upcoming_notifications_screen;
 import 'package:pivot/screens/section2/super_admin_panel/update_management_screen.dart';
 import 'package:pivot/providers/team_provider.dart';
 import 'package:pivot/providers/teams_provider.dart';
@@ -89,7 +87,6 @@ const String routeAnalytics = '/analytics';
 const String routeSectionManagement = '/section-management';
 const String routeSuperAdminPanel = '/super-admin-panel';
 const String routeFeedbackManagement = '/feedback-management';
-const String routeUpcomingNotifications = '/upcoming-notifications';
 const String routeSendNotifications = '/send-notifications';
 const String routeAddUser = '/add-user';
 const String routeUpdateManagement = '/update-management';
@@ -185,7 +182,7 @@ void _initializeAppBackgroundServices(
       debugPrint('FCM Token Manager initialization failed: $error');
     });
 
-    final notificationTrigger = NotificationTriggerService();
+    // final notificationTrigger = NotificationTriggerService();
     // Completely disabled automatic notification sending to prevent test notifications and timeouts
     // notificationTrigger.startBatchProcessing();
     // Timer.periodic(const Duration(minutes: 15), (_) {
@@ -417,22 +414,6 @@ class Pivot extends StatelessWidget {
                   );
                 },
               ),
-          routeUpcomingNotifications:
-              (context) => FutureBuilder(
-                future: _getCachedDeferredFuture(
-                  'upcoming_notifications',
-                  upcoming_notifications_screen.loadLibrary,
-                ),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.done) {
-                    return upcoming_notifications_screen.UpcomingNotificationsScreen();
-                  }
-                  return const Scaffold(
-                    backgroundColor: Colors.white,
-                    body: Center(child: CircularProgressIndicator()),
-                  );
-                },
-              ),
           routeSendNotifications:
               (context) => FutureBuilder(
                 future: _getCachedDeferredFuture(
@@ -592,12 +573,12 @@ class _PivotWithNotificationsState extends State<PivotWithNotifications> {
   }
 
   // Test function to manually trigger automatic notifications
-  void _testAutomaticNotifications() {
-    // Run after 10 seconds to allow app to fully initialize
-    Timer(const Duration(seconds: 10), () {
-      NotificationTriggerService().initializeAutomaticNotifications();
-    });
-  }
+  // void _testAutomaticNotifications() {
+  //   // Run after 10 seconds to allow app to fully initialize
+  //   Timer(const Duration(seconds: 10), () {
+  //     NotificationTriggerService().initializeAutomaticNotifications();
+  //   });
+  // }
 
   @override
   void dispose() {
