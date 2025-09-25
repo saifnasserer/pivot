@@ -30,12 +30,10 @@ class NotificationService {
     final token = await getToken();
     if (token != null && token.isNotEmpty) {
       await saveTokenToFirestore(token);
-    } else {
-    }
+    } else {}
 
     // Set up foreground message handler
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-
       // Show local notification for foreground messages
       if (message.notification != null) {
         _showForegroundNotification(message);
@@ -46,21 +44,18 @@ class NotificationService {
     FirebaseMessaging.instance.getInitialMessage().then((
       RemoteMessage? message,
     ) {
-      if (message != null) {
-      }
+      if (message != null) {}
     });
 
     // Handle notification taps when app is in background
-    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-    });
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {});
   }
 
   void _setupTokenRefreshListener() {
     _messaging.onTokenRefresh.listen((newToken) async {
       try {
         await saveTokenToFirestore(newToken);
-      } catch (e) {
-      }
+      } catch (e) {}
     });
   }
 
@@ -71,7 +66,6 @@ class NotificationService {
   }
 
   Future<bool> requestPermissionsExplicitly() async {
-
     final settings = await _messaging.requestPermission(
       alert: true,
       announcement: false,
@@ -82,14 +76,12 @@ class NotificationService {
       sound: true,
     );
 
-
     final granted =
         settings.authorizationStatus == AuthorizationStatus.authorized ||
         settings.authorizationStatus == AuthorizationStatus.provisional;
 
     if (granted) {
-    } else {
-    }
+    } else {}
 
     return granted;
   }
@@ -117,9 +109,7 @@ class NotificationService {
         'lastTokenUpdate': FieldValue.serverTimestamp(),
         'tokenStatus': 'active', // Track token status
       }, SetOptions(merge: true));
-
-    } catch (e) {
-    }
+    } catch (e) {}
   }
 
   Future<String?> getUserFCMToken(String userId) async {
@@ -157,7 +147,6 @@ class NotificationService {
     String? imageUrl,
   }) async {
     try {
-
       // Validate token format before sending
       if (!_isValidTokenFormat(targetToken)) {
         await _handleInvalidToken(targetToken, userId);
@@ -182,7 +171,6 @@ class NotificationService {
           )
           .timeout(const Duration(seconds: 15));
 
-
       if (resp.statusCode == 200) {
         return true;
       } else if (resp.statusCode == 400) {
@@ -193,8 +181,7 @@ class NotificationService {
         if (error.contains('Invalid or unregistered token') ||
             error.contains('Invalid argument')) {
           await _handleInvalidToken(targetToken, userId);
-        } else {
-        }
+        } else {}
         return false;
       } else {
         return false;
@@ -209,7 +196,7 @@ class NotificationService {
     return FCMTokenManager().isValidTokenFormat(token);
   }
 
-  // Clean up invalid/expired FCM tokens
+  // Clean up invalid/expired FCM tokens - OPTIMIZED with batch operations
   Future<Map<String, dynamic>> cleanupInvalidTokens() async {
     final results = {
       'totalUsers': 0,
@@ -219,14 +206,18 @@ class NotificationService {
     };
 
     try {
-      // Get all users with FCM tokens
+      // Get users with FCM tokens in batches to reduce reads
       final usersSnapshot =
           await _firestore
               .collection('users')
               .where('fcmToken', isNotEqualTo: null)
+              .limit(50) // Process in smaller batches
               .get();
 
       results['totalUsers'] = usersSnapshot.docs.length;
+      final batch = _firestore.batch();
+      int batchCount = 0;
+      const int maxBatchSize = 20;
 
       for (final userDoc in usersSnapshot.docs) {
         try {
@@ -243,21 +234,36 @@ class NotificationService {
               lastUpdate == null ||
               DateTime.now().difference(lastUpdate.toDate()).inDays > 60;
 
-          // Try to validate token by sending a test message
-          final isValidToken = await _validateToken(token);
+          // Only validate token if it's not obviously old
+          bool isValidToken = true;
+          if (!isOldToken) {
+            isValidToken = await _validateToken(token);
+          }
 
           if (!isValidToken || isOldToken) {
-            // Mark token as invalid
-            await _firestore.collection('users').doc(userDoc.id).update({
+            // Mark token as invalid using batch operation
+            batch.update(userDoc.reference, {
               'fcmToken': FieldValue.delete(),
               'tokenStatus': 'invalid',
               'lastTokenError': FieldValue.serverTimestamp(),
             });
             results['cleanedTokens'] = (results['cleanedTokens'] as int) + 1;
+            batchCount++;
+
+            // Commit batch when it reaches the limit
+            if (batchCount >= maxBatchSize) {
+              await batch.commit();
+              batchCount = 0;
+            }
           }
         } catch (e) {
           (results['errors'] as List<String>).add('User ${userDoc.id}: $e');
         }
+      }
+
+      // Commit remaining operations
+      if (batchCount > 0) {
+        await batch.commit();
       }
     } catch (e) {
       (results['errors'] as List<String>).add('General error: $e');

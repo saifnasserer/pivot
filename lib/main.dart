@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pivot/providers/schadule_provider.dart';
 import 'package:pivot/providers/subject_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
@@ -108,6 +109,12 @@ void main() async {
   }
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Enable Firestore offline persistence for better performance
+  FirebaseFirestore.instance.settings = const Settings(
+    persistenceEnabled: true,
+    cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+  );
 
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,

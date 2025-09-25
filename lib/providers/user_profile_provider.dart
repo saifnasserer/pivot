@@ -606,14 +606,21 @@ class UserProfileProvider with ChangeNotifier {
   }
 
   /// Public method to clean up invalid profile image URLs for all users
+  /// OPTIMIZED: Uses batch operations and limits to reduce Firebase usage
   Future<void> cleanupAllInvalidProfileImageUrls() async {
     try {
-      //debugprint(
-      //   '[UserProfileProvider] Starting cleanup of invalid profile image URLs...',
-      // );
+      // Only process users with profile images to reduce reads
+      final snapshot =
+          await _firestore
+              .collection('users')
+              .where('profileImageUrl', isNotEqualTo: null)
+              .limit(100) // Process in batches to avoid timeout
+              .get();
 
-      final snapshot = await _firestore.collection('users').get();
       int cleanedCount = 0;
+      final batch = _firestore.batch();
+      int batchCount = 0;
+      const int maxBatchSize = 20; // Firestore batch limit
 
       for (var doc in snapshot.docs) {
         final data = doc.data();
@@ -623,20 +630,23 @@ class UserProfileProvider with ChangeNotifier {
           bool isValid = await _isImageUrlAccessible(profileImageUrl);
 
           if (!isValid) {
-            await _firestore.collection('users').doc(doc.id).update({
-              'profileImageUrl': null,
-            });
+            batch.update(doc.reference, {'profileImageUrl': null});
             cleanedCount++;
-            //debugprint(
-            //   '[UserProfileProvider] Cleaned invalid URL for user: ${doc.id}',
-            // );
+            batchCount++;
+
+            // Commit batch when it reaches the limit
+            if (batchCount >= maxBatchSize) {
+              await batch.commit();
+              batchCount = 0;
+            }
           }
         }
       }
 
-      //debugprint(
-      //   '[UserProfileProvider] Cleanup completed. Removed $cleanedCount invalid URLs.',
-      // );
+      // Commit remaining operations
+      if (batchCount > 0) {
+        await batch.commit();
+      }
 
       // Refresh the current user's profile if they were affected
       if (_loggedInUserProfile != null) {

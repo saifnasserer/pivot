@@ -7,9 +7,9 @@ import 'package:pivot/services/notification_trigger_service.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:pivot/services/local_notification_service.dart';
 import 'package:pivot/services/sound_service.dart';
+import 'package:pivot/services/smart_refresh_service.dart';
 
 class TaskProvider extends ChangeNotifier {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   late final CollectionReference _tasksCollection;
 
@@ -35,40 +35,53 @@ class TaskProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  // Fetches tasks from Firestore and listens for real-time updates
-  void fetchTasks() {
+  // Fetches tasks from Firestore with smart refresh logic
+  Future<void> fetchTasks({bool force = false}) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
-    _tasksSubscription?.cancel();
-    _tasksSubscription = _tasksCollection.snapshots().listen(
-      (snapshot) async {
-        _tasks =
-            snapshot.docs.map((doc) {
-              return Task.fromMap(doc.data() as Map<String, dynamic>);
-            }).toList();
-        _isLoading = false;
-        notifyListeners();
+    try {
+      // Use smart refresh to avoid unnecessary calls
+      final result = await SmartRefreshService().smartRefresh(
+        'tasks',
+        () async {
+          final snapshot =
+              await _tasksCollection
+                  .orderBy('createdAt', descending: true)
+                  .limit(50) // Limit to prevent excessive reads
+                  .get();
 
-        // After syncing tasks, (re)schedule local reminders on mobile
-        if (!kIsWeb) {
-          for (final t in _tasks) {
-            await LocalNotificationService.instance.scheduleTaskReminders(
-              taskId: t.id,
-              taskName: t.title,
-              dueDateTime: t.dueDate,
-              isCompleted: _isTaskCompletedForCurrentUser(t),
-            );
-          }
+          return snapshot.docs.map((doc) {
+            return Task.fromMap(doc.data() as Map<String, dynamic>);
+          }).toList();
+        },
+        force: force,
+      );
+
+      if (result != null) {
+        _tasks = result;
+      }
+
+      // After syncing tasks, (re)schedule local reminders on mobile
+      if (!kIsWeb) {
+        for (final t in _tasks) {
+          await LocalNotificationService.instance.scheduleTaskReminders(
+            taskId: t.id,
+            taskName: t.title,
+            dueDateTime: t.dueDate,
+            isCompleted: _isTaskCompletedForCurrentUser(t),
+          );
         }
-      },
-      onError: (error) {
-        _error = 'Failed to fetch tasks: $error';
-        _isLoading = false;
-        notifyListeners();
-      },
-    );
+      }
+
+      _isLoading = false;
+      notifyListeners();
+    } catch (error) {
+      _error = 'Failed to fetch tasks: $error';
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   bool _isTaskCompletedForCurrentUser(Task task) {
@@ -102,10 +115,6 @@ class TaskProvider extends ChangeNotifier {
           break;
         case TaskImportance.low:
           notificationTitle = '📝 تاسك جديد';
-          notificationBody = task.title;
-          break;
-        default:
-          notificationTitle = '📋 تاسك جديد';
           notificationBody = task.title;
       }
 

@@ -3,9 +3,7 @@ import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/models/section_model.dart';
 import 'package:pivot/screens/models/schedule_item.dart';
 import 'package:pivot/screens/section2/adminstration/models/announcement_data.dart';
-import 'dart:developer' as developer;
 import 'package:pivot/models/subject_model.dart';
-import 'package:pivot/models/material_link.dart';
 
 class CacheService {
   // Singleton instance
@@ -18,8 +16,16 @@ class CacheService {
   static const String _subjectsBoxName = 'subjectsBox';
   static const String _scheduleBoxName = 'scheduleBox';
   static const String _announcementsBoxName = 'announcementsBox';
+  static const String _cacheMetadataBoxName = 'cacheMetadataBox';
 
   bool _initialized = false;
+
+  // Cache expiry times (in minutes)
+  static const int _usersCacheExpiry = 30; // 30 minutes
+  static const int _sectionsCacheExpiry = 60; // 1 hour
+  static const int _subjectsCacheExpiry = 120; // 2 hours
+  static const int _scheduleCacheExpiry = 15; // 15 minutes
+  static const int _announcementsCacheExpiry = 10; // 10 minutes
 
   Future<void> init() async {
     if (_initialized) {
@@ -36,7 +42,7 @@ class CacheService {
 
       // Open boxes with error handling
       await _openBoxes();
-    } catch (e, stackTrace) {
+    } catch (e) {
       // Don't rethrow - allow app to continue without cache
       _initialized = false;
     }
@@ -80,6 +86,7 @@ class CacheService {
       await Hive.openBox<Subject>(_subjectsBoxName);
       await Hive.openBox<ScheduleItem>(_scheduleBoxName);
       await Hive.openBox<AnnouncementData>(_announcementsBoxName);
+      await Hive.openBox<Map>(_cacheMetadataBoxName);
     } catch (e) {
       rethrow;
     }
@@ -169,6 +176,119 @@ class CacheService {
   Future<void> clearAnnouncementsCache() async {
     final box = Hive.box<AnnouncementData>(_announcementsBoxName);
     await box.clear();
+    await _updateCacheTimestamp(_announcementsBoxName, null);
+  }
+
+  // ===== SMART CACHING METHODS =====
+
+  /// Check if cache is valid based on expiry time
+  bool isCacheValid(String cacheType, {int? customExpiryMinutes}) {
+    final metadataBox = Hive.box<Map>(_cacheMetadataBoxName);
+    final timestampData = metadataBox.get('${cacheType}_timestamp');
+    final timestamp = timestampData is Map ? timestampData['timestamp'] : null;
+
+    if (timestamp == null) return false;
+
+    final expiryMinutes = customExpiryMinutes ?? _getCacheExpiry(cacheType);
+    final expiryTime = timestamp.add(Duration(minutes: expiryMinutes));
+
+    return DateTime.now().isBefore(expiryTime);
+  }
+
+  /// Get cache expiry time for different data types
+  int _getCacheExpiry(String cacheType) {
+    switch (cacheType) {
+      case _usersBoxName:
+        return _usersCacheExpiry;
+      case _sectionsBoxName:
+        return _sectionsCacheExpiry;
+      case _subjectsBoxName:
+        return _subjectsCacheExpiry;
+      case _scheduleBoxName:
+        return _scheduleCacheExpiry;
+      case _announcementsBoxName:
+        return _announcementsCacheExpiry;
+      default:
+        return 30; // Default 30 minutes
+    }
+  }
+
+  /// Update cache timestamp
+  Future<void> _updateCacheTimestamp(
+    String cacheType,
+    DateTime? timestamp,
+  ) async {
+    final metadataBox = Hive.box<Map>(_cacheMetadataBoxName);
+    await metadataBox.put('${cacheType}_timestamp', {
+      'timestamp': timestamp ?? DateTime.now(),
+    });
+  }
+
+  /// Smart cache retrieval - returns cached data if valid, null if expired
+  T? getSmartCache<T>(String cacheType, T Function() getCachedData) {
+    if (isCacheValid(cacheType)) {
+      return getCachedData();
+    }
+    return null;
+  }
+
+  /// Smart cache storage - stores data with timestamp
+  Future<void> setSmartCache<T>(
+    String cacheType,
+    T data,
+    Future<void> Function(T) cacheFunction,
+  ) async {
+    await cacheFunction(data);
+    await _updateCacheTimestamp(cacheType, DateTime.now());
+  }
+
+  /// Force refresh cache (bypasses expiry check)
+  Future<void> forceRefreshCache(String cacheType) async {
+    await _updateCacheTimestamp(cacheType, null);
+  }
+
+  /// Get cache statistics
+  Map<String, dynamic> getCacheStats() {
+    final metadataBox = Hive.box<Map>(_cacheMetadataBoxName);
+    final stats = <String, dynamic>{};
+
+    final cacheTypes = [
+      _usersBoxName,
+      _sectionsBoxName,
+      _subjectsBoxName,
+      _scheduleBoxName,
+      _announcementsBoxName,
+    ];
+
+    for (final cacheType in cacheTypes) {
+      final timestampData = metadataBox.get('${cacheType}_timestamp');
+      final timestamp =
+          timestampData is Map ? timestampData['timestamp'] : null;
+      final isValid = isCacheValid(cacheType);
+      final age =
+          timestamp != null
+              ? DateTime.now().difference(timestamp).inMinutes
+              : null;
+
+      stats[cacheType] = {
+        'isValid': isValid,
+        'lastUpdated': timestamp?.toIso8601String(),
+        'ageMinutes': age,
+        'expiryMinutes': _getCacheExpiry(cacheType),
+      };
+    }
+
+    return stats;
+  }
+
+  /// Clear all caches
+  Future<void> clearAllCaches() async {
+    await Hive.box<UserProfile>(_usersBoxName).clear();
+    await Hive.box<Section>(_sectionsBoxName).clear();
+    await Hive.box<Subject>(_subjectsBoxName).clear();
+    await Hive.box<ScheduleItem>(_scheduleBoxName).clear();
+    await Hive.box<AnnouncementData>(_announcementsBoxName).clear();
+    await Hive.box<Map>(_cacheMetadataBoxName).clear();
   }
 
   Future<void> close() async {

@@ -34,10 +34,12 @@ class AnnouncementProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      // Step 1: Load from cache first
-      final cachedAnnouncements =
-          CacheService.instance.getCachedAnnouncements();
-      if (cachedAnnouncements.isNotEmpty) {
+      // Step 1: Load from cache first (with smart caching)
+      final cachedAnnouncements = CacheService.instance.getSmartCache(
+        'announcementsBox',
+        () => CacheService.instance.getCachedAnnouncements(),
+      );
+      if (cachedAnnouncements != null && cachedAnnouncements.isNotEmpty) {
         //debugprint(
         //   '[ANNOUNCEMENT_PROVIDER] Loaded ${cachedAnnouncements.length} announcements from cache',
         // );
@@ -45,10 +47,11 @@ class AnnouncementProvider with ChangeNotifier {
         notifyListeners();
       }
 
-      // Step 2: Fetch from server in the background
+      // Step 2: Fetch from server in the background with limit
       Query query = _firestore
           .collection(_collectionPath)
-          .orderBy('timestamp', descending: true);
+          .orderBy('timestamp', descending: true)
+          .limit(100); // Limit to prevent excessive reads
 
       final String? departmentToFilter = department;
 
@@ -134,36 +137,8 @@ class AnnouncementProvider with ChangeNotifier {
         //   '[ANNOUNCEMENT_PROVIDER] Today mixed - User dept tag: $userDeptTag',
         // );
 
-        // DEBUG: Check what announcements exist in the database
-        //debugprint(
-        //   '[ANNOUNCEMENT_PROVIDER] DEBUG: Checking all announcements in database...',
-        // );
-        final allAnnouncementsSnapshot =
-            await _firestore.collection(_collectionPath).get();
-        //debugprint(
-        //   '[ANNOUNCEMENT_PROVIDER] DEBUG: Total announcements in database: ${allAnnouncementsSnapshot.docs.length}',
-        // );
-
-        for (final doc in allAnnouncementsSnapshot.docs) {
-          final data = doc.data();
-          final tags = List<String>.from(data['tags'] ?? []);
-          final timestamp = data['timestamp'];
-          final title = data['title'] ?? 'No title';
-
-          // Convert timestamp to readable date
-          // DateTime announcementDate;
-          // if (timestamp is int) {
-          //   announcementDate = DateTime.fromMillisecondsSinceEpoch(timestamp);
-          // } else if (timestamp is Timestamp) {
-          //   announcementDate = timestamp.toDate();
-          // } else {
-          //   announcementDate = DateTime.now();
-          // }
-
-          //debugprint(
-          //   '[ANNOUNCEMENT_PROVIDER] DEBUG: Announcement "$title" - Tags: $tags, Timestamp: $timestamp, Date: $announcementDate',
-          // );
-        }
+        // REMOVED: Debug query that fetches all announcements - this was causing excessive reads
+        // This debug code was fetching the entire announcements collection unnecessarily
 
         // DEBUG: Check announcements with the specific department tag (any time)
         //debugprint(
@@ -172,7 +147,7 @@ class AnnouncementProvider with ChangeNotifier {
         final deptAnyTimeQuery = _firestore
             .collection(_collectionPath)
             .where('tags', arrayContains: userDeptTag);
-        final deptAnyTimeSnapshot = await deptAnyTimeQuery.get();
+        await deptAnyTimeQuery.get();
         //debugprint(
         //   '[ANNOUNCEMENT_PROVIDER] DEBUG: Announcements with tag $userDeptTag (any time): ${deptAnyTimeSnapshot.docs.length}',
         // );
@@ -245,10 +220,7 @@ class AnnouncementProvider with ChangeNotifier {
 
         for (final doc in deptSnapshot.docs) {
           final announcement = AnnouncementData.fromFirestore(doc);
-          final key =
-              announcement.id ??
-              announcement.title ??
-              DateTime.now().millisecondsSinceEpoch.toString();
+          final key = announcement.id ?? announcement.title;
           mergedResults[key] = announcement;
           //debugprint(
           //   '[ANNOUNCEMENT_PROVIDER] Today mixed - Added department announcement: ${announcement.title} (ID: ${announcement.id})',
@@ -257,10 +229,7 @@ class AnnouncementProvider with ChangeNotifier {
 
         for (final doc in generalSnapshot.docs) {
           final announcement = AnnouncementData.fromFirestore(doc);
-          final key =
-              announcement.id ??
-              announcement.title ??
-              DateTime.now().millisecondsSinceEpoch.toString();
+          final key = announcement.id ?? announcement.title;
           mergedResults[key] = announcement;
           //debugprint(
           //   '[ANNOUNCEMENT_PROVIDER] Today mixed - Added general announcement: ${announcement.title} (ID: ${announcement.id})',
@@ -342,7 +311,13 @@ class AnnouncementProvider with ChangeNotifier {
       //   '[ANNOUNCEMENT_PROVIDER] Final announcements count: ${_announcements.length}',
       // );
 
-      await CacheService.instance.cacheAnnouncements(_announcements);
+      // Use smart caching with timestamp
+      await CacheService.instance.setSmartCache(
+        'announcementsBox',
+        _announcements,
+        (announcements) =>
+            CacheService.instance.cacheAnnouncements(announcements),
+      );
     } catch (e) {
       //debugprint('[ANNOUNCEMENT_PROVIDER] Error fetching announcements: $e');
       _announcements = [];
@@ -430,12 +405,6 @@ class AnnouncementProvider with ChangeNotifier {
   // Delete an announcement and refresh the list with the current filters
   Future<void> deleteAnnouncement(String announcementId) async {
     try {
-      final doc =
-          await _firestore
-              .collection(_collectionPath)
-              .doc(announcementId)
-              .get();
-      final title = doc.exists ? doc.data()!['title'] : '';
       await _firestore.collection(_collectionPath).doc(announcementId).delete();
       await fetchAnnouncements(
         department: _currentDepartmentFilter,
