@@ -1,6 +1,6 @@
 # Privacy Policy for Pivot App
 
-**Last updated: January 2025**
+**Last updated: Septamper 2025**
 
 ## Introduction
 
@@ -76,7 +76,6 @@ We may update this Privacy Policy from time to time. We will notify you of any c
 If you have any questions about this Privacy Policy, please contact us at:
 
 - Email: support@engseif.com
-- Address: Faculty of Engineering, Seif University, Egypt
 
 ## Compliance
 

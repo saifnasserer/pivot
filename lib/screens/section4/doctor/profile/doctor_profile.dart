@@ -29,6 +29,8 @@ class _DoctorProfileState extends State<DoctorProfile>
   late ScrollController _scrollController;
   String _currentCategory = 'المواد';
   Subject? _currentSubject;
+  Subject?
+  _targetSubject; // Subject to navigate to when coming from subject details
 
   @override
   void initState() {
@@ -47,9 +49,14 @@ class _DoctorProfileState extends State<DoctorProfile>
     super.didChangeDependencies();
     final argument = ModalRoute.of(context)?.settings.arguments;
     UserProfile? profileToShow;
+    Subject? targetSubject;
 
+    // Handle different argument types
     if (argument is UserProfile) {
       profileToShow = argument;
+    } else if (argument is Map<String, dynamic>) {
+      profileToShow = argument['instructor'] as UserProfile?;
+      targetSubject = argument['subject'] as Subject?;
     } else {
       profileToShow = context.watch<UserProfileProvider>().userProfile;
     }
@@ -57,6 +64,11 @@ class _DoctorProfileState extends State<DoctorProfile>
     if (profileToShow != null && profileToShow.id != _previousProfileId) {
       _displayedProfile = profileToShow;
       _previousProfileId = profileToShow.id;
+
+      // Store target subject for later use
+      if (targetSubject != null) {
+        _targetSubject = targetSubject;
+      }
 
       // Ensure we have the correct profile data before fetching
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -218,9 +230,14 @@ class _DoctorProfileState extends State<DoctorProfile>
             child: SubjectsSection(
               userProfile: userProfile,
               loggedInUser: loggedInUser,
+              targetSubject: _targetSubject,
               onCurrentSubjectChanged: (subject) {
                 setState(() {
                   _currentSubject = subject;
+                  // Clear target subject after it's been used
+                  if (_targetSubject != null) {
+                    _targetSubject = null;
+                  }
                 });
               },
             ),

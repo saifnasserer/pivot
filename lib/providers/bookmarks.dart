@@ -287,19 +287,39 @@ class Bookmarks extends ChangeNotifier {
   ) {
     if (query.isEmpty) return _bookmarkIds;
 
-    final lowercaseQuery = query.toLowerCase();
+    final lowercaseQuery = query.trim().toLowerCase();
+    if (lowercaseQuery.isEmpty) return _bookmarkIds;
+
     final matchingIds = <String>[];
+    final queryWords =
+        lowercaseQuery.split(' ').where((word) => word.isNotEmpty).toList();
 
     for (final announcement in announcements) {
       final id = announcement['id'] as String?;
       if (id != null && _bookmarkIds.contains(id)) {
-        final title = (announcement['title'] as String? ?? '').toLowerCase();
-        final description =
-            (announcement['description'] as String? ?? '').toLowerCase();
+        try {
+          final title = (announcement['title'] as String? ?? '').toLowerCase();
+          final description =
+              (announcement['description'] as String? ?? '').toLowerCase();
+          final tags =
+              (announcement['tags'] as List<dynamic>? ?? [])
+                  .map((tag) => (tag as String? ?? '').toLowerCase())
+                  .toList();
 
-        if (title.contains(lowercaseQuery) ||
-            description.contains(lowercaseQuery)) {
-          matchingIds.add(id);
+          // Check if all query words are found in any of the fields
+          bool matches = queryWords.every(
+            (word) =>
+                title.contains(word) ||
+                description.contains(word) ||
+                tags.any((tag) => tag.contains(word)),
+          );
+
+          if (matches) {
+            matchingIds.add(id);
+          }
+        } catch (e) {
+          // Skip invalid announcements
+          continue;
         }
       }
     }

@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:pivot/screens/models/task.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
-
+import 'package:pivot/screens/models/task.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class TaskDetailsDialog extends StatelessWidget {
   final Task task;
@@ -284,7 +283,7 @@ class TaskDetailsDialog extends StatelessWidget {
                     ),
                   ),
                 );
-              }).toList(),
+              }),
             ],
           ],
         ),

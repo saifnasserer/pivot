@@ -159,20 +159,11 @@ class _AssistantProfileMainState extends State<AssistantProfileMain>
               onCurrentSubjectChanged: (subject) {
                 setState(() {
                   _currentSubject = subject;
+                  // Clear target subject after it's been used
+                  if (_targetSubject != null) {
+                    _targetSubject = null;
+                  }
                 });
-                // Clear target subject after it's been used, but only if we have a subject
-                // and the target subject matches the current subject
-                if (subject != null &&
-                    _targetSubject != null &&
-                    subject.id == _targetSubject!.id) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (mounted) {
-                      setState(() {
-                        _targetSubject = null;
-                      });
-                    }
-                  });
-                }
               },
             ),
           ),
@@ -277,14 +268,11 @@ class _AssistantProfileMainState extends State<AssistantProfileMain>
       return;
     }
 
-    final subjectProvider = context.read<SubjectProvider>();
-    final subjects = subjectProvider.filteredSubjects;
-
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder:
           (context) => AddEditSectionDialog(
-            subjects: subjects,
+            subjects: [_currentSubject!],
             autoSelectedSubjectId: _currentSubject!.id,
             targetAssistantId: userProfile.id,
           ),

@@ -8,8 +8,6 @@ import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/models/subject_model.dart';
-import 'package:pivot/models/material_link.dart';
-
 
 /// Enhanced sections builder with better structure and animations
 class SectionsBuilder {
@@ -70,14 +68,19 @@ class SectionsBuilder {
     final enrolledSubjectIds = loggedInUser.enrolledSubjects.toSet();
     final assistantPreferences = loggedInUser.assistantPreferences;
 
+    // Create subject lookup map for O(1) access
+    final subjectMap = {
+      for (var subject in enrolledSubjects) subject.id: subject,
+    };
+
     // Get sections based on default instructors (one per subject)
     final relevantSections = <Section>[];
 
     for (final subjectId in enrolledSubjectIds) {
-      // Get the subject object
-      final subject =
-          enrolledSubjects.where((s) => s.id == subjectId).firstOrNull;
+      // Get the subject object using O(1) lookup
+      final subject = subjectMap[subjectId];
       if (subject == null) continue;
+
       // Get instructors for this subject
       final instructors =
           subjectProvider.instructorsBySubject[subject.id]
@@ -98,16 +101,17 @@ class SectionsBuilder {
       }
 
       // Find the user's specific section for this subject and default instructor
-      final userSectionWithDefaultInstructor =
-          allSections.where((section) {
-            return section.subjectId == subject.id &&
-                section.assistantId == defaultAssistantId &&
-                section.name.contains(userSectionName);
-          }).firstOrNull;
-
-      // Add the user's section with default instructor if found
-      if (userSectionWithDefaultInstructor != null) {
+      // Use more efficient filtering
+      try {
+        final userSectionWithDefaultInstructor = allSections.firstWhere(
+          (section) =>
+              section.subjectId == subject.id &&
+              section.assistantId == defaultAssistantId &&
+              section.name.contains(userSectionName),
+        );
         relevantSections.add(userSectionWithDefaultInstructor);
+      } catch (e) {
+        // Section not found, continue to next subject
       }
     }
 
@@ -115,10 +119,6 @@ class SectionsBuilder {
     if (relevantSections.isEmpty && enrolledSubjectIds.isNotEmpty) {
       return [_buildEmptyState(context)];
     }
-
-    final subjectMap = {
-      for (var subject in enrolledSubjects) subject.id: subject,
-    };
 
     return [
       _buildSectionsList(
@@ -483,8 +483,7 @@ class _EnhancedSectionListItemState extends State<EnhancedSectionListItem>
             subject.id: selectedAssistantId,
           });
         }
-      } catch (e) {
-      }
+      } catch (e) {}
     }
 
     showInstructorsGate(
@@ -499,7 +498,6 @@ class _EnhancedSectionListItemState extends State<EnhancedSectionListItem>
             if (loggedInUser == null) {
               throw Exception('No logged-in user found');
             }
-
 
             await userProfileProvider.updateAssistantPreferences({
               ...loggedInUser.assistantPreferences,
@@ -527,255 +525,23 @@ class _EnhancedSectionListItemState extends State<EnhancedSectionListItem>
             rethrow;
           }
         },
+        onInstructorTapped: (assistant) {
+          // Navigate to assistant profile with subject context
+          Navigator.of(context).pop();
+          final navigationArgs = {
+            'instructor': assistant,
+            'subject': subject,
+            'fromSubject': true,
+          };
+          Navigator.pushNamed(
+            context,
+            '/assistant-profile',
+            arguments: navigationArgs,
+          );
+        },
       ),
       selectedInstructorId: null, // Dialog will read from provider
       section: section,
-    );
-  }
-
-  Widget _buildEnhancedDetailSection(BuildContext context, Section section) {
-    return Container(
-      padding: Responsive.padding(context, size: Space.medium),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.grey.shade50, Colors.white],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(
-          Responsive.space(context, size: Space.medium),
-        ),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        children: [
-          _buildEnhancedDetailRow(
-            context,
-            'السكاشن',
-            section.name,
-            Icons.class_,
-            Colors.blue,
-          ),
-          SizedBox(height: Responsive.space(context, size: Space.small)),
-          _buildEnhancedDetailRow(
-            context,
-            'المكان',
-            section.location,
-            Icons.location_on_outlined,
-            Colors.green,
-          ),
-          SizedBox(height: Responsive.space(context, size: Space.small)),
-          _buildEnhancedDetailRow(
-            context,
-            'الأيام',
-            section.days,
-            Icons.calendar_today,
-            Colors.orange,
-          ),
-          SizedBox(height: Responsive.space(context, size: Space.small)),
-          _buildEnhancedDetailRow(
-            context,
-            'الوقت',
-            section.time,
-            Icons.access_time,
-            Colors.purple,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEnhancedDetailRow(
-    BuildContext context,
-    String label,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
-    return Row(
-      children: [
-        Container(
-          padding: EdgeInsets.all(Responsive.space(context, size: Space.small)),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(
-              Responsive.space(context, size: Space.small),
-            ),
-          ),
-          child: Icon(icon, color: color, size: 18),
-        ),
-        SizedBox(width: Responsive.space(context, size: Space.medium)),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: Responsive.text(context, size: TextSize.small),
-                  color: Colors.grey.shade600,
-                ),
-              ),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: Responsive.text(context, size: TextSize.medium),
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAssistantsSection(
-    BuildContext context,
-    List<UserProfile> assistants,
-    Subject subject,
-    String? selectedAssistantId,
-    Function(String) onAssistantSelected,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'المعيدين',
-              style: TextStyle(
-                fontSize: Responsive.text(context, size: TextSize.medium),
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-            if (selectedAssistantId != null)
-              Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: Responsive.space(context, size: Space.small),
-                  vertical: Responsive.space(context, size: Space.tiny),
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(
-                    Responsive.space(context, size: Space.small),
-                  ),
-                  border: Border.all(color: Colors.green.withOpacity(0.3)),
-                ),
-                child: Text(
-                  'تم ختيار',
-                  style: TextStyle(
-                    fontSize: Responsive.text(context, size: TextSize.small),
-                    color: Colors.green.shade700,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-          ],
-        ),
-        SizedBox(height: Responsive.space(context, size: Space.small)),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.grey.shade50,
-            borderRadius: BorderRadius.circular(
-              Responsive.space(context, size: Space.medium),
-            ),
-            border: Border.all(color: Colors.grey.shade200),
-          ),
-          child: ListView.separated(
-            shrinkWrap: true,
-            physics: NeverScrollableScrollPhysics(),
-            itemCount: assistants.length,
-            separatorBuilder:
-                (context, index) =>
-                    Divider(height: 1, color: Colors.grey.shade200),
-            itemBuilder: (context, index) {
-              final assistant = assistants[index];
-              return _buildAssistantTile(
-                context,
-                assistant,
-                subject,
-                selectedAssistantId,
-                onAssistantSelected,
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAssistantTile(
-    BuildContext context,
-    UserProfile assistant,
-    Subject subject,
-    String? selectedAssistantId,
-    Function(String) onAssistantSelected,
-  ) {
-    final isSelected = selectedAssistantId == assistant.id;
-
-    return Container(
-      margin: EdgeInsets.symmetric(vertical: 2),
-      decoration: BoxDecoration(
-        color: isSelected ? Colors.green.withOpacity(0.05) : Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
-        border:
-            isSelected
-                ? Border.all(color: Colors.green.withOpacity(0.3), width: 1)
-                : null,
-      ),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor:
-              isSelected
-                  ? Colors.green.withOpacity(0.2)
-                  : Colors.black.withOpacity(0.1),
-          child: Icon(
-            isSelected ? Icons.check : Icons.person,
-            color: isSelected ? Colors.green : Colors.black,
-          ),
-        ),
-        title: Text(
-          assistant.name,
-          style: TextStyle(
-            fontSize: Responsive.text(context, size: TextSize.medium),
-            fontWeight: FontWeight.w600,
-            color: isSelected ? Colors.green.shade700 : Colors.black87,
-          ),
-        ),
-        subtitle: Text(
-          isSelected ? 'المعيد المختار حالياً' : 'انقر لاختيار هذا المعيد',
-          style: TextStyle(
-            fontSize: Responsive.text(context, size: TextSize.small),
-            color: isSelected ? Colors.green.shade700 : Colors.grey.shade600,
-          ),
-        ),
-        trailing:
-            isSelected
-                ? Container(
-                  padding: EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    Icons.check_circle,
-                    color: Colors.green,
-                    size: 20,
-                  ),
-                )
-                : Icon(
-                  Icons.radio_button_unchecked,
-                  color: Colors.grey.shade400,
-                  size: 20,
-                ),
-        onTap: () {
-          onAssistantSelected(assistant.id);
-        },
-      ),
     );
   }
 }

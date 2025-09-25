@@ -5,8 +5,6 @@ import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/models/subject_model.dart';
-import 'package:pivot/models/material_link.dart';
-
 
 /// Configuration for the InstructorsGate dialog
 class InstructorsGateConfig {
@@ -152,7 +150,6 @@ class _InstructorsGateState extends State<InstructorsGate> {
             final currentInstructorId =
                 currentUser.assistantPreferences[widget.subject.id];
 
-
             setState(() {
               _selectedInstructorId =
                   currentInstructorId ?? widget.selectedInstructorId;
@@ -185,26 +182,34 @@ class _InstructorsGateState extends State<InstructorsGate> {
     } else {
       // Default navigation based on instructor type
       Navigator.of(context).pop();
+
+      // Create navigation arguments that include both instructor and subject
+      final navigationArgs = {
+        'instructor': instructor,
+        'subject': widget.subject,
+        'fromSubject': true, // Flag to indicate we came from a subject
+      };
+
       switch (widget.config.instructorType) {
         case 'professor':
           Navigator.pushNamed(
             context,
             '/doctor-profile',
-            arguments: instructor,
+            arguments: navigationArgs,
           );
           break;
         case 'assistant':
           Navigator.pushNamed(
             context,
             '/assistant-profile',
-            arguments: instructor,
+            arguments: navigationArgs,
           );
           break;
         default:
           Navigator.pushNamed(
             context,
             '/doctor-profile',
-            arguments: instructor,
+            arguments: navigationArgs,
           );
       }
     }
@@ -231,16 +236,8 @@ class _InstructorsGateState extends State<InstructorsGate> {
                   ),
                   Divider(thickness: 1, color: Colors.grey[200]),
                   SizedBox(
-                    height: Responsive.space(context, size: Space.medium),
+                    height: Responsive.space(context, size: Space.small),
                   ),
-
-                  // Section details (if provided)
-                  if (widget.section != null) ...[
-                    _buildSectionDetails(widget.section!),
-                    SizedBox(
-                      height: Responsive.space(context, size: Space.medium),
-                    ),
-                  ],
 
                   // Instructors section
                   if (widget.instructors.isNotEmpty) ...[
@@ -288,94 +285,6 @@ class _InstructorsGateState extends State<InstructorsGate> {
               color: Colors.black87,
             ),
             textAlign: TextAlign.right,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSectionDetails(Section section) {
-    return Container(
-      padding: Responsive.padding(context, size: Space.medium),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.grey.shade50, Colors.white],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(
-          Responsive.space(context, size: Space.medium),
-        ),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        children: [
-          _buildDetailRow('السكاشن', section.name, Icons.class_, Colors.blue),
-          SizedBox(height: Responsive.space(context, size: Space.small)),
-          _buildDetailRow(
-            'المكان',
-            section.location,
-            Icons.location_on_outlined,
-            Colors.green,
-          ),
-          SizedBox(height: Responsive.space(context, size: Space.small)),
-          _buildDetailRow(
-            'الأيام',
-            section.days,
-            Icons.calendar_today,
-            Colors.orange,
-          ),
-          SizedBox(height: Responsive.space(context, size: Space.small)),
-          _buildDetailRow(
-            'الوقت',
-            section.time,
-            Icons.access_time,
-            Colors.purple,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDetailRow(
-    String label,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
-    return Row(
-      children: [
-        Container(
-          padding: EdgeInsets.all(Responsive.space(context, size: Space.small)),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(
-              Responsive.space(context, size: Space.small),
-            ),
-          ),
-          child: Icon(icon, color: color, size: 18),
-        ),
-        SizedBox(width: Responsive.space(context, size: Space.medium)),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: Responsive.text(context, size: TextSize.small),
-                  color: Colors.grey.shade600,
-                ),
-              ),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: Responsive.text(context, size: TextSize.medium),
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
-              ),
-            ],
           ),
         ),
       ],

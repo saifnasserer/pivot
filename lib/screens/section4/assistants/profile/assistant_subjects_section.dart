@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/models/subject_model.dart';
-import 'package:pivot/providers/doctor_subject_provider.dart';
 import 'package:pivot/providers/subject_provider.dart';
+import 'package:pivot/providers/section_provider.dart';
 import 'package:pivot/responsive.dart';
-import 'package:pivot/screens/models/material_links_widget.dart';
+import 'package:pivot/screens/models/section_card.dart';
 import 'package:provider/provider.dart';
 
-class SubjectsSection extends StatefulWidget {
+class AssistantSubjectsSection extends StatefulWidget {
   final UserProfile userProfile;
   final UserProfile? loggedInUser;
   final Subject? targetSubject;
   final Function(Subject?)? onCurrentSubjectChanged;
 
-  const SubjectsSection({
+  const AssistantSubjectsSection({
     super.key,
     required this.userProfile,
     this.loggedInUser,
@@ -22,20 +22,22 @@ class SubjectsSection extends StatefulWidget {
   });
 
   @override
-  State<SubjectsSection> createState() => _SubjectsSectionState();
+  State<AssistantSubjectsSection> createState() =>
+      _AssistantSubjectsSectionState();
 }
 
-class _SubjectsSectionState extends State<SubjectsSection>
+class _AssistantSubjectsSectionState extends State<AssistantSubjectsSection>
     with TickerProviderStateMixin {
   late TabController _tabController;
   List<Subject> _previousSubjects = [];
-  String? _previousDoctorId;
+  String? _previousAssistantId;
+  Subject? _preservedTargetSubject;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 0, vsync: this);
-    _previousDoctorId = widget.userProfile.id;
+    _previousAssistantId = widget.userProfile.id;
   }
 
   @override
@@ -47,18 +49,24 @@ class _SubjectsSectionState extends State<SubjectsSection>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+
+    // Preserve target subject if it's provided and we don't have one yet
+    if (widget.targetSubject != null && _preservedTargetSubject == null) {
+      _preservedTargetSubject = widget.targetSubject;
+    }
+
     _checkForUpdates();
   }
 
   void _checkForUpdates() {
     final subjectProvider = context.watch<SubjectProvider>();
     final subjects = subjectProvider.filteredSubjects;
-    final currentDoctorId = widget.userProfile.id;
+    final currentAssistantId = widget.userProfile.id;
 
-    // Check if doctor has changed
-    if (_previousDoctorId != currentDoctorId) {
-      _previousDoctorId = currentDoctorId;
-      print('Doctor changed to $currentDoctorId');
+    // Check if assistant has changed
+    if (_previousAssistantId != currentAssistantId) {
+      _previousAssistantId = currentAssistantId;
+      print('Assistant changed to $currentAssistantId');
     }
 
     // Check if subjects have changed - more efficient comparison
@@ -80,6 +88,23 @@ class _SubjectsSectionState extends State<SubjectsSection>
       _previousSubjects = List.from(subjects);
       _updateTabController();
       print('Subjects changed, updating tab controller');
+    } else if (_preservedTargetSubject != null) {
+      // If subjects haven't changed but we have a preserved target subject, ensure we're on the right tab
+      final targetIndex = subjects.indexWhere(
+        (subject) => subject.id == _preservedTargetSubject!.id,
+      );
+      if (targetIndex != -1 && _tabController.index != targetIndex) {
+        print('Switching to preserved target subject at index $targetIndex');
+        _tabController.animateTo(targetIndex);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _loadSectionsForSubject(targetIndex);
+            _notifyCurrentSubjectChanged();
+            // Clear preserved target subject after using it
+            _preservedTargetSubject = null;
+          }
+        });
+      }
     }
   }
 
@@ -93,14 +118,27 @@ class _SubjectsSectionState extends State<SubjectsSection>
       _tabController.removeListener(_onTabChanged);
       _tabController.dispose();
 
-      // Determine initial index - prioritize target subject if provided
+      // Determine initial index - prioritize preserved target subject if available
       int initialIndex = subjects.isNotEmpty ? subjects.length - 1 : 0;
-      if (widget.targetSubject != null) {
+      if (_preservedTargetSubject != null) {
+        final targetIndex = subjects.indexWhere(
+          (subject) => subject.id == _preservedTargetSubject!.id,
+        );
+        if (targetIndex != -1) {
+          initialIndex = targetIndex;
+          print(
+            'Setting initial index to $targetIndex for preserved target subject',
+          );
+        }
+      } else if (widget.targetSubject != null) {
         final targetIndex = subjects.indexWhere(
           (subject) => subject.id == widget.targetSubject!.id,
         );
         if (targetIndex != -1) {
           initialIndex = targetIndex;
+          print(
+            'Setting initial index to $targetIndex for widget target subject',
+          );
         }
       }
 
@@ -113,11 +151,29 @@ class _SubjectsSectionState extends State<SubjectsSection>
       // Add listener to detect tab changes (including swiping)
       _tabController.addListener(_onTabChanged);
 
-      // Load initial lectures for the selected subject
+      // Load initial sections for the selected subject
       if (subjects.isNotEmpty) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
-            _loadLecturesForSubject(initialIndex);
+            _loadSectionsForSubject(initialIndex);
+            _notifyCurrentSubjectChanged();
+            // Clear preserved target subject after tab controller is set
+            if (_preservedTargetSubject != null) {
+              _preservedTargetSubject = null;
+            }
+          }
+        });
+      }
+    } else if (widget.targetSubject != null) {
+      // If subjects haven't changed but we have a target subject, switch to it
+      final targetIndex = subjects.indexWhere(
+        (subject) => subject.id == widget.targetSubject!.id,
+      );
+      if (targetIndex != -1 && _tabController.index != targetIndex) {
+        _tabController.animateTo(targetIndex);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _loadSectionsForSubject(targetIndex);
             _notifyCurrentSubjectChanged();
           }
         });
@@ -126,13 +182,13 @@ class _SubjectsSectionState extends State<SubjectsSection>
   }
 
   void _onTabChanged() {
-    // Only load lectures if the tab actually changed and we're not in the middle of a swipe
+    // Only load sections if the tab actually changed and we're not in the middle of a swipe
     if (_tabController.indexIsChanging) {
       return;
     }
 
-    // Load lectures for the current subject
-    _loadLecturesForSubject(_tabController.index);
+    // Load sections for the current subject
+    _loadSectionsForSubject(_tabController.index);
 
     // Notify parent about current subject change
     _notifyCurrentSubjectChanged();
@@ -160,42 +216,40 @@ class _SubjectsSectionState extends State<SubjectsSection>
     return null;
   }
 
-  Future<void> _loadLecturesForSubject(int index) async {
+  Future<void> _loadSectionsForSubject(int index) async {
     final subjectProvider = context.read<SubjectProvider>();
     final subjects = subjectProvider.filteredSubjects;
 
     if (subjects.isNotEmpty && index < subjects.length) {
-      final subject = subjects[index];
-      final subjectId = subject.id;
-      final doctorId = widget.userProfile.id;
+      final assistantId = widget.userProfile.id;
 
-      // Use the unified DoctorSubjectProvider
-      final doctorSubjectProvider = context.read<DoctorSubjectProvider>();
-      await doctorSubjectProvider.fetchLecturesForSubject(doctorId, subjectId);
+      // Use the SectionProvider to load sections for this assistant and subject
+      final sectionProvider = context.read<SectionProvider>();
+      await sectionProvider.fetchSectionsForAssistant(assistantId);
     }
   }
 
   Widget _buildSubjectContent(Subject subject) {
-    final subjectId = subject.id;
-    final doctorSubjectProvider = context.watch<DoctorSubjectProvider>();
-    final lectures = doctorSubjectProvider.getLecturesForSubject(subjectId);
-    final isLoading = doctorSubjectProvider.isSubjectLoading(subjectId);
-    final error = doctorSubjectProvider.getSubjectError(subjectId);
+    final sectionProvider = context.watch<SectionProvider>();
+    final sections =
+        sectionProvider.sections
+            .where((section) => section.subjectId == subject.id)
+            .toList();
 
-    if (isLoading) {
+    if (sectionProvider.isLoading) {
       return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             CircularProgressIndicator(),
             SizedBox(height: 16),
-            Text('جاري تحميل المحاضرات...'),
+            Text('جاري تحميل السكاشن...'),
           ],
         ),
       );
     }
 
-    if (error != null) {
+    if (sectionProvider.error != null) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -203,13 +257,13 @@ class _SubjectsSectionState extends State<SubjectsSection>
             Icon(Icons.error_outline, size: 48, color: Colors.red.shade300),
             SizedBox(height: 16),
             Text(
-              'خطأ: $error',
+              'خطأ: ${sectionProvider.error}',
               style: TextStyle(color: Colors.red.shade600),
               textAlign: TextAlign.center,
             ),
             SizedBox(height: 16),
             ElevatedButton(
-              onPressed: () => _loadLecturesForSubject(_tabController.index),
+              onPressed: () => _loadSectionsForSubject(_tabController.index),
               child: Text('إعادة المحاولة'),
             ),
           ],
@@ -217,25 +271,21 @@ class _SubjectsSectionState extends State<SubjectsSection>
       );
     }
 
-    if (lectures.isEmpty) {
+    if (sections.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.menu_book_outlined,
-              size: 48,
-              color: Colors.grey.shade400,
-            ),
+            Icon(Icons.class_outlined, size: 48, color: Colors.grey.shade400),
             SizedBox(height: 16),
             Text(
-              'لا توجد محاضرات في هذه المادة',
+              'لا توجد سكاشن في هذه المادة',
               style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
               textAlign: TextAlign.center,
             ),
             SizedBox(height: 8),
             Text(
-              'اضغط على زر الإضافة لإنشاء محاضرة جديدة',
+              'سيتم إضافة السكاشن قريباً',
               style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
               textAlign: TextAlign.center,
             ),
@@ -246,26 +296,16 @@ class _SubjectsSectionState extends State<SubjectsSection>
 
     return RefreshIndicator(
       onRefresh: () async {
-        final subjectProvider = context.read<SubjectProvider>();
-        final subjects = subjectProvider.filteredSubjects;
-        if (subjects.isNotEmpty && _tabController.index < subjects.length) {
-          final subject = subjects[_tabController.index];
-          final doctorSubjectProvider = context.read<DoctorSubjectProvider>();
-          await doctorSubjectProvider.refreshLecturesForSubject(
-            widget.userProfile.id,
-            subject.id,
-          );
-        }
+        await _loadSectionsForSubject(_tabController.index);
       },
       child: ListView.builder(
-        // padding: EdgeInsets.all(Responsive.space(context, size: Space.medium)),
-        itemCount: lectures.length,
+        itemCount: sections.length,
         itemBuilder:
-            (context, index) => SubjectModel(
-              lecture: lectures[index],
-              canEdit:
-                  widget.loggedInUser?.role != 'Student' &&
-                  widget.loggedInUser?.role != 'miniProfessor',
+            (context, index) => SectionCard(
+              section: sections[index],
+              subjectName: subject.name,
+              isCurrentUserSection:
+                  widget.loggedInUser?.id == widget.userProfile.id,
             ),
       ),
     );
@@ -303,7 +343,7 @@ class _SubjectsSectionState extends State<SubjectsSection>
             ),
             SizedBox(height: 8),
             Text(
-              'يجب إضافة مواد للدكتور أولاً',
+              'يجب إضافة مواد للمعيد أولاً',
               style: TextStyle(
                 fontSize: Responsive.text(context, size: TextSize.small),
                 color: Colors.grey.shade500,
