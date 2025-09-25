@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/providers/schadule_provider.dart';
-import 'package:pivot/screens/models/schedule_item.dart';
-import 'package:provider/provider.dart';
 import 'package:pivot/responsive.dart';
-import 'package:pivot/models/subject_model.dart';
-import 'package:pivot/models/material_link.dart';
+import 'package:pivot/screens/models/schedule_item.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
-
+import 'package:provider/provider.dart';
 
 class AddEditScheduleDialog extends StatefulWidget {
   final String day;
@@ -24,6 +21,8 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
   String _location = '';
   String _time = '';
   final _timeController = TextEditingController();
+  final _titleController = TextEditingController();
+  final _locationController = TextEditingController();
   ScheduleItemType _selectedType = ScheduleItemType.lecture; // Default type
   bool _notificationEnabled = true; // Default to enabled
 
@@ -37,6 +36,8 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
       _title = item.title;
       _location = item.location;
       _time = item.time;
+      _titleController.text = item.title;
+      _locationController.text = item.location;
       _timeController.text = item.time;
       _selectedType = item.type;
       _notificationEnabled = item.notificationEnabled;
@@ -46,6 +47,8 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
   @override
   void dispose() {
     _timeController.dispose();
+    _titleController.dispose();
+    _locationController.dispose();
     super.dispose();
   }
 
@@ -230,6 +233,7 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
               // Subject Name
               UnifiedFormField(
                 hint: 'اسم المادة',
+                controller: _titleController,
                 onChanged: (value) {
                   setState(() {
                     _title = value;
@@ -247,6 +251,7 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
               // Location
               UnifiedFormField(
                 hint: 'المكان',
+                controller: _locationController,
                 onChanged: (value) {
                   setState(() {
                     _location = value;
@@ -368,7 +373,7 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
                           _notificationEnabled = value;
                         });
                       },
-                      activeColor: Colors.black,
+                      activeThumbColor: Colors.black,
                     ),
                   ],
                 ),

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:pivot/services/notification_service.dart';
 import 'package:pivot/responsive.dart';
 
-
 class NotificationDemoScreen extends StatefulWidget {
   // = 'notification_demo_screen';
 
@@ -233,7 +232,7 @@ class _NotificationDemoScreenState extends State<NotificationDemoScreen> {
                         height: Responsive.space(context, size: Space.small),
                       ),
                       DropdownButtonFormField<String>(
-                        value: _selectedIcon,
+                        initialValue: _selectedIcon,
                         decoration: InputDecoration(
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -272,7 +271,7 @@ class _NotificationDemoScreenState extends State<NotificationDemoScreen> {
                         height: Responsive.space(context, size: Space.small),
                       ),
                       DropdownButtonFormField<String>(
-                        value: _selectedColor,
+                        initialValue: _selectedColor,
                         decoration: InputDecoration(
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -336,7 +335,7 @@ class _NotificationDemoScreenState extends State<NotificationDemoScreen> {
                         height: Responsive.space(context, size: Space.small),
                       ),
                       DropdownButtonFormField<String>(
-                        value: _selectedSound,
+                        initialValue: _selectedSound,
                         decoration: InputDecoration(
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),

@@ -9,6 +9,7 @@ import 'educational_details_section.dart';
 import 'password_section.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/widgets/data_deletion_dialog.dart';
+import 'action_buttons.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -285,7 +286,18 @@ class _EditProfileScreenState extends State<EditProfileScreen>
                   SizedBox(
                     height: Responsive.space(context, size: Space.large),
                   ),
-
+                  
+                  ActionButtons(
+                    provider: provider,
+                    currentPasswordController: _currentPasswordController,
+                    newPasswordController: _newPasswordController,
+                    confirmPasswordController: _confirmPasswordController,
+                  ),
+                  
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.large),
+                  ),
+                  
                   // Data Deletion Section
                   _buildDataDeletionSection(),
                 ],

@@ -3,8 +3,6 @@ import 'package:pivot/screens/models/schadule_card.dart';
 import 'package:pivot/screens/models/schedule_item.dart';
 import 'package:pivot/screens/section3/add_edit_schedule_dialog.dart';
 import 'package:pivot/responsive.dart';
-import 'package:auto_size_text/auto_size_text.dart';
-
 
 /// Enhanced schedule calendar builder with better UX and performance
 class ScheduleCalendarBuilder {
@@ -106,112 +104,130 @@ class ScheduleCalendarBuilder {
   ) {
     return SliverToBoxAdapter(
       child: Container(
-        height: Responsive.space(context, size: Space.xlarge) * 1.4,
+        height: Responsive.space(context, size: Space.xlarge) * 1.8,
         margin: EdgeInsets.symmetric(
-          horizontal: Responsive.space(context, size: Space.small),
+          horizontal: Responsive.space(context, size: Space.medium),
         ),
-        child: ListView.builder(
-          scrollDirection: Axis.horizontal,
-          physics: const BouncingScrollPhysics(),
-          reverse: true,
-          itemCount: days.length,
-          itemBuilder: (context, index) {
-            final isSelected = selectedIndex == index;
-            final isToday = _isToday(days[index]);
-
-            return AnimatedContainer(
-              duration:
-                  enableAnimations
-                      ? const Duration(milliseconds: 300)
-                      : Duration.zero,
-              curve: Curves.easeInOut,
-              margin: EdgeInsets.only(
-                right: Responsive.space(context, size: Space.small),
-              ),
-              child: _buildEnhancedDayButton(
-                context,
-                days[index],
-                isSelected,
-                isToday,
-                () => onDaySelected(index),
-                enableAnimations,
-              ),
-            );
-          },
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(
+            Responsive.space(context, size: Space.large),
+          ),
+          color: Colors.grey.shade50,
+          border: Border.all(color: Colors.grey.shade200, width: 1),
+        ),
+        child: _buildEnhancedTabBar(
+          context,
+          days,
+          selectedIndex,
+          onDaySelected,
+          enableAnimations,
         ),
       ),
     );
   }
 
-  /// Builds enhanced day button with today indicator
-  static Widget _buildEnhancedDayButton(
+  /// Builds enhanced tab bar with today detection and better integration
+  static Widget _buildEnhancedTabBar(
     BuildContext context,
-    String day,
-    bool isSelected,
-    bool isToday,
-    VoidCallback onTap,
+    List<String> days,
+    int selectedIndex,
+    Function(int) onDaySelected,
     bool enableAnimations,
   ) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration:
-            enableAnimations
-                ? const Duration(milliseconds: 200)
-                : Duration.zero,
-        curve: Curves.easeInOut,
-        padding: EdgeInsets.symmetric(
-          horizontal: Responsive.space(context, size: Space.medium),
-          vertical: Responsive.space(context, size: Space.small),
-        ),
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.black : Colors.transparent,
-          borderRadius: BorderRadius.circular(
-            Responsive.space(context, size: Space.large),
-          ),
-          border: Border.all(
-            color:
-                isToday
-                    ? Colors.orange.shade600
-                    : isSelected
-                    ? Colors.black
-                    : Colors.grey.shade300,
-            width: isToday ? 2 : 1,
-          ),
-          boxShadow:
-              isSelected
-                  ? [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                  : null,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (isToday) ...[
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade600,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              SizedBox(width: Responsive.space(context, size: Space.small)),
-            ],
-            Text(
-              day,
-              style: TextStyle(
-                color: isSelected ? Colors.white : Colors.black87,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                fontSize: Responsive.text(context, size: TextSize.medium),
-              ),
+    // Today detection is handled by the TabBar indicator and styling
+
+    return DefaultTabController(
+      length: days.length,
+      initialIndex: selectedIndex,
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: TabBar(
+          isScrollable: true,
+          physics: const BouncingScrollPhysics(),
+          indicator: BoxDecoration(
+            borderRadius: BorderRadius.circular(
+              Responsive.space(context, size: Space.medium),
             ),
-          ],
+            gradient: LinearGradient(
+              colors: [Colors.black, Colors.grey.shade800],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          indicatorSize: TabBarIndicatorSize.tab,
+          indicatorPadding: EdgeInsets.symmetric(
+            horizontal: Responsive.space(context, size: Space.small),
+            vertical: Responsive.space(context, size: Space.small) * 0.5,
+          ),
+          labelPadding: EdgeInsets.symmetric(
+            horizontal: Responsive.space(context, size: Space.small),
+          ),
+          onTap: (index) => onDaySelected(index),
+          tabs:
+              days.asMap().entries.map((entry) {
+                final index = entry.key;
+                final day = entry.value;
+                final isToday = _isToday(day);
+                final isSelected = selectedIndex == index;
+
+                return Tab(
+                  child: Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: Responsive.space(context, size: Space.medium),
+                      vertical: Responsive.space(context, size: Space.small),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (isToday) ...[
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  Colors.orange.shade600,
+                                  Colors.orange.shade400,
+                                ],
+                              ),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          SizedBox(
+                            width:
+                                Responsive.space(context, size: Space.small) *
+                                0.5,
+                          ),
+                        ],
+                        Text(
+                          day,
+                          style: TextStyle(
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.medium,
+                            ),
+                            fontWeight:
+                                isToday ? FontWeight.bold : FontWeight.w600,
+                            color:
+                                isSelected
+                                    ? Colors.white
+                                    : isToday
+                                    ? Colors.orange.shade700
+                                    : Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
         ),
       ),
     );
@@ -377,21 +393,83 @@ class ScheduleCalendarBuilder {
     );
   }
 
+  /// Builds enhanced floating action button with better styling
+  static Widget _buildEnhancedFloatingActionButton(
+    BuildContext context,
+    String selectedDay,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(
+          Responsive.space(context, size: Space.large),
+        ),
+        gradient: LinearGradient(
+          colors: [Colors.black, Colors.grey.shade800],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: FloatingActionButton.extended(
+        heroTag: 'schedule_fab',
+        onPressed: () => _showAddScheduleDialog(context, selectedDay),
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        label: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.add_rounded,
+              size: Responsive.text(context, size: TextSize.medium),
+            ),
+            SizedBox(width: Responsive.space(context, size: Space.small)),
+            Text(
+              'إضافة',
+              style: TextStyle(
+                fontSize: Responsive.text(context, size: TextSize.medium),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// Builds enhanced empty state with action button
   static Widget _buildEmptyState(BuildContext context, String message) {
     return SliverFillRemaining(
       hasScrollBody: false,
-      child: Center(
+      child: Container(
+        padding: EdgeInsets.all(Responsive.space(context, size: Space.large)),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
               padding: EdgeInsets.all(
-                Responsive.space(context, size: Space.large),
+                Responsive.space(context, size: Space.xlarge),
               ),
               decoration: BoxDecoration(
-                color: Colors.grey.shade100,
+                gradient: LinearGradient(
+                  colors: [Colors.grey.shade50, Colors.grey.shade100],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
                 shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.1),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
               ),
               child: Icon(
                 Icons.schedule_outlined,
@@ -399,13 +477,24 @@ class ScheduleCalendarBuilder {
                 color: Colors.grey.shade400,
               ),
             ),
-            SizedBox(height: Responsive.space(context, size: Space.large)),
+            SizedBox(height: Responsive.space(context, size: Space.xlarge)),
             Text(
               message,
               style: TextStyle(
                 fontSize: Responsive.text(context, size: TextSize.medium),
                 color: Colors.grey.shade600,
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w600,
+                height: 1.4,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: Responsive.space(context, size: Space.small)),
+            Text(
+              'اضغط على الزر أدناه لإضافة جدول جديد',
+              style: TextStyle(
+                fontSize: Responsive.text(context, size: TextSize.medium),
+                color: Colors.grey.shade500,
+                fontWeight: FontWeight.w400,
               ),
               textAlign: TextAlign.center,
             ),
@@ -442,6 +531,22 @@ class ScheduleCalendarBuilder {
     return day.toLowerCase() == today.toLowerCase();
   }
 
+  /// Gets the index of today in the days list, returns -1 if not found
+  static int getTodayIndex(List<String> days) {
+    for (int i = 0; i < days.length; i++) {
+      if (_isToday(days[i])) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  /// Gets today's day name in Arabic
+  static String getTodayName() {
+    final now = DateTime.now();
+    return _getDayName(now.weekday);
+  }
+
   /// Gets day name from weekday number
   static String _getDayName(int weekday) {
     switch (weekday) {
@@ -474,6 +579,7 @@ List<Widget> buildCalendar({
   required Function(int) onDaySelected,
   required Function(String itemId) handleDelete,
   Function(String itemId)? onNotificationToggle,
+  Function(ScheduleItem item)? onEditItem,
   Function(int oldIndex, int newIndex)? onReorder,
 }) {
   return ScheduleCalendarBuilder.buildCalendar(
@@ -484,6 +590,7 @@ List<Widget> buildCalendar({
     onDaySelected: onDaySelected,
     handleDelete: handleDelete,
     onNotificationToggle: onNotificationToggle,
+    onEditItem: onEditItem,
     onReorder: onReorder,
   );
 }

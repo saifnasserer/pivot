@@ -1,9 +1,7 @@
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
-import 'package:pivot/services/doctor_subject_service.dart';
-import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/models/material_link.dart';
-
+import 'package:pivot/services/doctor_subject_service.dart';
 
 class MaterialLinksProvider with ChangeNotifier {
   final DoctorSubjectService _service = DoctorSubjectService();
@@ -132,16 +130,26 @@ class MaterialLinksProvider with ChangeNotifier {
       _isLoading = true;
       _safeNotifyListeners();
 
+      print('MaterialLinksProvider: Deleting material link');
+      print('- Title: ${materialLink.title}');
+      print('- URL: ${materialLink.url}');
+      print('- Type: ${materialLink.type}');
+      print('- Lecture ID: $lectureId');
 
       // Try both legacy formats for deletion - first minimal, then full
       final minimalMap = materialLink.toMinimalLegacyMap();
       final fullLegacyMap = materialLink.toLegacyMap();
 
+      print('- Minimal map: $minimalMap');
+      print('- Full legacy map: $fullLegacyMap');
 
       // The service method will handle trying different formats
       await _service.deleteLinkFromLecture(lectureId, fullLegacyMap);
 
       // Refresh from database to ensure we have the accurate state
+      print(
+        'MaterialLinksProvider: Refreshing data from database after deletion',
+      );
       await fetchMaterialLinks(lectureId);
 
       // Also verify deletion in local list as backup
@@ -149,8 +157,12 @@ class MaterialLinksProvider with ChangeNotifier {
       _materialLinks.removeWhere((link) => link.url == materialLink.url);
       final newCount = _materialLinks.length;
 
+      print(
+        'MaterialLinksProvider: Local list changed by ${removedCount - newCount} links',
+      );
       _safeNotifyListeners();
     } catch (e) {
+      print('MaterialLinksProvider: Error deleting material link: $e');
       _error = 'Failed to delete material link: ${e.toString()}';
       _safeNotifyListeners();
       rethrow;

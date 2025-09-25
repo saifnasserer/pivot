@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 
 import 'package:pivot/providers/schadule_provider.dart';
 import 'package:pivot/screens/section3/profile_widgets/schadule.dart';
+import 'package:pivot/screens/section3/add_edit_schedule_dialog.dart';
+import 'package:pivot/screens/models/schedule_item.dart';
 import 'profile_provider.dart';
 
 class ScheduleTab extends StatefulWidget {
@@ -37,14 +39,39 @@ class _ScheduleTabState extends State<ScheduleTab>
 
   void _refreshScheduleData() {
     final scheduleProvider = context.read<ScheduleProvider>();
+
     if (scheduleProvider.days.isEmpty && !scheduleProvider.isLoading) {
       scheduleProvider.fetchSchedule();
+    } else if (scheduleProvider.days.isNotEmpty) {
+      // Auto-select today if available
+      _autoSelectTodayIfAvailable();
+    }
+  }
+
+  void _autoSelectTodayIfAvailable() {
+    final scheduleProvider = context.read<ScheduleProvider>();
+    final profileProvider = context.read<ProfileProvider>();
+
+    if (scheduleProvider.days.isNotEmpty) {
+      final todayIndex = ScheduleCalendarBuilder.getTodayIndex(
+        scheduleProvider.days,
+      );
+      if (todayIndex != -1 && profileProvider.selectedDayIndex != todayIndex) {
+        // Auto-select today if it exists and is not already selected
+        profileProvider.updateSelectedDayIndex(todayIndex);
+        widget.onDaySelected(todayIndex);
+      }
     }
   }
 
   Future<void> _refreshSchedule() async {
     final scheduleProvider = context.read<ScheduleProvider>();
     await scheduleProvider.fetchSchedule();
+
+    // Auto-select today after refreshing schedule data
+    if (scheduleProvider.days.isNotEmpty) {
+      _autoSelectTodayIfAvailable();
+    }
   }
 
   void _handleDaySelected(int index) {
@@ -84,7 +111,6 @@ class _ScheduleTabState extends State<ScheduleTab>
 
   void _handleReorder(int oldIndex, int newIndex) {
     try {
-
       final scheduleProvider = context.read<ScheduleProvider>();
       final profileProvider = context.read<ProfileProvider>();
       final currentDay =
@@ -95,16 +121,22 @@ class _ScheduleTabState extends State<ScheduleTab>
               )]
               : '';
 
-
       if (currentDay.isNotEmpty &&
           oldIndex != newIndex &&
           oldIndex >= 0 &&
           newIndex >= 0) {
         scheduleProvider.reorderScheduleItems(currentDay, oldIndex, newIndex);
-      } else {
-      }
-    } catch (e) {
-    }
+      } else {}
+    } catch (e) {}
+  }
+
+  void _handleEditItem(ScheduleItem item) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AddEditScheduleDialog(day: item.day, itemToEdit: item);
+      },
+    );
   }
 
   @override
@@ -194,6 +226,7 @@ class _ScheduleTabState extends State<ScheduleTab>
             onDaySelected: _handleDaySelected,
             handleDelete: _handleDelete,
             onNotificationToggle: _handleNotificationToggle,
+            onEditItem: _handleEditItem,
             showFloatingActionButton: true,
             selectedDay: currentDay,
             enableAnimations: true,

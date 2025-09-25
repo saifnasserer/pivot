@@ -3,6 +3,7 @@ import 'package:pivot/providers/section_provider.dart';
 import 'package:pivot/providers/subject_provider.dart';
 import 'package:pivot/providers/task_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
+import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/models/task.dart';
 import 'package:pivot/screens/models/task_model.dart';
 import 'package:pivot/models/section_model.dart';
@@ -11,10 +12,6 @@ import 'package:pivot/services/sound_service.dart';
 import 'package:provider/provider.dart';
 
 import 'add_edit_task_dialog.dart';
-import 'package:pivot/responsive.dart';
-import 'package:pivot/models/subject_model.dart';
-import 'package:pivot/models/material_link.dart';
-
 
 /// Enhanced WeekTasks with analytics, smart organization, and modern UI
 class WeekTasks extends StatefulWidget {
@@ -101,11 +98,17 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
       final loggedInUser = userProfileProvider.loggedInUserProfile;
 
       if (loggedInUser == null) {
+        print(
+          'WeekTasks: No logged-in user found, skipping assistant preferences update',
+        );
         return;
       }
 
       // Check if subject provider is ready
       if (subjectProvider.isLoading) {
+        print(
+          'WeekTasks: Subject provider is still loading, skipping assistant preferences update',
+        );
         return;
       }
 
@@ -113,6 +116,10 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
       final assistantPreferences = loggedInUser.assistantPreferences;
       final updatedPreferences = <String, String>{...assistantPreferences};
 
+      print(
+        'WeekTasks: Checking assistant preferences for ${userEnrolledSubjectIds.length} enrolled subjects',
+      );
+      print('WeekTasks: Current preferences: $assistantPreferences');
 
       bool hasChanges = false;
 
@@ -123,6 +130,9 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
                 .toList() ??
             [];
 
+        print(
+          'WeekTasks: Subject $subjectId has ${instructors.length} miniProfessor instructors',
+        );
 
         if (instructors.length == 1 &&
             !assistantPreferences.containsKey(subjectId)) {
@@ -130,18 +140,24 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
           final selectedAssistantId = instructors.first.id;
           updatedPreferences[subjectId] = selectedAssistantId;
           hasChanges = true;
+          print(
+            'WeekTasks: Auto-selected assistant $selectedAssistantId for subject $subjectId',
+          );
         }
       }
 
       // Only update if there are changes
       if (hasChanges) {
+        print('WeekTasks: Updating assistant preferences: $updatedPreferences');
         await userProfileProvider.updateAssistantPreferences(
           updatedPreferences,
         );
+        print('WeekTasks: Successfully updated assistant preferences');
       } else {
-
+        print('WeekTasks: No changes needed for assistant preferences');
       }
     } catch (e) {
+      print('WeekTasks: Failed to update assistant preferences: $e');
     }
   }
 
@@ -950,7 +966,7 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
                         ),
                       ),
                     );
-                  }).toList(),
+                  }),
                 ],
               ),
             ),
