@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -7,7 +8,7 @@ import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/providers/settings_provider.dart';
 
 // Edit Profile Provider for State Management
-class EditProfileProvider with ChangeNotifier {
+class EditProfileProvider extends ChangeNotifier {
   final UserProfileProvider _userProfileProvider;
   final SettingsProvider _settingsProvider;
 
@@ -119,9 +120,6 @@ class EditProfileProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      debugPrint('Starting profile save...');
-      debugPrint('Profile image path: ${_profileImage?.path}');
-
       final Map<String, dynamic> updateData = {
         'name': _userProfile!.name,
         'gender': _userProfile!.gender,
@@ -157,13 +155,8 @@ class EditProfileProvider with ChangeNotifier {
 
       // Check if profile image exists
       if (_profileImage != null) {
-        debugPrint('Profile image found, will upload to Firebase');
         final imageFile = XFile(_profileImage!.path);
-        debugPrint('Image file path: ${imageFile.path}');
-        debugPrint('Image file exists: ${await File(imageFile.path).exists()}');
-      } else {
-        debugPrint('No profile image to upload');
-      }
+      } else {}
 
       await _userProfileProvider.updateUserProfileData(
         _userProfile!.id,
@@ -171,12 +164,10 @@ class EditProfileProvider with ChangeNotifier {
         imageFile: _profileImage != null ? XFile(_profileImage!.path) : null,
       );
 
-      debugPrint('Profile saved successfully');
       _isSaving = false;
       _hasSaved = true;
       notifyListeners();
     } catch (e) {
-      debugPrint('Error saving profile: $e');
       _errorMessage = _getErrorMessage(e.toString());
       _isSaving = false;
       notifyListeners();

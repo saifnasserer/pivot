@@ -9,10 +9,9 @@ Future<void> registerServiceWorkerWeb() async {
         'firebase-messaging-sw.js',
       );
       // ignore: avoid_print
-      print('firebase-messaging-sw.js registered for web push');
+
     } catch (e) {
       // ignore: avoid_print
-      print('Failed to register firebase-messaging-sw.js: $e');
     }
   }
 }

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
+import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/section1/introduction_wrapper.dart';
 import 'package:pivot/screens/section2/landing.dart';
 import 'package:provider/provider.dart';
-import 'package:pivot/responsive.dart';
 import 'package:pivot/services/cache_service.dart';
 
 class AuthWrapper extends StatefulWidget {
@@ -33,7 +33,6 @@ class _AuthWrapperState extends State<AuthWrapper> {
       await CacheService.instance.init();
     } catch (e) {
       // Cache might already be initialized, ignore error
-      print('Cache initialization: $e');
     }
     if (mounted) {
       setState(() {

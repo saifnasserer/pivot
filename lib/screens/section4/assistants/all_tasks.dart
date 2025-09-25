@@ -5,9 +5,10 @@ import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/screens/models/task.dart';
 import 'package:pivot/screens/models/task_model.dart';
 import 'package:provider/provider.dart';
-import 'package:pivot/responsive.dart';
 
 import 'add_edit_task_dialog.dart';
+import 'package:pivot/responsive.dart';
+
 
 class TasksControl extends StatefulWidget {
   // = 'tasks';

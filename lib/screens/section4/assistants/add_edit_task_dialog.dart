@@ -360,7 +360,7 @@ class _AddEditTaskDialogContentState extends State<_AddEditTaskDialogContent> {
                           height: Responsive.space(context, size: Space.small),
                         ),
                         DropdownButtonFormField<TaskImportance>(
-                          value: _selectedImportance,
+                          initialValue: _selectedImportance,
                           decoration: commonDecoration,
                           items:
                               TaskImportance.values.map((

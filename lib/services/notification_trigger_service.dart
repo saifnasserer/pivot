@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/services/notification_service.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pivot/models/scheduled_notification.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class NotificationTriggerService {
   static final NotificationTriggerService _instance =
@@ -113,7 +113,7 @@ class NotificationTriggerService {
         }
       }
     } catch (e) {
-      print('Error processing batch for user $userId: $e');
+
     }
   }
 
@@ -200,7 +200,6 @@ class NotificationTriggerService {
       );
       return false;
     } catch (e) {
-      print('Error sending notification (attempt $attempt): $e');
       if (attempt < _maxRetryAttempts) {
         await Future.delayed(_retryDelay * attempt);
         return _sendWithRetry(
@@ -241,7 +240,6 @@ class NotificationTriggerService {
     try {
       if (notification.sendToAllUsers) {
         final tokens = await _notificationService.getAllUserFCMTokens();
-        print('FCM Scheduled: 📨 Sending to ${tokens.length} users');
 
         for (final token in tokens) {
           // For "all_users" notifications, pass null as userId to let the token manager find the user
@@ -258,7 +256,6 @@ class NotificationTriggerService {
                     .get();
 
             if (!userDoc.exists) {
-              print('FCM Scheduled: ⚠️ User document not found: $userId');
               continue;
             }
 
@@ -271,15 +268,12 @@ class NotificationTriggerService {
               type,
               userProfile.notificationPreferences,
             )) {
-              print(
-                'FCM Scheduled: ⚠️ Notification blocked by user preferences for user: $userId',
-              );
               continue;
             }
 
             // Check rate limit
             if (!_checkRateLimit(userId, userProfile)) {
-              print('FCM Scheduled: ⚠️ Rate limit reached for user $userId');
+
               continue;
             }
 
@@ -288,16 +282,14 @@ class NotificationTriggerService {
             if (token != null) {
               await _sendWithRetry(notification, token, userId);
             } else {
-              print('FCM Scheduled: ⚠️ No valid FCM token for user: $userId');
+
             }
           } catch (e) {
-            print('FCM Scheduled: ❌ Error processing user $userId: $e');
             // Continue with other users
           }
         }
       }
     } catch (e) {
-      print('FCM Scheduled: ❌ Error sending scheduled notification: $e');
       await _updateNotificationStatus(
         notification.id!,
         'failed',
@@ -393,7 +385,6 @@ class NotificationTriggerService {
         }
       }
     } catch (e) {
-      print('Error sending task reminders: $e');
     }
   }
 
@@ -404,8 +395,6 @@ class NotificationTriggerService {
     DateTime dueDate,
   ) async {
     try {
-      print('FCM Task: Sending new task notification for user: $userId');
-      print('FCM Task: Task: $taskName, Due: $dueDate');
 
       final token = await _notificationService.getUserFCMToken(userId);
       if (token != null) {
@@ -426,8 +415,6 @@ class NotificationTriggerService {
           dueText = 'متأخر';
         }
 
-        print('FCM Task: Sending notification with title: تاسك جديد تم إضافته');
-        print('FCM Task: Body: تم إضافة التاسك "$taskName" - مطلوب $dueText');
 
         final success = await _notificationService.sendNotification(
           targetToken: token,
@@ -442,15 +429,12 @@ class NotificationTriggerService {
         );
 
         if (success) {
-          print('FCM Task: ✅ New task notification sent successfully');
         } else {
-          print('FCM Task: ❌ Failed to send new task notification');
         }
       } else {
-        print('FCM Task: ❌ No FCM token found for user: $userId');
+
       }
     } catch (e) {
-      print('FCM Task: ❌ Error sending new task notification: $e');
     }
   }
 
@@ -486,7 +470,6 @@ class NotificationTriggerService {
         }
       }
     } catch (e) {
-      print('Error sending announcement: $e');
     }
   }
 
@@ -503,7 +486,6 @@ class NotificationTriggerService {
         );
       }
     } catch (e) {
-      print('Error sending welcome notification: $e');
     }
   }
 
@@ -554,7 +536,6 @@ class NotificationTriggerService {
         }
       }
     } catch (e) {
-      print('Error sending schedule reminders: $e');
     }
   }
 
@@ -583,7 +564,6 @@ class NotificationTriggerService {
         );
       }
     } catch (e) {
-      print('Error sending new content notification: $e');
     }
   }
 
@@ -606,9 +586,6 @@ class NotificationTriggerService {
     String? imageUrl,
   }) async {
     try {
-      print(
-        'Notification Trigger: 🚀 Sending department notification to $department',
-      );
 
       // Get all users in the department with active FCM tokens
       final usersSnapshot =
@@ -620,9 +597,6 @@ class NotificationTriggerService {
               .get();
 
       if (usersSnapshot.docs.isEmpty) {
-        print(
-          'Notification Trigger: ⚠️ No users found in department $department with active tokens',
-        );
         return false;
       }
 
@@ -633,15 +607,9 @@ class NotificationTriggerService {
               .toList();
 
       if (tokens.isEmpty) {
-        print(
-          'Notification Trigger: ⚠️ No valid FCM tokens found for department $department',
-        );
         return false;
       }
 
-      print(
-        'Notification Trigger: 📱 Sending to ${tokens.length} users in department $department',
-      );
 
       // Use batch notification sending for better error handling
       final results = await _notificationService.sendBatchNotifications(
@@ -659,22 +627,12 @@ class NotificationTriggerService {
       final failureCount = results['failureCount'] as int;
       final invalidTokens = results['invalidTokens'] as List<String>;
 
-      print('Notification Trigger: ✅ Department notification completed');
-      print(
-        'Notification Trigger: 📊 Results - Success: $successCount, Failed: $failureCount',
-      );
 
       if (invalidTokens.isNotEmpty) {
-        print(
-          'Notification Trigger: ⚠️ ${invalidTokens.length} invalid tokens detected and cleaned up',
-        );
       }
 
       return successCount > 0;
     } catch (e) {
-      print(
-        'Notification Trigger: ❌ Error sending department notification: $e',
-      );
       return false;
     }
   }
@@ -706,7 +664,6 @@ class NotificationTriggerService {
         );
       }
     } catch (e) {
-      print('Error sending level notification: $e');
     }
   }
 
@@ -759,7 +716,7 @@ class NotificationTriggerService {
         }
       }
     } catch (e) {
-      print('Error sending class reminders: $e');
+
     }
   }
 
@@ -821,7 +778,7 @@ class NotificationTriggerService {
         }
       }
     } catch (e) {
-      print('Error scheduling class reminder notifications: $e');
+
     }
   }
 
@@ -873,11 +830,8 @@ class NotificationTriggerService {
           .collection('scheduledNotifications')
           .add(scheduledNotification.toJson());
 
-      print(
-        'Scheduled class reminder for $subjectName at ${reminderTime.toString()}',
-      );
     } catch (e) {
-      print('Error scheduling class reminder: $e');
+
     }
   }
 
@@ -915,7 +869,6 @@ class NotificationTriggerService {
         }
       }
     } catch (e) {
-      print('Error scheduling task reminder notifications: $e');
     }
   }
 
@@ -989,7 +942,6 @@ class NotificationTriggerService {
         );
       }
     } catch (e) {
-      print('Error scheduling task reminders: $e');
     }
   }
 
@@ -1043,11 +995,7 @@ class NotificationTriggerService {
           .collection('scheduledNotifications')
           .add(scheduledNotification.toJson());
 
-      print(
-        'Scheduled task reminder: $title for $taskName at ${scheduledTime.toString()}',
-      );
     } catch (e) {
-      print('Error scheduling task reminder: $e');
     }
   }
 
@@ -1308,9 +1256,6 @@ class NotificationTriggerService {
     String? imageUrl,
   }) async {
     try {
-      print(
-        'Notification Trigger: 🚀 Sending multi-user notification to ${userIds.length} users',
-      );
 
       // Get FCM tokens for the specified users
       final tokens = await _notificationService.getMultipleUserFCMTokens(
@@ -1318,13 +1263,9 @@ class NotificationTriggerService {
       );
 
       if (tokens.isEmpty) {
-        print(
-          'Notification Trigger: ⚠️ No valid FCM tokens found for the specified users',
-        );
         return false;
       }
 
-      print('Notification Trigger: 📱 Sending to ${tokens.length} users');
 
       // Use batch notification sending
       final results = await _notificationService.sendBatchNotifications(
@@ -1341,16 +1282,9 @@ class NotificationTriggerService {
       final successCount = results['successCount'] as int;
       final failureCount = results['failureCount'] as int;
 
-      print('Notification Trigger: ✅ Multi-user notification completed');
-      print(
-        'Notification Trigger: 📊 Results - Success: $successCount, Failed: $failureCount',
-      );
 
       return successCount > 0;
     } catch (e) {
-      print(
-        'Notification Trigger: ❌ Error sending multi-user notification: $e',
-      );
       return false;
     }
   }
@@ -1366,21 +1300,14 @@ class NotificationTriggerService {
     String? imageUrl,
   }) async {
     try {
-      print(
-        'Notification Trigger: 🚀 Sending global notification to all users',
-      );
 
       // Get all active FCM tokens
       final tokens = await _notificationService.getAllUserFCMTokens();
 
       if (tokens.isEmpty) {
-        print('Notification Trigger: ⚠️ No active FCM tokens found');
         return false;
       }
 
-      print(
-        'Notification Trigger: 📱 Sending to ${tokens.length} users globally',
-      );
 
       // Use batch notification sending
       final results = await _notificationService.sendBatchNotifications(
@@ -1398,64 +1325,43 @@ class NotificationTriggerService {
       final failureCount = results['failureCount'] as int;
       final invalidTokens = results['invalidTokens'] as List<String>;
 
-      print('Notification Trigger: ✅ Global notification completed');
-      print(
-        'Notification Trigger: 📊 Results - Success: $successCount, Failed: $failureCount',
-      );
 
       if (invalidTokens.isNotEmpty) {
-        print(
-          'Notification Trigger: ⚠️ ${invalidTokens.length} invalid tokens detected and cleaned up',
-        );
       }
 
       return successCount > 0;
     } catch (e) {
-      print('Notification Trigger: ❌ Error sending global notification: $e');
       return false;
     }
   }
 
   // Clean up invalid tokens (can be called periodically)
   Future<Map<String, dynamic>> cleanupInvalidTokens() async {
-    print('Notification Trigger: 🧹 Starting token cleanup process');
     final results = await _notificationService.cleanupInvalidTokens();
-    print('Notification Trigger: ✅ Token cleanup completed');
     return results;
   }
 
   // Get token statistics
   Future<Map<String, dynamic>> getTokenStatistics() async {
-    print('Notification Trigger: 📊 Getting token statistics');
     final stats = await _notificationService.getTokenStatistics();
-    print('Notification Trigger: ✅ Token statistics retrieved');
     return stats;
   }
 
   // Refresh current user's token
   Future<bool> refreshCurrentUserToken() async {
-    print('Notification Trigger: 🔄 Refreshing current user token');
     final success = await _notificationService.refreshCurrentUserToken();
     if (success) {
-      print(
-        'Notification Trigger: ✅ Current user token refreshed successfully',
-      );
     } else {
-      print('Notification Trigger: ❌ Failed to refresh current user token');
     }
     return success;
   }
 
   // Request new token from specific user
   Future<bool> requestNewTokenFromUser(String userId) async {
-    print('Notification Trigger: 🔄 Requesting new token from user $userId');
     final success = await _notificationService.requestNewTokenFromUser(userId);
     if (success) {
-      print('Notification Trigger: ✅ New token requested for user $userId');
+
     } else {
-      print(
-        'Notification Trigger: ❌ Failed to request new token for user $userId',
-      );
     }
     return success;
   }

@@ -101,14 +101,7 @@ class UserProfileProvider with ChangeNotifier {
   // Restore the logged-in user profile as the current user profile
   void restoreLoggedInUserProfile() {
     if (_loggedInUserProfile != null) {
-      print(
-        '[UserProfileProvider] Restoring logged-in user profile: ${_loggedInUserProfile!.name} (${_loggedInUserProfile!.id})',
-      );
-      print(
-        '[UserProfileProvider] Previous userProfile was: ${_userProfile?.name} (${_userProfile?.id})',
-      );
       _userProfile = _loggedInUserProfile;
-      print('[UserProfileProvider] Profile restored successfully');
       notifyListeners();
 
       // Trigger callback if set
@@ -117,16 +110,8 @@ class UserProfileProvider with ChangeNotifier {
       }
 
       // Trigger a post-frame callback to allow other components to refresh their data
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        print(
-          '[UserProfileProvider] Profile restoration completed, other components can now refresh',
-        );
-      });
-    } else {
-      print(
-        '[UserProfileProvider] Warning: Cannot restore profile - loggedInUserProfile is null',
-      );
-    }
+      WidgetsBinding.instance.addPostFrameCallback((_) {});
+    } else {}
   }
 
   // Ensure the logged-in user profile is set as the current user profile
@@ -134,20 +119,9 @@ class UserProfileProvider with ChangeNotifier {
   void ensureLoggedInUserProfileIsCurrent() {
     if (_loggedInUserProfile != null &&
         _userProfile?.id != _loggedInUserProfile?.id) {
-      print(
-        '[UserProfileProvider] Ensuring logged-in user profile is current: ${_loggedInUserProfile!.name} (${_loggedInUserProfile!.id})',
-      );
-      print(
-        '[UserProfileProvider] Previous userProfile was: ${_userProfile?.name} (${_userProfile?.id})',
-      );
       _userProfile = _loggedInUserProfile;
-      print('[UserProfileProvider] Profile ensured successfully');
       notifyListeners();
-    } else {
-      print(
-        '[UserProfileProvider] No profile restoration needed - already using logged-in user profile',
-      );
-    }
+    } else {}
   }
 
   // Sets the profile to be viewed on a screen
@@ -202,7 +176,6 @@ class UserProfileProvider with ChangeNotifier {
         notifyListeners();
         return _loggedInUserProfile;
       } catch (e) {
-        print('Failed to update teaching subjects: $e');
         rethrow;
       }
     }
@@ -223,7 +196,6 @@ class UserProfileProvider with ChangeNotifier {
         notifyListeners();
         return _loggedInUserProfile;
       } catch (e) {
-        print('Failed to update enrolled subjects: $e');
         rethrow;
       }
     }
@@ -246,7 +218,6 @@ class UserProfileProvider with ChangeNotifier {
         notifyListeners();
         return _loggedInUserProfile;
       } catch (e) {
-        print('Failed to update assistant preferences: $e');
         rethrow;
       }
     }
@@ -280,9 +251,7 @@ class UserProfileProvider with ChangeNotifier {
         }
       }
       notifyListeners();
-    } catch (e) {
-      print('Failed to fetch user(s): $e');
-    }
+    } catch (e) {}
   }
 
   Future<void> updateUserEnrolledSubjects(
@@ -308,7 +277,6 @@ class UserProfileProvider with ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      print('Failed to update enrolled subjects for user $userId: $e');
       rethrow;
     }
   }
@@ -336,37 +304,29 @@ class UserProfileProvider with ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      print('Failed to update teaching subjects for user $userId: $e');
       rethrow;
     }
   }
 
   Future<void> updateAboutMe(String userId, String aboutMe) async {
-    print('updateAboutMe called for user: $userId with about: $aboutMe');
     try {
       await _firestore.collection('users').doc(userId).update({
         'aboutMe': aboutMe,
       });
 
-      print('Firestore update successful');
-
       if (_userProfile?.id == userId) {
         _userProfile = _userProfile!.copyWith(aboutMe: aboutMe);
-        print('Updated _userProfile aboutMe');
       }
       if (_loggedInUserProfile?.id == userId) {
         _loggedInUserProfile = _loggedInUserProfile!.copyWith(aboutMe: aboutMe);
-        print('Updated _loggedInUserProfile aboutMe');
       }
       notifyListeners();
-      print('updateAboutMe completed successfully');
       // Log profile update
       // await ActivityLogService().logAction(
       //   action: 'Profile updated',
       //   details: 'About me updated for user $userId',
       // );
     } catch (e) {
-      print('Failed to update about me: $e');
       rethrow;
     }
   }
@@ -393,7 +353,6 @@ class UserProfileProvider with ChangeNotifier {
       }
       notifyListeners();
     } catch (e) {
-      print('Failed to update social media links: $e');
       rethrow;
     }
   }
@@ -405,9 +364,6 @@ class UserProfileProvider with ChangeNotifier {
     BuildContext? context,
   }) async {
     try {
-      debugPrint('Starting updateUserProfileData for user: $userId');
-      debugPrint('Image file provided: ${imageFile?.path}');
-
       // Handle password update if present
       if (data.containsKey('password')) {
         final newPassword = data['password'] as String;
@@ -461,15 +417,10 @@ class UserProfileProvider with ChangeNotifier {
 
       String? imageUrl;
       if (imageFile != null) {
-        debugPrint('Starting image upload process...');
-        debugPrint('Image file path: ${imageFile.path}');
-        debugPrint('Image file exists: ${await File(imageFile.path).exists()}');
-
         // Use the optimized storage service for profile images
         final storageService = StorageOptimizationService();
         final xFile = XFile(imageFile.path);
 
-        debugPrint('Calling uploadFileOptimized...');
         imageUrl = await storageService.uploadFileOptimized(
           xFile,
           folder: 'profile_images',
@@ -477,12 +428,7 @@ class UserProfileProvider with ChangeNotifier {
           checkDuplicate: true,
         );
 
-        debugPrint('Upload result - imageUrl: $imageUrl');
-
         if (imageUrl == null) {
-          debugPrint(
-            'Firebase Storage upload failed - authorization issue detected',
-          );
           // Show error message to user about Firebase Storage configuration
           throw Exception(
             'فشل في رفع الصورة. يرجى التحقق من إعدادات Firebase Storage أو المحاولة لاحقاً',
@@ -490,13 +436,10 @@ class UserProfileProvider with ChangeNotifier {
         }
 
         data['profileImageUrl'] = imageUrl;
-        debugPrint('Image URL added to update data: $imageUrl');
       }
 
-      debugPrint('Updating Firestore document...');
       final userRef = _firestore.collection('users').doc(userId);
       await userRef.update(data);
-      debugPrint('Firestore document updated successfully');
 
       // Update local cache
       if (_userProfile?.id == userId) {
@@ -520,10 +463,8 @@ class UserProfileProvider with ChangeNotifier {
         );
       }
 
-      debugPrint('Local cache updated successfully');
       notifyListeners();
     } catch (e) {
-      debugPrint('Error in updateUserProfileData: $e');
       rethrow;
     }
   }
@@ -566,12 +507,8 @@ class UserProfileProvider with ChangeNotifier {
       }
     } catch (e) {
       if (e is TimeoutException) {
-        debugPrint('[UserProfileProvider] Timeout loading profile');
       } else if (e is FirebaseException && e.code == 'permission-denied') {
-        debugPrint('[UserProfileProvider] Permission denied loading profile');
-      } else {
-        debugPrint('[UserProfileProvider] Error loading profile: $e');
-      }
+      } else {}
       clearProfile();
       return false;
     } finally {

@@ -1,10 +1,10 @@
 import 'dart:convert';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:pivot/services/fcm_token_manager.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -30,17 +30,11 @@ class NotificationService {
     final token = await getToken();
     if (token != null && token.isNotEmpty) {
       await saveTokenToFirestore(token);
-      print('FCM Init: ✅ Token saved: ${token.substring(0, 20)}...');
     } else {
-      print('FCM Init: ❌ No token available');
     }
 
     // Set up foreground message handler
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      print('FCM Foreground: 📱 Received message while app is in foreground');
-      print('FCM Foreground: Title: ${message.notification?.title}');
-      print('FCM Foreground: Body: ${message.notification?.body}');
-      print('FCM Foreground: Data: ${message.data}');
 
       // Show local notification for foreground messages
       if (message.notification != null) {
@@ -53,26 +47,19 @@ class NotificationService {
       RemoteMessage? message,
     ) {
       if (message != null) {
-        print('FCM Terminated: 📱 App launched from notification');
-        print('FCM Terminated: Data: ${message.data}');
       }
     });
 
     // Handle notification taps when app is in background
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      print('FCM Background: 📱 App opened from notification');
-      print('FCM Background: Data: ${message.data}');
     });
   }
 
   void _setupTokenRefreshListener() {
     _messaging.onTokenRefresh.listen((newToken) async {
-      print('FCM Token Refresh: 🔄 Token refreshed, updating in Firestore...');
       try {
         await saveTokenToFirestore(newToken);
-        print('FCM Token Refresh: ✅ New token saved successfully');
       } catch (e) {
-        print('FCM Token Refresh: ❌ Failed to save new token: $e');
       }
     });
   }
@@ -80,12 +67,10 @@ class NotificationService {
   void _showForegroundNotification(RemoteMessage message) {
     // Since FCM notifications don't show automatically when app is in foreground,
     // we can show a local notification instead
-    print('FCM Foreground: 🔔 Would show local notification here');
     // TODO: Integrate with LocalNotificationService to show the notification
   }
 
   Future<bool> requestPermissionsExplicitly() async {
-    print('FCM Permissions: Requesting notification permissions...');
 
     final settings = await _messaging.requestPermission(
       alert: true,
@@ -97,21 +82,13 @@ class NotificationService {
       sound: true,
     );
 
-    print(
-      'FCM Permissions: Authorization status: ${settings.authorizationStatus}',
-    );
-    print('FCM Permissions: Alert: ${settings.alert}');
-    print('FCM Permissions: Badge: ${settings.badge}');
-    print('FCM Permissions: Sound: ${settings.sound}');
 
     final granted =
         settings.authorizationStatus == AuthorizationStatus.authorized ||
         settings.authorizationStatus == AuthorizationStatus.provisional;
 
     if (granted) {
-      print('FCM Permissions: ✅ Permissions granted');
     } else {
-      print('FCM Permissions: ❌ Permissions denied');
     }
 
     return granted;
@@ -140,9 +117,8 @@ class NotificationService {
         'lastTokenUpdate': FieldValue.serverTimestamp(),
         'tokenStatus': 'active', // Track token status
       }, SetOptions(merge: true));
-      print('FCM Token Save: ✅ Token saved for user ${user.uid}');
+
     } catch (e) {
-      print('FCM Token Save: ❌ Failed to save token: $e');
     }
   }
 
@@ -181,13 +157,9 @@ class NotificationService {
     String? imageUrl,
   }) async {
     try {
-      print(
-        'FCM: 🚀 Sending notification to token: ${targetToken.substring(0, 20)}...',
-      );
 
       // Validate token format before sending
       if (!_isValidTokenFormat(targetToken)) {
-        print('FCM: ❌ Invalid token format detected');
         await _handleInvalidToken(targetToken, userId);
         return false;
       }
@@ -210,11 +182,8 @@ class NotificationService {
           )
           .timeout(const Duration(seconds: 15));
 
-      print('FCM: Response status: ${resp.statusCode}');
-      print('FCM: Response body: ${resp.body}');
 
       if (resp.statusCode == 200) {
-        print('FCM: ✅ Notification sent successfully');
         return true;
       } else if (resp.statusCode == 400) {
         // Handle invalid token error
@@ -223,20 +192,14 @@ class NotificationService {
 
         if (error.contains('Invalid or unregistered token') ||
             error.contains('Invalid argument')) {
-          print(
-            'FCM: ❌ Invalid token detected: ${targetToken.substring(0, 20)}...',
-          );
           await _handleInvalidToken(targetToken, userId);
         } else {
-          print('FCM: ❌ Bad request error: $error');
         }
         return false;
       } else {
-        print('FCM: ❌ Notification failed with status: ${resp.statusCode}');
         return false;
       }
     } catch (e) {
-      print('FCM: ❌ Exception occurred: $e');
       return false;
     }
   }
@@ -291,9 +254,6 @@ class NotificationService {
               'lastTokenError': FieldValue.serverTimestamp(),
             });
             results['cleanedTokens'] = (results['cleanedTokens'] as int) + 1;
-            print(
-              'FCM Cleanup: ✅ Cleaned invalid token for user ${userDoc.id}',
-            );
           }
         } catch (e) {
           (results['errors'] as List<String>).add('User ${userDoc.id}: $e');
@@ -303,9 +263,6 @@ class NotificationService {
       (results['errors'] as List<String>).add('General error: $e');
     }
 
-    print(
-      'FCM Cleanup: ✅ Cleanup completed. Cleaned ${results['cleanedTokens']} tokens',
-    );
     return results;
   }
 
@@ -368,24 +325,19 @@ class NotificationService {
       final user = _auth.currentUser;
       if (user == null) return false;
 
-      print('FCM Token Refresh: 🔄 Forcing token refresh for user ${user.uid}');
-
       // Delete current token to force refresh
       await _messaging.deleteToken();
 
       // Get new token
       final newToken = await _messaging.getToken();
       if (newToken == null) {
-        print('FCM Token Refresh: ❌ Failed to get new token');
         return false;
       }
 
       // Save new token
       await saveTokenToFirestore(newToken);
-      print('FCM Token Refresh: ✅ Token refreshed successfully');
       return true;
     } catch (e) {
-      print('FCM Token Refresh: ❌ Error refreshing token: $e');
       return false;
     }
   }
@@ -400,10 +352,8 @@ class NotificationService {
         'lastTokenError': FieldValue.serverTimestamp(),
       });
 
-      print('FCM Manual Refresh: ✅ Requested new token for user $userId');
       return true;
     } catch (e) {
-      print('FCM Manual Refresh: ❌ Error requesting new token: $e');
       return false;
     }
   }
@@ -452,9 +402,6 @@ class NotificationService {
       }
     }
 
-    print(
-      'FCM Batch Send: ✅ Completed. Success: ${results['successCount']}, Failed: ${results['failureCount']}',
-    );
     return results;
   }
 }

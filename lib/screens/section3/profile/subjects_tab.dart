@@ -25,9 +25,6 @@ class _SubjectsTabState extends State<SubjectsTab> {
           if (mounted) {
             final loggedInUser = userProfileProvider.loggedInUserProfile;
             if (loggedInUser != null) {
-              print(
-                'SubjectsTab: Profile restored, refreshing data for: ${loggedInUser.name}',
-              );
               final subjectProvider = context.read<SubjectProvider>();
               subjectProvider.updateFilteredSubjectsOnly(loggedInUser);
             }
@@ -58,18 +55,12 @@ class _SubjectsTabState extends State<SubjectsTab> {
           final targetProfile = _getTargetProfile(userProfile, loggedInUser);
           final enrolledIds = targetProfile?.enrolledSubjects ?? [];
 
-          print(
-            'SubjectsTab: Using profile ${targetProfile?.name} with enrolled subjects: $enrolledIds',
-          );
 
           final registeredSubjects =
               subjectProvider.filteredSubjects
                   .where((s) => enrolledIds.contains(s.id))
                   .toList();
 
-          print(
-            'SubjectsTab: Found ${registeredSubjects.length} registered subjects',
-          );
 
           final subjectSlivers = buildSubjectsSlivers(
             context,
@@ -79,7 +70,6 @@ class _SubjectsTabState extends State<SubjectsTab> {
 
           return CustomScrollView(slivers: subjectSlivers);
         } catch (e) {
-          print('Warning: SubjectProvider disposed in SubjectsTab: $e');
           return const Center(child: Text('لا يمكن تحميل المواد حالياً'));
         }
       },

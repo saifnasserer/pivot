@@ -1,10 +1,11 @@
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/models/section_model.dart';
-import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/screens/models/schedule_item.dart';
 import 'package:pivot/screens/section2/adminstration/models/announcement_data.dart';
 import 'dart:developer' as developer;
+import 'package:pivot/models/subject_model.dart';
+import 'package:pivot/models/material_link.dart';
 
 class CacheService {
   // Singleton instance
@@ -22,7 +23,6 @@ class CacheService {
 
   Future<void> init() async {
     if (_initialized) {
-      print('CacheService already initialized, skipping...');
       return;
     }
 
@@ -30,18 +30,13 @@ class CacheService {
 
     try {
       await Hive.initFlutter(); // Works for both web and mobile
-      print('Hive initialized successfully');
 
       // Register adapters with error handling
       await _registerAdapters();
 
       // Open boxes with error handling
       await _openBoxes();
-
-      print('All Hive boxes opened successfully');
     } catch (e, stackTrace) {
-      print('Error initializing CacheService: $e');
-      print('Stack trace: $stackTrace');
       // Don't rethrow - allow app to continue without cache
       _initialized = false;
     }
@@ -51,40 +46,29 @@ class CacheService {
     try {
       if (!Hive.isAdapterRegistered(SocialMediaLinkAdapter().typeId)) {
         Hive.registerAdapter(SocialMediaLinkAdapter());
-        print('SocialMediaLinkAdapter registered');
       }
       if (!Hive.isAdapterRegistered(NotificationPreferencesAdapter().typeId)) {
         Hive.registerAdapter(NotificationPreferencesAdapter());
-        print('NotificationPreferencesAdapter registered');
       }
       if (!Hive.isAdapterRegistered(UserProfileAdapter().typeId)) {
         Hive.registerAdapter(UserProfileAdapter());
-        print('UserProfileAdapter registered');
       }
       if (!Hive.isAdapterRegistered(SectionAdapter().typeId)) {
         Hive.registerAdapter(SectionAdapter());
-        print(
-          'SectionAdapter registered with typeId: ${SectionAdapter().typeId}',
-        );
       }
       if (!Hive.isAdapterRegistered(SubjectAdapter().typeId)) {
         Hive.registerAdapter(SubjectAdapter());
-        print('SubjectAdapter registered');
       }
       if (!Hive.isAdapterRegistered(ScheduleItemTypeCustomAdapter().typeId)) {
         Hive.registerAdapter(ScheduleItemTypeCustomAdapter());
-        print('ScheduleItemTypeCustomAdapter registered');
       }
       if (!Hive.isAdapterRegistered(ScheduleItemCustomAdapter().typeId)) {
         Hive.registerAdapter(ScheduleItemCustomAdapter());
-        print('ScheduleItemCustomAdapter registered');
       }
       if (!Hive.isAdapterRegistered(AnnouncementDataAdapter().typeId)) {
         Hive.registerAdapter(AnnouncementDataAdapter());
-        print('AnnouncementDataAdapter registered');
       }
     } catch (e) {
-      print('Error registering adapters: $e');
       rethrow;
     }
   }
@@ -92,17 +76,11 @@ class CacheService {
   Future<void> _openBoxes() async {
     try {
       await Hive.openBox<UserProfile>(_usersBoxName);
-      print('UserProfile box opened');
       await Hive.openBox<Section>(_sectionsBoxName);
-      print('Section box opened');
       await Hive.openBox<Subject>(_subjectsBoxName);
-      print('Subject box opened');
       await Hive.openBox<ScheduleItem>(_scheduleBoxName);
-      print('ScheduleItem box opened');
       await Hive.openBox<AnnouncementData>(_announcementsBoxName);
-      print('AnnouncementData box opened');
     } catch (e) {
-      print('Error opening Hive boxes: $e');
       rethrow;
     }
   }
@@ -142,32 +120,16 @@ class CacheService {
 
   // Subject Caching
   Future<void> cacheSubjects(List<Subject> subjects) async {
-    developer.log(
-      'CacheService: cacheSubjects called with ${subjects.length} subjects',
-      name: 'CacheService',
-    );
     final box = Hive.box<Subject>(_subjectsBoxName);
     await box.clear();
     for (var subject in subjects) {
       await box.put(subject.id, subject);
     }
-    developer.log(
-      'CacheService: cacheSubjects completed successfully',
-      name: 'CacheService',
-    );
   }
 
   List<Subject> getCachedSubjects() {
-    developer.log(
-      'CacheService: getCachedSubjects called',
-      name: 'CacheService',
-    );
     final box = Hive.box<Subject>(_subjectsBoxName);
     final subjects = box.values.toList();
-    developer.log(
-      'CacheService: getCachedSubjects returned ${subjects.length} subjects',
-      name: 'CacheService',
-    );
     return subjects;
   }
 

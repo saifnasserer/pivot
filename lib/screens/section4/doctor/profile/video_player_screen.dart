@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart' hide MaterialType;
-import 'package:pivot/models/material_link.dart';
-import 'package:pivot/responsive.dart';
 import 'package:video_player/video_player.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:pivot/responsive.dart';
+import 'package:pivot/models/subject_model.dart';
+import 'package:pivot/models/material_link.dart';
+
 
 class VideoPlayerScreen extends StatefulWidget {
   final MaterialLink materialLink;

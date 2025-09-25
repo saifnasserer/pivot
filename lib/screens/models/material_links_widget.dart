@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:pivot/responsive.dart';
-import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:pivot/models/lecture_model.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/providers/doctor_subject_provider.dart';
@@ -9,6 +7,9 @@ import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/screens/section4/doctor/profile/material_links_screen.dart';
 import 'package:pivot/screens/section4/doctor/profile/material_links_route.dart';
 import 'package:provider/provider.dart';
+import 'package:pivot/responsive.dart';
+import 'package:pivot/widgets/unified_dialog.dart';
+
 
 class SubjectModel extends StatefulWidget {
   final Lecture lecture;
@@ -75,24 +76,12 @@ class _SubjectModelState extends State<SubjectModel>
       final userProvider = context.read<UserProfileProvider>();
       final currentUser = FirebaseAuth.instance.currentUser;
 
-      debugPrint(
-        'MaterialLinksWidget: Firebase currentUser: ${currentUser?.uid}',
-      );
-      debugPrint(
-        'MaterialLinksWidget: userProfile: ${userProvider.userProfile?.id}',
-      );
-      debugPrint(
-        'MaterialLinksWidget: loggedInUserProfile: ${userProvider.loggedInUserProfile?.id}',
-      );
 
       // Try to get the current user profile
       UserProfile? loggedInUser = userProvider.loggedInUserProfile;
       if (loggedInUser == null && currentUser != null) {
         // If loggedInUserProfile is null but we have a current user, fetch their profile
         loggedInUser = await userProvider.getUserProfileById(currentUser.uid);
-        debugPrint(
-          'MaterialLinksWidget: Fetched user profile: ${loggedInUser?.id}',
-        );
       }
 
       if (mounted) {

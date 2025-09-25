@@ -1,9 +1,10 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:pivot/models/user_profile.dart';
-import 'package:pivot/responsive.dart';
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:pivot/screens/models/card_model.dart';
+import 'package:pivot/responsive.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+
 
 class ProfileDetails extends StatefulWidget {
   const ProfileDetails({super.key, required this.userProfile});

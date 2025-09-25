@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:pivot/responsive.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:pivot/screens/section2/adminstration/models/announcement_data.dart';
@@ -9,6 +8,8 @@ import 'package:pivot/screens/section2/adminstration/announcement/steps/basic_in
 import 'package:pivot/screens/section2/adminstration/announcement/steps/attachments_step.dart';
 import 'package:pivot/screens/section2/adminstration/announcement/steps/styling_step.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:pivot/responsive.dart';
+
 
 class AddAnnouncementMain extends StatefulWidget {
   final bool isEditing;

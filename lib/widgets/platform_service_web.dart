@@ -1,5 +1,5 @@
-import 'package:flutter/foundation.dart';
 import 'dart:html' as html;
+import 'package:flutter/foundation.dart';
 
 class PlatformServiceWeb {
   static bool isIOSWeb() {
@@ -17,7 +17,6 @@ class PlatformServiceWeb {
       // print('Should show install screen: ${isIOS && !isStandalone}');
       return isIOS && !isStandalone;
     } catch (e) {
-      print('PlatformServiceWeb error: $e');
       return false;
     }
   }

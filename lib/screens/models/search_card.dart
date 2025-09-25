@@ -1,12 +1,12 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:pivot/models/user_profile.dart';
-import 'package:pivot/responsive.dart';
 import 'package:pivot/services/auth_service.dart';
 import 'package:pivot/services/cache_service.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pivot/providers/user_profile_provider.dart'; // Added import for UserProfileProvider
 import 'package:provider/provider.dart'; // Added import for Provider
+import 'package:pivot/responsive.dart';
 
 class UserSearchCard extends StatelessWidget {
   final UserProfile user;
@@ -186,10 +186,8 @@ class _UserSearchModalContentState extends State<_UserSearchModalContent> {
 
     // Debugging: print current user and token
     final user = FirebaseAuth.instance.currentUser;
-    print('Current user: ${user?.uid ?? 'null'}');
     if (user != null) {
       final token = await user.getIdToken();
-      print('User token: $token');
     }
 
     try {

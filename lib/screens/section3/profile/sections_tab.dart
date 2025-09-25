@@ -31,9 +31,6 @@ class _SectionsTabState extends State<SectionsTab> {
           if (mounted) {
             final loggedInUser = userProfileProvider.loggedInUserProfile;
             if (loggedInUser != null) {
-              print(
-                'SectionsTab: Profile restored, refreshing data for: ${loggedInUser.name}',
-              );
               _hasLoadedSections = false;
               _updatePreviousProfile(loggedInUser);
               _refreshDataProviders(loggedInUser);
@@ -206,11 +203,6 @@ class _SectionsTabState extends State<SectionsTab> {
       final subjectProvider = context.read<SubjectProvider>();
       final sectionProvider = context.read<SectionProvider>();
 
-      print('Refreshing data providers for profile: ${targetProfile.name}');
-      print(
-        'Target profile enrolled subjects: ${targetProfile.enrolledSubjects}',
-      );
-
       // Refresh subject provider with the target profile
       subjectProvider.fetchAndFilterSubjects(targetProfile);
 
@@ -223,7 +215,6 @@ class _SectionsTabState extends State<SectionsTab> {
         sectionProvider.resetFilter();
       }
     } catch (e) {
-      print('Error refreshing data providers: $e');
     }
   }
 
@@ -285,7 +276,6 @@ class _SectionsTabState extends State<SectionsTab> {
 
           return CustomScrollView(slivers: sectionSlivers);
         } catch (e) {
-          print('Warning: SectionProvider disposed in SectionsTab: $e');
           return const Center(child: Text('لا يمكن تحميل الأقسام حالياً'));
         }
       },

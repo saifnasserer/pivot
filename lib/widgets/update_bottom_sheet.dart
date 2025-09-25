@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/responsive.dart';
-import 'package:pivot/services/remote_config_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 

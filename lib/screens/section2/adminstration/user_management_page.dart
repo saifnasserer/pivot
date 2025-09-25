@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/services/auth_service.dart';
-import 'package:pivot/responsive.dart';
-import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:provider/provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pivot/widgets/no_internet_message.dart';
+import 'package:pivot/responsive.dart';
+import 'package:pivot/widgets/unified_dialog.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 
 class UserManagementPage extends StatefulWidget {
   // = 'user_management_page';

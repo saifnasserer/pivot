@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart' hide MaterialType;
 import 'package:flutter/services.dart';
-import 'package:pivot/models/material_link.dart';
 import 'package:pivot/models/user_profile.dart';
-import 'package:pivot/responsive.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:pivot/screens/section4/doctor/profile/pdf_viewer_screen.dart';
 import 'package:pivot/screens/section4/doctor/profile/video_player_screen.dart';
-import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:pivot/responsive.dart';
+import 'package:pivot/models/subject_model.dart';
+import 'package:pivot/models/material_link.dart';
+import 'package:pivot/widgets/unified_dialog.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+
 
 class MaterialCard extends StatefulWidget {
   final MaterialLink materialLink;
@@ -54,11 +56,6 @@ class _MaterialCardState extends State<MaterialCard>
 
     // Debug logging for user data
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      debugPrint(
-        'MaterialCard: Received loggedInUser: ${widget.loggedInUser?.id}',
-      );
-      debugPrint('MaterialCard: User role: ${widget.loggedInUser?.role}');
-      debugPrint('MaterialCard: onRate callback: ${widget.onRate != null}');
     });
   }
 
@@ -452,17 +449,10 @@ class _MaterialCardState extends State<MaterialCard>
   Widget _buildClickableRating(BuildContext context, double? userRating) {
     return GestureDetector(
       onTap: () {
-        debugPrint('MaterialCard: Rating icon tapped');
-        debugPrint('MaterialCard: Logged in user: ${widget.loggedInUser?.id}');
-        debugPrint('MaterialCard: onRate callback: ${widget.onRate != null}');
 
         if (widget.loggedInUser != null && widget.onRate != null) {
-          debugPrint('MaterialCard: Opening rating dialog');
           _showRatingDialog(context, userRating);
         } else {
-          debugPrint(
-            'MaterialCard: Cannot open rating dialog - user: ${widget.loggedInUser != null}, callback: ${widget.onRate != null}',
-          );
         }
       },
       child: Container(
@@ -534,11 +524,6 @@ class _MaterialCardState extends State<MaterialCard>
   void _showRatingDialog(BuildContext context, double? currentRating) {
     double selectedRating = currentRating ?? 0.0;
 
-    debugPrint(
-      'MaterialCard: Showing rating dialog for material: ${widget.materialLink.title}',
-    );
-    debugPrint('MaterialCard: Current rating: $currentRating');
-    debugPrint('MaterialCard: Logged in user: ${widget.loggedInUser?.id}');
 
     showDialog(
       context: context,
@@ -560,9 +545,6 @@ class _MaterialCardState extends State<MaterialCard>
                         selectedRating = rating;
                       });
                       HapticFeedback.lightImpact();
-                      debugPrint(
-                        'MaterialCard: User selected rating: $selectedRating',
-                      );
                     }),
                     SizedBox(
                       height: Responsive.space(context, size: Space.medium),
@@ -590,16 +572,10 @@ class _MaterialCardState extends State<MaterialCard>
                 onConfirm:
                     selectedRating > 0
                         ? () {
-                          debugPrint(
-                            'MaterialCard: Submitting rating: $selectedRating',
-                          );
                           Navigator.of(context).pop();
                           if (widget.onRate != null) {
                             widget.onRate!(selectedRating);
                           } else {
-                            debugPrint(
-                              'MaterialCard: onRate callback is null!',
-                            );
                           }
                         }
                         : null,
@@ -647,7 +623,6 @@ class _MaterialCardState extends State<MaterialCard>
               },
               onPanEnd: (details) {
                 // Keep the rating when user stops dragging
-                debugPrint('MaterialCard: Final rating: $selectedRating');
               },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 100),

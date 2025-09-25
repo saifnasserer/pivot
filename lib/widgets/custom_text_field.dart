@@ -49,7 +49,7 @@ class CustomTextField extends StatelessWidget {
     this.autofocus = false,
     this.autocorrect = true,
     this.enableSuggestions = true,
-    this.textAlign = TextAlign.center,
+    this.textAlign = TextAlign.right,
     this.textDirection = TextDirection.rtl,
   });
 
@@ -167,12 +167,6 @@ class CustomTextField extends StatelessWidget {
   /// Creates the input decoration for the text field.
   InputDecoration _getInputDecoration(BuildContext context) {
     final radius = borderRadius ?? Responsive.space(context, size: Space.large);
-    final defaultPadding =
-        padding ??
-        EdgeInsets.symmetric(
-          horizontal: Responsive.space(context, size: Space.medium),
-          vertical: Responsive.space(context, size: Space.small),
-        );
 
     return InputDecoration(
       border: OutlineInputBorder(
@@ -213,10 +207,18 @@ class CustomTextField extends StatelessWidget {
       hintStyle:
           hintStyle ??
           TextStyle(
-            color: Colors.black.withOpacity(0.6),
+            color: Colors.grey.shade600,
             fontSize: Responsive.text(context, size: TextSize.medium),
+            fontWeight: FontWeight.w400,
           ),
-      contentPadding: defaultPadding,
+      contentPadding: EdgeInsets.symmetric(
+        horizontal: Responsive.space(context, size: Space.small) * 2,
+        vertical: Responsive.space(context, size: Space.small) * 2,
+      ),
+      isDense: false,
+      constraints: BoxConstraints(
+        minHeight: Responsive.space(context, size: Space.large) * 1.5,
+      ),
       suffixIcon: suffixIcon,
       prefixIcon: prefixIcon,
       counterText: counterText,
@@ -232,17 +234,17 @@ class CustomTextField extends StatelessWidget {
 
   /// Gets the appropriate border color based on state.
   Color _getBorderColor() {
-    if (showError) return errorBorderColor ?? Colors.red;
-    if (isValid) return Colors.green;
+    if (showError) return errorBorderColor ?? const Color(0xFFE57373);
+    if (isValid) return const Color(0xFF4CAF50);
     if (!enabled) return Colors.grey.shade400;
-    return borderColor ?? const Color(0xfff7f7f7);
+    return borderColor ?? Colors.grey.shade300;
   }
 
   /// Gets the appropriate focused border color.
   Color _getFocusedBorderColor() {
-    if (showError) return errorBorderColor ?? Colors.red;
-    if (isValid) return Colors.green;
-    return focusedBorderColor ?? Colors.black;
+    if (showError) return errorBorderColor ?? const Color(0xFFE57373);
+    if (isValid) return const Color(0xFF4CAF50);
+    return focusedBorderColor ?? const Color(0xFF2196F3);
   }
 
   /// Gets the appropriate error border color.
@@ -258,8 +260,8 @@ class CustomTextField extends StatelessWidget {
 
   /// Gets the appropriate fill color.
   Color _getFillColor() {
-    if (!enabled) return Colors.grey.shade200;
-    return fillColor ?? const Color(0xfff7f7f7);
+    if (!enabled) return Colors.grey.shade100;
+    return fillColor ?? Colors.white;
   }
 
   /// Gets the appropriate hint text.
@@ -272,9 +274,10 @@ class CustomTextField extends StatelessWidget {
   TextStyle _getTextStyle(BuildContext context) {
     return textStyle ??
         TextStyle(
-          color: enabled ? Colors.black : Colors.grey.shade600,
+          color: enabled ? Colors.black87 : Colors.grey.shade600,
           fontSize: Responsive.text(context, size: TextSize.medium),
           fontWeight: FontWeight.w500,
+          height: 1.2,
         );
   }
 

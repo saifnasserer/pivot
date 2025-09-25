@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:pivot/responsive.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
@@ -9,9 +7,10 @@ import 'package:pivot/widgets/no_internet_message.dart';
 import 'package:pivot/services/permission_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:io';
-import 'dart:typed_data';
+import 'package:pivot/responsive.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 
 class FeedbackScreen extends StatefulWidget {
   const FeedbackScreen({super.key});

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'dart:html' as html;
+import 'package:flutter/foundation.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -17,9 +17,7 @@ class NotificationService {
       if (html.Notification.supported) {
         final permission = await html.Notification.requestPermission();
         if (permission == 'granted') {
-          debugPrint('🔔 Web notification permission granted.');
         } else if (permission == 'denied') {
-          debugPrint('❌ Web notification permission denied.');
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
@@ -29,10 +27,8 @@ class NotificationService {
             );
           }
         } else {
-          debugPrint('ℹ️ Web notification permission: $permission');
         }
       } else if (_isIOS()) {
-        debugPrint('❌ Notifications are not supported on iOS browsers.');
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -44,7 +40,6 @@ class NotificationService {
           );
         }
       } else {
-        debugPrint('❌ Notifications are not supported on this browser.');
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -55,7 +50,6 @@ class NotificationService {
         }
       }
     } catch (e) {
-      debugPrint('❌ Error requesting web notification permission: $e');
     }
   }
 

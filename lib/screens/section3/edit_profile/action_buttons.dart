@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
-import 'package:pivot/responsive.dart';
 import 'edit_profile_provider.dart';
+import 'package:pivot/responsive.dart';
+
 
 class ActionButtons extends StatelessWidget {
   final EditProfileProvider provider;

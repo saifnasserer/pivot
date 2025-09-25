@@ -65,13 +65,17 @@ class RemoteConfigBridgeService {
       await _updateRemoteConfigParameters(parameterValues);
 
       print('🔗 [RemoteConfigBridge] ✅ Sync completed successfully');
-      
+
       // Force a refresh of the Remote Config service
       try {
         await RemoteConfigService.instance.forceRefreshAndActivate();
-        print('🔗 [RemoteConfigBridge] ✅ Remote Config force refreshed and activated');
+        print(
+          '🔗 [RemoteConfigBridge] ✅ Remote Config force refreshed and activated',
+        );
       } catch (e) {
-        print('🔗 [RemoteConfigBridge] ⚠️ Error force refreshing Remote Config: $e');
+        print(
+          '🔗 [RemoteConfigBridge] ⚠️ Error force refreshing Remote Config: $e',
+        );
       }
     } catch (e) {
       print('🔗 [RemoteConfigBridge] ❌ Error syncing to Remote Config: $e');
@@ -221,10 +225,10 @@ class RemoteConfigBridgeService {
   // Convert Remote Config value to appropriate type
   dynamic _convertValue(RemoteConfigValue value) {
     try {
-      if (value.asBool() != null) return value.asBool();
+      return value.asBool();
       if (value.asString().isNotEmpty) return value.asString();
-      if (value.asInt() != null) return value.asInt();
-      if (value.asDouble() != null) return value.asDouble();
+      return value.asInt();
+      return value.asDouble();
       return value.asString();
     } catch (e) {
       return value.asString();
@@ -239,15 +243,17 @@ class RemoteConfigBridgeService {
       final settings = await loadSettings();
       if (settings != null) {
         await _syncToRemoteConfig(settings);
-        
-                  // Force activation after sync
-          try {
-            await RemoteConfigService.instance.forceRefreshAndActivate();
-            print('🔗 [RemoteConfigBridge] ✅ Force sync completed and refreshed');
-          } catch (e) {
-            print('🔗 [RemoteConfigBridge] ⚠️ Error refreshing after force sync: $e');
-          }
-        
+
+        // Force activation after sync
+        try {
+          await RemoteConfigService.instance.forceRefreshAndActivate();
+          print('🔗 [RemoteConfigBridge] ✅ Force sync completed and refreshed');
+        } catch (e) {
+          print(
+            '🔗 [RemoteConfigBridge] ⚠️ Error refreshing after force sync: $e',
+          );
+        }
+
         return true;
       }
       return false;

@@ -1,9 +1,10 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/models/card_model.dart';
 import 'package:pivot/screens/section2/adminstration/models/announcement_data.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:pivot/responsive.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+
 
 /// Enhanced BookmarkCard with animations and improved design
 class BookmarkCard extends StatefulWidget {
@@ -65,7 +66,6 @@ class _BookmarkCardState extends State<BookmarkCard>
     try {
       return widget.bookmark.color;
     } catch (e) {
-      print('Error accessing bookmark color: $e');
       return Colors.blue; // Fallback color
     }
   }
@@ -80,11 +80,9 @@ class _BookmarkCardState extends State<BookmarkCard>
       if (widget.bookmark.title.isEmpty ||
           widget.bookmark.description.isEmpty ||
           widget.bookmark.id == null) {
-        print('Invalid bookmark data, cannot show dialog');
         return;
       }
     } catch (e) {
-      print('Error validating bookmark data: $e');
       return;
     }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/models/category_model.dart';
+import 'package:pivot/responsive.dart';
+
 
 class CategorySection extends StatefulWidget {
   const CategorySection({

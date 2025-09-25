@@ -8,7 +8,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:pivot/services/local_notification_service.dart';
 import 'package:pivot/services/sound_service.dart';
 
-class TaskProvider with ChangeNotifier {
+class TaskProvider extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   late final CollectionReference _tasksCollection;
@@ -94,19 +94,19 @@ class TaskProvider with ChangeNotifier {
       switch (task.importance) {
         case TaskImportance.high:
           notificationTitle = '🔥 تاسك مهم جديد!';
-          notificationBody = '${task.title}';
+          notificationBody = task.title;
           break;
         case TaskImportance.mid:
           notificationTitle = '📋 تاسك جديد';
-          notificationBody = '${task.title}';
+          notificationBody = task.title;
           break;
         case TaskImportance.low:
           notificationTitle = '📝 تاسك جديد';
-          notificationBody = '${task.title}';
+          notificationBody = task.title;
           break;
         default:
           notificationTitle = '📋 تاسك جديد';
-          notificationBody = '${task.title}';
+          notificationBody = task.title;
       }
 
       // Send instant notification

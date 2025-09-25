@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:pivot/responsive.dart';
 import 'package:pivot/data/form_options.dart';
 import 'edit_profile_provider.dart';
 import 'profile_image_section.dart';
 import 'basic_info_section.dart';
 import 'educational_details_section.dart';
 import 'password_section.dart';
-import 'action_buttons.dart';
+import 'package:pivot/responsive.dart';
+import 'package:pivot/widgets/data_deletion_dialog.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -285,17 +285,105 @@ class _EditProfileScreenState extends State<EditProfileScreen>
                   SizedBox(
                     height: Responsive.space(context, size: Space.large),
                   ),
-                  ActionButtons(
-                    provider: provider,
-                    currentPasswordController: _currentPasswordController,
-                    newPasswordController: _newPasswordController,
-                    confirmPasswordController: _confirmPasswordController,
-                  ),
+
+                  // Data Deletion Section
+                  _buildDataDeletionSection(),
                 ],
               ),
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildDataDeletionSection() {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(Responsive.space(context, size: Space.medium)),
+      decoration: BoxDecoration(
+        color: Colors.red[50],
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.red[200]!),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.red.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.delete_forever,
+                color: Colors.red[700],
+                size: Responsive.text(context, size: TextSize.heading),
+              ),
+              SizedBox(width: Responsive.space(context, size: Space.small)),
+              Expanded(
+                child: Text(
+                  'حذف جميع البيانات',
+                  style: TextStyle(
+                    fontSize: Responsive.text(context, size: TextSize.heading),
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red[700],
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          SizedBox(height: Responsive.space(context, size: Space.small)),
+
+          Text(
+            'يمكنك حذف جميع بياناتك وحسابك نهائياً. هذا الإجراء لا يمكن التراجع عنه.',
+            style: TextStyle(
+              fontSize: Responsive.text(context, size: TextSize.medium),
+              color: Colors.red[600],
+              height: 1.4,
+            ),
+          ),
+
+          SizedBox(height: Responsive.space(context, size: Space.medium)),
+
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (context) => const DataDeletionDialog(),
+                );
+              },
+              icon: const Icon(Icons.delete_forever, color: Colors.white),
+              label: Text(
+                'حذف جميع البيانات',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: Responsive.text(context, size: TextSize.medium),
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red[600],
+                padding: EdgeInsets.symmetric(
+                  vertical: Responsive.space(context, size: Space.medium),
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(
+                    Responsive.space(context, size: Space.large),
+                  ),
+                ),
+                elevation: 2,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -3,8 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:pivot/responsive.dart';
 import 'package:video_player/video_player.dart';
 import 'package:pivot/services/introduction_service.dart';
-import 'package:pivot/widgets/no_internet_message.dart';
-import 'dart:async';
 
 class IntroductionScreen extends StatefulWidget {
   const IntroductionScreen({super.key});
@@ -20,7 +18,6 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
   bool _isVideoInitialized = false;
   bool _isVideoLoading = true;
   bool _hasVideoError = false;
-  String _errorMessage = '';
   bool _hasStartedVideo = false;
   bool _videoEnded = false;
   bool _showVideoControls = true;
@@ -36,44 +33,13 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
       setState(() {
         _isVideoLoading = true;
         _hasVideoError = false;
-        _errorMessage = '';
       });
 
-      // Try HTTPS first, then HTTP as fallback
-      final videoUrls = [
-        'https://engseif.com/wp-content/uploads/2025/08/Pivot-intro-1.mp4',
-        'http://engseif.com/wp-content/uploads/2025/08/Pivot-intro-1.mp4',
-      ];
+      // Use local asset video instead of network video
+      _videoController = VideoPlayerController.asset('assets/Pivot-intro.mp4');
 
-      Exception? lastError;
+      await _videoController.initialize();
 
-      for (String videoUrl in videoUrls) {
-        try {
-          _videoController = VideoPlayerController.networkUrl(
-            Uri.parse(videoUrl),
-          );
-          await _videoController.initialize().timeout(
-            const Duration(seconds: 15),
-            onTimeout: () {
-              throw Exception(
-                'Video initialization timed out after 15 seconds',
-              );
-            },
-          );
-          // If we reach here, video loaded successfully
-          break;
-        } catch (e) {
-          lastError = e as Exception;
-          // Dispose the failed controller before trying the next URL
-          _videoController.dispose();
-          continue;
-        }
-      }
-
-      // If we get here and controller is not initialized, all URLs failed
-      if (!_videoController.value.isInitialized) {
-        throw lastError ?? Exception('Failed to load video from all sources');
-      }
       _videoController.addListener(() {
         final isEnded =
             _videoController.value.isInitialized &&
@@ -87,6 +53,7 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
           });
         }
       });
+
       if (mounted) {
         setState(() {
           _isVideoInitialized = true;
@@ -98,15 +65,6 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
         setState(() {
           _hasVideoError = true;
           _isVideoLoading = false;
-          if (e.toString().contains('CleartextNotPermittedException') ||
-              e.toString().contains('cleartext')) {
-            _errorMessage =
-                'خطأ في الاتصال: يرجى التأكد من اتصال الإنترنت أو تحديث التطبيق';
-          } else if (e.toString().contains('timeout')) {
-            _errorMessage = 'انتهت مهلة الاتصال: يرجى المحاولة مرة أخرى';
-          } else {
-            _errorMessage = 'خطأ في تحميل الفيديو: $e';
-          }
         });
       }
     }
@@ -159,27 +117,6 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
     });
   }
 
-  Widget _buildPageIndicator(int pageCount) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(pageCount, (index) {
-        return AnimatedContainer(
-          duration: Duration(milliseconds: 300),
-          margin: EdgeInsets.symmetric(horizontal: 4),
-          width: _currentPage == index ? 20 : 8,
-          height: 8,
-          decoration: BoxDecoration(
-            color:
-                _currentPage == index
-                    ? Colors.teal
-                    : Colors.teal.withOpacity(0.3),
-            borderRadius: BorderRadius.circular(4),
-          ),
-        );
-      }),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     // Hide status bar for introduction screens
@@ -187,46 +124,44 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
 
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: NoInternetMessage(
-        child: Scaffold(
-          backgroundColor: Color(0xFFF7F8FA),
-          body: PageView(
-            controller: _pageController,
-            onPageChanged: (i) => setState(() => _currentPage = i),
-            children: [
-              // Screen 1: App Introduction
-              Column(
-                children: [
-                  Expanded(
-                    child: Container(
-                      color: Colors.black,
-                      child: Center(
-                        child: Image.asset(
-                          'assets/icon.png',
-                          width:
-                              Responsive.space(context, size: Space.large) * 11,
-                          height:
-                              Responsive.space(context, size: Space.large) * 11,
-                        ),
+      child: Scaffold(
+        backgroundColor: Color(0xFFF7F8FA),
+        body: PageView(
+          controller: _pageController,
+          onPageChanged: (i) => setState(() => _currentPage = i),
+          children: [
+            // Screen 1: App Introduction
+            Column(
+              children: [
+                Expanded(
+                  child: Container(
+                    color: Colors.black,
+                    child: Center(
+                      child: Image.asset(
+                        'assets/icon.png',
+                        width:
+                            Responsive.space(context, size: Space.large) * 11,
+                        height:
+                            Responsive.space(context, size: Space.large) * 11,
                       ),
                     ),
                   ),
-                  _BottomCard(
-                    heightFactor: 0.4,
-                    title: 'يعني إيه Pivot؟',
-                    description:
-                        'Pivot يعني "نقطة التغيير" أو "التحوّل".\nوإحنا هنا علشان نكون النقطة دي في طريقتك لمتابعة الدراسة.',
-                    currentPage: _currentPage,
-                    pageCount: 2,
-                    onNext: _nextPage,
-                    buttonText: 'التالي',
-                  ),
-                ],
-              ),
-              // Screen 2: Intro Video - Full Screen
-              _buildVideoPage(),
-            ],
-          ),
+                ),
+                _BottomCard(
+                  heightFactor: 0.4,
+                  title: 'يعني إيه Pivot؟',
+                  description:
+                      'Pivot يعني "نقطة التغيير" أو "التحوّل".\nوإحنا هنا علشان نكون النقطة دي في طريقتك لمتابعة الدراسة.',
+                  currentPage: _currentPage,
+                  pageCount: 2,
+                  onNext: _nextPage,
+                  buttonText: 'التالي',
+                ),
+              ],
+            ),
+            // Screen 2: Intro Video - Full Screen
+            _buildVideoPage(),
+          ],
         ),
       ),
     );
@@ -279,9 +214,7 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
               ),
               SizedBox(height: Responsive.space(context, size: Space.small)),
               Text(
-                _errorMessage.isNotEmpty
-                    ? _errorMessage
-                    : 'فشل في تحميل الفيديو',
+                'فشل في تحميل الفيديو',
                 style: TextStyle(
                   color: Colors.white70,
                   fontSize: Responsive.text(context, size: TextSize.small),
@@ -294,7 +227,6 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
                   setState(() {
                     _hasVideoError = false;
                     _isVideoLoading = true;
-                    _errorMessage = '';
                   });
                   _initializeVideo();
                 },
@@ -486,32 +418,31 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
                         ),
                       ),
 
-                      // Next button (when video ends)
-                      if (_videoEnded)
-                        GestureDetector(
-                          onTap: _nextPage,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 24,
-                              vertical: 12,
-                            ),
-                            child: Text(
-                              'ابدأ',
-                              style: TextStyle(
-                                color: Colors.black,
-                                fontSize: Responsive.text(
-                                  context,
-                                  size: TextSize.medium,
-                                ),
-                                fontWeight: FontWeight.bold,
+                      // Start button (always visible)
+                      GestureDetector(
+                        onTap: _nextPage,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                          child: Text(
+                            'ابدأ',
+                            style: TextStyle(
+                              color: Colors.black,
+                              fontSize: Responsive.text(
+                                context,
+                                size: TextSize.medium,
                               ),
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
+                      ),
                     ],
                   ),
                 ),
@@ -531,8 +462,6 @@ class _BottomCard extends StatelessWidget {
   final int pageCount;
   final VoidCallback onNext;
   final String buttonText;
-  final bool compact;
-
   const _BottomCard({
     required this.heightFactor,
     this.title,
@@ -541,7 +470,6 @@ class _BottomCard extends StatelessWidget {
     required this.pageCount,
     required this.onNext,
     this.buttonText = 'التالي',
-    this.compact = false,
   });
 
   @override
@@ -565,10 +493,7 @@ class _BottomCard extends StatelessWidget {
         ),
         padding: EdgeInsets.symmetric(
           horizontal: Responsive.space(context, size: Space.large),
-          vertical:
-              compact
-                  ? Responsive.space(context, size: Space.small)
-                  : Responsive.space(context, size: Space.medium),
+          vertical: Responsive.space(context, size: Space.medium),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -601,10 +526,7 @@ class _BottomCard extends StatelessWidget {
               SizedBox(height: Responsive.space(context, size: Space.medium)),
             ],
             _buildPageIndicator(context),
-            SizedBox(
-              height:
-                  compact ? 8 : Responsive.space(context, size: Space.medium),
-            ),
+            SizedBox(height: Responsive.space(context, size: Space.medium)),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -618,10 +540,7 @@ class _BottomCard extends StatelessWidget {
                     ),
                   ),
                   padding: EdgeInsets.symmetric(
-                    vertical:
-                        compact
-                            ? Responsive.space(context, size: Space.small)
-                            : Responsive.space(context, size: Space.medium),
+                    vertical: Responsive.space(context, size: Space.medium),
                   ),
                   elevation: 4,
                 ),

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/providers/schadule_provider.dart';
-import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/models/schedule_item.dart';
-import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:provider/provider.dart';
+import 'package:pivot/responsive.dart';
+import 'package:pivot/models/subject_model.dart';
+import 'package:pivot/models/material_link.dart';
+import 'package:pivot/widgets/unified_dialog.dart';
+
 
 class AddEditScheduleDialog extends StatefulWidget {
   final String day;

@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:pivot/responsive.dart';
-import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
 import 'package:pivot/models/section_model.dart';
-import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/providers/section_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
+import 'package:pivot/responsive.dart';
+import 'package:pivot/models/subject_model.dart';
+import 'package:pivot/models/material_link.dart';
+import 'package:pivot/widgets/unified_dialog.dart';
+
 
 class AddEditSectionDialog extends StatefulWidget {
   final List<Subject> subjects;

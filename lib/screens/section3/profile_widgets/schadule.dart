@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/models/schadule_card.dart';
 import 'package:pivot/screens/models/schedule_item.dart';
 import 'package:pivot/screens/section3/add_edit_schedule_dialog.dart';
+import 'package:pivot/responsive.dart';
+import 'package:auto_size_text/auto_size_text.dart';
+
 
 /// Enhanced schedule calendar builder with better UX and performance
 class ScheduleCalendarBuilder {
@@ -15,6 +17,7 @@ class ScheduleCalendarBuilder {
     required Function(int) onDaySelected,
     required Function(String itemId) handleDelete,
     Function(String itemId)? onNotificationToggle,
+    Function(ScheduleItem item)? onEditItem,
     bool showEmptyState = true,
     bool enableAnimations = true,
     bool showFloatingActionButton = true,
@@ -42,6 +45,7 @@ class ScheduleCalendarBuilder {
         dayScheduleItems,
         handleDelete,
         onNotificationToggle,
+        onEditItem,
         showEmptyState,
         onReorder: onReorder,
       ),
@@ -57,6 +61,7 @@ class ScheduleCalendarBuilder {
     required Function(int) onDaySelected,
     required Function(String itemId) handleDelete,
     Function(String itemId)? onNotificationToggle,
+    Function(ScheduleItem item)? onEditItem,
     bool showEmptyState = true,
     bool enableAnimations = true,
     bool showFloatingActionButton = true,
@@ -76,6 +81,7 @@ class ScheduleCalendarBuilder {
           onDaySelected: onDaySelected,
           handleDelete: handleDelete,
           onNotificationToggle: onNotificationToggle,
+          onEditItem: onEditItem,
           showEmptyState: showEmptyState,
           enableAnimations: enableAnimations,
           showFloatingActionButton: false, // Don't show FAB in slivers
@@ -85,17 +91,7 @@ class ScheduleCalendarBuilder {
       ),
       floatingActionButton:
           showFloatingActionButton && currentDay.isNotEmpty
-              ? FloatingActionButton.extended(
-                heroTag: 'schedule_fab',
-                onPressed: () => _showAddScheduleDialog(context, currentDay),
-                backgroundColor: Colors.black,
-                foregroundColor: Colors.white,
-                elevation: 6,
-                label: Icon(
-                  Icons.add,
-                  size: Responsive.text(context, size: TextSize.medium),
-                ),
-              )
+              ? _buildEnhancedFloatingActionButton(context, currentDay)
               : null,
     );
   }
@@ -227,6 +223,7 @@ class ScheduleCalendarBuilder {
     List<ScheduleItem> items,
     Function(String itemId) handleDelete,
     Function(String itemId)? onNotificationToggle,
+    Function(ScheduleItem item)? onEditItem,
     bool showEmptyState, {
     Function(int oldIndex, int newIndex)? onReorder,
   }) {
@@ -267,6 +264,7 @@ class ScheduleCalendarBuilder {
                 index,
                 handleDelete,
                 onNotificationToggle,
+                onEditItem,
               );
             },
           ),
@@ -283,6 +281,7 @@ class ScheduleCalendarBuilder {
           item,
           handleDelete,
           onNotificationToggle,
+          onEditItem,
         );
       }, childCount: items.length),
     );
@@ -294,6 +293,7 @@ class ScheduleCalendarBuilder {
     ScheduleItem item,
     Function(String itemId) handleDelete,
     Function(String itemId)? onNotificationToggle,
+    Function(ScheduleItem item)? onEditItem,
   ) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
@@ -309,6 +309,7 @@ class ScheduleCalendarBuilder {
             onNotificationToggle != null
                 ? () => onNotificationToggle(item.id)
                 : null,
+        onEditItem: onEditItem != null ? () => onEditItem(item) : null,
       ),
     );
   }
@@ -320,6 +321,7 @@ class ScheduleCalendarBuilder {
     int index,
     Function(String itemId) handleDelete,
     Function(String itemId)? onNotificationToggle,
+    Function(ScheduleItem item)? onEditItem,
   ) {
     return Container(
       key: ValueKey(item.id),
@@ -335,6 +337,7 @@ class ScheduleCalendarBuilder {
             onNotificationToggle != null
                 ? () => onNotificationToggle(item.id)
                 : null,
+        onEditItem: onEditItem != null ? () => onEditItem(item) : null,
         // Pass the drag handle as a trailing widget
         trailingWidget: ReorderableDragStartListener(
           index: index,

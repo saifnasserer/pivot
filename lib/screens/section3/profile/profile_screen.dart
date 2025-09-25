@@ -98,9 +98,6 @@ class _ProfileScreenState extends State<ProfileScreen>
           if (mounted) {
             final loggedInUser = userProfileProvider.loggedInUserProfile;
             if (loggedInUser != null) {
-              print(
-                'Profile restored callback triggered, refreshing data for: ${loggedInUser.name}',
-              );
               _isRefreshingData = true;
               setState(() {});
               _forceRefreshDataProviders(loggedInUser);
@@ -166,15 +163,11 @@ class _ProfileScreenState extends State<ProfileScreen>
         final provider = context.read<ProfileProvider>();
         provider.fetchProfileData(userProfile);
       } catch (e) {
-        print('Warning: Error fetching profile data: $e');
       }
     });
   }
 
   void _forceRefreshDataProviders(UserProfile userProfile) {
-    print(
-      'Force refreshing data providers for logged-in user: ${userProfile.name}',
-    );
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -195,7 +188,6 @@ class _ProfileScreenState extends State<ProfileScreen>
           sectionProvider.resetFilter();
         }
 
-        print('Data providers refreshed successfully');
 
         // Reset loading state and force rebuild
         if (mounted) {
@@ -204,7 +196,6 @@ class _ProfileScreenState extends State<ProfileScreen>
           });
         }
       } catch (e) {
-        print('Error refreshing data providers: $e');
         if (mounted) {
           setState(() {
             _isRefreshingData = false;

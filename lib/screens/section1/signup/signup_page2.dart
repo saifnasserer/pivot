@@ -13,6 +13,8 @@ import '../../../services/auth_service.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import '../../../services/permission_service.dart';
 import '../../../services/notification_service.dart';
+import 'package:flutter/foundation.dart';
+import 'package:pivot/screens/section1/privacy_policy_screen.dart';
 
 class Signup_2 extends StatefulWidget {
   final String name;
@@ -41,6 +43,7 @@ class _Signup_2State extends State<Signup_2> {
   final FocusNode _departmentFocus = FocusNode();
   final FocusNode _sectionFocus = FocusNode();
   bool _isLoading = false;
+  bool _privacyPolicyAccepted = false;
 
   String? selectedYear;
   String? selectedDepartment;
@@ -98,160 +101,345 @@ class _Signup_2State extends State<Signup_2> {
 
     // Show loading indicator if section counts are still loading
     if (settingsProvider.isLoading) {
-      return const Scaffold(
-        backgroundColor: Colors.white,
-        body: Center(child: CircularProgressIndicator()),
+      return Directionality(
+        textDirection: TextDirection.rtl,
+        child: const Scaffold(
+          backgroundColor: Colors.white,
+          body: Center(child: CircularProgressIndicator()),
+        ),
       );
     }
 
-    return GestureDetector(
-      onTap: () {
-        FocusScope.of(context).unfocus();
-      },
-      child: NoInternetMessage(
-        child: Scaffold(
-          backgroundColor: Colors.white,
-          body: SafeArea(
-            child: Form(
-              key: _formKey,
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    Padding(
-                      padding: Responsive.paddingHorizontal(
-                        context,
-                        size: Space.xlarge,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          SizedBox(
-                            height: Responsive.space(
-                              context,
-                              size: Space.xlarge,
-                            ),
-                          ),
-                          Text(
-                            'تفاصيل الكلية',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: Responsive.text(
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: GestureDetector(
+        onTap: () {
+          FocusScope.of(context).unfocus();
+        },
+        child: NoInternetMessage(
+          child: Scaffold(
+            backgroundColor: Colors.white,
+            body: SafeArea(
+              child: Form(
+                key: _formKey,
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: Responsive.paddingHorizontal(
+                          context,
+                          size: Space.xlarge,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              height: Responsive.space(
                                 context,
-                                size: TextSize.heading,
+                                size: Space.xlarge,
                               ),
-                              fontWeight: FontWeight.bold,
                             ),
-                          ),
-                          SizedBox(
-                            height: Responsive.space(
-                              context,
-                              size: Space.xlarge,
-                            ),
-                          ),
-                          CustomDropdown(
-                            value: selectedYear,
-                            items: FormOptions.academicYears,
-                            hint: 'اختر الفرقة',
-                            onChanged: (String? newValue) {
-                              setState(() {
-                                selectedYear = newValue;
-
-                                // Reset and update dependent dropdowns
-                                selectedDepartment = null;
-                                selectedSection = null;
-
-                                _availableDepartments =
-                                    FormOptions.getDepartmentsForYear(newValue);
-                                _availableSections = [];
-                              });
-                              WidgetsBinding.instance.addPostFrameCallback((_) {
-                                FocusScope.of(
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: Responsive.space(
                                   context,
-                                ).requestFocus(_departmentFocus);
-                              });
-                            },
-                          ),
-                          SizedBox(
-                            height: Responsive.space(
-                              context,
-                              size: Space.medium,
+                                  size: Space.medium,
+                                ),
+                                vertical: Responsive.space(
+                                  context,
+                                  size: Space.small,
+                                ),
+                              ),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    const Color(0xFF4CAF50).withOpacity(0.1),
+                                    const Color(0xFF2E7D32).withOpacity(0.05),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(
+                                  Responsive.space(context, size: Space.medium),
+                                ),
+                              ),
+                              child: Text(
+                                'تفاصيل الكلية',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.heading,
+                                  ),
+                                  fontWeight: FontWeight.bold,
+                                  color: const Color(0xFF2E7D32),
+                                ),
+                              ),
                             ),
-                          ),
-                          CustomDropdown(
-                            value: selectedDepartment,
-                            items: _availableDepartments,
-                            hint: 'اختر القسم',
-                            onChanged: (String? newValue) {
-                              setState(() {
-                                selectedDepartment = newValue;
-                                selectedSection = null;
+                            SizedBox(
+                              height: Responsive.space(
+                                context,
+                                size: Space.xlarge,
+                              ),
+                            ),
+                            CustomDropdown(
+                              value: selectedYear,
+                              items: FormOptions.academicYears,
+                              hint: 'اختر الفرقة',
+                              onChanged: (String? newValue) {
+                                setState(() {
+                                  selectedYear = newValue;
 
-                                // Get section count from settings provider
-                                final settingsProvider =
-                                    Provider.of<SettingsProvider>(
-                                      context,
-                                      listen: false,
-                                    );
-                                if (newValue != null &&
-                                    settingsProvider.sectionCounts.containsKey(
-                                      newValue,
-                                    )) {
-                                  final sectionCount =
-                                      settingsProvider
-                                          .sectionCounts[newValue] ??
-                                      0;
-                                  _availableSections = List<String>.generate(
-                                    sectionCount,
-                                    (i) => '${i + 1}',
-                                  );
-                                } else {
+                                  // Reset and update dependent dropdowns
+                                  selectedDepartment = null;
+                                  selectedSection = null;
+
+                                  _availableDepartments =
+                                      FormOptions.getDepartmentsForYear(
+                                        newValue,
+                                      );
                                   _availableSections = [];
-                                }
-                              });
-                              WidgetsBinding.instance.addPostFrameCallback((_) {
-                                FocusScope.of(
-                                  context,
-                                ).requestFocus(_sectionFocus);
-                              });
-                            },
-                          ),
-                          SizedBox(
-                            height: Responsive.space(
-                              context,
-                              size: Space.medium,
+                                });
+                                WidgetsBinding.instance.addPostFrameCallback((
+                                  _,
+                                ) {
+                                  FocusScope.of(
+                                    context,
+                                  ).requestFocus(_departmentFocus);
+                                });
+                              },
                             ),
-                          ),
-                          CustomDropdown(
-                            value: selectedSection,
-                            items: _availableSections,
-                            hint: 'اختر السكشن',
-                            onChanged: (String? newValue) {
-                              setState(() {
-                                selectedSection = newValue;
-                              });
-                              FocusScope.of(context).unfocus();
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(
-                      height: Responsive.space(context, size: Space.xlarge) * 4,
-                    ),
-                    Padding(
-                      padding: Responsive.paddingHorizontal(
-                        context,
-                        size: Space.large,
-                      ),
-                      child:
-                          _isLoading
-                              ? const Center(child: CircularProgressIndicator())
-                              : CircularButton(
-                                onPressed: _submitForm,
-                                icon: Icons.check,
+                            SizedBox(
+                              height: Responsive.space(
+                                context,
+                                size: Space.medium,
                               ),
-                    ),
-                  ],
+                            ),
+                            CustomDropdown(
+                              value: selectedDepartment,
+                              items: _availableDepartments,
+                              hint: 'اختر القسم',
+                              onChanged: (String? newValue) {
+                                setState(() {
+                                  selectedDepartment = newValue;
+                                  selectedSection = null;
+
+                                  // Get section count from settings provider
+                                  final settingsProvider =
+                                      Provider.of<SettingsProvider>(
+                                        context,
+                                        listen: false,
+                                      );
+                                  if (newValue != null &&
+                                      settingsProvider.sectionCounts
+                                          .containsKey(newValue)) {
+                                    final sectionCount =
+                                        settingsProvider
+                                            .sectionCounts[newValue] ??
+                                        0;
+                                    _availableSections = List<String>.generate(
+                                      sectionCount,
+                                      (i) => '${i + 1}',
+                                    );
+                                  } else {
+                                    _availableSections = [];
+                                  }
+                                });
+                                WidgetsBinding.instance.addPostFrameCallback((
+                                  _,
+                                ) {
+                                  FocusScope.of(
+                                    context,
+                                  ).requestFocus(_sectionFocus);
+                                });
+                              },
+                            ),
+                            SizedBox(
+                              height: Responsive.space(
+                                context,
+                                size: Space.medium,
+                              ),
+                            ),
+                            CustomDropdown(
+                              value: selectedSection,
+                              items: _availableSections,
+                              hint: 'اختر السكشن',
+                              onChanged: (String? newValue) {
+                                setState(() {
+                                  selectedSection = newValue;
+                                });
+                                FocusScope.of(context).unfocus();
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.large),
+                      ),
+
+                      // Privacy Policy Agreement
+                      Padding(
+                        padding: Responsive.paddingHorizontal(
+                          context,
+                          size: Space.large,
+                        ),
+                        child: Container(
+                          padding: EdgeInsets.all(
+                            Responsive.space(context, size: Space.medium),
+                          ),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                const Color(0xFF4CAF50).withOpacity(0.05),
+                                const Color(0xFF2E7D32).withOpacity(0.02),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(
+                              Responsive.space(context, size: Space.large),
+                            ),
+                            border: Border.all(
+                              color: const Color(0xFF4CAF50).withOpacity(0.3),
+                              width: 1.5,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF4CAF50).withOpacity(0.1),
+                                blurRadius: 10,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            children: [
+                              Row(
+                                children: [
+                                  Checkbox(
+                                    value: _privacyPolicyAccepted,
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _privacyPolicyAccepted = value ?? false;
+                                      });
+                                    },
+                                    activeColor: const Color(0xFF4CAF50),
+                                    checkColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Text(
+                                      'أوافق على',
+                                      style: TextStyle(
+                                        fontSize: Responsive.text(
+                                          context,
+                                          size: TextSize.medium,
+                                        ),
+                                        color: const Color(0xFF2E7D32),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(
+                                height: Responsive.space(
+                                  context,
+                                  size: Space.small,
+                                ),
+                              ),
+                              Row(
+                                children: [
+                                  SizedBox(
+                                    width: Responsive.space(
+                                      context,
+                                      size: Space.xlarge,
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder:
+                                                (context) =>
+                                                    const PrivacyPolicyScreen(),
+                                          ),
+                                        );
+                                      },
+                                      child: Text(
+                                        'سياسة الخصوصية وشروط الاستخدام',
+                                        style: TextStyle(
+                                          fontSize: Responsive.text(
+                                            context,
+                                            size: TextSize.medium,
+                                          ),
+                                          color: const Color(0xFF2196F3),
+                                          decoration: TextDecoration.underline,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(
+                                height: Responsive.space(
+                                  context,
+                                  size: Space.small,
+                                ),
+                              ),
+                              Row(
+                                children: [
+                                  SizedBox(
+                                    width: Responsive.space(
+                                      context,
+                                      size: Space.xlarge,
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Text(
+                                      'وأنني أؤكد أن جميع البيانات المدخلة صحيحة',
+                                      style: TextStyle(
+                                        fontSize: Responsive.text(
+                                          context,
+                                          size: TextSize.small,
+                                        ),
+                                        color: Colors.grey.shade700,
+                                        fontStyle: FontStyle.italic,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.large),
+                      ),
+                      Padding(
+                        padding: Responsive.paddingHorizontal(
+                          context,
+                          size: Space.large,
+                        ),
+                        child:
+                            _isLoading
+                                ? const Center(
+                                  child: CircularProgressIndicator(),
+                                )
+                                : CircularButton(
+                                  onPressed:
+                                      _privacyPolicyAccepted
+                                          ? _submitForm
+                                          : () {},
+                                  icon: Icons.check,
+                                ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -268,6 +456,18 @@ class _Signup_2State extends State<Signup_2> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('يرجى اختيار الفرقة والقسم والسكشن')),
+        );
+      }
+      return;
+    }
+
+    if (!_privacyPolicyAccepted) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('يرجى الموافقة على سياسة الخصوصية وشروط الاستخدام'),
+            backgroundColor: Colors.orange,
+          ),
         );
       }
       return;
@@ -345,9 +545,6 @@ class _Signup_2State extends State<Signup_2> {
 
               // Force a rebuild by triggering notifyListeners again
               await Future.delayed(const Duration(milliseconds: 50));
-              if (mounted) {
-                provider.notifyListeners();
-              }
             } catch (e) {
               //debugprint('[Signup] Background operations failed: $e');
             }

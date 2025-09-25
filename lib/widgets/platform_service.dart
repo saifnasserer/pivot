@@ -1,6 +1,5 @@
-import 'package:flutter/foundation.dart';
-
 // Conditional import for web-only code
+import 'package:flutter/foundation.dart';
 import 'platform_service_web.dart'
     if (dart.library.io) 'platform_service_stub.dart';
 

@@ -2,7 +2,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/responsive.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class UserSearchCard extends StatelessWidget {
   final UserProfile user;
@@ -18,9 +17,6 @@ class UserSearchCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final gold = const Color(0xFFFFD700);
-    print('Current user: ${FirebaseAuth.instance.currentUser}');
-    print('UID: ${FirebaseAuth.instance.currentUser?.uid}');
-    print('Token: ${FirebaseAuth.instance.currentUser?.getIdToken()}');
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,

@@ -91,7 +91,6 @@ class SectionProvider with ChangeNotifier {
           _safeNotifyListeners();
         }
       } catch (cacheError) {
-        print('Cache error, clearing sections cache: $cacheError');
         // Clear the sections cache if there's a type casting issue
         await CacheService.instance.clearSectionsCache();
       }

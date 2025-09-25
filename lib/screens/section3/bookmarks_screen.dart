@@ -1,11 +1,12 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:pivot/providers/bookmarks.dart';
-import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/section2/adminstration/models/announcement_data.dart';
 import 'package:pivot/screens/section3/profile_widgets/bookmark_card.dart';
 import 'package:provider/provider.dart';
 import 'package:pivot/widgets/no_internet_message.dart';
+import 'package:pivot/responsive.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 
 /// Simplified BookmarksScreen with permanent search bar
 class BookmarksScreen extends StatefulWidget {
@@ -50,7 +51,6 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
           final announcement = AnnouncementData.fromFirestore(doc);
           fetchedAnnouncements.add(announcement);
         } catch (e) {
-          print('Error parsing announcement ${doc.id}: $e');
           // Skip this announcement if it can't be parsed
         }
       }
@@ -84,7 +84,6 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
             bookmark.tags.any((tag) => tag.toLowerCase().contains(query));
       } catch (e) {
         // If there's any error accessing bookmark properties, exclude it from results
-        print('Error filtering bookmark: $e');
         return false;
       }
     }).toList();
@@ -219,7 +218,6 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
             return const SizedBox.shrink(); // Skip invalid bookmarks
           }
         } catch (e) {
-          print('Error accessing bookmark properties: $e');
           return const SizedBox.shrink(); // Skip invalid bookmarks
         }
 
@@ -374,7 +372,6 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
                                 hasValidDescription &&
                                 hasValidColor;
                           } catch (e) {
-                            print('Invalid bookmark data: $e');
                             return false;
                           }
                         }).toList();

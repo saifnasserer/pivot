@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:pivot/responsive.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:pivot/responsive.dart';
+
 
 class EditAboutScreen extends StatefulWidget {
   final UserProfile userProfile;
@@ -73,14 +74,12 @@ class _EditAboutScreenState extends State<EditAboutScreen>
     });
 
     try {
-      print('Saving about text: ${_aboutController.text.trim()}');
       final userProfileProvider = context.read<UserProfileProvider>();
       await userProfileProvider.updateAboutMe(
         widget.userProfile.id,
         _aboutController.text.trim(),
       );
 
-      print('About text saved successfully');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -91,7 +90,6 @@ class _EditAboutScreenState extends State<EditAboutScreen>
         Navigator.pop(context, true); // Return true to indicate success
       }
     } catch (e) {
-      print('Error saving about text: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('فشل: $e'), backgroundColor: Colors.red),

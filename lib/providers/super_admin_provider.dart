@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 
 class SuperAdminProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -30,10 +30,7 @@ class SuperAdminProvider with ChangeNotifier {
 
     try {
       await _fetchUserStats();
-      print('✅ [SuperAdminProvider] Dashboard data fetched successfully');
-    } catch (e) {
-      print('❌ [SuperAdminProvider] Error fetching dashboard data: $e');
-    }
+    } catch (e) {}
 
     _isLoading = false;
     notifyListeners();
@@ -41,10 +38,8 @@ class SuperAdminProvider with ChangeNotifier {
 
   Future<void> _fetchUserStats() async {
     try {
-      print('🔍 [SuperAdminProvider] Fetching user stats...');
       final usersSnapshot = await _firestore.collection('users').get();
       _totalUsers = usersSnapshot.docs.length;
-      print('🔍 [SuperAdminProvider] Total users found: $_totalUsers');
 
       // Reset all stats
       _userRolesCount = {
@@ -63,10 +58,6 @@ class SuperAdminProvider with ChangeNotifier {
 
       final now = DateTime.now();
       final firstDayOfMonth = DateTime(now.year, now.month, 1);
-      print('🔍 [SuperAdminProvider] Current date: $now');
-      print(
-        '🔍 [SuperAdminProvider] First day of current month: $firstDayOfMonth',
-      );
 
       for (var doc in usersSnapshot.docs) {
         final data = doc.data();
@@ -87,7 +78,6 @@ class SuperAdminProvider with ChangeNotifier {
 
         // Gender stats
         final gender = data['gender'] as String? ?? 'ذكر';
-        print('🔍 [SuperAdminProvider] User gender: "$gender"');
 
         // Normalize gender values to handle different Arabic spellings
         String normalizedGender = gender;
@@ -99,8 +89,6 @@ class SuperAdminProvider with ChangeNotifier {
           normalizedGender = 'غير محدد';
         }
 
-        print('🔍 [SuperAdminProvider] Normalized gender: "$normalizedGender"');
-
         // Initialize gender in stats if it doesn't exist
         if (!_genderStats.containsKey(normalizedGender)) {
           _genderStats[normalizedGender] = 0;
@@ -109,9 +97,6 @@ class SuperAdminProvider with ChangeNotifier {
 
         // New users this month
         final createdAt = data['createdAt'];
-        print(
-          '🔍 [SuperAdminProvider] User createdAt: $createdAt (type: ${createdAt.runtimeType})',
-        );
 
         if (createdAt != null) {
           DateTime? userCreatedAt;
@@ -123,46 +108,17 @@ class SuperAdminProvider with ChangeNotifier {
               userCreatedAt = DateTime.fromMillisecondsSinceEpoch(createdAt);
             } else if (createdAt is String) {
               userCreatedAt = DateTime.parse(createdAt);
-            } else {
-              print(
-                '⚠️ [SuperAdminProvider] Unknown createdAt format: $createdAt',
-              );
-            }
+            } else {}
 
             if (userCreatedAt != null) {
-              print(
-                '🔍 [SuperAdminProvider] Parsed userCreatedAt: $userCreatedAt',
-              );
-              print(
-                '🔍 [SuperAdminProvider] firstDayOfMonth: $firstDayOfMonth',
-              );
-              print(
-                '🔍 [SuperAdminProvider] Is after first day: ${userCreatedAt.isAfter(firstDayOfMonth)}',
-              );
-
               if (userCreatedAt.isAfter(firstDayOfMonth)) {
                 _newUsersThisMonth++;
-                print('✅ [SuperAdminProvider] Counted as new user this month');
               }
             }
-          } catch (e) {
-            print('❌ [SuperAdminProvider] Error parsing createdAt: $e');
-          }
-        } else {
-          print('⚠️ [SuperAdminProvider] No createdAt field found for user');
-        }
+          } catch (e) {}
+        } else {}
       }
-
-      print('🔍 [SuperAdminProvider] Final stats:');
-      print('  - Total users: $_totalUsers');
-      print('  - Role counts: $_userRolesCount');
-      print('  - Gender stats: $_genderStats');
-      print('  - New users this month: $_newUsersThisMonth');
-      print('  - Department count: ${_departmentStats.length}');
-      print('  - Level count: ${_levelStats.length}');
-    } catch (e) {
-      print('❌ [SuperAdminProvider] Error fetching user stats: $e');
-    }
+    } catch (e) {}
   }
 
   double getGrowthRate() {

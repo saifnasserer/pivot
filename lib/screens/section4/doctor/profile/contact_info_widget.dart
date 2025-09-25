@@ -323,7 +323,7 @@ class ContactInfoWidget extends StatelessWidget {
                 children: [
                   // Platform selection
                   DropdownButtonFormField<SocialMediaOption>(
-                    value: selectedOption,
+                    initialValue: selectedOption,
                     decoration: InputDecoration(
                       labelText: 'المنصة',
                       border: OutlineInputBorder(

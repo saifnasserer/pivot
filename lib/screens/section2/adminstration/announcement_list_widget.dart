@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/section2/adminstration/show_dialog.dart';
 import 'package:provider/provider.dart';
 import 'package:pivot/providers/announcement_provider.dart';
 import 'package:pivot/screens/section2/adminstration/announcement_card.dart';
+import 'package:pivot/responsive.dart';
+
 
 /// A reusable widget that displays a list of announcements
 /// This can be used anywhere in the app to show announcements

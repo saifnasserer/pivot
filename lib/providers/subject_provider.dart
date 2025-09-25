@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/models/subject_model.dart';
+import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/services/subject_service.dart';
 import 'package:pivot/services/cache_service.dart';
 import 'dart:developer' as developer;
+import 'package:pivot/models/material_link.dart';
 
 class SubjectProvider with ChangeNotifier {
   final SubjectService _subjectService = SubjectService();
@@ -14,14 +15,7 @@ class SubjectProvider with ChangeNotifier {
   String? _error;
   bool _disposed = false;
 
-  List<Subject> get allSubjects {
-    developer.log(
-      'SubjectProvider: allSubjects getter called, count: ${_allSubjects.length}',
-      name: 'SubjectProvider',
-    );
-    return _allSubjects;
-  }
-
+  List<Subject> get allSubjects => _allSubjects;
   List<Subject> get filteredSubjects => _filteredSubjects;
   bool get isLoading => _isLoading;
   String? get error => _error;
@@ -62,12 +56,7 @@ class SubjectProvider with ChangeNotifier {
     final instructors =
         allUsers.where((user) => _isInstructor(user.role)).toList();
 
-    print('Instructors found:');
-    for (final instructor in instructors) {
-      print(
-        '${instructor.name} (${instructor.role}) teaches: ${instructor.teachingSubjects}',
-      );
-    }
+    for (final instructor in instructors) {}
 
     for (final instructor in instructors) {
       for (final subjectId in instructor.teachingSubjects) {
@@ -82,24 +71,13 @@ class SubjectProvider with ChangeNotifier {
         }
       }
     }
-    print('instructorsBySubject map:');
-    _instructorsBySubject.forEach((subjectId, instructors) {
-      print('Subject $subjectId: ${instructors.map((i) => i.name).toList()}');
-    });
+    _instructorsBySubject.forEach((subjectId, instructors) {});
     if (!_disposed) {
       notifyListeners();
     }
   }
 
   Future<void> fetchAllSubjects() async {
-    developer.log(
-      'SubjectProvider: fetchAllSubjects called',
-      name: 'SubjectProvider',
-    );
-    developer.log(
-      'SubjectProvider: fetchAllSubjects - current _allSubjects count: ${_allSubjects.length}',
-      name: 'SubjectProvider',
-    );
     _checkDisposed();
     _isLoading = true;
     _error = null;
@@ -109,34 +87,15 @@ class SubjectProvider with ChangeNotifier {
 
     try {
       // For subject selection, always fetch fresh data from server
-      developer.log(
-        'SubjectProvider: Fetching fresh data from server for subject selection',
-        name: 'SubjectProvider',
-      );
 
       _allSubjects = await _subjectService.getSubjects();
-      developer.log(
-        'SubjectProvider: Server returned ${_allSubjects.length} subjects',
-        name: 'SubjectProvider',
-      );
 
       await CacheService.instance.cacheSubjects(_allSubjects);
-      developer.log(
-        'SubjectProvider: Subjects cached successfully',
-        name: 'SubjectProvider',
-      );
     } catch (e) {
-      developer.log(
-        'SubjectProvider: Error fetching subjects: $e',
-        name: 'SubjectProvider',
-      );
       _error = 'Failed to fetch all subjects: ${e.toString()}';
     } finally {
       _isLoading = false;
-      developer.log(
-        'SubjectProvider: fetchAllSubjects completed, final count: ${_allSubjects.length}',
-        name: 'SubjectProvider',
-      );
+
       if (!_disposed) {
         notifyListeners();
       }
@@ -201,11 +160,6 @@ class SubjectProvider with ChangeNotifier {
     _checkDisposed();
     if (userProfile == null) return;
 
-    print(
-      'fetchAndFilterSubjects called for user: ${userProfile.name} (${userProfile.role})',
-    );
-    print('User teaching subjects: ${userProfile.teachingSubjects}');
-
     _isLoading = true;
     _error = null;
     if (!_disposed) {
@@ -215,38 +169,20 @@ class SubjectProvider with ChangeNotifier {
     try {
       // For admin users or when we want to show all subjects, fetch all
       if (userProfile.role == 'Admin' || userProfile.role == 'Super Admin') {
-        print('User is admin, fetching all subjects');
         _allSubjects = await _subjectService.getSubjects();
         _filteredSubjects = _allSubjects;
       } else {
         List<String> userSubjectIds = [];
-        print(
-          'User role: "${userProfile.role}" (length: ${userProfile.role.length})',
-        );
-        print('Role check results:');
-        print('  Is instructor: ${_isInstructor(userProfile.role)}');
-        print('  Is student: ${_isStudent(userProfile.role)}');
 
         if (_isStudent(userProfile.role)) {
           userSubjectIds = userProfile.enrolledSubjects;
-          print('User is student, enrolled subjects: $userSubjectIds');
         } else if (_isInstructor(userProfile.role)) {
           userSubjectIds = userProfile.teachingSubjects;
-          print(
-            'User is instructor (professor/doctor/miniProfessor), teaching subjects: $userSubjectIds',
-          );
-        } else {
-          print('User role not recognized: ${userProfile.role}');
-          print(
-            'Available roles for filtering: professor, miniprofessor, miniProfessor, doctor, student',
-          );
-        }
-
-        print('Final userSubjectIds: $userSubjectIds');
+        } else {}
 
         if (userSubjectIds.isNotEmpty) {
           // For non-admin users, only fetch the subjects they need
-          print('Fetching specific subjects for non-admin user');
+
           _filteredSubjects = await _subjectService.getSubjectsByIds(
             userSubjectIds,
           );
@@ -254,21 +190,14 @@ class SubjectProvider with ChangeNotifier {
           // For compatibility with other parts of the app that expect allSubjects,
           // we'll set allSubjects to the same as filteredSubjects for non-admin users
           _allSubjects = _filteredSubjects;
-
-          print('Fetched ${_filteredSubjects.length} subjects for user');
-          print(
-            'Filtered subjects: ${_filteredSubjects.map((s) => '${s.id}:${s.name}').toList()}',
-          );
         } else {
           // If the user has no subjects, show an empty list.
-          print('User has no subjects, showing empty list');
           _filteredSubjects = [];
           _allSubjects = [];
         }
       }
     } catch (e) {
       _error = 'Failed to fetch subjects: ${e.toString()}';
-      print('Error in fetchAndFilterSubjects: $e');
     } finally {
       _isLoading = false;
       if (!_disposed) {
@@ -283,11 +212,6 @@ class SubjectProvider with ChangeNotifier {
     _checkDisposed();
     if (userProfile == null) return;
 
-    developer.log(
-      'SubjectProvider: updateFilteredSubjectsOnly called for user: ${userProfile.name}',
-      name: 'SubjectProvider',
-    );
-
     try {
       List<String> userSubjectIds = [];
 
@@ -297,31 +221,14 @@ class SubjectProvider with ChangeNotifier {
         userSubjectIds = userProfile.teachingSubjects;
       }
 
-      developer.log(
-        'SubjectProvider: updateFilteredSubjectsOnly - userSubjectIds: $userSubjectIds',
-        name: 'SubjectProvider',
-      );
-
       if (userSubjectIds.isNotEmpty) {
         _filteredSubjects = await _subjectService.getSubjectsByIds(
           userSubjectIds,
         );
-        developer.log(
-          'SubjectProvider: updateFilteredSubjectsOnly - fetched ${_filteredSubjects.length} filtered subjects',
-          name: 'SubjectProvider',
-        );
       } else {
         _filteredSubjects = [];
-        developer.log(
-          'SubjectProvider: updateFilteredSubjectsOnly - no subjects, setting empty filtered list',
-          name: 'SubjectProvider',
-        );
       }
     } catch (e) {
-      developer.log(
-        'SubjectProvider: updateFilteredSubjectsOnly - error: $e',
-        name: 'SubjectProvider',
-      );
       _filteredSubjects = [];
     } finally {
       if (!_disposed) {
@@ -349,14 +256,11 @@ class SubjectProvider with ChangeNotifier {
     }
 
     try {
-      print('Fetching specific subjects by IDs: $subjectIds');
       _filteredSubjects = await _subjectService.getSubjectsByIds(subjectIds);
       // For consistency, set allSubjects to the same as filteredSubjects
       _allSubjects = _filteredSubjects;
-      print('Fetched ${_filteredSubjects.length} specific subjects');
     } catch (e) {
       _error = 'Failed to fetch specific subjects: ${e.toString()}';
-      print('Error in fetchSpecificSubjects: $e');
     } finally {
       _isLoading = false;
       if (!_disposed) {

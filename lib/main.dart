@@ -6,13 +6,13 @@ import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/providers/settings_provider.dart';
 import 'package:pivot/providers/super_admin_provider.dart';
 import 'package:pivot/providers/guide_provider.dart';
+import 'package:pivot/services/remote_config_service.dart';
 import 'package:pivot/screens/section2/teams.dart';
 import 'package:pivot/screens/section3/edit_profile/edit_profile.dart'
     deferred as edit_profile;
+import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/section4/assistants/profile/assistant_profile_main.dart';
 import 'package:pivot/screens/section4/doctor/profile/doctor_profile.dart';
-import 'package:pivot/services/remote_config_service.dart';
-import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/section1/login/login.dart';
 import 'package:pivot/screens/section1/auth_wrapper.dart';
 import 'package:pivot/screens/section1/first_landing.dart';
@@ -77,6 +77,7 @@ import 'web_service_worker.dart';
 import 'firebase_options.dart';
 import 'widgets/platform_service.dart';
 import 'widgets/ios_install_instructions_screen.dart';
+import 'package:flutter/foundation.dart';
 
 // Route name constants
 const String routeUserManagement = '/user-management';
@@ -148,25 +149,17 @@ void _initializeAppBackgroundServices(
 
   // Add error handling for Google Play Services
   try {
-    RemoteConfigService.instance.initialize().catchError((error) {
-      debugPrint('RemoteConfigService initialization failed: $error');
-    });
+    RemoteConfigService.instance.initialize().catchError((error) {});
 
     // Initialize Remote Config Bridge Service
-    RemoteConfigBridgeService().initialize().catchError((error) {
-      debugPrint('RemoteConfigBridgeService initialization failed: $error');
-    });
-  } catch (e) {
-    debugPrint('Error initializing RemoteConfigService: $e');
-  }
+    RemoteConfigBridgeService().initialize().catchError((error) {});
+  } catch (e) {}
 
   if (FirebaseAuth.instance.currentUser != null) {
     userProfileProvider
         .loadLoggedInUserProfile()
         .timeout(const Duration(seconds: 10))
-        .catchError((error) {
-          debugPrint('Error loading user profile: $error');
-        });
+        .catchError((error) {});
   }
 
   try {
@@ -178,9 +171,7 @@ void _initializeAppBackgroundServices(
     }
 
     // Initialize FCM token manager
-    FCMTokenManager().initialize().catchError((error) {
-      debugPrint('FCM Token Manager initialization failed: $error');
-    });
+    FCMTokenManager().initialize().catchError((error) {});
 
     // final notificationTrigger = NotificationTriggerService();
     // Completely disabled automatic notification sending to prevent test notifications and timeouts
@@ -191,9 +182,7 @@ void _initializeAppBackgroundServices(
     // Timer.periodic(const Duration(days: 1), (_) {
     //   notificationTrigger.cleanupOldNotifications();
     // });
-  } catch (e) {
-    debugPrint('Error initializing notification services: $e');
-  }
+  } catch (e) {}
 
   if (kIsWeb) {
     FirebaseAuth.instance.setPersistence(Persistence.LOCAL).catchError((_) {});
@@ -541,9 +530,7 @@ class _PivotWithNotificationsState extends State<PivotWithNotifications> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      NotificationService().initialize(context).catchError((e) {
-        debugPrint('❌ Notification service init failed: $e');
-      });
+      NotificationService().initialize(context).catchError((e) {});
     });
     _startPeriodicNotifications();
   }

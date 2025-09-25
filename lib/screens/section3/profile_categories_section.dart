@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/models/category_model.dart';
+import 'package:pivot/responsive.dart';
+
 
 class ProfileCategories extends StatefulWidget {
   ProfileCategories({super.key, this.onCategoryChanged});

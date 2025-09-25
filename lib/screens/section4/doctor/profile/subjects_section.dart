@@ -24,9 +24,9 @@ class SubjectsSection extends StatefulWidget {
 class _SubjectsSectionState extends State<SubjectsSection>
     with TickerProviderStateMixin {
   late TabController _tabController;
-  Map<String, List<dynamic>> _lecturesBySubject = {};
-  Map<String, bool> _loadingStates = {};
-  Map<String, String?> _errorStates = {};
+  final Map<String, List<dynamic>> _lecturesBySubject = {};
+  final Map<String, bool> _loadingStates = {};
+  final Map<String, String?> _errorStates = {};
   String? _lastDoctorId;
   List<Subject> _previousSubjects = [];
   String? _previousDoctorId;

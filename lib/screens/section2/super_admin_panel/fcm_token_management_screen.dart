@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pivot/services/fcm_token_manager.dart';
 import 'package:pivot/responsive.dart';
 
+
 class FCMTokenManagementScreen extends StatefulWidget {
   const FCMTokenManagementScreen({super.key});
 

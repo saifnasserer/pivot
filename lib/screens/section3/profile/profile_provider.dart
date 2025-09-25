@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/providers/schadule_provider.dart';
@@ -9,6 +8,7 @@ import 'package:pivot/providers/subject_provider.dart';
 import 'package:pivot/providers/task_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/services/notification_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ProfileProvider with ChangeNotifier {
   final UserProfileProvider _userProfileProvider;
@@ -58,7 +58,6 @@ class ProfileProvider with ChangeNotifier {
     try {
       // Check if providers are still valid before proceeding
       if (!areProvidersValid()) {
-        print('Warning: Providers are not valid, skipping data fetch');
         return;
       }
 
@@ -85,7 +84,6 @@ class ProfileProvider with ChangeNotifier {
       try {
         _subjectProvider.buildInstructorsMap(_userProfileProvider.allUsers);
       } catch (e) {
-        print('Warning: SubjectProvider disposed or error: $e');
         return; // Exit early if SubjectProvider is disposed
       }
 
@@ -93,7 +91,6 @@ class ProfileProvider with ChangeNotifier {
       try {
         await _subjectProvider.fetchAllSubjectsWithoutFilter();
       } catch (e) {
-        print('Warning: SubjectProvider disposed during fetch: $e');
         return; // Exit early if SubjectProvider is disposed
       }
 
@@ -117,10 +114,8 @@ class ProfileProvider with ChangeNotifier {
           _sectionProvider.fetchSectionsForUserSubjects(allSubjectIds);
         }
       } catch (e) {
-        print('Warning: Error during subject filtering: $e');
       }
     } catch (e) {
-      print('Error in fetchProfileData: $e');
     }
   }
 
@@ -201,7 +196,6 @@ class ProfileProvider with ChangeNotifier {
       _sectionProvider.sections;
       return true;
     } catch (e) {
-      print('Warning: One or more providers have been disposed: $e');
       return false;
     }
   }

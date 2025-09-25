@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart' hide MaterialType;
 import 'package:flutter/services.dart';
 import 'package:pivot/models/lecture_model.dart';
-import 'package:pivot/models/material_link.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/providers/material_links_provider.dart';
-import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/section4/doctor/profile/material_card.dart';
 import 'package:pivot/screens/section4/doctor/profile/add_material_dialog.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:pivot/responsive.dart';
+import 'package:pivot/models/subject_model.dart';
+import 'package:pivot/models/material_link.dart';
+
 
 class MaterialLinksScreen extends StatefulWidget {
   final Lecture lecture;
@@ -33,12 +35,6 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
     super.initState();
     // Fetch material links when screen initializes
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      debugPrint(
-        'MaterialLinksScreen: Logged in user: ${widget.loggedInUser?.id}',
-      );
-      debugPrint(
-        'MaterialLinksScreen: User role: ${widget.loggedInUser?.role}',
-      );
       context.read<MaterialLinksProvider>().fetchMaterialLinks(
         widget.lecture.id,
       );
@@ -631,15 +627,8 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
   }
 
   void _rateMaterial(MaterialLink materialLink, double rating) async {
-    debugPrint(
-      'MaterialLinksScreen: Rating material: ${materialLink.title} with rating: $rating',
-    );
-    debugPrint(
-      'MaterialLinksScreen: Logged in user: ${widget.loggedInUser?.id}',
-    );
 
     if (widget.loggedInUser == null) {
-      debugPrint('MaterialLinksScreen: No logged in user');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('يجب تسجيل الدخول لتقييم المواد'),
@@ -650,7 +639,6 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
     }
 
     try {
-      debugPrint('MaterialLinksScreen: Calling provider.rateMaterial');
       final provider = context.read<MaterialLinksProvider>();
       await provider.rateMaterial(
         widget.lecture.id,
@@ -659,7 +647,6 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
         rating,
       );
 
-      debugPrint('MaterialLinksScreen: Rating successful');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -669,7 +656,6 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
         );
       }
     } catch (e) {
-      debugPrint('MaterialLinksScreen: Rating failed: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

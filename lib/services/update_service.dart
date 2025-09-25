@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:pivot/services/remote_config_service.dart';
-import 'package:pivot/responsive.dart';
-import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:pivot/widgets/update_bottom_sheet.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:package_info_plus/package_info_plus.dart';

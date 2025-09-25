@@ -2,12 +2,13 @@ import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:pivot/providers/subject_provider.dart';
-import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/screens/section2/adminstration/add_edit_subject_dialog.dart';
-import 'package:pivot/responsive.dart';
-import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:pivot/providers/guide_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:pivot/responsive.dart';
+import 'package:pivot/models/subject_model.dart';
+
+import 'package:pivot/widgets/unified_dialog.dart';
 
 class GlobalSubjectManagementScreen extends StatefulWidget {
   // = 'global_subject_management_screen';

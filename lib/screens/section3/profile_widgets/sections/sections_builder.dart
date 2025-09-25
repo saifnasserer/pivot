@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/models/section_model.dart';
-import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/providers/section_provider.dart';
 import 'package:pivot/providers/subject_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
-import 'package:pivot/responsive.dart';
 import 'package:provider/provider.dart';
 import 'enhanced_section_list_item.dart';
+import 'package:pivot/responsive.dart';
+import 'package:pivot/models/subject_model.dart';
+import 'package:pivot/models/material_link.dart';
+
 
 /// Enhanced sections builder with simplified logic - similar to subjects
 class SectionsBuilder {

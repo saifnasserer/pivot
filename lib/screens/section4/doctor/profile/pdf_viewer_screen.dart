@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart' hide MaterialType;
-import 'package:pivot/models/material_link.dart';
-import 'package:pivot/responsive.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:pivot/responsive.dart';
+import 'package:pivot/models/subject_model.dart';
+import 'package:pivot/models/material_link.dart';
+
 
 class PdfViewerScreen extends StatefulWidget {
   final MaterialLink materialLink;

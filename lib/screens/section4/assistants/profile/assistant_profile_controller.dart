@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/models/user_profile.dart';
-import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/providers/section_provider.dart';
 import 'package:pivot/providers/subject_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/screens/section3/subject_selection_screen.dart';
 import 'package:provider/provider.dart';
+import 'package:pivot/models/subject_model.dart';
 
 class AssistantProfileController {
   static void fetchData(
@@ -46,7 +46,6 @@ class AssistantProfileController {
                   onSubjectSelected(0);
                 }
               } catch (e) {
-                print('Provider access error in callback: $e');
               }
             }
           });
@@ -54,7 +53,6 @@ class AssistantProfileController {
         // Fetch sections for this specific assistant
         sectionProvider.fetchSectionsForAssistant(displayedProfile.id);
       } catch (e) {
-        print('Provider access error: $e');
       }
     });
   }

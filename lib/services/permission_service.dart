@@ -1,10 +1,10 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart'
+    as permission_handler;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
-import 'package:permission_handler/permission_handler.dart'
-    as permission_handler;
 
 class PermissionService {
   static final PermissionService _instance = PermissionService._internal();
@@ -13,38 +13,30 @@ class PermissionService {
 
   static Future<bool> requestPhotosPermission() async {
     if (kIsWeb) return true;
-    var status = await Permission.photos.status;
+    var status = await permission_handler.Permission.photos.status;
     if (status.isDenied || status.isRestricted) {
-      status = await Permission.photos.request();
+      status = await permission_handler.Permission.photos.request();
     }
     return status.isGranted;
   }
 
-  static Future<bool> requestStoragePermission() async {
-    if (kIsWeb) return true;
-    var status = await Permission.storage.status;
-    if (status.isDenied || status.isRestricted) {
-      status = await Permission.storage.request();
-    }
-    return status.isGranted;
-  }
-
-  static Future<bool> requestCameraPermission() async {
-    if (kIsWeb) return true;
-    var status = await Permission.camera.status;
-    if (status.isDenied || status.isRestricted) {
-      status = await Permission.camera.request();
-    }
-    return status.isGranted;
-  }
+  // DEPRECATED: Storage permission not needed for modern Android scoped storage
+  // static Future<bool> requestStoragePermission() async {
+  //   if (kIsWeb) return true;
+  //   var status = await Permission.storage.status;
+  //   if (status.isDenied || status.isRestricted) {
+  //     status = await Permission.storage.request();
+  //   }
+  //   return status.isGranted;
+  // }
 
   static Future<bool> requestPhotosPermissionWithRationale(
     BuildContext context,
   ) async {
     if (kIsWeb) return true;
-    var status = await Permission.photos.status;
+    var status = await permission_handler.Permission.photos.status;
     if (status.isDenied) {
-      status = await Permission.photos.request();
+      status = await permission_handler.Permission.photos.request();
     }
     if (status.isPermanentlyDenied) {
       await _showSettingsDialog(
@@ -56,47 +48,30 @@ class PermissionService {
     return status.isGranted;
   }
 
-  static Future<bool> requestStoragePermissionWithRationale(
-    BuildContext context,
-  ) async {
-    if (kIsWeb) return true;
-    var status = await Permission.storage.status;
-    if (status.isDenied) {
-      status = await Permission.storage.request();
-    }
-    if (status.isPermanentlyDenied) {
-      await _showSettingsDialog(
-        context,
-        'يرجى منح صلاحية الوصول للتخزين من إعدادات التطبيق.',
-      );
-      return false;
-    }
-    return status.isGranted;
-  }
-
-  static Future<bool> requestCameraPermissionWithRationale(
-    BuildContext context,
-  ) async {
-    if (kIsWeb) return true;
-    var status = await Permission.camera.status;
-    if (status.isDenied) {
-      status = await Permission.camera.request();
-    }
-    if (status.isPermanentlyDenied) {
-      await _showSettingsDialog(
-        context,
-        'يرجى منح صلاحية الوصول للكاميرا من إعدادات التطبيق.',
-      );
-      return false;
-    }
-    return status.isGranted;
-  }
+  // DEPRECATED: Storage permission not needed for modern Android scoped storage
+  // static Future<bool> requestStoragePermissionWithRationale(
+  //   BuildContext context,
+  // ) async {
+  //   if (kIsWeb) return true;
+  //   var status = await Permission.storage.status;
+  //   if (status.isDenied) {
+  //     status = await Permission.storage.request();
+  //   }
+  //   if (status.isPermanentlyDenied) {
+  //     await _showSettingsDialog(
+  //       context,
+  //       'يرجى منح صلاحية الوصول للتخزين من إعدادات التطبيق.',
+  //     );
+  //     return false;
+  //   }
+  //   return status.isGranted;
+  // }
 
   static Future<bool> requestNotificationPermission() async {
     if (kIsWeb) return true;
-    var status = await Permission.notification.status;
+    var status = await permission_handler.Permission.notification.status;
     if (status.isDenied || status.isRestricted) {
-      status = await Permission.notification.request();
+      status = await permission_handler.Permission.notification.request();
     }
     return status.isGranted;
   }
@@ -105,9 +80,9 @@ class PermissionService {
     BuildContext context,
   ) async {
     if (kIsWeb) return true;
-    var status = await Permission.notification.status;
+    var status = await permission_handler.Permission.notification.status;
     if (status.isDenied) {
-      status = await Permission.notification.request();
+      status = await permission_handler.Permission.notification.request();
     }
     if (status.isPermanentlyDenied) {
       await _showSettingsDialog(
@@ -121,7 +96,7 @@ class PermissionService {
 
   static Future<bool> checkNotificationPermission() async {
     if (kIsWeb) return true;
-    final status = await Permission.notification.status;
+    final status = await permission_handler.Permission.notification.status;
     return status.isGranted;
   }
 

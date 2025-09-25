@@ -4,10 +4,11 @@ import 'package:pivot/screens/section3/subject_selection_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pivot/services/permission_service.dart';
+import 'package:pivot/services/notification_service.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:pivot/services/notification_service.dart';
+
 
 Future<void> profile_options(BuildContext context) async {
   final userProfileProvider = Provider.of<UserProfileProvider>(

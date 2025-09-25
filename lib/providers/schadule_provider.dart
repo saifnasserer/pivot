@@ -7,7 +7,7 @@ import '../services/notification_trigger_service.dart';
 import 'package:pivot/services/cache_service.dart';
 import 'package:pivot/services/local_notification_service.dart';
 
-class ScheduleProvider with ChangeNotifier {
+class ScheduleProvider extends ChangeNotifier {
   ScheduleProvider() {
     // Automatically load schedule on startup to ensure reminders are scheduled
     fetchSchedule();
@@ -368,28 +368,17 @@ class ScheduleProvider with ChangeNotifier {
 
   // Schedule automatic notification for a class (local on mobile)
   Future<void> _scheduleClassNotification(ScheduleItem item) async {
-    print('📅 === SCHEDULE CLASS NOTIFICATION DEBUG ===');
-    print('  - Item ID: ${item.id}');
-    print('  - Subject: ${item.title}');
-    print('  - Day: ${item.day}');
-    print('  - Time: ${item.time}');
-    print('  - Type: ${item.type}');
-    print('  - Is Web: ${kIsWeb}');
-
     try {
       // Convert day name to day of week
       final dayOfWeek = _getDayOfWeek(item.day);
-      print('  - Day of week number: $dayOfWeek');
+
       if (dayOfWeek == null) {
-        print('  - ❌ Failed to convert day name to day of week');
         return;
       }
 
       // Parse time (handle AM/PM format)
       final timeParts = item.time.split(':');
-      print('  - Time parts: $timeParts');
       if (timeParts.length != 2) {
-        print('  - ❌ Invalid time format');
         return;
       }
 
@@ -400,26 +389,20 @@ class ScheduleProvider with ChangeNotifier {
       final minuteMatch = RegExp(
         r'(\d+)\s*(AM|PM)?',
       ).firstMatch(minuteAndPeriod);
-      print('  - Minute match: $minuteMatch');
-
       if (minuteMatch == null) {
-        print('  - ❌ Failed to parse minute/period');
         return;
       }
 
       final minute = int.tryParse(minuteMatch.group(1) ?? '');
       final period = minuteMatch.group(2); // 'AM' or 'PM' or null
-      print('  - Extracted minute: $minute, period: $period');
 
       if (minute == null) {
-        print('  - ❌ Failed to parse minute');
         return;
       }
 
       // Parse hour and convert from 12-hour to 24-hour format if needed
       int? hour = int.tryParse(hourPart);
       if (hour == null) {
-        print('  - ❌ Failed to parse hour');
         return;
       }
 
@@ -432,13 +415,9 @@ class ScheduleProvider with ChangeNotifier {
         }
       }
 
-      print('  - Final parsed hour: $hour, minute: $minute');
-
       if (!kIsWeb) {
         // Lectures are typically one-time, sections are recurring weekly
         final isRecurring = item.type == ScheduleItemType.section;
-        print('  - Is recurring: $isRecurring (${item.type})');
-        print('  - Calling LocalNotificationService.scheduleClassReminder...');
 
         await LocalNotificationService.instance.scheduleClassReminder(
           scheduleItemId: item.id,
@@ -450,9 +429,7 @@ class ScheduleProvider with ChangeNotifier {
           classType:
               item.type == ScheduleItemType.section ? 'section' : 'lecture',
         );
-        print('  - ✅ LocalNotificationService.scheduleClassReminder completed');
       } else {
-        print('  - On web, using remote scheduling...');
         // Web: still rely on server-side triggers (no local scheduling)
         // Fallback to existing remote scheduling if needed
         await _notificationService.scheduleClassReminder(
@@ -461,11 +438,9 @@ class ScheduleProvider with ChangeNotifier {
           classDateTime: DateTime.now(),
           reminderTime: DateTime.now(),
         );
-        print('  - ✅ Remote scheduling completed');
       }
-      print('📅 === SCHEDULE CLASS NOTIFICATION COMPLETE ===');
     } catch (e) {
-      print('  - ❌ Error scheduling class notification: $e');
+      debugPrint('Error scheduling class notification: $e');
     }
   }
 

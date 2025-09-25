@@ -1,9 +1,9 @@
 import 'package:pivot/services/notification_service.dart';
 import 'package:pivot/services/notification_trigger_service.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class NotificationTestService {
   static final NotificationTestService _instance =
@@ -209,25 +209,20 @@ class NotificationTestService {
   // Send a test notification to current user only
   Future<bool> sendTestNotification() async {
     try {
-      print('FCM Test: Starting test notification process...');
 
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
-        print('FCM Test: ❌ No authenticated user');
         return false;
       }
-      print('FCM Test: ✅ User authenticated: ${user.uid}');
 
       // Get current user's FCM token directly
       final token = await _notificationService.getToken();
       if (token == null || token.isEmpty) {
-        print('FCM Test: ❌ No FCM token available for current user');
+
         return false;
       }
-      print('FCM Test: ✅ FCM token found: ${token.substring(0, 20)}...');
 
       // Send notification only to current user's device
-      print('FCM Test: Sending notification...');
       final result = await _notificationService.sendNotification(
         targetToken: token,
         title: 'Test Notification - Current User Only',
@@ -242,14 +237,11 @@ class NotificationTestService {
       );
 
       if (result) {
-        print('FCM Test: ✅ Test notification completed successfully');
       } else {
-        print('FCM Test: ❌ Test notification failed');
       }
 
       return result;
     } catch (e) {
-      print('FCM Test: ❌ Exception occurred: $e');
       return false;
     }
   }

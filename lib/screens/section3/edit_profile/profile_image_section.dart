@@ -1,15 +1,16 @@
 import 'dart:io';
 import 'dart:async';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:path_provider/path_provider.dart';
 
-import 'package:pivot/responsive.dart';
 import 'package:pivot/services/permission_service.dart';
 import 'edit_profile_provider.dart';
+import 'package:pivot/responsive.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+
 
 class ProfileImageSection extends StatefulWidget {
   final EditProfileProvider provider;
@@ -182,7 +183,6 @@ class _ProfileImageSectionState extends State<ProfileImageSection>
         }
       }
     } catch (e) {
-      debugPrint('Error picking image: $e');
       if (widget.context.mounted) {
         String errorMessage = 'حدث خطأ أثناء اختيار الصورة';
 
@@ -228,7 +228,6 @@ class _ProfileImageSectionState extends State<ProfileImageSection>
 
   Future<XFile?> _compressImage(String imagePath) async {
     try {
-      debugPrint('Starting image compression for: $imagePath');
 
       final tempDir = await getTemporaryDirectory();
       final targetPath =
@@ -246,14 +245,11 @@ class _ProfileImageSectionState extends State<ProfileImageSection>
       if (result != null) {
         final file = File(result.path);
         final size = await file.length();
-        debugPrint('Image compressed successfully: ${size / 1024}KB');
         return result;
       } else {
-        debugPrint('Image compression failed');
         return null;
       }
     } catch (e) {
-      debugPrint('Image compression error: $e');
       return null;
     }
   }
@@ -275,7 +271,6 @@ class _ProfileImageSectionState extends State<ProfileImageSection>
           height: Responsive.space(widget.context, size: Space.large) * 10,
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) {
-            debugPrint('Error loading picked image: $error');
             return _buildDefaultIcon();
           },
         ),

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/screens/models/schedule_item.dart';
-import 'package:pivot/responsive.dart';
 
 import 'package:auto_size_text/auto_size_text.dart';
+import 'package:pivot/responsive.dart';
+
 
 class SchaduleCard extends StatelessWidget {
   final ScheduleItem item;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/section2/adminstration/announcement/add_announcement_controller.dart';
+import 'package:pivot/responsive.dart';
+
 
 class StylingStep extends StatelessWidget {
   final Color selectedColor;

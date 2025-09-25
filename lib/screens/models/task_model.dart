@@ -1,11 +1,12 @@
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
-import 'package:pivot/responsive.dart';
 import 'package:intl/intl.dart'; // For date formatting
 import 'package:provider/provider.dart';
 import 'package:pivot/screens/section3/profile_widgets/task_details_dialog.dart';
 import 'task.dart'; // Import the Task data model
+import 'package:pivot/responsive.dart';
+
 
 /// Enhanced TaskModel with subtle design using white/black palette
 class TaskModel extends StatefulWidget {

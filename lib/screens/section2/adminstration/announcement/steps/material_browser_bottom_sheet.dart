@@ -1,9 +1,10 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart' hide MaterialType;
-import 'package:pivot/responsive.dart';
-import 'package:pivot/models/material_link.dart';
 import 'package:pivot/models/lecture_model.dart';
 import 'package:pivot/models/user_profile.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:pivot/responsive.dart';
+import 'package:pivot/models/subject_model.dart';
+import 'package:pivot/models/material_link.dart';
 
 class MaterialBrowserBottomSheet extends StatefulWidget {
   const MaterialBrowserBottomSheet({super.key});
@@ -88,13 +89,11 @@ class _MaterialBrowserBottomSheetState
 
               allMaterials.add(enhancedMaterialLink);
             } catch (e) {
-              print('Error processing material link: $e');
               // Skip this material if there's an error
               continue;
             }
           }
         } catch (e) {
-          print('Error processing lecture: $e');
           // Skip this lecture if there's an error
           continue;
         }

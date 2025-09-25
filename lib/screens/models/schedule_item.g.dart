@@ -24,13 +24,14 @@ class ScheduleItemAdapter extends TypeAdapter<ScheduleItem> {
       day: fields[4] as String,
       type: fields[5] as ScheduleItemType,
       notificationEnabled: fields[6] as bool,
+      order: fields[7] as int?,
     );
   }
 
   @override
   void write(BinaryWriter writer, ScheduleItem obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(8)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -44,7 +45,9 @@ class ScheduleItemAdapter extends TypeAdapter<ScheduleItem> {
       ..writeByte(5)
       ..write(obj.type)
       ..writeByte(6)
-      ..write(obj.notificationEnabled);
+      ..write(obj.notificationEnabled)
+      ..writeByte(7)
+      ..write(obj.order);
   }
 
   @override

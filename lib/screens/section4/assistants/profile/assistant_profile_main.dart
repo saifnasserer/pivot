@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/models/user_profile.dart';
-import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/providers/section_provider.dart';
 import 'package:pivot/providers/subject_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
-import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/section3/profile_widgets/Profile_options.dart';
 import 'package:pivot/screens/section3/subject_selection_screen.dart';
 import 'package:provider/provider.dart';
 import '../add_edit_section_dialog.dart';
 import '../assistant_categories.dart';
 import 'assistant_profile_content.dart';
+import 'package:pivot/responsive.dart';
+import 'package:pivot/models/subject_model.dart';
+
 
 class AssistantProfileMain extends StatefulWidget {
   final bool isAdmin;
@@ -83,23 +84,13 @@ class _AssistantProfileMainState extends State<AssistantProfileMain>
   void _fetchInitialData(UserProfile userProfile) {
     if (!mounted) return;
 
-    print(
-      '_fetchInitialData called for user: ${userProfile.name} (${userProfile.role})',
-    );
-    print('Teaching subjects: ${userProfile.teachingSubjects}');
 
     // Check if this is the logged-in user's own profile
     final loggedInUser = context.read<UserProfileProvider>().userProfile;
     final isOwnProfile = loggedInUser?.id == userProfile.id;
-    print('Is own profile: $isOwnProfile');
-    print('Logged in user ID: ${loggedInUser?.id}');
-    print('Displayed profile ID: ${userProfile.id}');
 
     // Use logged-in user's profile data when viewing own profile to ensure correct teaching subjects
     final profileToUse = isOwnProfile ? loggedInUser! : userProfile;
-    print(
-      'Using profile: ${profileToUse.name} with teaching subjects: ${profileToUse.teachingSubjects}',
-    );
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -118,40 +109,31 @@ class _AssistantProfileMainState extends State<AssistantProfileMain>
           listen: false,
         );
 
-        print('Starting data fetch for assistant profile');
         // Fetch all users for admin functionality
         userProfileProvider
             .fetchAllUsers(forceAll: true)
             .then((_) {
-              print('All users fetched, now fetching subjects');
               // Just fetch and filter subjects - let UI components handle their own state
               subjectProvider
                   .fetchAndFilterSubjects(profileToUse)
                   .then((_) {
-                    print('Subjects fetched for ${profileToUse.name}');
-                    print(
-                      'Filtered subjects count: ${subjectProvider.filteredSubjects.length}',
-                    );
+
                   })
                   .catchError((error) {
-                    print('Error fetching subjects: $error');
                   });
             })
             .catchError((error) {
-              print('Error fetching all users: $error');
             });
 
         // Fetch sections for this specific assistant
         sectionProvider
             .fetchSectionsForAssistant(profileToUse.id)
             .then((_) {
-              print('Sections fetched for assistant ${profileToUse.id}');
+
             })
             .catchError((error) {
-              print('Error fetching sections: $error');
             });
       } catch (e) {
-        print('Provider access error: $e');
       }
     });
   }
@@ -291,9 +273,6 @@ class _AssistantProfileMainState extends State<AssistantProfileMain>
       onPopInvoked: (didPop) {
         if (didPop) {
           // Only restore profile when actually navigating back
-          print(
-            'Navigating back from assistant profile, restoring logged-in user profile',
-          );
           final userProfileProvider = Provider.of<UserProfileProvider>(
             context,
             listen: false,

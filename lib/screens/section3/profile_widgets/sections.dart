@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/models/section_model.dart';
-import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/screens/models/instructors_gate.dart';
 import 'package:pivot/providers/section_provider.dart';
 import 'package:pivot/providers/subject_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
-import 'package:pivot/responsive.dart';
 import 'package:provider/provider.dart';
+import 'package:pivot/responsive.dart';
+import 'package:pivot/models/subject_model.dart';
+import 'package:pivot/models/material_link.dart';
+
 
 /// Enhanced sections builder with better structure and animations
 class SectionsBuilder {
@@ -480,12 +482,8 @@ class _EnhancedSectionListItemState extends State<EnhancedSectionListItem>
             ...loggedInUser.assistantPreferences,
             subject.id: selectedAssistantId,
           });
-          print(
-            'Auto-saved assistant preference: ${subject.id} -> $selectedAssistantId',
-          );
         }
       } catch (e) {
-        print('Failed to auto-save assistant preference: $e');
       }
     }
 
@@ -502,8 +500,6 @@ class _EnhancedSectionListItemState extends State<EnhancedSectionListItem>
               throw Exception('No logged-in user found');
             }
 
-            print('Saving assistant preference: ${subject.id} -> $assistantId');
-            print('Current preferences: ${loggedInUser.assistantPreferences}');
 
             await userProfileProvider.updateAssistantPreferences({
               ...loggedInUser.assistantPreferences,
@@ -520,7 +516,6 @@ class _EnhancedSectionListItemState extends State<EnhancedSectionListItem>
             // Close the dialog after successful update
             Navigator.of(context).pop();
           } catch (e) {
-            print('Failed to update assistant preference: $e');
             // Show error message to user
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(

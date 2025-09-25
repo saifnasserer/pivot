@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:pivot/providers/settings_provider.dart';
 import 'package:pivot/responsive.dart';
 
+
 class SectionManagementScreen extends StatefulWidget {
   // = 'section_management_screen';
 

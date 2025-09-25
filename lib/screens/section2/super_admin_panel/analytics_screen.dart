@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/providers/super_admin_provider.dart';
-import 'package:pivot/responsive.dart';
 import 'package:provider/provider.dart';
+import 'package:pivot/responsive.dart';
+
 
 class AnalyticsScreen extends StatefulWidget {
   // = 'analytics_screen';
@@ -18,7 +19,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     // Fetch data when the screen is first loaded
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = Provider.of<SuperAdminProvider>(context, listen: false);
-      print('🔍 [AnalyticsScreen] Fetching dashboard data...');
       provider.fetchDashboardData();
     });
   }
@@ -50,10 +50,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             }
 
             // Debug: Print provider state
-            print('🔍 [AnalyticsScreen] Provider state:');
-            print('  - isLoading: ${provider.isLoading}');
-            print('  - totalUsers: ${provider.totalUsers}');
-            print('  - genderStats: ${provider.genderStats}');
             return RefreshIndicator(
               onRefresh: () => provider.fetchDashboardData(),
               child: SingleChildScrollView(
@@ -566,7 +562,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
   Widget _buildGenderStatsCard(SuperAdminProvider provider) {
     // Debug: Print all gender stats to see what's available
-    print('🔍 [AnalyticsScreen] All gender stats: ${provider.genderStats}');
 
     final genders = [
       {

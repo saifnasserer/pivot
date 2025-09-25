@@ -28,13 +28,14 @@ class AnnouncementDataAdapter extends TypeAdapter<AnnouncementData> {
           .toList(),
       pinned: fields[9] as bool,
       draft: fields[10] as bool,
+      level: fields[13] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, AnnouncementData obj) {
     writer
-      ..writeByte(13)
+      ..writeByte(14)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -60,7 +61,9 @@ class AnnouncementDataAdapter extends TypeAdapter<AnnouncementData> {
       ..writeByte(11)
       ..write(obj.publishAtMillis)
       ..writeByte(12)
-      ..write(obj.expireAtMillis);
+      ..write(obj.expireAtMillis)
+      ..writeByte(13)
+      ..write(obj.level);
   }
 
   @override

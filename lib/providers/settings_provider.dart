@@ -1,5 +1,5 @@
-import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 
 class SettingsProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -28,7 +28,6 @@ class SettingsProvider with ChangeNotifier {
         _sectionCounts = Map<String, int>.from(data);
       }
     } catch (e) {
-      debugPrint('Failed to fetch seccccccccccccccccctions: $e');
       _error = 'Failed to fetch settings: $e';
     } finally {
       _isLoading = false;
@@ -52,7 +51,6 @@ class SettingsProvider with ChangeNotifier {
       }
       notifyListeners();
     } catch (e) {
-      debugPrint('Failed to fetch team formation button visibility: $e');
       _showTeamFormationButton = false;
       notifyListeners();
     }

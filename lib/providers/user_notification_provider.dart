@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pivot/models/user_notification.dart';
 
@@ -75,9 +75,7 @@ class UserNotificationProvider with ChangeNotifier {
         _updateUnreadCount();
         notifyListeners();
       }
-    } catch (e) {
-      print("Failed to mark notification as read: $e");
-    }
+    } catch (e) {}
   }
 
   Future<void> markAllAsRead() async {
@@ -119,9 +117,7 @@ class UserNotificationProvider with ChangeNotifier {
 
       _updateUnreadCount();
       notifyListeners();
-    } catch (e) {
-      print("Failed to mark all notifications as read: $e");
-    }
+    } catch (e) {}
   }
 
   void _updateUnreadCount() {

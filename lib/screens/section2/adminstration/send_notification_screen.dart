@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/services/notification_service.dart';
-import 'package:pivot/responsive.dart';
-import 'package:pivot/widgets/custom_text_field.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pivot/providers/scheduled_notification_provider.dart';
 import 'package:pivot/models/scheduled_notification.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:pivot/widgets/no_internet_message.dart';
+import 'package:pivot/responsive.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:pivot/widgets/custom_text_field.dart';
+
 
 class SendNotificationScreen extends StatefulWidget {
   // = 'send_notification_screen';
@@ -57,7 +58,6 @@ class _SendNotificationScreenState extends State<SendNotificationScreen> {
                 .toList();
       });
     } catch (e) {
-      print('Error loading users: $e');
     }
   }
 

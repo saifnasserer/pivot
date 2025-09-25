@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/models/user_profile.dart';
-import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/models/section_model.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
-import 'package:pivot/responsive.dart';
 import 'package:provider/provider.dart';
+import 'package:pivot/responsive.dart';
+import 'package:pivot/models/subject_model.dart';
+import 'package:pivot/models/material_link.dart';
+
 
 /// Configuration for the InstructorsGate dialog
 class InstructorsGateConfig {
@@ -150,12 +152,6 @@ class _InstructorsGateState extends State<InstructorsGate> {
             final currentInstructorId =
                 currentUser.assistantPreferences[widget.subject.id];
 
-            print(
-              'InstructorsGate reading preference for ${widget.subject.id}: $currentInstructorId',
-            );
-            print(
-              'Current user assistant preferences: ${currentUser.assistantPreferences}',
-            );
 
             setState(() {
               _selectedInstructorId =

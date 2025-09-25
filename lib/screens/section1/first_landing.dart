@@ -13,6 +13,8 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../responsive.dart';
+import 'package:pivot/responsive.dart';
+
 
 class FirstLandingScreen extends StatefulWidget {
   const FirstLandingScreen({super.key});

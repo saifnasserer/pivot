@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/models/user_profile.dart';
-import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/section4/doctor/edit_about_route.dart';
+import 'package:pivot/responsive.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 
 class AssistantAboutMeWidget extends StatefulWidget {
   final UserProfile userProfile;
@@ -30,9 +31,7 @@ class _AssistantAboutMeWidgetState extends State<AssistantAboutMeWidget> {
       ),
     );
 
-    print('Edit about screen result: $result');
     if (result == true && mounted) {
-      print('Updating displayed profile after successful edit');
       try {
         final doc =
             await FirebaseFirestore.instance
@@ -42,16 +41,12 @@ class _AssistantAboutMeWidgetState extends State<AssistantAboutMeWidget> {
 
         if (doc.exists) {
           final updatedProfile = UserProfile.fromJson(doc.data()!);
-          print('Updated profile about: ${updatedProfile.aboutMe}');
           widget.onProfileUpdated?.call(updatedProfile);
         } else {
-          print('Document does not exist');
         }
       } catch (e) {
-        print('Error fetching updated profile: $e');
       }
     } else {
-      print('Edit was not successful or widget not mounted');
     }
   }
 

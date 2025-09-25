@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/section2/adminstration/models/announcement_data.dart';
+import 'package:pivot/responsive.dart';
+
 
 // Reusable widget for announcement cards
 class AnnouncementCard extends StatelessWidget {

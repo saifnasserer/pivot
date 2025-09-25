@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:pivot/responsive.dart';
 import 'package:pivot/providers/announcement_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:pivot/services/category_service.dart';
+import 'package:pivot/responsive.dart';
+
 
 class LandingCategories extends StatefulWidget {
   const LandingCategories({
@@ -59,10 +60,6 @@ class _LandingCategoriesState extends State<LandingCategories>
     // Set initial category
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (categories.isNotEmpty) {
-        print('🔍 [LandingCategories] Initial categories: $categories');
-        print(
-          '🔍 [LandingCategories] TabController initial index: ${_tabController.index}',
-        );
         // Don't trigger category selection here - let Landing.dart handle it
         // _onCategorySelected(categories.length - 1); // Commented out to avoid conflicts
       }
@@ -79,19 +76,14 @@ class _LandingCategoriesState extends State<LandingCategories>
   }
 
   void _onCategorySelected(int index) {
-    print('🔍 [LandingCategories] Tab selected at index: $index');
     if (index < categories.length) {
       final category = categories[index];
-      print(
-        '🔍 [LandingCategories] Category selected: $category (index: $index)',
-      );
       _handleCategoryChange(category);
       widget.onCategoryChanged?.call(category);
     }
   }
 
   void _handleCategoryChange(String category) {
-    print('🔍 [LandingCategories] Handling category change: $category');
     final announcementProvider = Provider.of<AnnouncementProvider>(
       context,
       listen: false,
@@ -103,9 +95,6 @@ class _LandingCategoriesState extends State<LandingCategories>
     );
     final timeFilter = CategoryService.getTimeFilter(category);
 
-    print(
-      '🔍 [LandingCategories] Fetching with department: $departmentCode, timeFilter: $timeFilter',
-    );
 
     // Fetch announcements with the determined parameters
     announcementProvider.fetchAnnouncements(

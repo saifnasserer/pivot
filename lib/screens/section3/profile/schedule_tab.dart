@@ -84,9 +84,6 @@ class _ScheduleTabState extends State<ScheduleTab>
 
   void _handleReorder(int oldIndex, int newIndex) {
     try {
-      print(
-        '🔄 UI: Reorder requested - oldIndex: $oldIndex, newIndex: $newIndex',
-      );
 
       final scheduleProvider = context.read<ScheduleProvider>();
       final profileProvider = context.read<ProfileProvider>();
@@ -98,19 +95,15 @@ class _ScheduleTabState extends State<ScheduleTab>
               )]
               : '';
 
-      print('🔄 UI: Current day: "$currentDay"');
 
       if (currentDay.isNotEmpty &&
           oldIndex != newIndex &&
           oldIndex >= 0 &&
           newIndex >= 0) {
-        print('🔄 UI: Calling scheduleProvider.reorderScheduleItems');
         scheduleProvider.reorderScheduleItems(currentDay, oldIndex, newIndex);
       } else {
-        print('❌ UI: Invalid reorder parameters or empty day');
       }
     } catch (e) {
-      print('❌ UI: Error in reorder handler: $e');
     }
   }
 

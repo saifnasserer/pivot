@@ -1,6 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pivot/models/user_profile.dart'; // Assuming your UserProfile model is here
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AuthService {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
@@ -88,7 +88,6 @@ class AuthService {
         return null;
       }
     } catch (e) {
-      print(e.toString());
       return null;
     }
   }
@@ -120,7 +119,6 @@ class AuthService {
     try {
       await _firestore.collection('users').doc(uid).update({'role': role});
     } catch (e) {
-      print('Error updating user role: $e');
       // Optionally re-throw or handle the error as needed
       rethrow;
     }
@@ -133,7 +131,6 @@ class AuthService {
         'aboutMe': aboutMe,
       });
     } catch (e) {
-      print('Error updating user about me: $e');
       rethrow;
     }
   }
@@ -148,7 +145,6 @@ class AuthService {
       }
       await _firestore.collection('users').doc(uid).delete();
     } catch (e) {
-      print('Error deleting user document: $e');
       rethrow;
     }
   }
@@ -170,7 +166,6 @@ class AuthService {
 
       return result;
     } catch (e) {
-      print('Error creating user: $e');
       rethrow;
     }
   }
@@ -186,7 +181,6 @@ class AuthService {
           .doc(userProfile.id)
           .set(userDataForFirestore);
     } catch (e) {
-      print('Error creating user profile: $e');
       rethrow;
     }
   }

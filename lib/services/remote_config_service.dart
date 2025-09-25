@@ -1,5 +1,6 @@
 import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:pivot/services/remote_config_service.dart';
 
 class RemoteConfigService {
   // Private constructor
@@ -34,49 +35,39 @@ class RemoteConfigService {
   // Update management getters
   bool get isUpdateForce {
     final value = _remoteConfig.getBool('app_update_force');
-    print('🔍 [RemoteConfig] Reading app_update_force: $value');
     return value;
   }
 
   String get updateMessage {
     final value = _remoteConfig.getString('app_update_message');
-    print('🔍 [RemoteConfig] Reading app_update_message: $value');
     return value;
   }
 
   String get updateTitle {
     final value = _remoteConfig.getString('app_update_title');
-    print('🔍 [RemoteConfig] Reading app_update_title: $value');
     return value;
   }
 
   String get updateDownloadUrl {
     final value = _remoteConfig.getString('app_update_download_url');
-    print('🔍 [RemoteConfig] Reading app_update_download_url: $value');
     return value;
   }
 
   String get updateVersion {
     final value = _remoteConfig.getString('app_update_version');
-    print('🔍 [RemoteConfig] Reading app_update_version: $value');
     return value;
   }
 
   String get updateChangelog {
     final value = _remoteConfig.getString('app_update_changelog');
-    print('🔍 [RemoteConfig] Reading app_update_changelog: $value');
     return value;
   }
 
   bool get showUpdateButton {
     try {
       final value = _remoteConfig.getBool('show_update_button');
-      print('🔍 [RemoteConfig] Reading show_update_button: $value');
       return value;
     } catch (e) {
-      print(
-        '🔍 [RemoteConfig] Error reading show_update_button, using default: false',
-      );
       return false;
     }
   }
@@ -91,19 +82,16 @@ class RemoteConfigService {
         ),
       );
     } catch (e) {
-      print('Error setting remote config settings: $e');
     }
 
     try {
       await _remoteConfig.setDefaults(_defaultConfig);
     } catch (e) {
-      print('Error setting remote config defaults: $e');
     }
 
     try {
       await _remoteConfig.fetchAndActivate();
     } catch (e) {
-      print('Error fetching & activating remote config: $e');
     }
   }
 
@@ -128,7 +116,6 @@ class RemoteConfigService {
       );
       return true;
     } catch (e) {
-      print('Error forcing fetch of remote config: $e');
       return false;
     }
   }
@@ -136,7 +123,6 @@ class RemoteConfigService {
   // Force refresh and ensure values are read from local defaults
   Future<bool> forceRefreshAndActivate() async {
     try {
-      print('🔄 [RemoteConfig] Force refreshing and activating...');
 
       // Force activation to ensure local defaults are used
       await _remoteConfig.activate();
@@ -144,16 +130,13 @@ class RemoteConfigService {
       // Try to fetch from server but don't fail if it doesn't work
       try {
         await _remoteConfig.fetchAndActivate();
-        print('🔄 [RemoteConfig] ✅ Fetch and activate successful');
       } catch (e) {
-        print('🔄 [RemoteConfig] ⚠️ Fetch failed, using local defaults: $e');
         // Still activate to ensure local defaults are used
         await _remoteConfig.activate();
       }
 
       return true;
     } catch (e) {
-      print('❌ [RemoteConfig] Error in forceRefreshAndActivate: $e');
       return false;
     }
   }
@@ -165,15 +148,9 @@ class RemoteConfigService {
       final currentVersion = packageInfo.version;
       final requiredVersion = updateVersion;
 
-      print('🔍 [RemoteConfig] Current app version: $currentVersion');
-      print('🔍 [RemoteConfig] Required version: $requiredVersion');
-      print(
-        '🔍 [RemoteConfig] Version comparison result: ${_compareVersions(currentVersion, requiredVersion)}',
-      );
 
       return _compareVersions(currentVersion, requiredVersion) < 0;
     } catch (e) {
-      print('❌ [RemoteConfig] Error checking app update: $e');
       return false;
     }
   }
@@ -185,9 +162,6 @@ class RemoteConfigService {
       final cleanCurrent = current.replaceAll(RegExp(r'[^0-9.]'), '').trim();
       final cleanRequired = required.replaceAll(RegExp(r'[^0-9.]'), '').trim();
 
-      print(
-        '🔍 [RemoteConfig] Cleaned versions - current: "$cleanCurrent", required: "$cleanRequired"',
-      );
 
       final currentParts = cleanCurrent.split('.').map(int.parse).toList();
       final requiredParts = cleanRequired.split('.').map(int.parse).toList();
@@ -206,10 +180,6 @@ class RemoteConfigService {
       }
       return 0;
     } catch (e) {
-      print('❌ [RemoteConfig] Error comparing versions: $e');
-      print(
-        '❌ [RemoteConfig] Original versions - current: "$current", required: "$required"',
-      );
       return 0; // Return 0 (equal) if there's an error
     }
   }
@@ -220,7 +190,6 @@ class RemoteConfigService {
       final packageInfo = await PackageInfo.fromPlatform();
       return packageInfo.version;
     } catch (e) {
-      print('Error getting app version: $e');
       return '1.0.0';
     }
   }

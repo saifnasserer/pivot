@@ -1,10 +1,9 @@
 import 'dart:io';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:crypto/crypto.dart';
-import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class StorageOptimizationService {
   static final StorageOptimizationService _instance =
@@ -131,19 +130,14 @@ class StorageOptimizationService {
 
     while (retryCount < maxRetries) {
       try {
-        debugPrint(
-          'Upload attempt ${retryCount + 1}/$maxRetries for file: ${file.path}',
-        );
 
         final fileName =
             '${DateTime.now().millisecondsSinceEpoch}_${file.path.split('/').last}';
         final storagePath = '${folder ?? 'general'}/$fileName';
 
-        debugPrint('Storage path: $storagePath');
 
         // Check file size
         final fileSize = await File(file.path).length();
-        debugPrint('File size: ${fileSize / 1024}KB');
 
         if (fileSize > 10 * 1024 * 1024) {
           // 10MB limit
@@ -172,19 +166,15 @@ class StorageOptimizationService {
         if (file.path.toLowerCase().contains('.jpg') ||
             file.path.toLowerCase().contains('.jpeg') ||
             file.path.toLowerCase().contains('.png')) {
-          debugPrint('Compressing image...');
           final compressed = await compressImageOptimized(file, usage: usage);
           if (compressed != null) {
             fileToUpload = compressed;
             final compressedSize = await File(compressed.path).length();
-            debugPrint('Image compressed: ${compressedSize / 1024}KB');
           } else {
-            debugPrint('Image compression failed, using original file');
           }
         }
 
         // Upload to Firebase Storage with timeout
-        debugPrint('Starting Firebase Storage upload...');
         final storageRef = _storage.ref().child(storagePath);
 
         // Create upload task with metadata
@@ -204,23 +194,17 @@ class StorageOptimizationService {
         // Monitor upload progress
         uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
           final progress = snapshot.bytesTransferred / snapshot.totalBytes;
-          debugPrint(
-            'Upload progress: ${(progress * 100).toStringAsFixed(1)}%',
-          );
         });
 
         // Wait for upload to complete with timeout
         final snapshot = await uploadTask.timeout(
           Duration(seconds: 60),
           onTimeout: () {
-            debugPrint('Upload timeout after 60 seconds');
             throw Exception('Upload timeout');
           },
         );
 
-        debugPrint('Upload completed, getting download URL...');
         final downloadUrl = await snapshot.ref.getDownloadURL();
-        debugPrint('Download URL obtained: $downloadUrl');
 
         // Track file reference
         _addFileReference(folder ?? 'general', downloadUrl, storagePath);
@@ -236,36 +220,25 @@ class StorageOptimizationService {
         //   });
         // }
 
-        debugPrint('File uploaded successfully: $downloadUrl');
         return downloadUrl;
       } catch (e) {
         retryCount++;
-        debugPrint('Upload error (attempt $retryCount/$maxRetries): $e');
 
         // Check if it's a Firestore permission error (not storage)
         if (e.toString().contains('permission-denied') &&
             e.toString().contains('firestore')) {
-          debugPrint(
-            'Firestore permission error - storage upload may still work',
-          );
           // Continue with retry for storage upload
         } else if (e.toString().contains('unauthorized') ||
             e.toString().contains('permission')) {
-          debugPrint(
-            'Storage authorization error detected - Firebase Storage rules may be blocking uploads',
-          );
-          debugPrint('Please check your Firebase Storage security rules');
           return null; // Don't retry authorization errors
         }
 
         if (retryCount >= maxRetries) {
-          debugPrint('Max retries reached, upload failed');
           return null;
         }
 
         // Wait before retrying (exponential backoff)
         final delay = Duration(seconds: retryCount * 2);
-        debugPrint('Retrying in ${delay.inSeconds} seconds...');
         await Future.delayed(delay);
       }
     }
@@ -279,7 +252,6 @@ class StorageOptimizationService {
     String? folder = 'general',
   }) async {
     try {
-      debugPrint('Using simple upload method for: ${file.path}');
 
       final fileName =
           '${DateTime.now().millisecondsSinceEpoch}_${file.path.split('/').last}';
@@ -291,10 +263,8 @@ class StorageOptimizationService {
       final snapshot = await uploadTask;
       final downloadUrl = await snapshot.ref.getDownloadURL();
 
-      debugPrint('Simple upload successful: $downloadUrl');
       return downloadUrl;
     } catch (e) {
-      debugPrint('Simple upload failed: $e');
       return null;
     }
   }
@@ -302,7 +272,6 @@ class StorageOptimizationService {
   /// Local storage fallback when Firebase upload fails
   Future<String?> saveImageLocally(XFile file) async {
     try {
-      debugPrint('Saving image locally as fallback...');
 
       final appDir = await getApplicationDocumentsDirectory();
       final imagesDir = Directory('${appDir.path}/profile_images');
@@ -317,10 +286,8 @@ class StorageOptimizationService {
       // Copy the file to local storage
       await File(file.path).copy(localPath);
 
-      debugPrint('Image saved locally: $localPath');
       return localPath;
     } catch (e) {
-      debugPrint('Failed to save image locally: $e');
       return null;
     }
   }

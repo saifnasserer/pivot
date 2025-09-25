@@ -8,7 +8,7 @@ class CategoryButton extends StatelessWidget {
     required this.title,
     required this.onSelected,
   });
-  
+
   final bool selected;
   final String title;
   final VoidCallback onSelected;

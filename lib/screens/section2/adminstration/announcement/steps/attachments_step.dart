@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart' hide MaterialType;
-import 'package:pivot/responsive.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:pivot/services/permission_service.dart';
 import 'package:pivot/screens/section2/adminstration/announcement/add_announcement_controller.dart';
-import 'package:pivot/models/material_link.dart';
 import 'package:pivot/screens/section2/adminstration/announcement/steps/material_browser_bottom_sheet.dart';
-import 'package:pivot/widgets/unified_dialog.dart';
 import 'dart:io';
+import 'package:pivot/responsive.dart';
+import 'package:pivot/models/subject_model.dart';
+import 'package:pivot/models/material_link.dart';
+import 'package:pivot/widgets/unified_dialog.dart';
+
 
 class AttachmentsStep extends StatelessWidget {
   final List<XFile> pickedImages;

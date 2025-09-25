@@ -15,7 +15,7 @@ class CircularButton extends StatelessWidget {
     required this.icon,
     this.backgroundColor = Colors.black87,
     this.iconColor = Colors.white,
-    this.elevation = 5,
+    this.elevation = 8,
     this.iconSizeMultiplier = 1.5,
     this.sizeMultiplier = 4,
   });
@@ -45,23 +45,41 @@ class CircularButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ElevatedButton(
-      onPressed: onPressed,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: backgroundColor,
-        shape: CircleBorder(),
-        minimumSize: Size(
-          Responsive.space(context, size: Space.xlarge) * sizeMultiplier,
-          Responsive.space(context, size: Space.xlarge) * sizeMultiplier,
+    return Container(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [const Color(0xFF4CAF50), const Color(0xFF2E7D32)],
         ),
-        elevation: elevation,
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF4CAF50).withOpacity(0.3),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
-      child: Icon(
-        icon,
-        size:
-            Responsive.text(context, size: TextSize.heading) *
-            iconSizeMultiplier,
-        color: iconColor,
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          shape: const CircleBorder(),
+          minimumSize: Size(
+            Responsive.space(context, size: Space.xlarge) * sizeMultiplier,
+            Responsive.space(context, size: Space.xlarge) * sizeMultiplier,
+          ),
+          elevation: 0,
+        ),
+        child: Icon(
+          icon,
+          size:
+              Responsive.text(context, size: TextSize.heading) *
+              iconSizeMultiplier,
+          color: iconColor,
+        ),
       ),
     );
   }

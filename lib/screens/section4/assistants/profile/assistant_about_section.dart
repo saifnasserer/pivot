@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/models/user_profile.dart';
-import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/section4/doctor_details.dart';
 import 'assistant_about_me_widget.dart';
 import 'package:pivot/screens/section4/doctor/profile/contact_info_widget.dart';
+import 'package:pivot/responsive.dart';
+
 
 class AssistantAboutSection extends StatefulWidget {
   final UserProfile userProfile;

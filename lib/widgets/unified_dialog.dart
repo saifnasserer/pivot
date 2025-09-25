@@ -306,7 +306,7 @@ class UnifiedDropdownField<T> extends StatelessWidget {
         border: Border.all(color: Colors.grey[300]!),
       ),
       child: DropdownButtonFormField<T>(
-        value: value,
+        initialValue: value,
         items:
             items.map((T item) {
               return DropdownMenuItem<T>(

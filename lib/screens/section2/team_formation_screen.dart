@@ -3,15 +3,15 @@ import 'package:lottie/lottie.dart';
 import 'package:pivot/data/form_options.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/screens/models/team_find_card.dart';
-import 'package:pivot/responsive.dart';
-import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:pivot/models/team_member.dart';
 import 'package:pivot/providers/team_provider.dart';
+import 'package:pivot/widgets/custom_text_field.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uuid/uuid.dart';
-import 'package:pivot/widgets/custom_text_field.dart';
 import 'package:pivot/models/user_profile.dart';
+import 'package:pivot/responsive.dart';
+import 'package:pivot/widgets/unified_dialog.dart';
 
 class TeamFormationScreen extends StatefulWidget {
   // = 'team_formation';

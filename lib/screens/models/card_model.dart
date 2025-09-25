@@ -717,9 +717,6 @@ class _CardModelState extends State<CardModel> {
                               try {
                                 Provider.of<Bookmarks>(context, listen: false);
                               } catch (e) {
-                                debugPrint(
-                                  'Bookmarks provider not available: $e',
-                                );
                                 return IconButton(
                                   onPressed: null,
                                   icon: const Icon(
@@ -758,11 +755,7 @@ class _CardModelState extends State<CardModel> {
                                           bookmarksConsumer.toggleBookmark(
                                             widget.id!,
                                           );
-                                        } catch (e) {
-                                          debugPrint(
-                                            'Bookmarks toggle error: $e',
-                                          );
-                                        }
+                                        } catch (e) {}
                                       },
                                       icon: Icon(
                                         isBookmarked
@@ -773,7 +766,6 @@ class _CardModelState extends State<CardModel> {
                                       splashRadius: 24,
                                     );
                                   } catch (e) {
-                                    debugPrint('Bookmarks consumer error: $e');
                                     return IconButton(
                                       onPressed: null,
                                       icon: const Icon(

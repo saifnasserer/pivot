@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:pivot/responsive.dart';
-import 'package:pivot/services/remote_config_service.dart';
 import 'package:pivot/services/remote_config_bridge_service.dart';
 import 'package:pivot/services/update_service.dart';
-import 'package:pivot/widgets/custom_text_field.dart';
+import 'package:pivot/responsive.dart';
+import 'package:pivot/services/remote_config_service.dart';
+
 
 class UpdateManagementScreen extends StatefulWidget {
   const UpdateManagementScreen({super.key});
@@ -29,7 +28,6 @@ class _UpdateManagementScreenState extends State<UpdateManagementScreen> {
   @override
   void initState() {
     super.initState();
-    print('🔧 [UpdateManagement] initState called');
     _loadCurrentSettings();
   }
 
@@ -51,8 +49,6 @@ class _UpdateManagementScreenState extends State<UpdateManagementScreen> {
       final firestoreData = await bridgeService.loadSettings();
 
       if (firestoreData != null) {
-        print('📄 [UpdateManagement] Loading settings from Firestore');
-        print('📄 [UpdateManagement] Firestore data: $firestoreData');
 
         _titleController.text = firestoreData['app_update_title'] ?? '';
         _messageController.text = firestoreData['app_update_message'] ?? '';
@@ -66,19 +62,9 @@ class _UpdateManagementScreenState extends State<UpdateManagementScreen> {
             firestoreData['show_team_formation_button'] ?? false;
       }
 
-      print('📄 [UpdateManagement] Loaded values:');
-      print('  - Title: "${_titleController.text}"');
-      print('  - Message: "${_messageController.text}"');
-      print('  - Version: "${_versionController.text}"');
-      print('  - Download URL: "${_downloadUrlController.text}"');
-      print('  - Changelog: "${_changelogController.text}"');
-      print('  - Update Force: $_isUpdateForce');
-      print('  - Show Update Button: $_showUpdateButton');
-      print('  - Show Team Formation Button: $_showTeamFormationButton');
 
       setState(() {});
     } catch (e) {
-      print('❌ [UpdateManagement] Error loading settings: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('خطأ في تحميل الإعدادات: $e'),
@@ -91,10 +77,8 @@ class _UpdateManagementScreenState extends State<UpdateManagementScreen> {
   }
 
   Future<void> _saveSettings() async {
-    print('🔧 [UpdateManagement] Save settings button pressed');
 
     if (!_formKey.currentState!.validate()) {
-      print('❌ [UpdateManagement] Form validation failed');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('يرجى تصحيح الأخطاء في النموذج'),
@@ -104,7 +88,6 @@ class _UpdateManagementScreenState extends State<UpdateManagementScreen> {
       return;
     }
 
-    print('✅ [UpdateManagement] Form validation passed, starting save...');
     setState(() => _isLoading = true);
 
     try {
@@ -119,7 +102,6 @@ class _UpdateManagementScreenState extends State<UpdateManagementScreen> {
         'show_team_formation_button': _showTeamFormationButton,
       };
 
-      print('🔧 [UpdateManagement] Saving settings: $settings');
 
       final bridgeService = RemoteConfigBridgeService();
       final success = await bridgeService.saveSettings(settings);
@@ -158,16 +140,11 @@ class _UpdateManagementScreenState extends State<UpdateManagementScreen> {
 
   Future<void> _testUpdateService() async {
     try {
-      print('🧪 [UpdateManagement] Testing Update Service...');
 
       final updateService = UpdateService();
       final updatesAvailable = await updateService.areUpdatesAvailable();
       final shouldShowButton = updateService.shouldShowUpdateButton();
 
-      print('🧪 [UpdateManagement] Updates Available: $updatesAvailable');
-      print(
-        '🧪 [UpdateManagement] Should Show Update Button: $shouldShowButton',
-      );
 
       showDialog(
         context: context,
@@ -200,7 +177,6 @@ class _UpdateManagementScreenState extends State<UpdateManagementScreen> {
             ),
       );
     } catch (e) {
-      print('❌ [UpdateManagement] Error testing Update Service: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('خطأ في اختبار خدمة التحديث: $e'),
@@ -212,7 +188,6 @@ class _UpdateManagementScreenState extends State<UpdateManagementScreen> {
 
   Future<void> _debugRemoteConfig() async {
     try {
-      print('🐛 [UpdateManagement] Starting Remote Config debug...');
 
       final remoteConfig = RemoteConfigService.instance;
       final bridgeService = RemoteConfigBridgeService();
@@ -222,10 +197,6 @@ class _UpdateManagementScreenState extends State<UpdateManagementScreen> {
       final currentVersion = await remoteConfig.getCurrentAppVersion();
       final isUpdateNeeded = await remoteConfig.isAppUpdateNeeded();
 
-      print('🐛 [UpdateManagement] Sync Status: $syncStatus');
-      print('🐛 [UpdateManagement] Remote Config Values: $remoteConfigValues');
-      print('🐛 [UpdateManagement] Current App Version: $currentVersion');
-      print('🐛 [UpdateManagement] Update Needed: $isUpdateNeeded');
 
       showDialog(
         context: context,
@@ -274,7 +245,6 @@ class _UpdateManagementScreenState extends State<UpdateManagementScreen> {
             ),
       );
     } catch (e) {
-      print('❌ [UpdateManagement] Error debugging Remote Config: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('خطأ في تصحيح Remote Config: $e'),

@@ -20,7 +20,7 @@ class CustomDropdown extends StatelessWidget {
     this.isValid = true,
     this.showError = false,
     this.errorText,
-    this.color = Colors.black,
+    this.color = Colors.white,
     this.disabled = false,
     this.required = false,
     this.icon,
@@ -30,7 +30,7 @@ class CustomDropdown extends StatelessWidget {
     this.hintStyle,
   });
 
-  /// The background color of the dropdown. Defaults to black.
+  /// The background color of the dropdown. Defaults to white.
   final Color color;
 
   /// The list of items to display in the dropdown.
@@ -80,21 +80,28 @@ class CustomDropdown extends StatelessWidget {
     final radius = borderRadius ?? Responsive.space(context, size: Space.large);
 
     return BoxDecoration(
-      color: disabled ? Colors.grey.shade200 : color,
+      color: disabled ? Colors.grey.shade100 : color,
       borderRadius: BorderRadius.circular(radius),
       border: Border.all(
         color: _getBorderColor(context),
         width: _getBorderWidth(),
       ),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.05),
+          blurRadius: 8,
+          offset: const Offset(0, 2),
+        ),
+      ],
     );
   }
 
   /// Gets the appropriate border color based on state.
   Color _getBorderColor(BuildContext context) {
-    if (showError) return Colors.red;
-    if (isValid) return Colors.green;
-    if (disabled) return Colors.grey.shade400;
-    return const Color(0xfff7f7f7);
+    if (showError) return const Color(0xFFE57373);
+    if (isValid) return const Color(0xFF4CAF50);
+    if (disabled) return Colors.grey.shade300;
+    return Colors.grey.shade300;
   }
 
   /// Gets the appropriate border width based on state.
@@ -110,14 +117,14 @@ class CustomDropdown extends StatelessWidget {
           color: _getTextColor(),
           fontSize: Responsive.text(context, size: TextSize.medium),
           fontWeight: FontWeight.w500,
+          height: 1.2,
         );
   }
 
   /// Gets the appropriate text color based on state.
   Color _getTextColor() {
     if (disabled) return Colors.grey.shade600;
-    if (color != Colors.black) return Colors.black;
-    return Colors.white;
+    return Colors.black;
   }
 
   /// Validates and cleans the dropdown items to prevent duplicates and empty values.
@@ -165,25 +172,32 @@ class CustomDropdown extends StatelessWidget {
           padding:
               padding ??
               EdgeInsets.symmetric(
-                horizontal: Responsive.space(context, size: Space.medium),
+                horizontal: Responsive.space(context, size: Space.small) * 2,
+                vertical: Responsive.space(context, size: Space.small) / 2,
               ),
+          constraints: BoxConstraints(
+            minHeight: Responsive.space(context, size: Space.small),
+          ),
           child: DropdownButton<String>(
             value: validValue,
             isExpanded: true,
+            isDense: false,
             dropdownColor: color,
             borderRadius: BorderRadius.circular(
               borderRadius ?? Responsive.space(context, size: Space.large),
             ),
             hint: Container(
-              alignment: Alignment.center,
+              alignment: Alignment.centerRight,
+              width: double.infinity,
               child: Text(
                 _getHintText(),
-                textAlign: TextAlign.center,
+                textAlign: TextAlign.right,
                 style:
                     hintStyle ??
-                    _getDropdownTextStyle(
-                      context,
-                    ).copyWith(color: _getTextColor().withOpacity(0.7)),
+                    _getDropdownTextStyle(context).copyWith(
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w400,
+                    ),
               ),
             ),
             underline: Container(),
@@ -196,10 +210,11 @@ class CustomDropdown extends StatelessWidget {
                       (item) => DropdownMenuItem<String>(
                         value: item,
                         child: Container(
-                          alignment: Alignment.center,
+                          alignment: Alignment.centerRight,
+                          width: double.infinity,
                           child: Text(
                             item,
-                            textAlign: TextAlign.center,
+                            textAlign: TextAlign.right,
                             style: _getDropdownTextStyle(context),
                             overflow: TextOverflow.ellipsis,
                           ),

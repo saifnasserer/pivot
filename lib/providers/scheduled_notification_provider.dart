@@ -1,5 +1,5 @@
-import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import 'package:pivot/models/scheduled_notification.dart';
 import 'package:pivot/services/notification_service.dart';
 

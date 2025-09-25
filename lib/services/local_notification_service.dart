@@ -1,10 +1,10 @@
 import 'dart:io' show Platform;
 import 'package:awesome_notifications/awesome_notifications.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pivot/services/sound_service.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 class LocalNotificationService {
   LocalNotificationService._();
@@ -89,14 +89,12 @@ class LocalNotificationService {
 
       final currentUser = auth.currentUser;
       if (currentUser == null) {
-        print('LocalNotification: No current user found');
         return false;
       }
 
       // Get the task details
       final taskDoc = await firestore.collection('tasks').doc(taskId).get();
       if (!taskDoc.exists) {
-        print('LocalNotification: Task $taskId not found');
         return false;
       }
 
@@ -104,7 +102,6 @@ class LocalNotificationService {
       final taskSectionId = taskData['sectionId'] as String?;
 
       if (taskSectionId == null) {
-        print('LocalNotification: Task $taskId has no sectionId');
         return false;
       }
 
@@ -112,7 +109,6 @@ class LocalNotificationService {
       final userDoc =
           await firestore.collection('users').doc(currentUser.uid).get();
       if (!userDoc.exists) {
-        print('LocalNotification: User profile not found');
         return false;
       }
 
@@ -129,7 +125,6 @@ class LocalNotificationService {
       final sectionDoc =
           await firestore.collection('sections').doc(taskSectionId).get();
       if (!sectionDoc.exists) {
-        print('LocalNotification: Section $taskSectionId not found');
         return false;
       }
 
@@ -138,17 +133,11 @@ class LocalNotificationService {
       final sectionAssistantId = sectionData['assistantId'] as String?;
 
       if (sectionSubjectId == null || sectionAssistantId == null) {
-        print(
-          'LocalNotification: Section $taskSectionId missing subjectId or assistantId',
-        );
         return false;
       }
 
       // Check if user is enrolled in this subject
       if (!userEnrolledSubjectIds.contains(sectionSubjectId)) {
-        print(
-          'LocalNotification: User not enrolled in subject $sectionSubjectId',
-        );
         return false;
       }
 
@@ -156,9 +145,6 @@ class LocalNotificationService {
       final preferredAssistantId = assistantPreferences[sectionSubjectId];
       if (preferredAssistantId != null &&
           preferredAssistantId != sectionAssistantId) {
-        print(
-          'LocalNotification: User prefers different assistant for subject $sectionSubjectId',
-        );
         return false;
       }
 
@@ -167,17 +153,13 @@ class LocalNotificationService {
         final sectionName = sectionData['name'] as String?;
         if (sectionName != null &&
             !_matchesUserSectionNumber(sectionName, userSection)) {
-          print(
-            'LocalNotification: Section $sectionName does not match user section $userSection',
-          );
           return false;
         }
       }
 
-      print('LocalNotification: ✅ Task $taskId belongs to current user');
       return true;
     } catch (e) {
-      print('LocalNotification: Error checking if task belongs to user: $e');
+
       return false;
     }
   }
@@ -223,47 +205,31 @@ class LocalNotificationService {
         true, // true for weekly classes, false for one-time lectures
     String? classType, // 'lecture' or 'section'
   }) async {
-    print('🔔 === LOCAL NOTIFICATION SERVICE - SCHEDULE CLASS REMINDER ===');
-    print('  - Schedule Item ID: $scheduleItemId');
-    print('  - Subject Name: $subjectName');
-    print('  - Weekday: $weekday (${_weekdayName(weekday)})');
-    print('  - Class Hour: $classHour');
-    print('  - Class Minute: $classMinute');
-    print('  - Is Recurring: $isRecurring');
-    print('  - Is Web: $kIsWeb');
 
     if (kIsWeb) {
-      print('  - ⚠️ On web, skipping local notification');
       return;
     }
 
     // Check if awesome_notifications is properly initialized and has permissions
     try {
       final isAllowed = await AwesomeNotifications().isNotificationAllowed();
-      print('  - Notification permission allowed: $isAllowed');
 
       if (!isAllowed) {
-        print('  - ❌ Notifications not allowed, requesting permission...');
         await AwesomeNotifications().requestPermissionToSendNotifications();
         final isAllowedAfterRequest =
             await AwesomeNotifications().isNotificationAllowed();
-        print('  - Permission after request: $isAllowedAfterRequest');
 
         if (!isAllowedAfterRequest) {
-          print('  - ❌ User denied notification permission, cannot schedule');
           return;
         }
       }
     } catch (e) {
-      print('  - ❌ Error checking notification permissions: $e');
       return;
     }
 
     final id = _stableIdFrom('class:$scheduleItemId');
-    print('  - Generated notification ID: $id');
 
     if (isRecurring) {
-      print('  - Scheduling recurring weekly class...');
       // For recurring weekly classes
       await _scheduleWeeklyRecurring(
         id: id,
@@ -274,9 +240,8 @@ class LocalNotificationService {
         classMinute: classMinute,
         classType: classType,
       );
-      print('  - ✅ Recurring weekly class scheduled');
+
     } else {
-      print('  - Scheduling one-time lecture...');
       // For one-time lectures/classes
       await _scheduleOneTimeClass(
         id: id,
@@ -287,9 +252,7 @@ class LocalNotificationService {
         classMinute: classMinute,
         classType: classType,
       );
-      print('  - ✅ One-time lecture scheduled');
     }
-    print('🔔 === LOCAL NOTIFICATION SERVICE COMPLETE ===');
   }
 
   // Schedule weekly recurring class reminder
@@ -302,12 +265,6 @@ class LocalNotificationService {
     required int classMinute,
     String? classType,
   }) async {
-    print('🔁 === SCHEDULING WEEKLY RECURRING ===');
-    print('  - ID: $id');
-    print('  - Subject: $subjectName');
-    print(
-      '  - Class time: $classHour:${classMinute.toString().padLeft(2, '0')}',
-    );
 
     // Calculate reminder time (15 minutes before class)
     int reminderHour = classHour;
@@ -325,18 +282,7 @@ class LocalNotificationService {
       // Note: awesome_notifications handles day adjustment automatically for weekly reminders
     }
 
-    print(
-      '  - Reminder time: $reminderHour:${reminderMinute.toString().padLeft(2, '0')}',
-    );
-    print('  - Weekday: $weekday (${_weekdayName(weekday)})');
 
-    print('  - Creating AwesomeNotifications notification...');
-    print('  - NotificationCalendar details:');
-    print('    * Weekday: $weekday');
-    print('    * Hour: $reminderHour');
-    print('    * Minute: $reminderMinute');
-    print('    * Repeats: true');
-    print('    * PreciseAlarm: ${Platform.isAndroid}');
 
     // Determine if it's a section or lecture for Arabic text
     final isSection = classType == 'section';
@@ -374,8 +320,6 @@ class LocalNotificationService {
         preciseAlarm: Platform.isAndroid,
       ),
     );
-    print('  - ✅ Weekly recurring notification created successfully');
-    print('🔁 === WEEKLY RECURRING COMPLETE ===');
   }
 
   // Schedule one-time class reminder
@@ -389,17 +333,6 @@ class LocalNotificationService {
     String? classType,
   }) async {
     final DateTime now = DateTime.now();
-
-    print('🔔 Scheduling one-time class reminder:');
-    print('  - Subject: $subjectName');
-    print('  - Target weekday: $weekday (${_weekdayName(weekday)})');
-    print('  - Current weekday: ${now.weekday} (${_weekdayName(now.weekday)})');
-    print(
-      '  - Class time: $classHour:${classMinute.toString().padLeft(2, '0')}',
-    );
-    print(
-      '  - Current time: ${now.hour}:${now.minute.toString().padLeft(2, '0')}',
-    );
 
     // Find the next occurrence of this weekday
     DateTime classDate = DateTime(
@@ -420,19 +353,12 @@ class LocalNotificationService {
     classDate = classDate.add(Duration(days: daysToAdd));
     final reminderDate = classDate.subtract(const Duration(minutes: 15));
 
-    print('  - Class date/time: $classDate');
-    print('  - Reminder date/time: $reminderDate');
-    print('  - Days to add: $daysToAdd');
 
     // Check if we should schedule future reminder or send immediate notification
     if (classDate.isBefore(now)) {
-      print('  - ❌ Class has already passed, no notification scheduled');
     } else if (classDate.difference(now).inMinutes <= 15) {
       // Class is happening within 15 minutes - send immediate notification
       final minutesToClass = classDate.difference(now).inMinutes;
-      print(
-        '  - ⚡ Sending immediate notification ($minutesToClass minutes to class)',
-      );
       // Determine if it's a section or lecture for Arabic text
       final isSection = classType == 'section';
       final immediateTitle = isSection ? 'السكشن هيبدأ!' : 'المحاضرة هتبدأ!';
@@ -465,10 +391,8 @@ class LocalNotificationService {
       // Play custom notification sound for immediate notifications
       await SoundService().playNotificationSound();
 
-      print('  - ✅ Immediate notification sent successfully');
     } else {
       // Schedule future reminder (15 minutes before class)
-      print('  - ✅ Scheduling future reminder notification');
       // Determine if it's a section or lecture for Arabic text
       final isSection = classType == 'section';
       final futureTitle = isSection ? 'سكشن قريب' : 'محاضرة قريبة';
@@ -500,7 +424,6 @@ class LocalNotificationService {
           preciseAlarm: Platform.isAndroid,
         ),
       );
-      print('  - ✅ Future reminder scheduled successfully');
     }
   }
 
@@ -538,28 +461,20 @@ class LocalNotificationService {
   }) async {
     if (kIsWeb) return;
 
-    print('📋 === SCHEDULE TASK REMINDERS ===');
-    print('  - Task ID: $taskId');
-    print('  - Task Name: $taskName');
-    print('  - Due Date: $dueDateTime');
-    print('  - Is Completed: $isCompleted');
 
     // Always cancel existing before re-scheduling to avoid duplicates
     await cancelTaskReminders(taskId);
 
     if (isCompleted) {
-      print('  - ✅ Task completed, no reminders needed');
       return;
     }
 
     // Check if this task belongs to the current user
     if (!await _isTaskForCurrentUser(taskId)) {
-      print('  - ❌ Task does not belong to current user, skipping reminders');
       return;
     }
 
     final now = DateTime.now();
-    print('  - Current time: $now');
 
     // 3 days before at 09:00
     final threeDaysBefore = DateTime(
@@ -571,7 +486,6 @@ class LocalNotificationService {
     );
 
     if (threeDaysBefore.isAfter(now)) {
-      print('  - ⏰ Scheduling 3-day early reminder for: $threeDaysBefore');
       await _scheduleOneTime(
         idKey: 'task:$taskId:early',
         title: 'تذكير مبكر',
@@ -584,9 +498,7 @@ class LocalNotificationService {
           'taskName': taskName,
         },
       );
-      print('  - ✅ 3-day early reminder scheduled');
     } else {
-      print('  - ⏭️ 3-day early reminder time has passed');
     }
 
     // 1 day before at 18:00 (6 PM)
@@ -599,7 +511,6 @@ class LocalNotificationService {
     );
 
     if (oneDayBefore.isAfter(now)) {
-      print('  - ⏰ Scheduling 1-day before reminder for: $oneDayBefore');
       await _scheduleOneTime(
         idKey: 'task:$taskId:tomorrow',
         title: 'تذكير قريب',
@@ -612,9 +523,7 @@ class LocalNotificationService {
           'taskName': taskName,
         },
       );
-      print('  - ✅ 1-day before reminder scheduled');
     } else {
-      print('  - ⏭️ 1-day before reminder time has passed');
     }
 
     // On due day at 08:00
@@ -626,7 +535,6 @@ class LocalNotificationService {
       0,
     );
     if (dueMorning.isAfter(now)) {
-      print('  - ⏰ Scheduling due day morning reminder for: $dueMorning');
       await _scheduleOneTime(
         idKey: 'task:$taskId:due',
         title: 'تاسك اليوم',
@@ -639,9 +547,7 @@ class LocalNotificationService {
           'taskName': taskName,
         },
       );
-      print('  - ✅ Due day morning reminder scheduled');
     } else {
-      print('  - ⏭️ Due day morning reminder time has passed');
     }
 
     // Same day evening reminder at 20:00 (8 PM)
@@ -654,7 +560,6 @@ class LocalNotificationService {
     );
 
     if (dueEvening.isAfter(now)) {
-      print('  - ⏰ Scheduling due day evening reminder for: $dueEvening');
       await _scheduleOneTime(
         idKey: 'task:$taskId:evening',
         title: 'تاسك اليوم - تذكير أخير',
@@ -667,15 +572,12 @@ class LocalNotificationService {
           'taskName': taskName,
         },
       );
-      print('  - ✅ Due day evening reminder scheduled');
     } else {
-      print('  - ⏭️ Due day evening reminder time has passed');
     }
 
     // Overdue daily at 10:00 starting tomorrow if overdue
     if (dueDateTime.isBefore(now)) {
       final daysOverdue = now.difference(dueDateTime).inDays;
-      print('  - 🚨 Task is overdue by $daysOverdue days');
       final start = DateTime(
         now.year,
         now.month,
@@ -683,7 +585,6 @@ class LocalNotificationService {
         10,
         0,
       ).add(const Duration(days: 1));
-      print('  - ⏰ Scheduling daily overdue reminders starting: $start');
       await _scheduleDailyRepeating(
         idKey: 'task:$taskId:overdue',
         title: 'تاسك متأخر!',
@@ -696,12 +597,9 @@ class LocalNotificationService {
           'taskName': taskName,
         },
       );
-      print('  - ✅ Daily overdue reminders scheduled');
     } else {
-      print('  - ✅ Task is not overdue yet');
     }
 
-    print('📋 === TASK REMINDERS COMPLETE ===');
   }
 
   Future<void> cancelTaskReminders(String taskId) async {
@@ -747,7 +645,6 @@ class LocalNotificationService {
 
       return true;
     } catch (e) {
-      print('❌ Error sending test notification: $e');
       return false;
     }
   }
@@ -760,27 +657,15 @@ class LocalNotificationService {
       final notifications =
           await AwesomeNotifications().listScheduledNotifications();
 
-      print('🔍 === SCHEDULED NOTIFICATIONS DEBUG ===');
-      print('  - Total scheduled notifications: ${notifications.length}');
 
       final notificationList =
           notifications.map((n) {
             final schedule = n.schedule;
             final content = n.content;
 
-            print('  - Notification ID: ${content?.id}');
-            print('    * Title: ${content?.title}');
-            print('    * Payload type: ${content?.payload?['type']}');
-            print('    * Subject: ${content?.payload?['subjectName']}');
-            print('    * Schedule: ${schedule.toString()}');
 
             if (schedule is NotificationCalendar) {
-              print('    * Weekday: ${schedule.weekday}');
-              print('    * Hour: ${schedule.hour}');
-              print('    * Minute: ${schedule.minute}');
-              print('    * Repeats: ${schedule.repeats}');
             }
-            print('    ---');
 
             return {
               'id': content?.id,
@@ -798,11 +683,9 @@ class LocalNotificationService {
             };
           }).toList();
 
-      print('🔍 === SCHEDULED NOTIFICATIONS COMPLETE ===');
 
       return {'count': notifications.length, 'notifications': notificationList};
     } catch (e) {
-      print('❌ Error getting scheduled notifications: $e');
       return {'count': 0, 'notifications': [], 'error': e.toString()};
     }
   }

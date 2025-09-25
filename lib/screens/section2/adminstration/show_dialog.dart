@@ -1,18 +1,19 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:pivot/responsive.dart';
 import 'package:intl/intl.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:pivot/screens/section2/adminstration/models/announcement_data.dart';
 import 'package:provider/provider.dart';
-import 'package:pivot/widgets/custom_text_field.dart';
 import 'package:pivot/providers/announcement_provider.dart';
 // import 'package:permission_handler/permission_handler.dart';
 import 'package:pivot/services/permission_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:pivot/responsive.dart';
+import 'package:pivot/widgets/custom_text_field.dart';
+import 'package:flutter/foundation.dart';
 
 // Enum to map display names to full tag formats
 enum DepartmentTag {
@@ -64,7 +65,6 @@ void showAddAnnouncementDialog({
 
   // Convert full tags to display names for editing
   if (announcement != null && announcement.tags.isNotEmpty) {
-    print('DEBUG: announcement.tags = ${announcement.tags}');
     selectedTags =
         announcement.tags
             .map((fullTag) {
@@ -76,7 +76,6 @@ void showAddAnnouncementDialog({
             })
             .whereType<String>() // Remove nulls
             .toList();
-    print('DEBUG: selectedTags = $selectedTags');
   }
 
   // State for images and links
@@ -1512,9 +1511,6 @@ void showAddAnnouncementDialog({
                                       }
 
                                       // Before saving, add this debug print:
-                                      print(
-                                        'DEBUG: selectedTags before save = $selectedTags',
-                                      );
                                       final convertedTags =
                                           selectedTags.map((displayName) {
                                             final departmentTag = DepartmentTag
@@ -1529,9 +1525,6 @@ void showAddAnnouncementDialog({
                                                 );
                                             return departmentTag.fullTag;
                                           }).toList();
-                                      print(
-                                        'DEBUG: convertedTags to save = $convertedTags',
-                                      );
 
                                       final newAnnouncement = AnnouncementData(
                                         id: announcement?.id,

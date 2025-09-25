@@ -8,6 +8,7 @@ import 'package:firebase_storage/firebase_storage.dart' as firebase_storage;
 import 'package:pivot/responsive.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
 
+
 class AddEditTaskDialog extends StatefulWidget {
   final Task? task;
   final bool isPersonal;

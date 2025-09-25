@@ -1,5 +1,5 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pivot/models/section_model.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SectionService {
   final CollectionReference _sectionsCollection = FirebaseFirestore.instance
@@ -26,7 +26,6 @@ class SectionService {
       }
       return allSections;
     } catch (e) {
-      print('Error fetching sections: $e');
       rethrow;
     }
   }
@@ -47,7 +46,7 @@ class SectionService {
 
       return sections;
     } catch (e) {
-      print('Error fetching sections for assistant: $e');
+
       rethrow;
     }
   }
@@ -68,7 +67,6 @@ class SectionService {
         location: section.location,
       );
     } catch (e) {
-      print('Error adding section: $e');
       rethrow;
     }
   }
@@ -77,7 +75,6 @@ class SectionService {
     try {
       await _sectionsCollection.doc(section.id).update(section.toJson());
     } catch (e) {
-      print('Error updating section: $e');
       rethrow;
     }
   }
@@ -86,7 +83,6 @@ class SectionService {
     try {
       await _sectionsCollection.doc(sectionId).delete();
     } catch (e) {
-      print('Error deleting section: $e');
       rethrow;
     }
   }

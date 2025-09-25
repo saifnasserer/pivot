@@ -1,6 +1,6 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/foundation.dart';
 
 class SoundService {
   static final SoundService _instance = SoundService._internal();
@@ -17,12 +17,10 @@ class SoundService {
       // Try to play custom notification sound
       await _audioPlayer.play(AssetSource('sounds/notification.mp3'));
     } catch (e) {
-      print('Error playing custom notification sound: $e');
       // Fallback to system sound
       try {
         await SystemSound.play(SystemSoundType.click);
       } catch (fallbackError) {
-        print('Error playing fallback notification sound: $fallbackError');
       }
     }
   }
@@ -35,12 +33,10 @@ class SoundService {
       // Try to play custom correct sound
       await _audioPlayer.play(AssetSource('sounds/correct.mp3'));
     } catch (e) {
-      print('Error playing custom correct sound: $e');
       // Fallback to system sound
       try {
         await SystemSound.play(SystemSoundType.click);
       } catch (fallbackError) {
-        print('Error playing fallback correct sound: $fallbackError');
       }
     }
   }

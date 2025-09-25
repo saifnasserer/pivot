@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/models/lecture_model.dart';
 import 'package:pivot/models/user_profile.dart';
-import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/providers/doctor_subject_provider.dart';
 import 'package:pivot/providers/subject_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
@@ -14,7 +13,6 @@ import 'package:pivot/screens/section3/profile_widgets/Profile_options.dart';
 import 'package:pivot/screens/section3/subject_selection_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:pivot/widgets/no_internet_message.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 class DoctorProfile extends StatefulWidget {
   const DoctorProfile({super.key});

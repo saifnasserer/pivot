@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/providers/guide_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/providers/subject_provider.dart';
-import 'package:pivot/responsive.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:pivot/widgets/no_internet_message.dart';
 import 'dart:developer' as developer;
+import 'package:pivot/responsive.dart';
+import 'package:pivot/models/subject_model.dart';
+import 'package:pivot/models/material_link.dart';
 
 class SubjectSelectionScreen extends StatefulWidget {
   final List<String> previouslySelectedIds;
@@ -43,129 +44,55 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
   @override
   void initState() {
     super.initState();
-    developer.log(
-      'SubjectSelectionScreen: initState called',
-      name: 'SubjectSelection',
-    );
-    developer.log(
-      'SubjectSelectionScreen: previouslySelectedIds = ${widget.previouslySelectedIds}',
-      name: 'SubjectSelection',
-    );
-    developer.log(
-      'SubjectSelectionScreen: targetUserId = ${widget.targetUserId}',
-      name: 'SubjectSelection',
-    );
-    developer.log(
-      'SubjectSelectionScreen: targetUserRole = ${widget.targetUserRole}',
-      name: 'SubjectSelection',
-    );
 
     _selectedSubjectIds = Set<String>.from(widget.previouslySelectedIds);
-    developer.log(
-      'SubjectSelectionScreen: _selectedSubjectIds initialized with ${_selectedSubjectIds.length} items',
-      name: 'SubjectSelection',
-    );
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      developer.log(
-        'SubjectSelectionScreen: Post-frame callback executing',
-        name: 'SubjectSelection',
-      );
       try {
         // For subject selection, we need ALL subjects, not just user's subjects
         final subjectProvider = Provider.of<SubjectProvider>(
           context,
           listen: false,
         );
-        developer.log(
-          'SubjectSelectionScreen: Calling fetchAllSubjects for subject selection',
-          name: 'SubjectSelection',
-        );
+
         subjectProvider.fetchAllSubjects();
-        developer.log(
-          'SubjectSelectionScreen: fetchAllSubjects called',
-          name: 'SubjectSelection',
-        );
 
         Provider.of<GuideProvider>(context, listen: false).fetchGuideContent();
-        developer.log(
-          'SubjectSelectionScreen: fetchGuideContent called',
-          name: 'SubjectSelection',
-        );
 
         // If targetUserId is provided, fetch all users for Super Admin functionality
         if (widget.targetUserId != null) {
-          developer.log(
-            'SubjectSelectionScreen: Fetching all users for Super Admin',
-            name: 'SubjectSelection',
-          );
           Provider.of<UserProfileProvider>(
             context,
             listen: false,
           ).fetchAllUsers();
         }
       } catch (e) {
-        developer.log(
-          'SubjectSelectionScreen: Error in post-frame callback: $e',
-          name: 'SubjectSelection',
-        );
+        debugPrint('SubjectSelectionScreen: Error in post-frame callback: $e');
       }
     });
   }
 
   @override
   void dispose() {
-    developer.log(
-      'SubjectSelectionScreen: dispose called',
-      name: 'SubjectSelection',
-    );
-    developer.log(
-      'SubjectSelectionScreen: Final selected subjects count: ${_selectedSubjectIds.length}',
-      name: 'SubjectSelection',
-    );
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
   }
 
   void _toggleSearchMode() {
-    developer.log(
-      'SubjectSelectionScreen: _toggleSearchMode called, current _isSearchMode = $_isSearchMode',
-      name: 'SubjectSelection',
-    );
     setState(() {
       _isSearchMode = !_isSearchMode;
       if (_isSearchMode) {
         _searchFocusNode.requestFocus();
-        developer.log(
-          'SubjectSelectionScreen: Search mode enabled, focus requested',
-          name: 'SubjectSelection',
-        );
       } else {
         _searchQuery = '';
         _searchController.clear();
         _searchFocusNode.unfocus();
-        developer.log(
-          'SubjectSelectionScreen: Search mode disabled, query cleared',
-          name: 'SubjectSelection',
-        );
       }
     });
   }
 
   List<Subject> _filterSubjects(List<Subject> subjects) {
-    if (_searchQuery.isEmpty) {
-      developer.log(
-        'SubjectSelectionScreen: _filterSubjects - no search query, returning all ${subjects.length} subjects',
-        name: 'SubjectSelection',
-      );
-      return subjects;
-    }
-
-    developer.log(
-      'SubjectSelectionScreen: _filterSubjects - searching for "$_searchQuery" in ${subjects.length} subjects',
-      name: 'SubjectSelection',
-    );
     final filtered =
         subjects.where((subject) {
           final query = _searchQuery.toLowerCase();
@@ -178,10 +105,6 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
           return name.contains(query) || departments.contains(query);
         }).toList();
 
-    developer.log(
-      'SubjectSelectionScreen: _filterSubjects - found ${filtered.length} matching subjects',
-      name: 'SubjectSelection',
-    );
     return filtered;
   }
 
@@ -191,13 +114,9 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
       listen: false,
     );
     int totalHours = 0;
-    developer.log(
-      'SubjectSelectionScreen: _calculateTotalHours - calculating for ${_selectedSubjectIds.length} selected subjects',
-      name: 'SubjectSelection',
-    );
 
     for (final subjectId in _selectedSubjectIds) {
-      final subject = subjectProvider.allSubjects.firstWhere(
+      final subject = subjectProvider.filteredSubjects.firstWhere(
         (s) => s.id == subjectId,
         orElse:
             () => Subject(
@@ -210,65 +129,29 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
             ),
       );
       totalHours += subject.hours;
-      developer.log(
-        'SubjectSelectionScreen: _calculateTotalHours - subject $subjectId (${subject.name}) has ${subject.hours} hours, total now: $totalHours',
-        name: 'SubjectSelection',
-      );
     }
 
-    developer.log(
-      'SubjectSelectionScreen: _calculateTotalHours - final total: $totalHours hours',
-      name: 'SubjectSelection',
-    );
     return totalHours;
   }
 
   bool _canAddSubject(Subject subject) {
     if (_selectedSubjectIds.contains(subject.id)) {
-      developer.log(
-        'SubjectSelectionScreen: _canAddSubject - subject ${subject.id} (${subject.name}) already selected',
-        name: 'SubjectSelection',
-      );
       return true;
     }
     final currentHours = _calculateTotalHours();
     final canAdd = (currentHours + subject.hours) <= maxHours;
-    developer.log(
-      'SubjectSelectionScreen: _canAddSubject - subject ${subject.id} (${subject.name}) with ${subject.hours} hours, current: $currentHours, max: $maxHours, canAdd: $canAdd',
-      name: 'SubjectSelection',
-    );
+
     return canAdd;
   }
 
   void _toggleSubjectSelection(Subject subject) {
-    developer.log(
-      'SubjectSelectionScreen: _toggleSubjectSelection called for subject ${subject.id} (${subject.name})',
-      name: 'SubjectSelection',
-    );
-    developer.log(
-      'SubjectSelectionScreen: _toggleSubjectSelection - current selected count: ${_selectedSubjectIds.length}',
-      name: 'SubjectSelection',
-    );
-
     setState(() {
       if (_selectedSubjectIds.contains(subject.id)) {
         _selectedSubjectIds.remove(subject.id);
-        developer.log(
-          'SubjectSelectionScreen: _toggleSubjectSelection - removed subject ${subject.id} (${subject.name})',
-          name: 'SubjectSelection',
-        );
       } else {
         if (_canAddSubject(subject)) {
           _selectedSubjectIds.add(subject.id);
-          developer.log(
-            'SubjectSelectionScreen: _toggleSubjectSelection - added subject ${subject.id} (${subject.name})',
-            name: 'SubjectSelection',
-          );
         } else {
-          developer.log(
-            'SubjectSelectionScreen: _toggleSubjectSelection - cannot add subject ${subject.id} (${subject.name}), over limit',
-            name: 'SubjectSelection',
-          );
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
@@ -281,11 +164,6 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
         }
       }
     });
-
-    developer.log(
-      'SubjectSelectionScreen: _toggleSubjectSelection - final selected count: ${_selectedSubjectIds.length}',
-      name: 'SubjectSelection',
-    );
   }
 
   Widget _buildSubjectCard(Subject subject) {
@@ -575,11 +453,6 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
   Widget _buildSubjectsList() {
     return Consumer<SubjectProvider>(
       builder: (context, subjectProvider, child) {
-        developer.log(
-          'SubjectSelectionScreen: _buildSubjectsList - isLoading: ${subjectProvider.isLoading}, error: ${subjectProvider.error}, subjects count: ${subjectProvider.allSubjects.length}',
-          name: 'SubjectSelection',
-        );
-
         if (subjectProvider.isLoading) {
           return Center(
             child: Column(
@@ -617,7 +490,7 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
             ),
           );
         }
-        if (subjectProvider.allSubjects.isEmpty) {
+        if (subjectProvider.filteredSubjects.isEmpty) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -640,12 +513,8 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
           );
         }
 
-        final subjects = subjectProvider.allSubjects;
+        final subjects = subjectProvider.filteredSubjects;
         final filteredSubjects = _filterSubjects(subjects);
-        developer.log(
-          'SubjectSelectionScreen: _buildSubjectsList - filtered subjects count: ${filteredSubjects.length}',
-          name: 'SubjectSelection',
-        );
 
         if (_searchQuery.isNotEmpty && filteredSubjects.isEmpty) {
           return Center(
@@ -679,14 +548,6 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
           (groupedSubjects[subject.year] ??= []).add(subject);
         }
         final sortedYears = groupedSubjects.keys.toList()..sort();
-        developer.log(
-          'SubjectSelectionScreen: _buildSubjectsList - grouped subjects by year: ${groupedSubjects.map((k, v) => MapEntry(k, v.length))}',
-          name: 'SubjectSelection',
-        );
-        developer.log(
-          'SubjectSelectionScreen: _buildSubjectsList - sorted years: $sortedYears',
-          name: 'SubjectSelection',
-        );
 
         return ListView.builder(
           padding: Responsive.padding(context, size: Space.large),
@@ -979,19 +840,6 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
                   _isSaving || _calculateTotalHours() > maxHours
                       ? null
                       : () async {
-                        developer.log(
-                          'SubjectSelectionScreen: Save button pressed',
-                          name: 'SubjectSelection',
-                        );
-                        developer.log(
-                          'SubjectSelectionScreen: Selected subjects count: ${_selectedSubjectIds.length}',
-                          name: 'SubjectSelection',
-                        );
-                        developer.log(
-                          'SubjectSelectionScreen: Selected subject IDs: $_selectedSubjectIds',
-                          name: 'SubjectSelection',
-                        );
-
                         setState(() {
                           _isSaving = true;
                           _saveSuccess = false;
@@ -1011,41 +859,17 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
 
                           final userRole =
                               userProfileProvider.loggedInUserProfile?.role;
-                          developer.log(
-                            'SubjectSelectionScreen: Current user role: $userRole',
-                            name: 'SubjectSelection',
-                          );
-                          developer.log(
-                            'SubjectSelectionScreen: Target user ID: ${widget.targetUserId}',
-                            name: 'SubjectSelection',
-                          );
-                          developer.log(
-                            'SubjectSelectionScreen: Target user role: ${widget.targetUserRole}',
-                            name: 'SubjectSelection',
-                          );
 
                           UserProfile? updatedProfile;
 
                           // If targetUserId is provided, Super Admin is editing another user's subjects
                           if (widget.targetUserId != null &&
                               userRole == 'Super Admin') {
-                            developer.log(
-                              'SubjectSelectionScreen: Super Admin editing another user\'s subjects',
-                              name: 'SubjectSelection',
-                            );
                             // Use the targetUserRole parameter instead of fetching from allUsers
                             final targetUserRole = widget.targetUserRole;
-                            developer.log(
-                              'SubjectSelectionScreen: Target user role: $targetUserRole',
-                              name: 'SubjectSelection',
-                            );
 
                             if (targetUserRole == 'Student' ||
                                 targetUserRole == 'Admin') {
-                              developer.log(
-                                'SubjectSelectionScreen: Updating enrolled subjects for target user',
-                                name: 'SubjectSelection',
-                              );
                               await userProfileProvider
                                   .updateUserEnrolledSubjects(
                                     widget.targetUserId!,
@@ -1054,47 +878,28 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
                             } else if (targetUserRole == 'Professor' ||
                                 targetUserRole == 'miniProfessor' ||
                                 targetUserRole == 'Doctor') {
-                              developer.log(
-                                'SubjectSelectionScreen: Updating teaching subjects for target user',
-                                name: 'SubjectSelection',
-                              );
                               await userProfileProvider
                                   .updateUserTeachingSubjects(
                                     widget.targetUserId!,
                                     _selectedSubjectIds.toList(),
                                   );
                             } else {
-                              developer.log(
-                                'SubjectSelectionScreen: Unknown target user role: $targetUserRole',
-                                name: 'SubjectSelection',
-                              );
                               throw Exception(
                                 'Unknown target user role: $targetUserRole',
                               );
                             }
 
                             // Update the UI after Super Admin changes
-                            developer.log(
-                              'SubjectSelectionScreen: Fetching updated data after Super Admin changes',
-                              name: 'SubjectSelection',
-                            );
+
                             await userProfileProvider.fetchAllUsers();
                             await subjectProvider.fetchAllSubjects();
                             success = true;
                           } else {
                             // Normal flow - user editing their own subjects
-                            developer.log(
-                              'SubjectSelectionScreen: Normal flow - user editing their own subjects',
-                              name: 'SubjectSelection',
-                            );
 
                             if (userRole == 'Student' ||
                                 userRole == 'Admin' ||
                                 userRole == 'Super Admin') {
-                              developer.log(
-                                'SubjectSelectionScreen: Updating enrolled subjects for current user',
-                                name: 'SubjectSelection',
-                              );
                               updatedProfile = await userProfileProvider
                                   .updateEnrolledSubjects(
                                     _selectedSubjectIds.toList(),
@@ -1102,37 +907,23 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
                             } else if (userRole == 'Professor' ||
                                 userRole == 'miniProfessor' ||
                                 userRole == 'Doctor') {
-                              developer.log(
-                                'SubjectSelectionScreen: Updating teaching subjects for current user',
-                                name: 'SubjectSelection',
-                              );
                               updatedProfile = await userProfileProvider
                                   .updateTeachingSubjects(
                                     _selectedSubjectIds.toList(),
                                   );
                             } else {
                               // Handle unknown role
-                              developer.log(
-                                'SubjectSelectionScreen: Unknown user role: $userRole',
-                                name: 'SubjectSelection',
-                              );
+
                               throw Exception('Unknown user role: $userRole');
                             }
 
                             // After updating subjects, fetch the latest user profile to ensure
                             // the UI reflects the changes upon returning to the previous screen.
-                            developer.log(
-                              'SubjectSelectionScreen: Loading latest user profile',
-                              name: 'SubjectSelection',
-                            );
+
                             await userProfileProvider.loadLoggedInUserProfile();
                             success = true;
                           }
                         } catch (e) {
-                          developer.log(
-                            'SubjectSelectionScreen: Error during save operation: $e',
-                            name: 'SubjectSelection',
-                          );
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
@@ -1144,10 +935,6 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
                         } finally {
                           if (mounted) {
                             if (success) {
-                              developer.log(
-                                'SubjectSelectionScreen: Save operation completed successfully',
-                                name: 'SubjectSelection',
-                              );
                               setState(() {
                                 _isSaving = false;
                                 _saveSuccess = true;
@@ -1156,18 +943,10 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
                                 const Duration(milliseconds: 800),
                               );
                               if (mounted) {
-                                developer.log(
-                                  'SubjectSelectionScreen: Navigating back with success result',
-                                  name: 'SubjectSelection',
-                                );
                                 // Return true to indicate success, allowing the previous screen to react.
                                 Navigator.pop(context, true);
                               }
                             } else {
-                              developer.log(
-                                'SubjectSelectionScreen: Save operation failed',
-                                name: 'SubjectSelection',
-                              );
                               setState(() {
                                 _isSaving = false;
                               });

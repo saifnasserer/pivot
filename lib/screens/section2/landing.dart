@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:pivot/providers/announcement_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
-import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/section2/landing_categories.dart';
 import 'package:provider/provider.dart';
 import 'package:pivot/screens/models/card_model.dart';
@@ -11,9 +10,9 @@ import 'package:pivot/screens/models/search_card.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:pivot/services/category_service.dart';
 import 'package:pivot/services/update_service.dart';
-import 'package:pivot/services/remote_config_service.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pivot/providers/settings_provider.dart';
+import 'package:pivot/responsive.dart';
+
 
 class Landing extends StatefulWidget {
   const Landing({super.key});
@@ -53,9 +52,7 @@ class LandingState extends State<Landing> with TickerProviderStateMixin {
     _tabController.addListener(() {
       if (_tabController.indexIsChanging && _isInitialized) {
         final newIndex = _tabController.index;
-        print('🔍 [Landing] TabController changed to index: $newIndex');
         if (newIndex != _currentCategoryIndex) {
-          print('🔍 [Landing] Syncing PageView to index: $newIndex');
           _categoryPageController.animateToPage(
             newIndex,
             duration: const Duration(milliseconds: 300),
@@ -83,18 +80,11 @@ class LandingState extends State<Landing> with TickerProviderStateMixin {
         _userDepartment,
       );
 
-      print(
-        '🔍 [Landing] Initial setup - normalizedDepartment: $normalizedDepartment',
-      );
-      print('🔍 [Landing] Initial categories: $_categories');
 
       if (_categories.isNotEmpty) {
         final lastCategory =
             _categories[_categories.length -
                 1]; // Use last category (rightmost)
-        print(
-          '🔍 [Landing] Initial category: $lastCategory (index: ${_categories.length - 1})',
-        );
 
         // Set initial state properly
         setState(() {
@@ -105,22 +95,15 @@ class LandingState extends State<Landing> with TickerProviderStateMixin {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (_categoryPageController.hasClients) {
             _categoryPageController.jumpToPage(_categories.length - 1);
-            print(
-              '🔍 [Landing] Set PageView to initial index: ${_categories.length - 1}',
-            );
           }
 
           // Ensure TabController is at the correct initial position
           if (_tabController.index != _categories.length - 1) {
             _tabController.index = _categories.length - 1;
-            print(
-              '🔍 [Landing] Set TabController to initial index: ${_categories.length - 1}',
-            );
           }
 
           // Mark as initialized after setup is complete
           _isInitialized = true;
-          print('🔍 [Landing] Initialization complete, listener enabled');
         });
 
         final departmentCode = CategoryService.getDepartmentCode(
@@ -159,7 +142,6 @@ class LandingState extends State<Landing> with TickerProviderStateMixin {
   }
 
   void _handleCategoryChange(String category) {
-    print('🔍 [Landing] Handling category change: $category');
     final announcementProvider = Provider.of<AnnouncementProvider>(
       context,
       listen: false,
@@ -171,9 +153,6 @@ class LandingState extends State<Landing> with TickerProviderStateMixin {
     );
     final timeFilter = CategoryService.getTimeFilter(category);
 
-    print(
-      '🔍 [Landing] Fetching with department: $departmentCode, timeFilter: $timeFilter',
-    );
 
     // Fetch announcements with the determined parameters
     announcementProvider.fetchAnnouncements(
@@ -273,23 +252,16 @@ class LandingState extends State<Landing> with TickerProviderStateMixin {
                   controller: _categoryPageController,
                   scrollDirection: Axis.horizontal,
                   onPageChanged: (index) {
-                    print('🔍 [Landing] PageView changed to index: $index');
                     setState(() {
                       _currentCategoryIndex = index;
                     });
                     // Sync with TabController
                     if (_tabController.index != index) {
-                      print(
-                        '🔍 [Landing] Syncing TabController to index: $index',
-                      );
                       _tabController.animateTo(index);
                     }
                     // Trigger category change when swiping
                     if (index < _categories.length) {
                       final category = _categories[index];
-                      print(
-                        '🔍 [Landing] Category changed to: $category (index: $index)',
-                      );
                       _handleCategoryChange(category);
                     }
                   },

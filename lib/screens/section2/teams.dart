@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:pivot/data/form_options.dart';
 import 'package:pivot/providers/teams_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
-import 'package:pivot/responsive.dart';
-import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:pivot/screens/section2/team_formation_screen.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:provider/provider.dart';
 import 'package:gradient_borders/gradient_borders.dart';
+import 'package:pivot/responsive.dart';
+import 'package:pivot/widgets/unified_dialog.dart';
+
 
 class TeamsScreen extends StatefulWidget {
   // = 'teams';
