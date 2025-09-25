@@ -3,8 +3,6 @@ import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/services/subject_service.dart';
 import 'package:pivot/services/cache_service.dart';
-import 'dart:developer' as developer;
-import 'package:pivot/models/material_link.dart';
 
 class SubjectProvider with ChangeNotifier {
   final SubjectService _subjectService = SubjectService();
@@ -56,8 +54,6 @@ class SubjectProvider with ChangeNotifier {
     final instructors =
         allUsers.where((user) => _isInstructor(user.role)).toList();
 
-    for (final instructor in instructors) {}
-
     for (final instructor in instructors) {
       for (final subjectId in instructor.teachingSubjects) {
         if (_instructorsBySubject.containsKey(subjectId)) {
@@ -71,7 +67,6 @@ class SubjectProvider with ChangeNotifier {
         }
       }
     }
-    _instructorsBySubject.forEach((subjectId, instructors) {});
     if (!_disposed) {
       notifyListeners();
     }
@@ -167,7 +162,7 @@ class SubjectProvider with ChangeNotifier {
     }
 
     try {
-      // For admin users or when we want to show all subjects, fetch all
+      // For admin users, fetch all subjects
       if (userProfile.role == 'Admin' || userProfile.role == 'Super Admin') {
         _allSubjects = await _subjectService.getSubjects();
         _filteredSubjects = _allSubjects;
@@ -178,20 +173,15 @@ class SubjectProvider with ChangeNotifier {
           userSubjectIds = userProfile.enrolledSubjects;
         } else if (_isInstructor(userProfile.role)) {
           userSubjectIds = userProfile.teachingSubjects;
-        } else {}
+        }
 
         if (userSubjectIds.isNotEmpty) {
-          // For non-admin users, only fetch the subjects they need
-
+          // Direct fetch by IDs - no double fetching
           _filteredSubjects = await _subjectService.getSubjectsByIds(
             userSubjectIds,
           );
-
-          // For compatibility with other parts of the app that expect allSubjects,
-          // we'll set allSubjects to the same as filteredSubjects for non-admin users
           _allSubjects = _filteredSubjects;
         } else {
-          // If the user has no subjects, show an empty list.
           _filteredSubjects = [];
           _allSubjects = [];
         }

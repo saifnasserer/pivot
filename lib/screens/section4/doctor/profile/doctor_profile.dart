@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/models/lecture_model.dart';
+import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/providers/doctor_subject_provider.dart';
 import 'package:pivot/providers/subject_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
-import 'package:pivot/screens/section4/doctor/add_subject_link_dialog.dart';
+import 'package:pivot/screens/section4/doctor/add_lecture_dialog.dart';
 import 'package:pivot/screens/section4/doctor/doctor_categories.dart';
 import 'package:pivot/screens/section4/doctor/profile/about_section.dart';
 import 'package:pivot/screens/section4/doctor/profile/subjects_section.dart';
@@ -27,6 +28,7 @@ class _DoctorProfileState extends State<DoctorProfile>
   String? _previousProfileId;
   late ScrollController _scrollController;
   String _currentCategory = 'المواد';
+  Subject? _currentSubject;
 
   @override
   void initState() {
@@ -122,6 +124,10 @@ class _DoctorProfileState extends State<DoctorProfile>
   void _onMainCategoryChanged(String category) {
     setState(() {
       _currentCategory = category;
+      // Clear current subject when switching away from subjects
+      if (category != 'المواد') {
+        _currentSubject = null;
+      }
     });
   }
 
@@ -129,35 +135,29 @@ class _DoctorProfileState extends State<DoctorProfile>
     final userProfile = _displayedProfile;
     if (userProfile == null) return;
 
-    final subjectProvider = context.read<SubjectProvider>();
-    final subjects = subjectProvider.filteredSubjects;
-
-    if (subjects.isEmpty) {
+    // Check if we have a current subject selected
+    if (_currentSubject == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('لا توجد مواد متاحة لإضافة محاضرات'),
+          content: Text('يرجى اختيار مادة أولاً'),
           backgroundColor: Colors.orange,
         ),
       );
       return;
     }
 
-    final result = await showDialog<Map<String, String>>(
+    final result = await showDialog<String>(
       context: context,
-      builder: (context) => AddSubjectLinkDialog(subjects: subjects),
+      builder:
+          (context) => AddLectureDialog(subjectName: _currentSubject!.name),
     );
 
-    if (result != null) {
+    if (result != null && result.trim().isNotEmpty) {
       try {
-        final selectedSubjectId = result['subjectId']!;
-        final selectedSubject = subjects.firstWhere(
-          (s) => s.id == selectedSubjectId,
-        );
-
         final newLecture = Lecture(
           id: '',
-          title: result['title']!,
-          subjectId: selectedSubjectId,
+          title: result.trim(),
+          subjectId: _currentSubject!.id,
           doctorId: userProfile.id,
           categoryName: 'المحاضرات',
           links: [],
@@ -166,19 +166,12 @@ class _DoctorProfileState extends State<DoctorProfile>
 
         await context.read<DoctorSubjectProvider>().addLecture(newLecture);
 
-        // Refresh the lectures for the subject that was selected in the dialog
-        final doctorSubjectProvider = context.read<DoctorSubjectProvider>();
-        await doctorSubjectProvider.refreshLecturesForSubject(
-          userProfile.id,
-          selectedSubjectId,
-        );
-
         // Show success message with subject name
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'تم إضافة المحاضرة إلى مادة "${selectedSubject.name}" بنجاح',
+                'تم إضافة المحاضرة إلى مادة "${_currentSubject!.name}" بنجاح',
               ),
               backgroundColor: Colors.green,
               behavior: SnackBarBehavior.floating,
@@ -225,6 +218,11 @@ class _DoctorProfileState extends State<DoctorProfile>
             child: SubjectsSection(
               userProfile: userProfile,
               loggedInUser: loggedInUser,
+              onCurrentSubjectChanged: (subject) {
+                setState(() {
+                  _currentSubject = subject;
+                });
+              },
             ),
           ),
         ];
@@ -265,20 +263,13 @@ class _DoctorProfileState extends State<DoctorProfile>
 
   bool _shouldShowAddLectureButton() {
     final loggedInUser = context.read<UserProfileProvider>().userProfile;
-    print('=== DEBUG: FAB Visibility Check ===');
-    print('Logged in user: ${loggedInUser?.name}');
-    print('Logged in role: "${loggedInUser?.role}"');
-    print('Displayed profile: ${_displayedProfile?.name}');
-    print('Displayed role: "${_displayedProfile?.role}"');
-    print('Is logged in user Student: ${loggedInUser?.role == 'Student'}');
-    print(
-      'Should show button: ${loggedInUser != null && loggedInUser.role != 'Student'}',
-    );
 
     if (loggedInUser == null) return false;
 
-    // Show for all roles except Student (based on logged in user, not displayed profile)
-    return loggedInUser.role != 'Student';
+    // Only show if user can add lectures and we have a current subject selected
+    return loggedInUser.role != 'Student' &&
+        _currentCategory == 'المواد' &&
+        _currentSubject != null;
   }
 
   Future<void> _editTeachingSubjects() async {

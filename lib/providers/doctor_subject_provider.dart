@@ -11,9 +11,29 @@ class DoctorSubjectProvider with ChangeNotifier {
   String? _error;
   String? _currentSubjectId;
 
+  // Add subject-specific lecture caching
+  final Map<String, List<Lecture>> _lecturesBySubject = {};
+  final Map<String, bool> _loadingStates = {};
+  final Map<String, String?> _errorStates = {};
+
   List<Lecture> get lectures => _lectures;
   bool get isLoading => _isLoading;
   String? get error => _error;
+
+  // Get lectures for a specific subject
+  List<Lecture> getLecturesForSubject(String subjectId) {
+    return _lecturesBySubject[subjectId] ?? [];
+  }
+
+  // Get loading state for a specific subject
+  bool isSubjectLoading(String subjectId) {
+    return _loadingStates[subjectId] ?? false;
+  }
+
+  // Get error state for a specific subject
+  String? getSubjectError(String subjectId) {
+    return _errorStates[subjectId];
+  }
 
   void _safeNotifyListeners() {
     if (SchedulerBinding.instance.schedulerPhase !=
@@ -37,28 +57,45 @@ class DoctorSubjectProvider with ChangeNotifier {
     }
 
     _currentSubjectId = subjectId;
+
+    // Check if already loading or already loaded successfully
+    if (_loadingStates[subjectId] == true ||
+        (_lecturesBySubject.containsKey(subjectId) &&
+            _errorStates[subjectId] == null)) {
+      // Use cached data
+      _lectures = _lecturesBySubject[subjectId] ?? [];
+      _safeNotifyListeners();
+      return;
+    }
+
     _isLoading = true;
     _error = null;
+    _loadingStates[subjectId] = true;
+    _errorStates[subjectId] = null;
     _safeNotifyListeners();
 
     try {
-      _lectures = await _service.getLecturesForDoctorSubject(
+      final lectures = await _service.getLecturesForDoctorSubject(
         doctorId,
         subjectId,
       );
 
       // Sort lectures by creation date (newest first)
-      _lectures.sort((a, b) {
-        final aDate =
-            a.createdAt ?? DateTime(1970); // Fallback for lectures without date
-        final bDate =
-            b.createdAt ?? DateTime(1970); // Fallback for lectures without date
-        return bDate.compareTo(aDate); // Newest first
+      lectures.sort((a, b) {
+        final aDate = a.createdAt ?? DateTime(1970);
+        final bDate = b.createdAt ?? DateTime(1970);
+        return bDate.compareTo(aDate);
       });
+
+      // Cache the lectures for this subject
+      _lecturesBySubject[subjectId] = lectures;
+      _lectures = lectures;
     } catch (e) {
       _error = 'Failed to fetch lectures: ${e.toString()}';
+      _errorStates[subjectId] = e.toString();
     } finally {
       _isLoading = false;
+      _loadingStates[subjectId] = false;
       _safeNotifyListeners();
     }
   }
@@ -75,24 +112,25 @@ class DoctorSubjectProvider with ChangeNotifier {
         subjectId,
       );
 
-      // Only update the current list if this is the currently displayed subject
-      if (subjectId == _currentSubjectId) {
-        // Sort lectures by creation date (newest first)
-        lectures.sort((a, b) {
-          final aDate =
-              a.createdAt ??
-              DateTime(1970); // Fallback for lectures without date
-          final bDate =
-              b.createdAt ??
-              DateTime(1970); // Fallback for lectures without date
-          return bDate.compareTo(aDate); // Newest first
-        });
+      // Sort lectures by creation date (newest first)
+      lectures.sort((a, b) {
+        final aDate = a.createdAt ?? DateTime(1970);
+        final bDate = b.createdAt ?? DateTime(1970);
+        return bDate.compareTo(aDate);
+      });
 
+      // Update cache for this subject
+      _lecturesBySubject[subjectId] = lectures;
+
+      // Update current lectures if this is the displayed subject
+      if (subjectId == _currentSubjectId) {
         _lectures = lectures;
-        _safeNotifyListeners();
       }
+
+      _safeNotifyListeners();
     } catch (e) {
-      // Don't update error state for background refreshes
+      _errorStates[subjectId] = e.toString();
+      _safeNotifyListeners();
       print('Failed to refresh lectures for subject $subjectId: $e');
     }
   }
@@ -101,16 +139,19 @@ class DoctorSubjectProvider with ChangeNotifier {
     try {
       final newLecture = await _service.addLecture(lecture);
 
-      // If the lecture was added to the currently displayed subject, add it to the current list
+      // Add to the subject's cache
+      if (_lecturesBySubject.containsKey(newLecture.subjectId)) {
+        _lecturesBySubject[newLecture.subjectId]!.insert(0, newLecture);
+      } else {
+        _lecturesBySubject[newLecture.subjectId] = [newLecture];
+      }
+
+      // If this is the currently displayed subject, update current lectures
       if (newLecture.subjectId == _currentSubjectId) {
-        _lectures.add(newLecture);
-        _safeNotifyListeners();
+        _lectures = _lecturesBySubject[newLecture.subjectId]!;
       }
-      // If the lecture was added to a different subject, refresh the lectures for that subject
-      else {
-        // Refresh the lectures for the subject where the lecture was added
-        await refreshLecturesForSubject(lecture.doctorId, newLecture.subjectId);
-      }
+
+      _safeNotifyListeners();
     } catch (e) {
       _error = 'Failed to add lecture: ${e.toString()}';
       _safeNotifyListeners();

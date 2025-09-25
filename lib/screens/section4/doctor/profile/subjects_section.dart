@@ -10,11 +10,13 @@ import 'package:provider/provider.dart';
 class SubjectsSection extends StatefulWidget {
   final UserProfile userProfile;
   final UserProfile? loggedInUser;
+  final Function(Subject?)? onCurrentSubjectChanged;
 
   const SubjectsSection({
     super.key,
     required this.userProfile,
     this.loggedInUser,
+    this.onCurrentSubjectChanged,
   });
 
   @override
@@ -24,10 +26,6 @@ class SubjectsSection extends StatefulWidget {
 class _SubjectsSectionState extends State<SubjectsSection>
     with TickerProviderStateMixin {
   late TabController _tabController;
-  final Map<String, List<dynamic>> _lecturesBySubject = {};
-  final Map<String, bool> _loadingStates = {};
-  final Map<String, String?> _errorStates = {};
-  String? _lastDoctorId;
   List<Subject> _previousSubjects = [];
   String? _previousDoctorId;
 
@@ -35,7 +33,6 @@ class _SubjectsSectionState extends State<SubjectsSection>
   void initState() {
     super.initState();
     _tabController = TabController(length: 0, vsync: this);
-    _lastDoctorId = widget.userProfile.id;
     _previousDoctorId = widget.userProfile.id;
   }
 
@@ -58,10 +55,8 @@ class _SubjectsSectionState extends State<SubjectsSection>
 
     // Check if doctor has changed
     if (_previousDoctorId != currentDoctorId) {
-      _clearCache();
       _previousDoctorId = currentDoctorId;
-      _lastDoctorId = currentDoctorId;
-      print('Doctor changed from $_previousDoctorId to $currentDoctorId');
+      print('Doctor changed to $currentDoctorId');
     }
 
     // Check if subjects have changed - more efficient comparison
@@ -110,17 +105,11 @@ class _SubjectsSectionState extends State<SubjectsSection>
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
             _loadLecturesForSubject(subjects.length - 1);
+            _notifyCurrentSubjectChanged();
           }
         });
       }
     }
-  }
-
-  void _clearCache() {
-    _lecturesBySubject.clear();
-    _loadingStates.clear();
-    _errorStates.clear();
-    print('Cache cleared for doctor: ${widget.userProfile.id}');
   }
 
   void _onTabChanged() {
@@ -129,20 +118,33 @@ class _SubjectsSectionState extends State<SubjectsSection>
       return;
     }
 
-    // Check if lectures are already loaded for this subject
+    // Load lectures for the current subject
+    _loadLecturesForSubject(_tabController.index);
+
+    // Notify parent about current subject change
+    _notifyCurrentSubjectChanged();
+  }
+
+  void _notifyCurrentSubjectChanged() {
     final subjectProvider = context.read<SubjectProvider>();
     final subjects = subjectProvider.filteredSubjects;
 
     if (subjects.isNotEmpty && _tabController.index < subjects.length) {
-      final subject = subjects[_tabController.index];
-      final subjectId = subject.id;
-
-      // Only load if lectures haven't been loaded yet or if there's an error
-      if (!_lecturesBySubject.containsKey(subjectId) ||
-          _errorStates[subjectId] != null) {
-        _loadLecturesForSubject(_tabController.index);
-      }
+      final currentSubject = subjects[_tabController.index];
+      widget.onCurrentSubjectChanged?.call(currentSubject);
+    } else {
+      widget.onCurrentSubjectChanged?.call(null);
     }
+  }
+
+  Subject? getCurrentSubject() {
+    final subjectProvider = context.read<SubjectProvider>();
+    final subjects = subjectProvider.filteredSubjects;
+
+    if (subjects.isNotEmpty && _tabController.index < subjects.length) {
+      return subjects[_tabController.index];
+    }
+    return null;
   }
 
   Future<void> _loadLecturesForSubject(int index) async {
@@ -154,58 +156,18 @@ class _SubjectsSectionState extends State<SubjectsSection>
       final subjectId = subject.id;
       final doctorId = widget.userProfile.id;
 
-      // Check if already loading or already loaded successfully
-      if (_loadingStates[subjectId] == true ||
-          (_lecturesBySubject.containsKey(subjectId) &&
-              _errorStates[subjectId] == null)) {
-        return;
-      }
-
-      // Set loading state for this subject
-      setState(() {
-        _loadingStates[subjectId] = true;
-        _errorStates[subjectId] = null;
-      });
-
-      try {
-        // Create a temporary provider for this specific subject
-        final tempProvider = DoctorSubjectProvider();
-        await tempProvider.fetchLecturesForSubject(doctorId, subjectId);
-
-        if (mounted) {
-          // Sort lectures by creation date (newest first)
-          final sortedLectures = List<dynamic>.from(tempProvider.lectures);
-          sortedLectures.sort((a, b) {
-            final aDate =
-                a.createdAt ??
-                DateTime(1970); // Fallback for lectures without date
-            final bDate =
-                b.createdAt ??
-                DateTime(1970); // Fallback for lectures without date
-            return bDate.compareTo(aDate); // Newest first
-          });
-
-          setState(() {
-            _lecturesBySubject[subjectId] = sortedLectures;
-            _loadingStates[subjectId] = false;
-          });
-        }
-      } catch (error) {
-        if (mounted) {
-          setState(() {
-            _errorStates[subjectId] = error.toString();
-            _loadingStates[subjectId] = false;
-          });
-        }
-      }
+      // Use the unified DoctorSubjectProvider
+      final doctorSubjectProvider = context.read<DoctorSubjectProvider>();
+      await doctorSubjectProvider.fetchLecturesForSubject(doctorId, subjectId);
     }
   }
 
   Widget _buildSubjectContent(Subject subject) {
     final subjectId = subject.id;
-    final lectures = _lecturesBySubject[subjectId] ?? [];
-    final isLoading = _loadingStates[subjectId] ?? false;
-    final error = _errorStates[subjectId];
+    final doctorSubjectProvider = context.watch<DoctorSubjectProvider>();
+    final lectures = doctorSubjectProvider.getLecturesForSubject(subjectId);
+    final isLoading = doctorSubjectProvider.isSubjectLoading(subjectId);
+    final error = doctorSubjectProvider.getSubjectError(subjectId);
 
     if (isLoading) {
       return const Center(
@@ -271,7 +233,16 @@ class _SubjectsSectionState extends State<SubjectsSection>
 
     return RefreshIndicator(
       onRefresh: () async {
-        await _loadLecturesForSubject(_tabController.index);
+        final subjectProvider = context.read<SubjectProvider>();
+        final subjects = subjectProvider.filteredSubjects;
+        if (subjects.isNotEmpty && _tabController.index < subjects.length) {
+          final subject = subjects[_tabController.index];
+          final doctorSubjectProvider = context.read<DoctorSubjectProvider>();
+          await doctorSubjectProvider.refreshLecturesForSubject(
+            widget.userProfile.id,
+            subject.id,
+          );
+        }
       },
       child: ListView.builder(
         // padding: EdgeInsets.all(Responsive.space(context, size: Space.medium)),
