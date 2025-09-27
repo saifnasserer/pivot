@@ -5,7 +5,6 @@ import 'package:pivot/data/form_options.dart';
 import 'edit_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 
-
 class EducationalDetailsSection extends StatelessWidget {
   final EditProfileProvider provider;
   final String? selectedYear;
@@ -72,6 +71,7 @@ class EducationalDetailsSection extends StatelessWidget {
             items: FormOptions.academicYears,
             hint: 'اختر الفرقة',
             onChanged: onYearChanged,
+            errorText: provider.getFieldError('level'),
           ),
           SizedBox(height: Responsive.space(context, size: Space.medium)),
           CustomDropdown(
@@ -80,6 +80,7 @@ class EducationalDetailsSection extends StatelessWidget {
             items: availableDepartments,
             hint: 'اختر القسم',
             onChanged: onDepartmentChanged,
+            errorText: provider.getFieldError('department'),
           ),
           SizedBox(height: Responsive.space(context, size: Space.medium)),
           CustomDropdown(
@@ -88,6 +89,7 @@ class EducationalDetailsSection extends StatelessWidget {
             items: availableSections,
             hint: 'اختر السكشن',
             onChanged: onSectionChanged,
+            errorText: provider.getFieldError('section'),
           ),
         ],
       ),

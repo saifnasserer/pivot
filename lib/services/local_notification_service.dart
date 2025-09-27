@@ -10,7 +10,7 @@ class LocalNotificationService {
   LocalNotificationService._();
   static final LocalNotificationService instance = LocalNotificationService._();
 
-  static const String _channelKey = 'pivot_notifications';
+  static const String _channelKey = 'Pivot_notifications';
   static const String _channelName = 'Pivot Notifications';
   static const String _channelDescription = 'Reminders and updates from Pivot';
 
@@ -159,7 +159,6 @@ class LocalNotificationService {
 
       return true;
     } catch (e) {
-
       return false;
     }
   }
@@ -205,7 +204,6 @@ class LocalNotificationService {
         true, // true for weekly classes, false for one-time lectures
     String? classType, // 'lecture' or 'section'
   }) async {
-
     if (kIsWeb) {
       return;
     }
@@ -240,7 +238,6 @@ class LocalNotificationService {
         classMinute: classMinute,
         classType: classType,
       );
-
     } else {
       // For one-time lectures/classes
       await _scheduleOneTimeClass(
@@ -265,7 +262,6 @@ class LocalNotificationService {
     required int classMinute,
     String? classType,
   }) async {
-
     // Calculate reminder time (15 minutes before class)
     int reminderHour = classHour;
     int reminderMinute = classMinute - 15;
@@ -281,8 +277,6 @@ class LocalNotificationService {
       reminderHour += 24;
       // Note: awesome_notifications handles day adjustment automatically for weekly reminders
     }
-
-
 
     // Determine if it's a section or lecture for Arabic text
     final isSection = classType == 'section';
@@ -353,7 +347,6 @@ class LocalNotificationService {
     classDate = classDate.add(Duration(days: daysToAdd));
     final reminderDate = classDate.subtract(const Duration(minutes: 15));
 
-
     // Check if we should schedule future reminder or send immediate notification
     if (classDate.isBefore(now)) {
     } else if (classDate.difference(now).inMinutes <= 15) {
@@ -390,7 +383,6 @@ class LocalNotificationService {
 
       // Play custom notification sound for immediate notifications
       await SoundService().playNotificationSound();
-
     } else {
       // Schedule future reminder (15 minutes before class)
       // Determine if it's a section or lecture for Arabic text
@@ -461,7 +453,6 @@ class LocalNotificationService {
   }) async {
     if (kIsWeb) return;
 
-
     // Always cancel existing before re-scheduling to avoid duplicates
     await cancelTaskReminders(taskId);
 
@@ -498,8 +489,7 @@ class LocalNotificationService {
           'taskName': taskName,
         },
       );
-    } else {
-    }
+    } else {}
 
     // 1 day before at 18:00 (6 PM)
     final oneDayBefore = DateTime(
@@ -523,8 +513,7 @@ class LocalNotificationService {
           'taskName': taskName,
         },
       );
-    } else {
-    }
+    } else {}
 
     // On due day at 08:00
     final dueMorning = DateTime(
@@ -547,8 +536,7 @@ class LocalNotificationService {
           'taskName': taskName,
         },
       );
-    } else {
-    }
+    } else {}
 
     // Same day evening reminder at 20:00 (8 PM)
     final dueEvening = DateTime(
@@ -572,8 +560,7 @@ class LocalNotificationService {
           'taskName': taskName,
         },
       );
-    } else {
-    }
+    } else {}
 
     // Overdue daily at 10:00 starting tomorrow if overdue
     if (dueDateTime.isBefore(now)) {
@@ -597,9 +584,7 @@ class LocalNotificationService {
           'taskName': taskName,
         },
       );
-    } else {
-    }
-
+    } else {}
   }
 
   Future<void> cancelTaskReminders(String taskId) async {
@@ -657,15 +642,12 @@ class LocalNotificationService {
       final notifications =
           await AwesomeNotifications().listScheduledNotifications();
 
-
       final notificationList =
           notifications.map((n) {
             final schedule = n.schedule;
             final content = n.content;
 
-
-            if (schedule is NotificationCalendar) {
-            }
+            if (schedule is NotificationCalendar) {}
 
             return {
               'id': content?.id,
@@ -682,7 +664,6 @@ class LocalNotificationService {
               'payload': content?.payload,
             };
           }).toList();
-
 
       return {'count': notifications.length, 'notifications': notificationList};
     } catch (e) {

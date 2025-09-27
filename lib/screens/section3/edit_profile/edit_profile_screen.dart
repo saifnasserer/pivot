@@ -55,6 +55,37 @@ class _EditProfileScreenState extends State<EditProfileScreen>
     super.dispose();
   }
 
+  // Check for unsaved changes before navigation
+  Future<bool> _onWillPop(EditProfileProvider provider) async {
+    if (!provider.hasUnsavedChanges) {
+      return true;
+    }
+
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('تغييرات غير محفوظة'),
+            content: const Text(
+              'لديك تغييرات غير محفوظة. هل تريد المتابعة دون حفظ؟',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('إلغاء'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('متابعة'),
+              ),
+            ],
+          ),
+    );
+
+    return result ?? false;
+  }
+
   @override
   void didChangeMetrics() {
     // Force rebuild when system UI metrics change (notification bar, keyboard, etc.)
@@ -141,12 +172,16 @@ class _EditProfileScreenState extends State<EditProfileScreen>
           });
         }
 
-        if (editProfileProvider.isLoading) {
+        if (editProfileProvider.isLoading &&
+            editProfileProvider.userProfile == null) {
           return _buildLoadingScreen();
         } else if (editProfileProvider.userProfile != null) {
           return _buildMainScreen(editProfileProvider);
-        } else {
+        } else if (editProfileProvider.errorMessage != null) {
           return _buildErrorScreen(editProfileProvider);
+        } else {
+          // Show loading while waiting for initial data
+          return _buildLoadingScreen();
         }
       },
     );
@@ -161,7 +196,19 @@ class _EditProfileScreenState extends State<EditProfileScreen>
       ),
       child: Scaffold(
         backgroundColor: Colors.grey[50],
-        appBar: _buildAppBar(),
+        appBar: AppBar(
+          title: Text(
+            'تعديل الملف الشخصي',
+            style: TextStyle(
+              fontSize: Responsive.text(context, size: TextSize.heading),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          centerTitle: true,
+          backgroundColor: Colors.white,
+          elevation: 0,
+          iconTheme: const IconThemeData(color: Colors.black),
+        ),
         body: const Center(child: CircularProgressIndicator()),
       ),
     );
@@ -176,7 +223,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
       ),
       child: Scaffold(
         backgroundColor: Colors.grey[50],
-        appBar: _buildAppBar(),
+        appBar: _buildAppBar(provider),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -211,96 +258,112 @@ class _EditProfileScreenState extends State<EditProfileScreen>
         statusBarIconBrightness: Brightness.dark,
         statusBarBrightness: Brightness.dark,
       ),
-      child: GestureDetector(
-        onTap: () => FocusScope.of(context).unfocus(),
-        child: Scaffold(
-          backgroundColor: Colors.grey[50],
-          appBar: _buildAppBar(),
-          resizeToAvoidBottomInset: true,
-          body: SafeArea(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.all(
-                Responsive.space(context, size: Space.medium),
-              ),
-              child: Column(
-                children: [
-                  ProfileImageSection(provider: provider, context: context),
-                  SizedBox(
-                    height: Responsive.space(context, size: Space.large),
-                  ),
-                  BasicInfoSection(
-                    provider: provider,
-                    nameController: _nameController,
-                    selectedGender: _selectedGender,
-                    onGenderChanged: (String? newValue) {
-                      setState(() {
-                        _selectedGender = newValue;
-                      });
-                      _updateBasicInfo(provider);
-                    },
-                  ),
-                  SizedBox(
-                    height: Responsive.space(context, size: Space.medium),
-                  ),
-                  EducationalDetailsSection(
-                    provider: provider,
-                    selectedYear: _selectedYear,
-                    selectedDepartment: _selectedDepartment,
-                    selectedSection: _selectedSection,
-                    availableDepartments: _availableDepartments,
-                    availableSections: _availableSections,
-                    onYearChanged: (value) {
-                      setState(() {
-                        _selectedYear = value;
-                        _selectedDepartment = null;
-                        _selectedSection = null;
-                        _availableDepartments =
-                            FormOptions.getDepartmentsForYear(value);
-                        _updateAvailableSections(provider);
-                      });
-                      _updateEducationalInfo(provider);
-                    },
-                    onDepartmentChanged: (value) {
-                      setState(() {
-                        _selectedDepartment = value;
-                        _selectedSection = null;
-                        _updateAvailableSections(provider);
-                      });
-                      _updateEducationalInfo(provider);
-                    },
-                    onSectionChanged: (String? newValue) {
-                      setState(() {
-                        _selectedSection = newValue;
-                      });
-                      _updateEducationalInfo(provider);
-                    },
-                  ),
-                  SizedBox(
-                    height: Responsive.space(context, size: Space.medium),
-                  ),
-                  PasswordSection(
-                    currentPasswordController: _currentPasswordController,
-                    newPasswordController: _newPasswordController,
-                    confirmPasswordController: _confirmPasswordController,
-                  ),
-                  SizedBox(
-                    height: Responsive.space(context, size: Space.large),
-                  ),
-                  
-                  ActionButtons(
-                    provider: provider,
-                    currentPasswordController: _currentPasswordController,
-                    newPasswordController: _newPasswordController,
-                    confirmPasswordController: _confirmPasswordController,
-                  ),
-                  
-                  SizedBox(
-                    height: Responsive.space(context, size: Space.large),
-                  ),
-                  
-                  // Data Deletion Section
-                  _buildDataDeletionSection(),
-                ],
+      child: PopScope(
+        canPop: false,
+        onPopInvoked: (didPop) async {
+          if (!didPop) {
+            final shouldPop = await _onWillPop(provider);
+            if (shouldPop && mounted) {
+              Navigator.of(context).pop();
+            }
+          }
+        },
+        child: GestureDetector(
+          onTap: () => FocusScope.of(context).unfocus(),
+          child: Scaffold(
+            backgroundColor: Colors.grey[50],
+            appBar: _buildAppBar(provider),
+            resizeToAvoidBottomInset: true,
+            body: SafeArea(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.all(
+                  Responsive.space(context, size: Space.medium),
+                ),
+                child: Column(
+                  children: [
+                    // Progress indicator
+                    _buildProgressIndicator(provider),
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.medium),
+                    ),
+                    ProfileImageSection(provider: provider, context: context),
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.large),
+                    ),
+                    BasicInfoSection(
+                      provider: provider,
+                      nameController: _nameController,
+                      selectedGender: _selectedGender,
+                      onGenderChanged: (String? newValue) {
+                        setState(() {
+                          _selectedGender = newValue;
+                        });
+                        _updateBasicInfo(provider);
+                      },
+                    ),
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.medium),
+                    ),
+                    EducationalDetailsSection(
+                      provider: provider,
+                      selectedYear: _selectedYear,
+                      selectedDepartment: _selectedDepartment,
+                      selectedSection: _selectedSection,
+                      availableDepartments: _availableDepartments,
+                      availableSections: _availableSections,
+                      onYearChanged: (value) {
+                        setState(() {
+                          _selectedYear = value;
+                          _selectedDepartment = null;
+                          _selectedSection = null;
+                          _availableDepartments =
+                              FormOptions.getDepartmentsForYear(value);
+                          _updateAvailableSections(provider);
+                        });
+                        _updateEducationalInfo(provider);
+                      },
+                      onDepartmentChanged: (value) {
+                        setState(() {
+                          _selectedDepartment = value;
+                          _selectedSection = null;
+                          _updateAvailableSections(provider);
+                        });
+                        _updateEducationalInfo(provider);
+                      },
+                      onSectionChanged: (String? newValue) {
+                        setState(() {
+                          _selectedSection = newValue;
+                        });
+                        _updateEducationalInfo(provider);
+                      },
+                    ),
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.medium),
+                    ),
+                    PasswordSection(
+                      currentPasswordController: _currentPasswordController,
+                      newPasswordController: _newPasswordController,
+                      confirmPasswordController: _confirmPasswordController,
+                    ),
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.large),
+                    ),
+
+                    ActionButtons(
+                      provider: provider,
+                      currentPasswordController: _currentPasswordController,
+                      newPasswordController: _newPasswordController,
+                      confirmPasswordController: _confirmPasswordController,
+                    ),
+
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.large),
+                    ),
+
+                    // Data Deletion Section
+                    _buildDataDeletionSection(),
+                  ],
+                ),
               ),
             ),
           ),
@@ -400,7 +463,91 @@ class _EditProfileScreenState extends State<EditProfileScreen>
     );
   }
 
-  PreferredSizeWidget _buildAppBar() {
+  String _getCompletionMessage(EditProfileProvider provider) {
+    bool hasProfilePicture =
+        provider.userProfile?.profileImageUrl != null &&
+        provider.userProfile!.profileImageUrl!.isNotEmpty;
+
+    if (hasProfilePicture) {
+      return 'أكمل جميع الحقول المطلوبة لتحسين ملفك الشخصي';
+    } else {
+      return 'أضف صورة شخصية لتحقيق 100% من اكتمال الملف الشخصي';
+    }
+  }
+
+  Widget _buildProgressIndicator(EditProfileProvider provider) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(Responsive.space(context, size: Space.medium)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey[200]!),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.assignment_turned_in,
+                color: Colors.blue[600],
+                size: 20,
+              ),
+              SizedBox(width: Responsive.space(context, size: Space.small)),
+              Text(
+                'اكتمال الملف الشخصي',
+                style: TextStyle(
+                  fontSize: Responsive.text(context, size: TextSize.medium),
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '${(provider.completionPercentage * 100).round()}%',
+                style: TextStyle(
+                  fontSize: Responsive.text(context, size: TextSize.medium),
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue[600],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: Responsive.space(context, size: Space.small)),
+          LinearProgressIndicator(
+            value: provider.completionPercentage,
+            backgroundColor: Colors.grey[200],
+            valueColor: AlwaysStoppedAnimation<Color>(
+              provider.completionPercentage == 1.0
+                  ? Colors.green
+                  : Colors.blue[600]!,
+            ),
+            minHeight: 8,
+          ),
+          if (provider.completionPercentage < 1.0) ...[
+            SizedBox(height: Responsive.space(context, size: Space.small)),
+            Text(
+              _getCompletionMessage(provider),
+              style: TextStyle(
+                fontSize: Responsive.text(context, size: TextSize.small),
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar(EditProfileProvider provider) {
     return AppBar(
       title: Text(
         'تعديل الملف الشخصي',
@@ -413,6 +560,15 @@ class _EditProfileScreenState extends State<EditProfileScreen>
       backgroundColor: Colors.white,
       elevation: 0,
       iconTheme: const IconThemeData(color: Colors.black),
+      actions: [
+        if (provider.hasUnsavedChanges)
+          Container(
+            margin: EdgeInsets.only(
+              right: Responsive.space(context, size: Space.small),
+            ),
+            child: Icon(Icons.circle, color: Colors.orange, size: 12),
+          ),
+      ],
     );
   }
 }

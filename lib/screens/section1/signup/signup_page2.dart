@@ -15,6 +15,7 @@ import '../../../services/permission_service.dart';
 import '../../../services/notification_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:pivot/screens/section1/privacy_policy_screen.dart';
+import 'package:pivot/widgets/user_welcome_dialog.dart';
 
 class Signup_2 extends StatefulWidget {
   final String name;
@@ -515,26 +516,42 @@ class _Signup_2State extends State<Signup_2> {
           // );
 
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('تم التسجيل بنجاح.'),
-                backgroundColor: Colors.green,
-              ),
-            );
-            //debugprint(
-            //   '[Signup] Success message shown, AuthWrapper should navigate to Landing',
-            // );
+            // Show welcome dialog with user number
+            if (userProfile.userNumber != null) {
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder:
+                    (context) => UserWelcomeDialog(
+                      userNumber: userProfile.userNumber!,
+                      userName: userProfile.name,
+                    ),
+              ).then((_) {
+                // Navigate after dialog is dismissed
+                if (mounted) {
+                  Navigator.of(
+                    context,
+                  ).pushNamedAndRemoveUntil('/landing', (route) => false);
+                }
+              });
+            } else {
+              // Fallback to snackbar if user number is not available
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('تم التسجيل بنجاح.'),
+                  backgroundColor: Colors.green,
+                ),
+              );
 
-            // Force navigation to Landing if AuthWrapper doesn't detect it
-            // Use a shorter delay to reduce main thread blocking
-            Future.delayed(const Duration(milliseconds: 200), () {
-              if (mounted) {
-                //debugprint('[Signup] Forcing navigation to Landing...');
-                Navigator.of(
-                  context,
-                ).pushNamedAndRemoveUntil('/landing', (route) => false);
-              }
-            });
+              // Force navigation to Landing if AuthWrapper doesn't detect it
+              Future.delayed(const Duration(milliseconds: 200), () {
+                if (mounted) {
+                  Navigator.of(
+                    context,
+                  ).pushNamedAndRemoveUntil('/landing', (route) => false);
+                }
+              });
+            }
           }
 
           // Move heavy operations to background

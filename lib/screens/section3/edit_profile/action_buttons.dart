@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'edit_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 
-
 class ActionButtons extends StatelessWidget {
   final EditProfileProvider provider;
   final TextEditingController currentPasswordController;
@@ -58,7 +57,7 @@ class ActionButtons extends StatelessWidget {
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed:
-                          provider.isFormValid
+                          provider.isFormValid && provider.hasUnsavedChanges
                               ? () {
                                 provider.saveProfile(
                                   currentPassword:
@@ -78,14 +77,19 @@ class ActionButtons extends StatelessWidget {
                               : null,
                       icon: const Icon(Icons.check, color: Colors.white),
                       label: Text(
-                        'حفظ التغييرات',
+                        provider.hasUnsavedChanges
+                            ? 'حفظ التغييرات'
+                            : 'لا توجد تغييرات',
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green[600],
+                        backgroundColor:
+                            provider.hasUnsavedChanges
+                                ? Colors.green[600]
+                                : Colors.grey[400],
                         padding: EdgeInsets.symmetric(
                           vertical: Responsive.space(
                             context,

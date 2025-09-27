@@ -5,7 +5,6 @@ import 'package:pivot/screens/models/card_model.dart';
 import 'package:pivot/responsive.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
-
 class ProfileDetails extends StatefulWidget {
   const ProfileDetails({super.key, required this.userProfile});
   final UserProfile userProfile;
@@ -224,19 +223,67 @@ class _ProfileDetailsState extends State<ProfileDetails>
 
               SizedBox(height: Responsive.space(context, size: Space.medium)),
 
-              // User name
-              AutoSizeText(
-                widget.userProfile.name,
-                style: TextStyle(
-                  fontSize: Responsive.text(context, size: TextSize.heading),
-                  color: Colors.black87,
-                  fontWeight: FontWeight.bold,
-                  height: 1.1,
-                ),
-                maxLines: 2,
-                minFontSize: 14,
-                stepGranularity: 1,
-                textAlign: TextAlign.center,
+              // User name with number
+              Column(
+                children: [
+                  AutoSizeText(
+                    widget.userProfile.name,
+                    style: TextStyle(
+                      fontSize: Responsive.text(
+                        context,
+                        size: TextSize.heading,
+                      ),
+                      color: Colors.black87,
+                      fontWeight: FontWeight.bold,
+                      height: 1.1,
+                    ),
+                    maxLines: 2,
+                    minFontSize: 14,
+                    stepGranularity: 1,
+                    textAlign: TextAlign.center,
+                  ),
+
+                  // User number badge
+                  if (widget.userProfile.userNumber != null) ...[
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.small),
+                    ),
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: Responsive.space(
+                          context,
+                          size: Space.medium,
+                        ),
+                        vertical: Responsive.space(context, size: Space.small),
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.grey[300]!),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.person, size: 16, color: Colors.grey[600]),
+                          SizedBox(
+                            width: Responsive.space(context, size: Space.small),
+                          ),
+                          Text(
+                            '#${widget.userProfile.userNumber}',
+                            style: TextStyle(
+                              fontSize: Responsive.text(
+                                context,
+                                size: TextSize.small,
+                              ),
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey[700],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
               ),
 
               SizedBox(height: Responsive.space(context, size: Space.small)),

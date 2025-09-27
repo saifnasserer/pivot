@@ -11,7 +11,6 @@ import 'edit_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
-
 class ProfileImageSection extends StatefulWidget {
   final EditProfileProvider provider;
   final BuildContext context;
@@ -228,7 +227,6 @@ class _ProfileImageSectionState extends State<ProfileImageSection>
 
   Future<XFile?> _compressImage(String imagePath) async {
     try {
-
       final tempDir = await getTemporaryDirectory();
       final targetPath =
           '${tempDir.path}/profile_${DateTime.now().millisecondsSinceEpoch}.jpg';
@@ -243,8 +241,6 @@ class _ProfileImageSectionState extends State<ProfileImageSection>
       );
 
       if (result != null) {
-        final file = File(result.path);
-        final size = await file.length();
         return result;
       } else {
         return null;
@@ -252,13 +248,6 @@ class _ProfileImageSectionState extends State<ProfileImageSection>
     } catch (e) {
       return null;
     }
-  }
-
-  ImageProvider? _getProfileImage() {
-    if (widget.provider.profileImage != null) {
-      return FileImage(widget.provider.profileImage!);
-    }
-    return null;
   }
 
   Widget _getProfileImageChild() {

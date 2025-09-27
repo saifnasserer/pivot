@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:pivot/responsive.dart';
-
 
 class Responsive {
   static double width(BuildContext context) =>

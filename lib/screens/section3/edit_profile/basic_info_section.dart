@@ -6,7 +6,6 @@ import 'edit_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/widgets/custom_text_field.dart';
 
-
 class BasicInfoSection extends StatelessWidget {
   final EditProfileProvider provider;
   final TextEditingController nameController;
@@ -70,6 +69,7 @@ class BasicInfoSection extends StatelessWidget {
               }
               return null;
             },
+            errorText: provider.getFieldError('name'),
           ),
           SizedBox(height: Responsive.space(context, size: Space.medium)),
           CustomDropdown(
@@ -78,6 +78,7 @@ class BasicInfoSection extends StatelessWidget {
             items: FormOptions.genders,
             hint: 'النوع',
             onChanged: onGenderChanged,
+            errorText: provider.getFieldError('gender'),
           ),
         ],
       ),

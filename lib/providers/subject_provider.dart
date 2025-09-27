@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/models/user_profile.dart';
@@ -67,13 +68,30 @@ class SubjectProvider with ChangeNotifier {
         }
       }
     }
-    if (!_disposed) {
-      notifyListeners();
-    }
+
+    // Use post-frame callback to avoid build-time notifications
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_disposed) {
+        notifyListeners();
+      }
+    });
   }
 
-  Future<void> fetchAllSubjects() async {
+  Future<void> fetchAllSubjects({bool forceRefresh = false}) async {
     _checkDisposed();
+
+    // Avoid unnecessary Firebase calls if we already have data and not forcing refresh
+    if (!forceRefresh &&
+        _allSubjects.isNotEmpty &&
+        _filteredSubjects.isNotEmpty) {
+      if (kDebugMode) {
+        print(
+          '[SubjectProvider] Subjects already loaded, skipping Firebase call',
+        );
+      }
+      return;
+    }
+
     _isLoading = true;
     _error = null;
     if (!_disposed) {
@@ -81,13 +99,47 @@ class SubjectProvider with ChangeNotifier {
     }
 
     try {
-      // For subject selection, always fetch fresh data from server
-
+      // For subject selection, fetch fresh data from server
       _allSubjects = await _subjectService.getSubjects();
 
-      await CacheService.instance.cacheSubjects(_allSubjects);
+      // IMPORTANT: Set filteredSubjects to show all subjects in subject selection
+      _filteredSubjects = _allSubjects;
+
+      // Cache the subjects for offline use
+      if (_allSubjects.isNotEmpty) {
+        await CacheService.instance.cacheSubjects(_allSubjects);
+      }
+
+      // Debug logging for new users
+      if (kDebugMode) {
+        print(
+          '[SubjectProvider] Fetched ${_allSubjects.length} subjects for selection',
+        );
+        print(
+          '[SubjectProvider] Filtered subjects count: ${_filteredSubjects.length}',
+        );
+      }
     } catch (e) {
       _error = 'Failed to fetch all subjects: ${e.toString()}';
+
+      // Try to load from cache as fallback
+      try {
+        final cachedSubjects = CacheService.instance.getCachedSubjects();
+        if (cachedSubjects.isNotEmpty) {
+          _allSubjects = cachedSubjects;
+          _filteredSubjects = cachedSubjects;
+          _error = null; // Clear error if we got cached data
+          if (kDebugMode) {
+            print(
+              '[SubjectProvider] Loaded ${cachedSubjects.length} subjects from cache',
+            );
+          }
+        }
+      } catch (cacheError) {
+        if (kDebugMode) {
+          print('[SubjectProvider] Cache fallback also failed: $cacheError');
+        }
+      }
     } finally {
       _isLoading = false;
 
@@ -285,6 +337,28 @@ class SubjectProvider with ChangeNotifier {
     // For non-admin users, filteredSubjects and allSubjects are the same
     // For admin users, this will show all subjects
     _filteredSubjects = _allSubjects;
+    // Use post-frame callback to avoid build-time notifications
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_disposed) {
+        notifyListeners();
+      }
+    });
+  }
+
+  /// Set cached subjects immediately (for instant loading)
+  void setCachedSubjects(List<Subject> subjects) {
+    _checkDisposed();
+    _allSubjects = subjects;
+    _filteredSubjects = subjects;
+    _isLoading = false;
+    _error = null;
+
+    if (kDebugMode) {
+      print(
+        '[SubjectProvider] Set ${subjects.length} cached subjects immediately',
+      );
+    }
+
     // Use post-frame callback to avoid build-time notifications
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_disposed) {

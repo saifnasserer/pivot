@@ -20,7 +20,7 @@ import 'package:pivot/screens/section1/first_landing.dart';
 import 'package:pivot/screens/section1/introduction_wrapper.dart';
 
 import 'package:pivot/screens/section1/signup/signup_page1.dart';
-// import 'package:pivot/screens/section1/signup/signup_page2.dart'; // Removed unused import
+import 'package:pivot/screens/section1/signup/signup_page2.dart';
 import 'package:pivot/screens/section2/admin_control.dart';
 import 'package:pivot/screens/section2/adminstration/user_management_page.dart'
     deferred as user_management_page;
@@ -270,6 +270,22 @@ class Pivot extends StatelessWidget {
           '/introduction-wrapper': (context) => const IntroductionWrapper(),
           '/first-landing': (context) => const FirstLandingScreen(),
           '/signup-1': (context) => const Signup_1(),
+          '/signup-2': (context) {
+            final args =
+                ModalRoute.of(context)?.settings.arguments
+                    as Map<String, dynamic>?;
+            if (args == null) {
+              // Fallback to first landing if no arguments
+              return const FirstLandingScreen();
+            }
+            return Signup_2(
+              name: args['name'] ?? '',
+              email: args['email'] ?? '',
+              phone: args['phone'] ?? '',
+              password: args['password'] ?? '',
+              gender: args['gender'] ?? 'ذكر',
+            );
+          },
           '/login': (context) => const Login(),
           '/landing': (context) => const Landing(),
           '/profile': (context) {

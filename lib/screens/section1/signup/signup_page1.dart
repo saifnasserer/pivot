@@ -279,18 +279,16 @@ class _Signup_1State extends State<Signup_1> {
 
   void _submitPage1() {
     if (_formKey.currentState!.validate()) {
-      Navigator.push(
+      Navigator.pushNamed(
         context,
-        MaterialPageRoute(
-          builder:
-              (context) => Signup_2(
-                name: _nameController.text,
-                email: _emailController.text.toLowerCase().trim(),
-                phone: _phoneController.text,
-                password: _passwordController.text,
-                gender: _gender,
-              ),
-        ),
+        '/signup-2',
+        arguments: {
+          'name': _nameController.text,
+          'email': _emailController.text.toLowerCase().trim(),
+          'phone': _phoneController.text,
+          'password': _passwordController.text,
+          'gender': _gender,
+        },
       );
     } else {
       ScaffoldMessenger.of(

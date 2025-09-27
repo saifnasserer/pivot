@@ -291,6 +291,17 @@ class CacheService {
     await Hive.box<Map>(_cacheMetadataBoxName).clear();
   }
 
+  /// Clear all cache (alias for clearAllCaches)
+  Future<void> clearAllCache() async {
+    await clearAllCaches();
+  }
+
+  /// Clear specific user profile from cache
+  Future<void> clearUserProfile(String userId) async {
+    final box = Hive.box<UserProfile>(_usersBoxName);
+    await box.delete(userId);
+  }
+
   Future<void> close() async {
     await Hive.close();
   }

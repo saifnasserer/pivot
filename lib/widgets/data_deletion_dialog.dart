@@ -63,17 +63,13 @@ class _DataDeletionDialogState extends State<DataDeletionDialog> {
         throw Exception('المستخدم غير مسجل الدخول');
       }
 
-      // Delete all user data
-      final dataDeleted = await DataDeletionService.deleteAllUserData(user.uid);
+      // Use the complete deletion method that handles everything
+      final deletionSuccessful = await DataDeletionService.deleteUserCompletely(
+        user.uid,
+        context,
+      );
 
-      if (!dataDeleted) {
-        throw Exception('فشل في حذف بعض البيانات');
-      }
-
-      // Delete Firebase Auth account
-      final authDeleted = await DataDeletionService.deleteAuthAccount();
-
-      if (!authDeleted) {
+      if (!deletionSuccessful) {
         throw Exception('فشل في حذف حساب المستخدم');
       }
 

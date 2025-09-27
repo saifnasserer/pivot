@@ -1,15 +1,15 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pivot/providers/guide_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
-import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/providers/subject_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:pivot/widgets/no_internet_message.dart';
-import 'dart:developer' as developer;
+import 'dart:async';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/models/subject_model.dart';
-import 'package:pivot/models/material_link.dart';
+import 'package:pivot/services/cache_service.dart';
 
 class SubjectSelectionScreen extends StatefulWidget {
   final List<String> previouslySelectedIds;
@@ -40,6 +40,16 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   String _searchQuery = '';
+  Timer? _searchDebounce;
+
+  // Filter functionality
+  int? _selectedYear;
+  List<int> _availableYears = [];
+
+  // Performance optimization
+  List<Subject>? _cachedFilteredSubjects;
+  String? _lastSearchQuery;
+  int? _lastSelectedYear;
 
   @override
   void initState() {
@@ -47,35 +57,87 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
 
     _selectedSubjectIds = Set<String>.from(widget.previouslySelectedIds);
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      try {
-        // For subject selection, we need ALL subjects, not just user's subjects
+    // Load subjects immediately, not in post-frame callback
+    _loadSubjectsAndData();
+  }
+
+  Future<void> _loadSubjectsAndData() async {
+    try {
+      // First, try to load from cache if available
+      final cachedSubjects = await _tryLoadFromCache();
+      if (cachedSubjects.isNotEmpty) {
+        if (kDebugMode) {
+          print(
+            '[SubjectSelectionScreen] Loaded ${cachedSubjects.length} subjects from cache immediately',
+          );
+        }
+      }
+
+      // Then fetch fresh data in background
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _fetchFreshData();
+      });
+    } catch (e) {
+      debugPrint('SubjectSelectionScreen: Error in initial load: $e');
+      // Fallback to post-frame callback if immediate load fails
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _fetchFreshData();
+      });
+    }
+  }
+
+  Future<List<Subject>> _tryLoadFromCache() async {
+    try {
+      final cachedSubjects = CacheService.instance.getCachedSubjects();
+      if (cachedSubjects.isNotEmpty) {
         final subjectProvider = Provider.of<SubjectProvider>(
           context,
           listen: false,
         );
 
-        subjectProvider.fetchAllSubjects();
-
-        Provider.of<GuideProvider>(context, listen: false).fetchGuideContent();
-
-        // If targetUserId is provided, fetch all users for Super Admin functionality
-        if (widget.targetUserId != null) {
-          Provider.of<UserProfileProvider>(
-            context,
-            listen: false,
-          ).fetchAllUsers();
-        }
-      } catch (e) {
-        debugPrint('SubjectSelectionScreen: Error in post-frame callback: $e');
+        // Set cached data immediately to show subjects right away
+        subjectProvider.setCachedSubjects(cachedSubjects);
+        return cachedSubjects;
       }
-    });
+    } catch (e) {
+      debugPrint('SubjectSelectionScreen: Error loading from cache: $e');
+    }
+    return [];
+  }
+
+  void _fetchFreshData() {
+    try {
+      // For subject selection, we need ALL subjects, not just user's subjects
+      final subjectProvider = Provider.of<SubjectProvider>(
+        context,
+        listen: false,
+      );
+
+      subjectProvider.fetchAllSubjects();
+
+      // Only fetch guide content if not already loaded
+      final guideProvider = Provider.of<GuideProvider>(context, listen: false);
+      if (guideProvider.guideContent == null) {
+        guideProvider.fetchGuideContent();
+      }
+
+      // If targetUserId is provided, fetch all users for Super Admin functionality
+      if (widget.targetUserId != null) {
+        Provider.of<UserProfileProvider>(
+          context,
+          listen: false,
+        ).fetchAllUsers();
+      }
+    } catch (e) {
+      debugPrint('SubjectSelectionScreen: Error in fresh data fetch: $e');
+    }
   }
 
   @override
   void dispose() {
     _searchController.dispose();
     _searchFocusNode.dispose();
+    _searchDebounce?.cancel();
     super.dispose();
   }
 
@@ -88,22 +150,87 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
         _searchQuery = '';
         _searchController.clear();
         _searchFocusNode.unfocus();
+        _searchDebounce?.cancel();
       }
     });
   }
 
-  List<Subject> _filterSubjects(List<Subject> subjects) {
-    final filtered =
-        subjects.where((subject) {
-          final query = _searchQuery.toLowerCase();
-          final name =
-              _showEnglish
-                  ? subject.englishName.toLowerCase()
-                  : subject.name.toLowerCase();
-          final departments = subject.departments.join(' ').toLowerCase();
+  void _onSearchChanged(String value) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        setState(() {
+          _searchQuery = value;
+          // Clear cache when search changes
+          _cachedFilteredSubjects = null;
+        });
+      }
+    });
+  }
 
-          return name.contains(query) || departments.contains(query);
+  void _updateAvailableFilters(List<Subject> subjects) {
+    // Only update if the years list has changed significantly
+    if (_availableYears.isNotEmpty) {
+      return;
+    }
+
+    final years = <int>{};
+
+    for (final subject in subjects) {
+      years.add(subject.year);
+    }
+
+    final newYears = years.toList()..sort();
+
+    // Only update state if the list has actually changed
+    if (_availableYears.length != newYears.length) {
+      // Use post-frame callback to avoid setState during build
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {
+            _availableYears = newYears;
+          });
+        }
+      });
+    }
+  }
+
+  List<Subject> _filterSubjects(List<Subject> subjects) {
+    // Check if we can use cached results
+    if (_cachedFilteredSubjects != null &&
+        _lastSearchQuery == _searchQuery &&
+        _lastSelectedYear == _selectedYear) {
+      return _cachedFilteredSubjects!;
+    }
+
+    var filtered =
+        subjects.where((subject) {
+          // Search filter
+          if (_searchQuery.isNotEmpty) {
+            final query = _searchQuery.toLowerCase();
+            final name =
+                _showEnglish
+                    ? subject.englishName.toLowerCase()
+                    : subject.name.toLowerCase();
+            final departments = subject.departments.join(' ').toLowerCase();
+
+            if (!name.contains(query) && !departments.contains(query)) {
+              return false;
+            }
+          }
+
+          // Year filter
+          if (_selectedYear != null && subject.year != _selectedYear) {
+            return false;
+          }
+
+          return true;
         }).toList();
+
+    // Cache the results
+    _cachedFilteredSubjects = filtered;
+    _lastSearchQuery = _searchQuery;
+    _lastSelectedYear = _selectedYear;
 
     return filtered;
   }
@@ -166,6 +293,480 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
     });
   }
 
+  void _showSubjectDetails(Subject subject) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(
+                    Responsive.space(context, size: Space.small),
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[100],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.menu_book,
+                    color: Colors.blue[600],
+                    size: 24,
+                  ),
+                ),
+                SizedBox(width: Responsive.space(context, size: Space.small)),
+                Expanded(
+                  child: Text(
+                    _showEnglish ? subject.englishName : subject.name,
+                    style: TextStyle(
+                      fontSize: Responsive.text(context, size: TextSize.medium),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Subject name in both languages
+                  if (_showEnglish && subject.name.isNotEmpty) ...[
+                    _buildDetailRow(
+                      'الاسم بالعربية',
+                      subject.name,
+                      Icons.translate,
+                    ),
+                    const SizedBox(height: 12),
+                  ] else if (!_showEnglish &&
+                      subject.englishName.isNotEmpty) ...[
+                    _buildDetailRow(
+                      'English Name',
+                      subject.englishName,
+                      Icons.language,
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+
+                  // Year
+                  _buildDetailRow(
+                    'السنة الدراسية',
+                    'السنة ${subject.year}',
+                    Icons.grade,
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Hours
+                  _buildDetailRow(
+                    'عدد الساعات',
+                    '${subject.hours} ساعة',
+                    Icons.access_time,
+                    valueColor: subject.hours > 3 ? Colors.orange[600] : null,
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Departments
+                  _buildDetailRow(
+                    'الأقسام',
+                    subject.departments.join(', '),
+                    Icons.school,
+                    valueColor:
+                        subject.departments.length > 1
+                            ? Colors.blue[600]
+                            : null,
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Selection status
+                  Container(
+                    padding: EdgeInsets.all(
+                      Responsive.space(context, size: Space.medium),
+                    ),
+                    decoration: BoxDecoration(
+                      color:
+                          _selectedSubjectIds.contains(subject.id)
+                              ? Colors.green[50]
+                              : Colors.grey[50],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color:
+                            _selectedSubjectIds.contains(subject.id)
+                                ? Colors.green[200]!
+                                : Colors.grey[200]!,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          _selectedSubjectIds.contains(subject.id)
+                              ? Icons.check_circle
+                              : Icons.radio_button_unchecked,
+                          color:
+                              _selectedSubjectIds.contains(subject.id)
+                                  ? Colors.green[600]
+                                  : Colors.grey[600],
+                          size: 20,
+                        ),
+                        SizedBox(
+                          width: Responsive.space(context, size: Space.small),
+                        ),
+                        Text(
+                          _selectedSubjectIds.contains(subject.id)
+                              ? 'مادة محددة'
+                              : 'غير محددة',
+                          style: TextStyle(
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.small,
+                            ),
+                            fontWeight: FontWeight.w500,
+                            color:
+                                _selectedSubjectIds.contains(subject.id)
+                                    ? Colors.green[700]
+                                    : Colors.grey[700],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('إغلاق'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  _toggleSubjectSelection(subject);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor:
+                      _selectedSubjectIds.contains(subject.id)
+                          ? Colors.red[600]
+                          : Colors.blue[600],
+                  foregroundColor: Colors.white,
+                ),
+                child: Text(
+                  _selectedSubjectIds.contains(subject.id)
+                      ? 'إلغاء التحديد'
+                      : 'تحديد المادة',
+                ),
+              ),
+            ],
+          ),
+    );
+  }
+
+  Widget _buildDetailRow(
+    String label,
+    String value,
+    IconData icon, {
+    Color? valueColor,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 16, color: Colors.grey[600]),
+        SizedBox(width: Responsive.space(context, size: Space.small)),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: Responsive.text(context, size: TextSize.small),
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: Responsive.text(context, size: TextSize.small),
+                  color: valueColor ?? Colors.black87,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<bool> _showSaveConfirmationDialog() async {
+    final totalHours = _calculateTotalHours();
+    final selectedCount = _selectedSubjectIds.length;
+
+    return await showDialog<bool>(
+          context: context,
+          builder:
+              (context) => AlertDialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                title: Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(
+                        Responsive.space(context, size: Space.small),
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.blue[100],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.save,
+                        color: Colors.blue[600],
+                        size: 24,
+                      ),
+                    ),
+                    SizedBox(
+                      width: Responsive.space(context, size: Space.small),
+                    ),
+                    const Text('تأكيد الحفظ'),
+                  ],
+                ),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'هل أنت متأكد من حفظ التغييرات؟',
+                      style: TextStyle(
+                        fontSize: Responsive.text(
+                          context,
+                          size: TextSize.medium,
+                        ),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: EdgeInsets.all(
+                        Responsive.space(context, size: Space.medium),
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[50],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey[200]!),
+                      ),
+                      child: Column(
+                        children: [
+                          _buildConfirmationRow(
+                            'عدد المواد المحددة',
+                            '$selectedCount مادة',
+                            Icons.checklist_rtl,
+                          ),
+                          const SizedBox(height: 8),
+                          _buildConfirmationRow(
+                            'إجمالي الساعات',
+                            '$totalHours / $maxHours ساعة',
+                            Icons.access_time,
+                            valueColor:
+                                totalHours > maxHours ? Colors.red[600] : null,
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (totalHours > maxHours) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: EdgeInsets.all(
+                          Responsive.space(context, size: Space.medium),
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.red[50],
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.red[200]!),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.warning,
+                              color: Colors.red[600],
+                              size: 20,
+                            ),
+                            SizedBox(
+                              width: Responsive.space(
+                                context,
+                                size: Space.small,
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                'تجاوزت الحد الأقصى للساعات المسموح بها',
+                                style: TextStyle(
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.small,
+                                  ),
+                                  color: Colors.red[700],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: const Text('إلغاء'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                          totalHours > maxHours
+                              ? Colors.red[600]
+                              : Colors.blue[600],
+                      foregroundColor: Colors.white,
+                    ),
+                    child: Text(
+                      totalHours > maxHours ? 'حفظ مع التحذير' : 'حفظ',
+                    ),
+                  ),
+                ],
+              ),
+        ) ??
+        false;
+  }
+
+  Widget _buildConfirmationRow(
+    String label,
+    String value,
+    IconData icon, {
+    Color? valueColor,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: Colors.grey[600]),
+        SizedBox(width: Responsive.space(context, size: Space.small)),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: Responsive.text(context, size: TextSize.small),
+            color: Colors.grey[600],
+          ),
+        ),
+        const Spacer(),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: Responsive.text(context, size: TextSize.small),
+            fontWeight: FontWeight.w600,
+            color: valueColor ?? Colors.black87,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _retrySave() async {
+    setState(() {
+      _isSaving = true;
+      _saveSuccess = false;
+    });
+
+    bool success = false;
+    try {
+      final userProfileProvider = Provider.of<UserProfileProvider>(
+        context,
+        listen: false,
+      );
+      final subjectProvider = Provider.of<SubjectProvider>(
+        context,
+        listen: false,
+      );
+
+      final userRole = userProfileProvider.loggedInUserProfile?.role;
+
+      // If targetUserId is provided, Super Admin is editing another user's subjects
+      if (widget.targetUserId != null && userRole == 'Super Admin') {
+        final targetUserRole = widget.targetUserRole;
+
+        if (targetUserRole == 'Student' || targetUserRole == 'Admin') {
+          await userProfileProvider.updateUserEnrolledSubjects(
+            widget.targetUserId!,
+            _selectedSubjectIds.toList(),
+          );
+        } else if (targetUserRole == 'Professor' ||
+            targetUserRole == 'miniProfessor' ||
+            targetUserRole == 'Doctor') {
+          await userProfileProvider.updateUserTeachingSubjects(
+            widget.targetUserId!,
+            _selectedSubjectIds.toList(),
+          );
+        } else {
+          throw Exception('Unknown target user role: $targetUserRole');
+        }
+
+        await userProfileProvider.fetchAllUsers();
+        await subjectProvider.fetchAllSubjects();
+        success = true;
+      } else {
+        // Normal flow - user editing their own subjects
+        if (userRole == 'Student' ||
+            userRole == 'Admin' ||
+            userRole == 'Super Admin') {
+          await userProfileProvider.updateEnrolledSubjects(
+            _selectedSubjectIds.toList(),
+          );
+        } else if (userRole == 'Professor' ||
+            userRole == 'miniProfessor' ||
+            userRole == 'Doctor') {
+          await userProfileProvider.updateTeachingSubjects(
+            _selectedSubjectIds.toList(),
+          );
+        } else {
+          throw Exception('Unknown user role: $userRole');
+        }
+
+        await userProfileProvider.loadLoggedInUserProfile();
+        success = true;
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('فشل في إعادة المحاولة: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        if (success) {
+          setState(() {
+            _isSaving = false;
+            _saveSuccess = true;
+          });
+          await Future.delayed(const Duration(milliseconds: 800));
+          if (mounted) {
+            Navigator.pop(context, true);
+          }
+        } else {
+          setState(() {
+            _isSaving = false;
+          });
+        }
+      }
+    }
+  }
+
   Widget _buildSubjectCard(Subject subject) {
     final isSelected = _selectedSubjectIds.contains(subject.id);
     return Container(
@@ -190,104 +791,113 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
       ),
       child: InkWell(
         onTap: () => _toggleSubjectSelection(subject),
+        onLongPress: () => _showSubjectDetails(subject),
         borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: Responsive.padding(context, size: Space.large),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _showEnglish ? subject.englishName : subject.name,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: Responsive.text(
-                          context,
-                          size: TextSize.medium,
+        child: Semantics(
+          label:
+              '${_showEnglish ? subject.englishName : subject.name} - ${subject.hours} ساعة - ${subject.departments.join(', ')}',
+          hint: isSelected ? 'مادة محددة' : 'مادة غير محددة',
+          button: true,
+          enabled: true,
+          selected: isSelected,
+          child: Padding(
+            padding: Responsive.padding(context, size: Space.large),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _showEnglish ? subject.englishName : subject.name,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: Responsive.text(
+                            context,
+                            size: TextSize.medium,
+                          ),
+                          color: Colors.black87,
                         ),
-                        color: Colors.black87,
                       ),
-                    ),
-                    SizedBox(
-                      height: Responsive.space(context, size: Space.small),
-                    ),
-                    Row(
-                      children: [
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: Responsive.space(
-                              context,
-                              size: Space.small,
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.small),
+                      ),
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: Responsive.space(
+                            context,
+                            size: Space.small,
+                          ),
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color:
+                              subject.hours > 3
+                                  ? Colors.orange[100]
+                                  : Colors.grey[200],
+                          borderRadius: BorderRadius.circular(8),
+                          border:
+                              subject.hours > 3
+                                  ? Border.all(
+                                    color: Colors.orange[300]!,
+                                    width: 1,
+                                  )
+                                  : null,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.access_time,
+                              size: 12,
+                              color:
+                                  subject.hours > 3
+                                      ? Colors.orange[600]
+                                      : Colors.grey[600],
                             ),
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[200],
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            'القسم: ${subject.departments.join(', ')}',
-                            style: TextStyle(
-                              color: Colors.black87,
-                              fontWeight: FontWeight.w500,
-                              fontSize: Responsive.text(
-                                context,
-                                size: TextSize.small,
+                            SizedBox(width: 4),
+                            Text(
+                              'ساعات: ${subject.hours}',
+                              style: TextStyle(
+                                color:
+                                    subject.hours > 3
+                                        ? Colors.orange[700]
+                                        : Colors.grey[700],
+                                fontWeight: FontWeight.w500,
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.small,
+                                ),
                               ),
                             ),
-                          ),
+                          ],
                         ),
-                        SizedBox(
-                          width: Responsive.space(context, size: Space.small),
-                        ),
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: Responsive.space(
-                              context,
-                              size: Space.small,
-                            ),
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[200],
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            'ساعات: ${subject.hours}',
-                            style: TextStyle(
-                              color: Colors.grey[700],
-                              fontWeight: FontWeight.w500,
-                              fontSize: Responsive.text(
-                                context,
-                                size: TextSize.small,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                width: 24,
-                height: 24,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isSelected ? Colors.black : Colors.transparent,
-                  border: Border.all(
-                    color: isSelected ? Colors.black : Colors.grey[400]!,
-                    width: 2,
+                      ),
+                    ],
                   ),
                 ),
-                child:
-                    isSelected
-                        ? const Icon(Icons.check, size: 16, color: Colors.white)
-                        : null,
-              ),
-            ],
+                Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isSelected ? Colors.black : Colors.transparent,
+                    border: Border.all(
+                      color: isSelected ? Colors.black : Colors.grey[400]!,
+                      width: 2,
+                    ),
+                  ),
+                  child:
+                      isSelected
+                          ? const Icon(
+                            Icons.check,
+                            size: 16,
+                            color: Colors.white,
+                          )
+                          : null,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -486,6 +1096,21 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
                   ),
                   textAlign: TextAlign.center,
                 ),
+                SizedBox(height: Responsive.space(context, size: Space.medium)),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    subjectProvider.fetchAllSubjects(forceRefresh: true);
+                  },
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('إعادة المحاولة'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue[600],
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
               ],
             ),
           );
@@ -495,17 +1120,51 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.menu_book_outlined,
-                  size: 64,
-                  color: Colors.grey[400],
+                Container(
+                  padding: EdgeInsets.all(
+                    Responsive.space(context, size: Space.large),
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.menu_book_outlined,
+                    size: 64,
+                    color: Colors.grey[400],
+                  ),
                 ),
                 SizedBox(height: Responsive.space(context, size: Space.medium)),
                 Text(
                   'لا توجد مواد متاحة',
                   style: TextStyle(
                     fontSize: Responsive.text(context, size: TextSize.medium),
-                    color: Colors.grey[600],
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[700],
+                  ),
+                ),
+                SizedBox(height: Responsive.space(context, size: Space.small)),
+                Text(
+                  'تأكد من اتصالك بالإنترنت أو حاول مرة أخرى',
+                  style: TextStyle(
+                    fontSize: Responsive.text(context, size: TextSize.small),
+                    color: Colors.grey[500],
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: Responsive.space(context, size: Space.medium)),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    subjectProvider.fetchAllSubjects(forceRefresh: true);
+                  },
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('إعادة التحميل'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue[600],
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
               ],
@@ -514,6 +1173,11 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
         }
 
         final subjects = subjectProvider.filteredSubjects;
+
+        // Update available filters when subjects change (optimized)
+        _updateAvailableFilters(subjects);
+
+        // Use memoization for filtered subjects to avoid unnecessary recalculations
         final filteredSubjects = _filterSubjects(subjects);
 
         if (_searchQuery.isNotEmpty && filteredSubjects.isEmpty) {
@@ -521,21 +1185,55 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
+                Container(
+                  padding: EdgeInsets.all(
+                    Responsive.space(context, size: Space.large),
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.search_off,
+                    size: 64,
+                    color: Colors.grey[400],
+                  ),
+                ),
                 SizedBox(height: Responsive.space(context, size: Space.medium)),
                 Text(
                   'لا توجد نتائج للبحث',
                   style: TextStyle(
                     fontSize: Responsive.text(context, size: TextSize.medium),
-                    color: Colors.grey[600],
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[700],
                   ),
                 ),
                 SizedBox(height: Responsive.space(context, size: Space.small)),
                 Text(
-                  'جرب البحث بكلمات مختلفة',
+                  'جرب البحث بكلمات مختلفة أو تغيير الفلاتر',
                   style: TextStyle(
                     fontSize: Responsive.text(context, size: TextSize.small),
                     color: Colors.grey[500],
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: Responsive.space(context, size: Space.medium)),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _searchQuery = '';
+                      _searchController.clear();
+                      _selectedYear = null;
+                    });
+                  },
+                  icon: const Icon(Icons.clear),
+                  label: const Text('مسح البحث والفلاتر'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue[600],
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
               ],
@@ -676,17 +1374,15 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
       child: NoInternetMessage(
         child: Scaffold(
           backgroundColor: Colors.white,
+          floatingActionButtonLocation:
+              FloatingActionButtonLocation.centerFloat,
           appBar: AppBar(
             title:
                 _isSearchMode
                     ? TextField(
                       controller: _searchController,
                       focusNode: _searchFocusNode,
-                      onChanged: (value) {
-                        setState(() {
-                          _searchQuery = value;
-                        });
-                      },
+                      onChanged: _onSearchChanged,
                       decoration: InputDecoration(
                         hintText: 'ابحث في المواد...',
                         border: InputBorder.none,
@@ -733,6 +1429,7 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
                 builder: (context, subjectProvider, child) {
                   final totalHours = _calculateTotalHours();
                   final isOverLimit = totalHours > maxHours;
+
                   return Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
@@ -773,6 +1470,7 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
                   tooltip: 'البحث في المواد',
                   onPressed: _toggleSearchMode,
                 ),
+
                 IconButton(
                   icon: Icon(_showEnglish ? Icons.language : Icons.translate),
                   tooltip: _showEnglish ? 'عرض بالعربية' : 'Show in English',
@@ -816,163 +1514,184 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
             ],
           ),
           body: _buildSubjectsList(),
-          floatingActionButton: Container(
-            decoration: BoxDecoration(
-              color:
-                  _saveSuccess
-                      ? Colors.green
-                      : _calculateTotalHours() > maxHours
-                      ? Colors.red
-                      : Colors.black,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
-                  spreadRadius: 2,
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: FloatingActionButton(
-              heroTag: 'subject_selection_fab',
-              onPressed:
-                  _isSaving || _calculateTotalHours() > maxHours
-                      ? null
-                      : () async {
-                        setState(() {
-                          _isSaving = true;
-                          _saveSuccess = false;
-                        });
+          floatingActionButton: Semantics(
+            label: 'حفظ المواد المحددة',
+            hint:
+                _isSaving
+                    ? 'جاري الحفظ...'
+                    : _calculateTotalHours() > maxHours
+                    ? 'تجاوز الحد الأقصى للساعات'
+                    : 'اضغط لحفظ التغييرات',
+            button: true,
+            enabled: !_isSaving && _calculateTotalHours() <= maxHours,
+            child: Container(
+              decoration: BoxDecoration(
+                color:
+                    _saveSuccess
+                        ? Colors.green
+                        : _calculateTotalHours() > maxHours
+                        ? Colors.red
+                        : Colors.black,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    spreadRadius: 2,
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: FloatingActionButton(
+                heroTag: 'subject_selection_fab',
+                onPressed:
+                    _isSaving || _calculateTotalHours() > maxHours
+                        ? null
+                        : () async {
+                          // Show confirmation dialog before saving
+                          final shouldSave =
+                              await _showSaveConfirmationDialog();
+                          if (!shouldSave) return;
+                          setState(() {
+                            _isSaving = true;
+                            _saveSuccess = false;
+                          });
 
-                        bool success = false;
-                        try {
-                          final userProfileProvider =
-                              Provider.of<UserProfileProvider>(
-                                context,
-                                listen: false,
-                              );
-                          final subjectProvider = Provider.of<SubjectProvider>(
-                            context,
-                            listen: false,
-                          );
+                          bool success = false;
+                          try {
+                            final userProfileProvider =
+                                Provider.of<UserProfileProvider>(
+                                  context,
+                                  listen: false,
+                                );
+                            final subjectProvider =
+                                Provider.of<SubjectProvider>(
+                                  context,
+                                  listen: false,
+                                );
 
-                          final userRole =
-                              userProfileProvider.loggedInUserProfile?.role;
+                            final userRole =
+                                userProfileProvider.loggedInUserProfile?.role;
 
-                          UserProfile? updatedProfile;
-
-                          // If targetUserId is provided, Super Admin is editing another user's subjects
-                          if (widget.targetUserId != null &&
-                              userRole == 'Super Admin') {
-                            // Use the targetUserRole parameter instead of fetching from allUsers
-                            final targetUserRole = widget.targetUserRole;
-
-                            if (targetUserRole == 'Student' ||
-                                targetUserRole == 'Admin') {
-                              await userProfileProvider
-                                  .updateUserEnrolledSubjects(
-                                    widget.targetUserId!,
-                                    _selectedSubjectIds.toList(),
-                                  );
-                            } else if (targetUserRole == 'Professor' ||
-                                targetUserRole == 'miniProfessor' ||
-                                targetUserRole == 'Doctor') {
-                              await userProfileProvider
-                                  .updateUserTeachingSubjects(
-                                    widget.targetUserId!,
-                                    _selectedSubjectIds.toList(),
-                                  );
-                            } else {
-                              throw Exception(
-                                'Unknown target user role: $targetUserRole',
-                              );
-                            }
-
-                            // Update the UI after Super Admin changes
-
-                            await userProfileProvider.fetchAllUsers();
-                            await subjectProvider.fetchAllSubjects();
-                            success = true;
-                          } else {
-                            // Normal flow - user editing their own subjects
-
-                            if (userRole == 'Student' ||
-                                userRole == 'Admin' ||
+                            // If targetUserId is provided, Super Admin is editing another user's subjects
+                            if (widget.targetUserId != null &&
                                 userRole == 'Super Admin') {
-                              updatedProfile = await userProfileProvider
-                                  .updateEnrolledSubjects(
-                                    _selectedSubjectIds.toList(),
-                                  );
-                            } else if (userRole == 'Professor' ||
-                                userRole == 'miniProfessor' ||
-                                userRole == 'Doctor') {
-                              updatedProfile = await userProfileProvider
-                                  .updateTeachingSubjects(
-                                    _selectedSubjectIds.toList(),
-                                  );
-                            } else {
-                              // Handle unknown role
+                              // Use the targetUserRole parameter instead of fetching from allUsers
+                              final targetUserRole = widget.targetUserRole;
 
-                              throw Exception('Unknown user role: $userRole');
-                            }
-
-                            // After updating subjects, fetch the latest user profile to ensure
-                            // the UI reflects the changes upon returning to the previous screen.
-
-                            await userProfileProvider.loadLoggedInUserProfile();
-                            success = true;
-                          }
-                        } catch (e) {
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Failed to update subjects: $e'),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                          }
-                        } finally {
-                          if (mounted) {
-                            if (success) {
-                              setState(() {
-                                _isSaving = false;
-                                _saveSuccess = true;
-                              });
-                              await Future.delayed(
-                                const Duration(milliseconds: 800),
-                              );
-                              if (mounted) {
-                                // Return true to indicate success, allowing the previous screen to react.
-                                Navigator.pop(context, true);
+                              if (targetUserRole == 'Student' ||
+                                  targetUserRole == 'Admin') {
+                                await userProfileProvider
+                                    .updateUserEnrolledSubjects(
+                                      widget.targetUserId!,
+                                      _selectedSubjectIds.toList(),
+                                    );
+                              } else if (targetUserRole == 'Professor' ||
+                                  targetUserRole == 'miniProfessor' ||
+                                  targetUserRole == 'Doctor') {
+                                await userProfileProvider
+                                    .updateUserTeachingSubjects(
+                                      widget.targetUserId!,
+                                      _selectedSubjectIds.toList(),
+                                    );
+                              } else {
+                                throw Exception(
+                                  'Unknown target user role: $targetUserRole',
+                                );
                               }
+
+                              // Update the UI after Super Admin changes
+
+                              await userProfileProvider.fetchAllUsers();
+                              await subjectProvider.fetchAllSubjects();
+                              success = true;
                             } else {
-                              setState(() {
-                                _isSaving = false;
-                              });
+                              // Normal flow - user editing their own subjects
+
+                              if (userRole == 'Student' ||
+                                  userRole == 'Admin' ||
+                                  userRole == 'Super Admin') {
+                                await userProfileProvider
+                                    .updateEnrolledSubjects(
+                                      _selectedSubjectIds.toList(),
+                                    );
+                              } else if (userRole == 'Professor' ||
+                                  userRole == 'miniProfessor' ||
+                                  userRole == 'Doctor') {
+                                await userProfileProvider
+                                    .updateTeachingSubjects(
+                                      _selectedSubjectIds.toList(),
+                                    );
+                              } else {
+                                // Handle unknown role
+
+                                throw Exception('Unknown user role: $userRole');
+                              }
+
+                              // After updating subjects, fetch the latest user profile to ensure
+                              // the UI reflects the changes upon returning to the previous screen.
+
+                              await userProfileProvider
+                                  .loadLoggedInUserProfile();
+                              success = true;
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('فشل في تحديث المواد: $e'),
+                                  backgroundColor: Colors.red,
+                                  action: SnackBarAction(
+                                    label: 'إعادة المحاولة',
+                                    textColor: Colors.white,
+                                    onPressed: () {
+                                      // Retry the save operation
+                                      _retrySave();
+                                    },
+                                  ),
+                                ),
+                              );
+                            }
+                          } finally {
+                            if (mounted) {
+                              if (success) {
+                                setState(() {
+                                  _isSaving = false;
+                                  _saveSuccess = true;
+                                });
+                                await Future.delayed(
+                                  const Duration(milliseconds: 800),
+                                );
+                                if (mounted) {
+                                  // Return true to indicate success, allowing the previous screen to react.
+                                  Navigator.pop(context, true);
+                                }
+                              } else {
+                                setState(() {
+                                  _isSaving = false;
+                                });
+                              }
                             }
                           }
-                        }
-                      },
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              child:
-                  _isSaving || _calculateTotalHours() > maxHours
-                      ? const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                      : _saveSuccess
-                      ? const Icon(Icons.done_all, color: Colors.white)
-                      : const Icon(Icons.check_rounded, color: Colors.white),
+                        },
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                child:
+                    _isSaving || _calculateTotalHours() > maxHours
+                        ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                        : _saveSuccess
+                        ? const Icon(Icons.done_all, color: Colors.white)
+                        : const Icon(Icons.check_rounded, color: Colors.white),
+              ),
             ),
           ),
-          floatingActionButtonLocation:
-              FloatingActionButtonLocation.centerFloat,
         ),
       ),
     );

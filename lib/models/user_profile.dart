@@ -100,6 +100,9 @@ class UserProfile extends HiveObject {
   @HiveField(16)
   Map<String, String> assistantPreferences; // subjectId -> assistantId
 
+  @HiveField(17)
+  int? userNumber; // Sequential user number for early adopter recognition
+
   UserProfile({
     required this.id,
     required this.name,
@@ -118,6 +121,7 @@ class UserProfile extends HiveObject {
     NotificationPreferences? notificationPreferences,
     this.socialMediaLinks = const [],
     this.assistantPreferences = const {},
+    this.userNumber,
   }) : notificationPreferences =
            notificationPreferences ?? NotificationPreferences();
 
@@ -140,6 +144,7 @@ class UserProfile extends HiveObject {
     NotificationPreferences? notificationPreferences,
     List<SocialMediaLink>? socialMediaLinks,
     Map<String, String>? assistantPreferences,
+    int? userNumber,
   }) {
     return UserProfile(
       id: id ?? this.id,
@@ -160,6 +165,7 @@ class UserProfile extends HiveObject {
           notificationPreferences ?? this.notificationPreferences,
       socialMediaLinks: socialMediaLinks ?? this.socialMediaLinks,
       assistantPreferences: assistantPreferences ?? this.assistantPreferences,
+      userNumber: userNumber ?? this.userNumber,
     );
   }
 
@@ -211,6 +217,7 @@ class UserProfile extends HiveObject {
             (key, value) => MapEntry(key, value as String),
           ) ??
           {},
+      userNumber: json['userNumber'] as int?,
     );
   }
 
@@ -235,6 +242,7 @@ class UserProfile extends HiveObject {
       'socialMediaLinks':
           socialMediaLinks.map((link) => link.toJson()).toList(),
       'assistantPreferences': assistantPreferences,
+      'userNumber': userNumber,
     };
   }
 
@@ -259,7 +267,8 @@ class UserProfile extends HiveObject {
         other.lastTokenUpdate == lastTokenUpdate &&
         other.notificationPreferences == notificationPreferences &&
         listEquals(other.socialMediaLinks, socialMediaLinks) &&
-        other.assistantPreferences == assistantPreferences;
+        other.assistantPreferences == assistantPreferences &&
+        other.userNumber == userNumber;
   }
 
   @override
@@ -282,6 +291,7 @@ class UserProfile extends HiveObject {
       notificationPreferences,
       Object.hashAll(socialMediaLinks),
       Object.hashAll(assistantPreferences.entries),
+      userNumber,
     );
   }
 }

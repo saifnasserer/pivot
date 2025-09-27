@@ -8,6 +8,7 @@ import 'package:pivot/responsive.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pivot/services/notification_service.dart';
+import 'package:pivot/widgets/biometric_settings_widget.dart';
 
 Future<void> profile_options(BuildContext context) async {
   final userProfileProvider = Provider.of<UserProfileProvider>(
@@ -41,6 +42,20 @@ Future<void> profile_options(BuildContext context) async {
             Icon(Icons.notifications_outlined, color: Colors.white),
             SizedBox(width: Responsive.space(context, size: Space.small)),
             Text('إعدادات الإشعارات', style: TextStyle(color: Colors.white)),
+          ],
+        ),
+      ),
+    ),
+
+    PopupMenuItem<String>(
+      value: 'biometric_settings',
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Row(
+          children: [
+            Icon(Icons.fingerprint, color: Colors.white),
+            SizedBox(width: Responsive.space(context, size: Space.small)),
+            Text('المصادقة الحيوية', style: TextStyle(color: Colors.white)),
           ],
         ),
       ),
@@ -184,6 +199,9 @@ Future<void> profile_options(BuildContext context) async {
       break;
     case 'notification_settings':
       await _showNotificationSettingsDialog(context);
+      break;
+    case 'biometric_settings':
+      await _showBiometricSettingsDialog(context);
       break;
     case 'feedback':
       Navigator.pushNamed(context, '/feedback');
@@ -665,6 +683,23 @@ Future<void> _showNotificationSettingsDialog(BuildContext context) async {
             onCancel: () => Navigator.of(context).pop(),
           );
         },
+      );
+    },
+  );
+}
+
+Future<void> _showBiometricSettingsDialog(BuildContext context) async {
+  return showDialog(
+    context: context,
+    barrierDismissible: true,
+    builder: (BuildContext context) {
+      return UnifiedDialog(
+        title: 'إعدادات المصادقة الحيوية',
+        subtitle: 'إدارة المصادقة الحيوية لتسجيل الدخول السريع',
+        content: const BiometricSettingsWidget(),
+        onConfirm: () => Navigator.of(context).pop(),
+        confirmText: 'حسناً',
+        confirmIcon: Icons.check,
       );
     },
   );

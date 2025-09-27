@@ -16,7 +16,13 @@ class EditProfileProvider extends ChangeNotifier {
     required UserProfileProvider userProfileProvider,
     required SettingsProvider settingsProvider,
   }) : _userProfileProvider = userProfileProvider,
-       _settingsProvider = settingsProvider;
+       _settingsProvider = settingsProvider {
+    // Initialize with existing user profile if available
+    _userProfile = _userProfileProvider.userProfile;
+    if (_userProfile != null) {
+      _validateForm();
+    }
+  }
 
   // State variables
   UserProfile? _userProfile;
@@ -27,6 +33,9 @@ class EditProfileProvider extends ChangeNotifier {
   String? _errorMessage;
   bool _isFormValid = false;
   bool _hasSaved = false;
+  bool _hasUnsavedChanges = false;
+  Map<String, String> _fieldErrors = {};
+  double _completionPercentage = 0.0;
 
   // Getters
   UserProfile? get userProfile => _userProfile;
@@ -37,6 +46,9 @@ class EditProfileProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get isFormValid => _isFormValid;
   bool get hasSaved => _hasSaved;
+  bool get hasUnsavedChanges => _hasUnsavedChanges;
+  Map<String, String> get fieldErrors => _fieldErrors;
+  double get completionPercentage => _completionPercentage;
 
   // Load user profile and settings
   Future<void> loadProfile() async {
@@ -48,7 +60,11 @@ class EditProfileProvider extends ChangeNotifier {
     try {
       await _settingsProvider.fetchSectionCounts();
       _sectionCounts = _settingsProvider.sectionCounts;
-      _userProfile = _userProfileProvider.userProfile;
+
+      // Only update user profile if it's not already loaded
+      if (_userProfile == null) {
+        _userProfile = _userProfileProvider.userProfile;
+      }
 
       if (_userProfile != null) {
         _validateForm();
@@ -74,6 +90,7 @@ class EditProfileProvider extends ChangeNotifier {
     if (_userProfile != null) {
       _userProfile = _userProfile!.copyWith(name: name, gender: gender);
       _validateForm();
+      _hasUnsavedChanges = true;
       notifyListeners();
     }
   }
@@ -87,6 +104,7 @@ class EditProfileProvider extends ChangeNotifier {
         section: section,
       );
       _validateForm();
+      _hasUnsavedChanges = true;
       notifyListeners();
     }
   }
@@ -95,15 +113,69 @@ class EditProfileProvider extends ChangeNotifier {
   void _validateForm() {
     if (_userProfile == null) {
       _isFormValid = false;
+      _completionPercentage = 0.0;
       return;
     }
 
-    _isFormValid =
-        _userProfile!.name.isNotEmpty &&
-        _userProfile!.gender.isNotEmpty &&
-        _userProfile!.level.isNotEmpty &&
-        _userProfile!.department.isNotEmpty &&
-        _userProfile!.section.isNotEmpty;
+    _fieldErrors.clear();
+    int completedFields = 0;
+    int totalFields = 5; // name, gender, level, department, section
+
+    // Validate name
+    if (_userProfile!.name.isEmpty) {
+      _fieldErrors['name'] = 'الاسم مطلوب';
+    } else if (_userProfile!.name.length < 2) {
+      _fieldErrors['name'] = 'الاسم يجب أن يكون حرفين على الأقل';
+    } else {
+      completedFields++;
+    }
+
+    // Validate gender
+    if (_userProfile!.gender.isEmpty) {
+      _fieldErrors['gender'] = 'النوع مطلوب';
+    } else {
+      completedFields++;
+    }
+
+    // Validate level
+    if (_userProfile!.level.isEmpty) {
+      _fieldErrors['level'] = 'السنة الدراسية مطلوبة';
+    } else {
+      completedFields++;
+    }
+
+    // Validate department
+    if (_userProfile!.department.isEmpty) {
+      _fieldErrors['department'] = 'القسم مطلوب';
+    } else {
+      completedFields++;
+    }
+
+    // Validate section
+    if (_userProfile!.section.isEmpty) {
+      _fieldErrors['section'] = 'الشعبة مطلوبة';
+    } else {
+      completedFields++;
+    }
+
+    _isFormValid = _fieldErrors.isEmpty;
+
+    // Calculate completion percentage
+    // If user doesn't have a profile picture, max completion is 80% (4/5)
+    // If user has a profile picture, max completion is 100% (5/5)
+    bool hasProfilePicture =
+        _userProfile!.profileImageUrl != null &&
+        _userProfile!.profileImageUrl!.isNotEmpty;
+
+    if (hasProfilePicture) {
+      // User has profile picture, so all 5 fields can be completed (100%)
+      _completionPercentage = completedFields / totalFields;
+    } else {
+      // User doesn't have profile picture, so max is 80% (4/5)
+      // Cap the percentage at 0.8 (80%)
+      double basePercentage = completedFields / totalFields;
+      _completionPercentage = basePercentage > 0.8 ? 0.8 : basePercentage;
+    }
   }
 
   // Save profile
@@ -154,9 +226,7 @@ class EditProfileProvider extends ChangeNotifier {
       }
 
       // Check if profile image exists
-      if (_profileImage != null) {
-        final imageFile = XFile(_profileImage!.path);
-      } else {}
+      // Image will be handled in the updateUserProfileData call below
 
       await _userProfileProvider.updateUserProfileData(
         _userProfile!.id,
@@ -166,6 +236,7 @@ class EditProfileProvider extends ChangeNotifier {
 
       _isSaving = false;
       _hasSaved = true;
+      _hasUnsavedChanges = false;
       notifyListeners();
     } catch (e) {
       _errorMessage = _getErrorMessage(e.toString());
@@ -207,5 +278,21 @@ class EditProfileProvider extends ChangeNotifier {
   void clearSaveStatus() {
     _hasSaved = false;
     notifyListeners();
+  }
+
+  // Clear unsaved changes
+  void clearUnsavedChanges() {
+    _hasUnsavedChanges = false;
+    notifyListeners();
+  }
+
+  // Get field error
+  String? getFieldError(String fieldName) {
+    return _fieldErrors[fieldName];
+  }
+
+  // Check if field has error
+  bool hasFieldError(String fieldName) {
+    return _fieldErrors.containsKey(fieldName);
   }
 }

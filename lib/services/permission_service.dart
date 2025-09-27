@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart'
     as permission_handler;
 import 'package:permission_handler/permission_handler.dart';
+import 'package:local_auth/local_auth.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
 
@@ -41,7 +42,7 @@ class PermissionService {
     if (status.isPermanentlyDenied) {
       await _showSettingsDialog(
         context,
-        'يرجى منح صلاحية الوصول للصور من إعدادات التطبيق.',
+        'يرجى منح صلاحية الوصول للصور من إعدادات التطبيق لاختيار صورة الملف الشخصي.',
       );
       return false;
     }
@@ -107,6 +108,50 @@ class PermissionService {
     if (!hasPermission) {
       await requestNotificationPermissionWithRationale(context);
     }
+  }
+
+  // Biometric permission handling
+  static Future<bool> requestBiometricPermissionWithRationale(
+    BuildContext context,
+  ) async {
+    if (kIsWeb) return true;
+
+    // Check if biometric is available
+    final LocalAuthentication localAuth = LocalAuthentication();
+    final bool isAvailable = await localAuth.canCheckBiometrics;
+
+    if (!isAvailable) {
+      await _showSettingsDialog(
+        context,
+        'الجهاز لا يدعم البصمة أو التعرف على الوجه. يرجى التأكد من تفعيل هذه الميزة في إعدادات الجهاز.',
+      );
+      return false;
+    }
+
+    try {
+      // Try to authenticate - this will request permission if needed
+      final bool isAuthenticated = await localAuth.authenticate(
+        localizedReason:
+            'استخدم البصمة أو التعرف على الوجه لتسجيل الدخول بشكل آمن',
+        options: const AuthenticationOptions(
+          stickyAuth: true,
+          biometricOnly: true,
+        ),
+      );
+      return isAuthenticated;
+    } catch (e) {
+      await _showSettingsDialog(
+        context,
+        'يرجى منح صلاحية استخدام البصمة أو التعرف على الوجه من إعدادات التطبيق لتسجيل الدخول بشكل آمن.',
+      );
+      return false;
+    }
+  }
+
+  static Future<bool> checkBiometricPermission() async {
+    if (kIsWeb) return false;
+    final LocalAuthentication localAuth = LocalAuthentication();
+    return await localAuth.canCheckBiometrics;
   }
 
   static Future<void> _showSettingsDialog(

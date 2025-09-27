@@ -3,6 +3,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:pivot/models/user_profile.dart';
+import 'package:pivot/services/fcm_token_manager.dart';
+import 'package:pivot/services/cache_service.dart';
+import 'package:pivot/providers/user_profile_provider.dart';
+import 'package:provider/provider.dart';
+import 'package:flutter/material.dart';
 
 class DataDeletionService {
   static final DataDeletionService _instance = DataDeletionService._internal();
@@ -31,6 +36,8 @@ class DataDeletionService {
         _deleteUserSettings(userId),
         _deleteUserBlockedUsers(userId),
         _deleteUserReports(userId),
+        _deleteUserFCMToken(userId),
+        _clearLocalCache(userId),
       ]);
 
       // Check if all deletions were successful
@@ -400,15 +407,60 @@ class DataDeletionService {
     }
   }
 
-  /// Delete Firebase Auth account
+  /// Delete user FCM token
+  static Future<bool> _deleteUserFCMToken(String userId) async {
+    try {
+      // Mark FCM token as invalid
+      await FCMTokenManager().markTokenAsInvalid('', userId);
+
+      if (kDebugMode) {
+        print('[DataDeletion] User FCM token deleted: $userId');
+      }
+      return true;
+    } catch (e) {
+      if (kDebugMode) {
+        print('[DataDeletion] Error deleting user FCM token: $e');
+      }
+      return false;
+    }
+  }
+
+  /// Clear local cache for user
+  static Future<bool> _clearLocalCache(String userId) async {
+    try {
+      // Clear user profile from cache
+      await CacheService.instance.clearUserProfile(userId);
+
+      // Clear all cached data
+      await CacheService.instance.clearAllCache();
+
+      if (kDebugMode) {
+        print('[DataDeletion] Local cache cleared for user: $userId');
+      }
+      return true;
+    } catch (e) {
+      if (kDebugMode) {
+        print('[DataDeletion] Error clearing local cache: $e');
+      }
+      return false;
+    }
+  }
+
+  /// Delete Firebase Auth account and perform complete logout
   static Future<bool> deleteAuthAccount() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
+        // Sign out first to clear any cached auth state
+        await FirebaseAuth.instance.signOut();
+
+        // Delete the auth account
         await user.delete();
 
         if (kDebugMode) {
-          print('[DataDeletion] Firebase Auth account deleted');
+          print(
+            '[DataDeletion] Firebase Auth account deleted and user logged out',
+          );
         }
         return true;
       }
@@ -416,6 +468,55 @@ class DataDeletionService {
     } catch (e) {
       if (kDebugMode) {
         print('[DataDeletion] Error deleting Firebase Auth account: $e');
+      }
+      return false;
+    }
+  }
+
+  /// Complete user deletion with proper cleanup
+  static Future<bool> deleteUserCompletely(
+    String userId,
+    BuildContext? context,
+  ) async {
+    try {
+      if (kDebugMode) {
+        print('[DataDeletion] Starting complete user deletion for: $userId');
+      }
+
+      // Delete all user data
+      final dataDeleted = await deleteAllUserData(userId);
+      if (!dataDeleted) {
+        throw Exception('Failed to delete user data');
+      }
+
+      // Delete Firebase Auth account
+      final authDeleted = await deleteAuthAccount();
+      if (!authDeleted) {
+        throw Exception('Failed to delete auth account');
+      }
+
+      // Clear user profile provider if context is available
+      if (context != null) {
+        try {
+          final provider = Provider.of<UserProfileProvider>(
+            context,
+            listen: false,
+          );
+          provider.clearProfile();
+        } catch (e) {
+          if (kDebugMode) {
+            print('[DataDeletion] Error clearing user profile provider: $e');
+          }
+        }
+      }
+
+      if (kDebugMode) {
+        print('[DataDeletion] Complete user deletion successful for: $userId');
+      }
+      return true;
+    } catch (e) {
+      if (kDebugMode) {
+        print('[DataDeletion] Error in complete user deletion: $e');
       }
       return false;
     }

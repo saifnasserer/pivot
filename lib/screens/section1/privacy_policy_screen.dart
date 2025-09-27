@@ -107,7 +107,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                     '• بيانات الاستخدام لتحسين التطبيق\n'
                     '• رموز الإشعارات لإرسال التذكيرات المهمة',
                 Icons.data_usage,
-                Colors.green,
+              Colors.green,
               ),
 
               // How We Use Data

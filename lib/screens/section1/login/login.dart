@@ -140,31 +140,8 @@ class _LoginState extends State<Login> {
           _password,
         );
 
-        // Add a small delay to ensure AuthWrapper can detect the profile
-        //debugprint('[Login] Waiting for AuthWrapper to detect profile...');
-        await Future.delayed(const Duration(milliseconds: 100));
-        //debugprint(
-        // '[Login] Login process completed, waiting for navigation...',
-        // );
-
-        // Force AuthWrapper to check current user state
-        final authService = AuthService();
-        final currentUser = authService.getCurrentUser();
-        if (currentUser != null) {
-          //debugprint('[Login] Current user confirmed: ${currentUser.uid}');
-
-          // Add a short delay then navigate directly
-          Future.delayed(const Duration(milliseconds: 500), () {
-            if (mounted) {
-              //debugprint('[Login] Navigating to Landing screen');
-              Navigator.pushReplacementNamed(context, '/landing');
-            }
-          });
-        }
-
-        // Don't navigate directly to Landing - let AuthWrapper handle it
-        // The AuthWrapper will detect the authenticated state and navigate automatically
-        // This prevents conflicts between direct navigation and AuthWrapper's auth state handling
+        // Let AuthWrapper handle navigation automatically
+        // This ensures consistent navigation flow and prevents conflicts
       } else {
         // Handle case where login succeeded but no profile was returned
         if (mounted) {
@@ -259,11 +236,9 @@ class _LoginState extends State<Login> {
     if (kIsWeb) return;
 
     try {
-      final bool didAuthenticate = await _localAuthService.authenticate(
-        'تسجيل الدخول',
-      );
+      final authResult = await _localAuthService.authenticate('تسجيل الدخول');
 
-      if (didAuthenticate && mounted) {
+      if (authResult.success && mounted) {
         final email = await _storage.read(key: 'biometric_email');
         final password = await _storage.read(key: 'biometric_password');
 
@@ -284,6 +259,16 @@ class _LoginState extends State<Login> {
             ),
           );
         }
+      } else if (mounted && authResult.errorMessage != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              authResult.errorMessage!,
+              textAlign: TextAlign.center,
+            ),
+            backgroundColor: Colors.orange,
+          ),
+        );
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -311,8 +296,9 @@ class _LoginState extends State<Login> {
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
-        SystemNavigator.pop();
-        return true;
+        // Navigate back to first landing instead of closing app
+        Navigator.pushReplacementNamed(context, '/first-landing');
+        return false;
       },
       child: NoInternetMessage(
         child: Directionality(

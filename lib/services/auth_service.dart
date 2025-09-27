@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pivot/models/user_profile.dart'; // Assuming your UserProfile model is here
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:pivot/services/user_number_service.dart';
 
 class AuthService {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
@@ -51,6 +52,9 @@ class AuthService {
     User? user = result.user;
 
     if (user != null) {
+      // Generate unique user number
+      final userNumber = await UserNumberService.getNextUserNumber();
+
       // Create a UserProfile object from the provided data and UID
       UserProfile newUserProfile = UserProfile(
         id: user.uid,
@@ -60,6 +64,7 @@ class AuthService {
         level: userData['level'],
         section: userData['section'],
         profileImageUrl: userData['profileImageUrl'], // Optional
+        userNumber: userNumber, // Add the generated user number
       );
 
       // Add createdAt and gender to the user data for Firestore

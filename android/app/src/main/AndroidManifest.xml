@@ -1,18 +1,29 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     package="com.engseif.pivot">
+    <!-- Network permissions -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    
+    <!-- Biometric authentication for secure login -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
+    
+    <!-- Media permissions for profile pictures -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <!-- Storage permissions removed - using scoped storage on Android 10+ -->
+    
+    <!-- Notification permissions for academic reminders -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.VIBRATE"/>
-    <!-- Required for notification scheduling and biometric authentication -->
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
-    <!-- Required for notification scheduling after device restart -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    
     <!-- Hardware acceleration for media playback -->
     <uses-feature android:name="android.hardware.audio.low_latency" android:required="false" />
+    
+    <!-- Explicitly opt out of AD_ID collection -->
+    <uses-permission
+        android:name="com.google.android.gms.permission.AD_ID"
+        tools:node="remove" />
 
     <queries>
         <intent>
@@ -30,7 +41,7 @@
     </queries>
 
     <application
-        android:label="pivot"
+        android:label="Pivot"
         android:name="${applicationName}"
         android:icon="@drawable/app_icon"
         android:networkSecurityConfig="@xml/network_security_config"
@@ -75,7 +86,7 @@
         <!-- Firebase Messaging Default Channel -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="pivot_notifications" />
+            android:value="Pivot_notifications" />
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
             android:resource="@drawable/ic_notification" />

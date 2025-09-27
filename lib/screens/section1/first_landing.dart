@@ -15,7 +15,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../responsive.dart';
 import 'package:pivot/responsive.dart';
 
-
 class FirstLandingScreen extends StatefulWidget {
   const FirstLandingScreen({super.key});
   // = 'first_landing_screen';
@@ -48,12 +47,8 @@ class _FirstLandingScreenState extends State<FirstLandingScreen> {
             listen: false,
           ).setUserProfile(userProfile);
 
-          // Add a small delay to ensure AuthWrapper can detect the profile
-          await Future.delayed(const Duration(milliseconds: 100));
-
-          // Don't navigate directly to Landing - let AuthWrapper handle it
-          // The AuthWrapper will detect the authenticated state and navigate automatically
-          // This prevents conflicts between direct navigation and AuthWrapper's auth state handling
+          // Let AuthWrapper handle navigation automatically
+          // This ensures consistent navigation flow and prevents conflicts
           return; // Exit after setting profile
         }
       } catch (e) {
@@ -87,11 +82,9 @@ class _FirstLandingScreenState extends State<FirstLandingScreen> {
       final isSupported = await _localAuthService.isBiometricSupported();
 
       if (isBiometricEnabled && isSupported) {
-        final isAuthenticated = await _localAuthService.authenticate(
-          'ابصم يباشا',
-        );
+        final authResult = await _localAuthService.authenticate('ابصم يباشا');
 
-        if (isAuthenticated) {
+        if (authResult.success) {
           final email = await _storage.read(key: 'biometric_email');
           final password = await _storage.read(key: 'biometric_password');
 
@@ -107,12 +100,8 @@ class _FirstLandingScreenState extends State<FirstLandingScreen> {
               provider.setLoggedInUserProfile(userProfile);
               provider.setUserProfile(userProfile);
 
-              // Add a small delay to ensure AuthWrapper can detect the profile
-              await Future.delayed(const Duration(milliseconds: 100));
-
-              // Don't navigate directly to Landing - let AuthWrapper handle it
-              // The AuthWrapper will detect the authenticated state and navigate automatically
-              // This prevents conflicts between direct navigation and AuthWrapper's auth state handling
+              // Let AuthWrapper handle navigation automatically
+              // This ensures consistent navigation flow and prevents conflicts
               return; // Exit after successful login
             } else if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -124,6 +113,14 @@ class _FirstLandingScreenState extends State<FirstLandingScreen> {
               );
             }
           }
+        } else if (mounted && authResult.errorMessage != null) {
+          // Show specific error message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(authResult.errorMessage!),
+              backgroundColor: Colors.orange,
+            ),
+          );
         }
       }
       // Fallback to manual login screen
