@@ -1,19 +1,20 @@
 import 'package:flutter/material.dart' hide MaterialType;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/models/material_link.dart';
+import 'package:pivot/features/media/providers/media_provider.dart';
 
-class PdfViewerScreen extends StatefulWidget {
+class PdfViewerScreen extends ConsumerStatefulWidget {
   final MaterialLink materialLink;
 
   const PdfViewerScreen({super.key, required this.materialLink});
 
   @override
-  State<PdfViewerScreen> createState() => _PdfViewerScreenState();
+  ConsumerState<PdfViewerScreen> createState() => _PdfViewerScreenState();
 }
 
-class _PdfViewerScreenState extends State<PdfViewerScreen> {
+class _PdfViewerScreenState extends ConsumerState<PdfViewerScreen> {
   bool _isLoading = true;
   String? _error;
 
@@ -133,17 +134,13 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
   }
 
   Future<void> _openInBrowser() async {
-    final Uri? url = Uri.tryParse(widget.materialLink.url);
-    if (url != null && await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('تعذر فتح الرابط: ${widget.materialLink.url}'),
-          ),
-        );
-      }
+    final success = await ref
+        .read(mediaProvider.notifier)
+        .openPdfInBrowser(widget.materialLink.url);
+    if (!success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('تعذر فتح الرابط: ${widget.materialLink.url}')),
+      );
     }
   }
 

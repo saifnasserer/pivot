@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:pivot/services/notification_service.dart';
-import 'package:pivot/providers/scheduled_notification_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pivot/features/notifications/providers/notifications_provider.dart';
 import 'package:pivot/models/scheduled_notification.dart';
-import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:pivot/widgets/no_internet_message.dart';
@@ -10,20 +9,18 @@ import 'package:pivot/responsive.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pivot/widgets/custom_text_field.dart';
 
-
-class SendNotificationScreen extends StatefulWidget {
-  // = 'send_notification_screen';
-
+class SendNotificationScreen extends ConsumerStatefulWidget {
   const SendNotificationScreen({super.key});
 
   @override
-  State<SendNotificationScreen> createState() => _SendNotificationScreenState();
+  ConsumerState<SendNotificationScreen> createState() =>
+      _SendNotificationScreenState();
 }
 
-class _SendNotificationScreenState extends State<SendNotificationScreen> {
+class _SendNotificationScreenState
+    extends ConsumerState<SendNotificationScreen> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _bodyController = TextEditingController();
-  final NotificationService _notificationService = NotificationService();
 
   bool _isLoading = false;
   bool _sendToAllUsers = true;
@@ -57,8 +54,7 @@ class _SendNotificationScreenState extends State<SendNotificationScreen> {
                 )
                 .toList();
       });
-    } catch (e) {
-    }
+    } catch (e) {}
   }
 
   Future<void> _sendNotification() async {
@@ -134,14 +130,9 @@ class _SendNotificationScreenState extends State<SendNotificationScreen> {
       status: 'pending',
     );
 
-    final provider = Provider.of<ScheduledNotificationProvider>(
-      context,
-      listen: false,
-    );
-
-    final success = await provider.createScheduledNotification(
-      scheduledNotification,
-    );
+    final success = await ref
+        .read(notificationsProvider.notifier)
+        .createScheduledNotification(scheduledNotification);
 
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -166,42 +157,43 @@ class _SendNotificationScreenState extends State<SendNotificationScreen> {
   }
 
   Future<void> _sendImmediateNotification() async {
-    List<String> tokens = [];
+    Map<String, dynamic> result;
 
     if (_sendToAllUsers) {
-      // Send to all users with FCM tokens
-      tokens = await _notificationService.getAllUserFCMTokens();
+      // Send to all users
+      result = await ref
+          .read(notificationsProvider.notifier)
+          .sendNotificationToAllUsers(
+            title: _titleController.text,
+            body: _bodyController.text,
+          );
     } else {
       // Send to selected users
-      tokens = await _notificationService.getMultipleUserFCMTokens(
-        _selectedUserIds,
-      );
+      result = await ref
+          .read(notificationsProvider.notifier)
+          .sendMultipleNotifications(
+            userIds: _selectedUserIds,
+            title: _titleController.text,
+            body: _bodyController.text,
+          );
     }
 
-    if (tokens.isEmpty) {
+    if (!result['success']) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('لم يتم العثور على رموز FCM صالحة'),
+        SnackBar(
+          content: Text(result['error'] ?? 'لم يتم العثور على رموز FCM صالحة'),
           backgroundColor: Colors.orange,
         ),
       );
       return;
     }
 
-    // Send notifications to all tokens
-    int successCount = 0;
-    for (String token in tokens) {
-      final success = await _notificationService.sendNotification(
-        targetToken: token,
-        title: _titleController.text,
-        body: _bodyController.text,
-      );
-      if (success) successCount++;
-    }
+    final successCount = result['sentCount'] ?? 0;
+    final totalCount = result['totalCount'] ?? 0;
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('تم إرسال الإشعارات: $successCount/${tokens.length} نجح'),
+        content: Text('تم إرسال الإشعارات: $successCount/$totalCount نجح'),
         backgroundColor: successCount > 0 ? Colors.green : Colors.red,
       ),
     );
@@ -265,6 +257,8 @@ class _SendNotificationScreenState extends State<SendNotificationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final notificationsState = ref.watch(notificationsProvider);
+
     return NoInternetMessage(
       child: Scaffold(
         backgroundColor: Colors.white,
@@ -1014,10 +1008,13 @@ class _SendNotificationScreenState extends State<SendNotificationScreen> {
                     color: Colors.transparent,
                     child: InkWell(
                       borderRadius: BorderRadius.circular(16),
-                      onTap: _isLoading ? null : _sendNotification,
+                      onTap:
+                          (_isLoading || notificationsState.isLoading)
+                              ? null
+                              : _sendNotification,
                       child: Center(
                         child:
-                            _isLoading
+                            (_isLoading || notificationsState.isLoading)
                                 ? const SizedBox(
                                   width: 24,
                                   height: 24,

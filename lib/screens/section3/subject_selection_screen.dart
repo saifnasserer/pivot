@@ -1,17 +1,17 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:provider/provider.dart' as legacy_provider;
 import 'package:pivot/providers/guide_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/providers/subject_provider.dart';
-import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:pivot/widgets/no_internet_message.dart';
 import 'dart:async';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/models/subject_model.dart';
-import 'package:pivot/services/cache_service.dart';
+import 'package:pivot/features/subjects/providers/subjects_provider.dart';
 
-class SubjectSelectionScreen extends StatefulWidget {
+class SubjectSelectionScreen extends ConsumerStatefulWidget {
   final List<String> previouslySelectedIds;
   final String? targetUserId; // For Super Admin to edit other users' subjects
   final String? targetUserRole; // Role of the target user being edited
@@ -24,10 +24,12 @@ class SubjectSelectionScreen extends StatefulWidget {
   });
 
   @override
-  _SubjectSelectionScreenState createState() => _SubjectSelectionScreenState();
+  ConsumerState<SubjectSelectionScreen> createState() =>
+      _SubjectSelectionScreenState();
 }
 
-class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
+class _SubjectSelectionScreenState
+    extends ConsumerState<SubjectSelectionScreen> {
   bool _isSaving = false;
   bool _saveSuccess = false;
   final Map<int, bool> _expandedState = {};
@@ -35,8 +37,7 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
   bool _showEnglish = false; // Language toggle
   static const int maxHours = 18; // Maximum allowed hours
 
-  // Prevent multiple data loading calls
-  bool _isInitializing = false;
+  // Removed _isInitializing as it's now handled by Riverpod provider
 
   // Search functionality
   bool _isSearchMode = false;
@@ -63,99 +64,15 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
 
     _selectedSubjectIds = Set<String>.from(widget.previouslySelectedIds);
 
-    // Load subjects immediately, not in post-frame callback
-    _loadSubjectsAndData();
+    // Initialize subjects provider
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(subjectsProvider.notifier).initialize();
+    });
   }
 
-  Future<void> _loadSubjectsAndData() async {
-    if (_isInitializing) return;
-    _isInitializing = true;
+  // Removed _loadSubjectsAndData method as it's now handled by Riverpod provider
 
-    try {
-      final subjectProvider = Provider.of<SubjectProvider>(
-        context,
-        listen: false,
-      );
-
-      // First, try to load from cache if available
-      final cachedSubjects = await _tryLoadFromCache();
-      if (cachedSubjects.isNotEmpty) {
-        if (kDebugMode) {
-          print(
-            '[SubjectSelectionScreen] Loaded ${cachedSubjects.length} subjects from cache immediately',
-          );
-        }
-
-        // Only fetch fresh data if we don't have cached data or it's very old
-        // Use a debounced approach to avoid multiple calls
-        Future.delayed(const Duration(milliseconds: 500), () {
-          if (mounted && subjectProvider.allSubjects.isEmpty) {
-            _fetchFreshData();
-          }
-        });
-      } else {
-        // No cache available, fetch immediately
-        _fetchFreshData();
-      }
-    } catch (e) {
-      debugPrint('SubjectSelectionScreen: Error in initial load: $e');
-      _fetchFreshData();
-    } finally {
-      _isInitializing = false;
-    }
-  }
-
-  Future<List<Subject>> _tryLoadFromCache() async {
-    try {
-      final cachedSubjects = CacheService.instance.getCachedSubjects();
-      if (cachedSubjects.isNotEmpty) {
-        final subjectProvider = Provider.of<SubjectProvider>(
-          context,
-          listen: false,
-        );
-
-        // Set cached data immediately to show subjects right away
-        subjectProvider.setCachedSubjects(cachedSubjects);
-        return cachedSubjects;
-      }
-    } catch (e) {
-      debugPrint('SubjectSelectionScreen: Error loading from cache: $e');
-    }
-    return [];
-  }
-
-  void _fetchFreshData() {
-    try {
-      final subjectProvider = Provider.of<SubjectProvider>(
-        context,
-        listen: false,
-      );
-
-      // Only fetch if not already loading and don't have data
-      if (!subjectProvider.isLoading && subjectProvider.allSubjects.isEmpty) {
-        subjectProvider.fetchAllSubjects();
-      }
-
-      // Only fetch guide content if not already loaded
-      final guideProvider = Provider.of<GuideProvider>(context, listen: false);
-      if (guideProvider.guideContent == null && !guideProvider.isLoading) {
-        guideProvider.fetchGuideContent();
-      }
-
-      // If targetUserId is provided, fetch all users for Super Admin functionality
-      if (widget.targetUserId != null) {
-        final userProvider = Provider.of<UserProfileProvider>(
-          context,
-          listen: false,
-        );
-        if (userProvider.allUsers.isEmpty) {
-          userProvider.fetchAllUsers();
-        }
-      }
-    } catch (e) {
-      debugPrint('SubjectSelectionScreen: Error in fresh data fetch: $e');
-    }
-  }
+  // Removed unused methods as they're now handled by Riverpod provider
 
   @override
   void dispose() {
@@ -274,7 +191,7 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
   }
 
   int _calculateTotalHours() {
-    final subjectProvider = Provider.of<SubjectProvider>(
+    final subjectProvider = legacy_provider.Provider.of<SubjectProvider>(
       context,
       listen: false,
     );
@@ -721,11 +638,9 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
 
     bool success = false;
     try {
-      final userProfileProvider = Provider.of<UserProfileProvider>(
-        context,
-        listen: false,
-      );
-      final subjectProvider = Provider.of<SubjectProvider>(
+      final userProfileProvider = legacy_provider
+          .Provider.of<UserProfileProvider>(context, listen: false);
+      final subjectProvider = legacy_provider.Provider.of<SubjectProvider>(
         context,
         listen: false,
       );
@@ -943,8 +858,11 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
   }
 
   Widget _buildGuideSection() {
-    return Consumer<GuideProvider>(
-      builder: (context, guideProvider, child) {
+    return Consumer(
+      builder: (context, ref, child) {
+        final guideProvider = legacy_provider.Provider.of<GuideProvider>(
+          context,
+        );
         if (guideProvider.isLoading && guideProvider.guideContent == null) {
           return const SizedBox(
             height: 200,
@@ -1099,8 +1017,11 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
   }
 
   Widget _buildSubjectsList() {
-    return Consumer<SubjectProvider>(
-      builder: (context, subjectProvider, child) {
+    return Consumer(
+      builder: (context, ref, child) {
+        final subjectProvider = legacy_provider.Provider.of<SubjectProvider>(
+          context,
+        );
         if (subjectProvider.isLoading) {
           return Center(
             child: Column(
@@ -1471,8 +1392,8 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Consumer<SubjectProvider>(
-                      builder: (context, subjectProvider, child) {
+                    Consumer(
+                      builder: (context, ref, child) {
                         final totalHours = _calculateTotalHours();
                         final isOverLimit = totalHours > maxHours;
 
@@ -1528,8 +1449,10 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
                     });
                   },
                 ),
-                Consumer<GuideProvider>(
-                  builder: (context, guideProvider, child) {
+                Consumer(
+                  builder: (context, ref, child) {
+                    final guideProvider = legacy_provider
+                        .Provider.of<GuideProvider>(context);
                     final hasContent =
                         guideProvider.guideContent != null &&
                         guideProvider.guideContent!.guidebooks.isNotEmpty;
@@ -1607,16 +1530,16 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
 
                           bool success = false;
                           try {
-                            final userProfileProvider =
-                                Provider.of<UserProfileProvider>(
-                                  context,
-                                  listen: false,
-                                );
-                            final subjectProvider =
-                                Provider.of<SubjectProvider>(
-                                  context,
-                                  listen: false,
-                                );
+                            final userProfileProvider = legacy_provider
+                                .Provider.of<UserProfileProvider>(
+                              context,
+                              listen: false,
+                            );
+                            final subjectProvider = legacy_provider
+                                .Provider.of<SubjectProvider>(
+                              context,
+                              listen: false,
+                            );
 
                             final userRole =
                                 userProfileProvider.loggedInUserProfile?.role;

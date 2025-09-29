@@ -1,31 +1,48 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/providers/section_provider.dart';
-import 'package:pivot/providers/task_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/screens/models/task.dart';
 import 'package:pivot/screens/models/task_model.dart';
-import 'package:provider/provider.dart';
+import 'package:pivot/features/tasks/providers/tasks_provider.dart';
+import 'package:provider/provider.dart' as provider;
 
 import 'add_edit_task_dialog.dart';
 import 'package:pivot/responsive.dart';
 
-
-class TasksControl extends StatefulWidget {
+class TasksControl extends ConsumerStatefulWidget {
   // = 'tasks';
   const TasksControl({super.key});
 
   @override
-  State<TasksControl> createState() => _TasksControlState();
+  ConsumerState<TasksControl> createState() => _TasksControlState();
 }
 
-class _TasksControlState extends State<TasksControl> {
+class _TasksControlState extends ConsumerState<TasksControl> {
+  @override
+  void initState() {
+    super.initState();
+    // Load tasks when the screen is first loaded
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final sectionId = ModalRoute.of(context)?.settings.arguments as String?;
+      if (sectionId != null) {
+        ref.read(tasksProvider.notifier).getTasksBySection(sectionId);
+      } else {
+        ref.read(tasksProvider.notifier).getAllTasks();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final sectionId = ModalRoute.of(context)?.settings.arguments as String?;
-    final taskProvider = Provider.of<TaskProvider>(context);
-    final sectionProvider = Provider.of<SectionProvider>(context);
+    final tasksState = ref.watch(tasksProvider);
+    final sectionProvider = provider.Provider.of<SectionProvider>(context);
     final userProfile =
-        Provider.of<UserProfileProvider>(context, listen: false).userProfile;
+        provider.Provider.of<UserProfileProvider>(
+          context,
+          listen: false,
+        ).userProfile;
 
     final userRole = userProfile?.role ?? '';
     final canEdit =
@@ -47,10 +64,7 @@ class _TasksControlState extends State<TasksControl> {
       appBarTitle = 'All Tasks';
     }
 
-    final tasks =
-        sectionId != null
-            ? taskProvider.tasksForSection(sectionId)
-            : taskProvider.tasks;
+    final tasks = tasksState.filteredTasks;
 
     return Scaffold(
       appBar: AppBar(
@@ -61,7 +75,7 @@ class _TasksControlState extends State<TasksControl> {
       body: SafeArea(
         child: Stack(
           children: [
-            if (tasks.isEmpty && !taskProvider.isLoading)
+            if (tasks.isEmpty && !tasksState.isLoading)
               Center(
                 child: Text(
                   'لا توجد تاسكات حالياً',
@@ -82,25 +96,23 @@ class _TasksControlState extends State<TasksControl> {
                     task: task,
                     onEdit: () {
                       if (canEdit) {
-                        _showAddEditTaskDialog(
-                          context,
-                          taskProvider,
-                          task: task,
-                        );
+                        _showAddEditTaskDialog(context, task: task);
                       }
                     },
                     onDelete: () {
                       if (canEdit) {
-                        taskProvider.deleteTask(task.id);
+                        ref.read(tasksProvider.notifier).deleteTask(task.id);
                       }
                     },
                     onStatusChanged: () {
-                      taskProvider.toggleTaskCompletion(task.id);
+                      ref
+                          .read(tasksProvider.notifier)
+                          .markTaskCompleted(task.id);
                     },
                   );
                 },
               ),
-            if (taskProvider.isLoading)
+            if (tasksState.isLoading)
               const Center(child: CircularProgressIndicator()),
           ],
         ),
@@ -109,7 +121,7 @@ class _TasksControlState extends State<TasksControl> {
           canEdit
               ? FloatingActionButton(
                 heroTag: 'all_tasks_fab',
-                onPressed: () => _showAddEditTaskDialog(context, taskProvider),
+                onPressed: () => _showAddEditTaskDialog(context),
                 backgroundColor: Colors.black,
                 child: const Icon(Icons.add, color: Colors.white),
               )
@@ -117,13 +129,9 @@ class _TasksControlState extends State<TasksControl> {
     );
   }
 
-  void _showAddEditTaskDialog(
-    BuildContext context,
-    TaskProvider taskProvider, {
-    Task? task,
-  }) {
+  void _showAddEditTaskDialog(BuildContext context, {Task? task}) {
     final bool isEditing = task != null;
-    final sectionProvider = Provider.of<SectionProvider>(
+    final sectionProvider = provider.Provider.of<SectionProvider>(
       context,
       listen: false,
     );
@@ -156,7 +164,7 @@ class _TasksControlState extends State<TasksControl> {
       onSave: (savedTask) async {
         try {
           if (isEditing) {
-            await taskProvider.updateTask(savedTask.id, savedTask);
+            await ref.read(tasksProvider.notifier).updateTask(savedTask);
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
@@ -166,7 +174,7 @@ class _TasksControlState extends State<TasksControl> {
               );
             }
           } else {
-            await taskProvider.addTask(savedTask);
+            await ref.read(tasksProvider.notifier).addTask(savedTask);
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(

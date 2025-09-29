@@ -1,25 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:pivot/providers/super_admin_provider.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pivot/features/administration/providers/super_admin_provider.dart';
 import 'package:pivot/responsive.dart';
 
-
-class AnalyticsScreen extends StatefulWidget {
-  // = 'analytics_screen';
+class AnalyticsScreen extends ConsumerStatefulWidget {
   const AnalyticsScreen({super.key});
 
   @override
-  State<AnalyticsScreen> createState() => _AnalyticsScreenState();
+  ConsumerState<AnalyticsScreen> createState() => _AnalyticsScreenState();
 }
 
-class _AnalyticsScreenState extends State<AnalyticsScreen> {
+class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
   @override
   void initState() {
     super.initState();
     // Fetch data when the screen is first loaded
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final provider = Provider.of<SuperAdminProvider>(context, listen: false);
-      provider.fetchDashboardData();
+      ref.read(superAdminProvider.notifier).fetchDashboardData();
     });
   }
 
@@ -41,17 +38,22 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           elevation: 0,
           iconTheme: const IconThemeData(color: Colors.black),
         ),
-        body: Consumer<SuperAdminProvider>(
-          builder: (context, provider, child) {
-            if (provider.isLoading) {
+        body: Consumer(
+          builder: (context, ref, child) {
+            final superAdminState = ref.watch(superAdminProvider);
+
+            if (superAdminState.isLoading) {
               return Center(
                 child: CircularProgressIndicator(color: Colors.black),
               );
             }
 
-            // Debug: Print provider state
             return RefreshIndicator(
-              onRefresh: () => provider.fetchDashboardData(),
+              onRefresh:
+                  () =>
+                      ref
+                          .read(superAdminProvider.notifier)
+                          .fetchDashboardData(),
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: Responsive.padding(context, size: Space.large),
@@ -59,27 +61,27 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     _buildSectionTitle(context, 'إحصائيات المستخدمين'),
-                    _buildUserStatsCard(provider),
+                    _buildUserStatsCard(superAdminState),
                     SizedBox(
                       height: Responsive.space(context, size: Space.large),
                     ),
                     _buildSectionTitle(context, 'توزيع الأدوار'),
-                    _buildRoleDistributionCard(provider),
+                    _buildRoleDistributionCard(superAdminState),
                     SizedBox(
                       height: Responsive.space(context, size: Space.large),
                     ),
                     _buildSectionTitle(context, 'إحصائيات الأقسام'),
-                    _buildDepartmentStatsCard(provider),
+                    _buildDepartmentStatsCard(superAdminState),
                     SizedBox(
                       height: Responsive.space(context, size: Space.large),
                     ),
                     _buildSectionTitle(context, 'إحصائيات المستويات'),
-                    _buildLevelStatsCard(provider),
+                    _buildLevelStatsCard(superAdminState),
                     SizedBox(
                       height: Responsive.space(context, size: Space.large),
                     ),
                     _buildSectionTitle(context, 'إحصائيات الجنس'),
-                    _buildGenderStatsCard(provider),
+                    _buildGenderStatsCard(superAdminState),
                   ],
                 ),
               ),
@@ -106,7 +108,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
-  Widget _buildUserStatsCard(SuperAdminProvider provider) {
+  Widget _buildUserStatsCard(SuperAdminState provider) {
     return Container(
       width: double.infinity,
       padding: Responsive.padding(context, size: Space.large),
@@ -121,7 +123,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             context,
             Icons.people,
             'إجمالي المستخدمين',
-            provider.totalUsers.toString(),
+            (provider.dashboardData?['totalUsers'] ?? 0).toString(),
             Colors.blue,
           ),
           SizedBox(height: Responsive.space(context, size: Space.medium)),
@@ -129,7 +131,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             context,
             Icons.person_add,
             'المستخدمين الجدد هذا الشهر',
-            provider.newUsersThisMonth.toString(),
+            (provider.dashboardData?['newUsersThisMonth'] ?? 0).toString(),
             Colors.green,
           ),
           SizedBox(height: Responsive.space(context, size: Space.medium)),
@@ -137,7 +139,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             context,
             Icons.trending_up,
             'نسبة النمو',
-            '${provider.getGrowthRate().round()}%',
+            '${_calculateGrowthRate(provider).round()}%',
             Colors.orange,
           ),
         ],
@@ -145,28 +147,29 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
-  Widget _buildRoleDistributionCard(SuperAdminProvider provider) {
+  Widget _buildRoleDistributionCard(SuperAdminState provider) {
     final roles = [
       {
         'name': 'طلاب',
-        'count': provider.userRolesCount['Student'] ?? 0,
+        'count': (provider.dashboardData?['userRolesCount']?['Student'] ?? 0),
         'color': Colors.green,
       },
       {
         'name': 'أساتذة',
         'count':
-            (provider.userRolesCount['Professor'] ?? 0) +
-            (provider.userRolesCount['miniProfessor'] ?? 0),
+            (provider.dashboardData?['userRolesCount']?['Professor'] ?? 0) +
+            (provider.dashboardData?['userRolesCount']?['miniProfessor'] ?? 0),
         'color': Colors.purple,
       },
       {
         'name': 'مدراء',
-        'count': provider.userRolesCount['Admin'] ?? 0,
+        'count': (provider.dashboardData?['userRolesCount']?['Admin'] ?? 0),
         'color': Colors.orange,
       },
       {
         'name': 'مدراء عامين',
-        'count': provider.userRolesCount['Super Admin'] ?? 0,
+        'count':
+            (provider.dashboardData?['userRolesCount']?['Super Admin'] ?? 0),
         'color': Colors.red,
       },
     ];
@@ -183,8 +186,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         children:
             roles.map((role) {
               final percentage =
-                  provider.totalUsers > 0
-                      ? (((role['count'] as int) / provider.totalUsers) * 100)
+                  (provider.dashboardData?['totalUsers'] ?? 0) > 0
+                      ? (((role['count'] as int) /
+                                  (provider.dashboardData?['totalUsers'] ??
+                                      1)) *
+                              100)
                           .round()
                       : 0;
 
@@ -208,8 +214,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
-  Widget _buildDepartmentStatsCard(SuperAdminProvider provider) {
-    final departments = provider.getTopDepartments();
+  Widget _buildDepartmentStatsCard(SuperAdminState provider) {
+    final departments = provider.topDepartments ?? [];
 
     if (departments.isEmpty) {
       return Container(
@@ -262,8 +268,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
-  Widget _buildLevelStatsCard(SuperAdminProvider provider) {
-    final levels = provider.getTopLevels();
+  Widget _buildLevelStatsCard(SuperAdminState provider) {
+    final levels = provider.topLevels ?? [];
 
     if (levels.isEmpty) {
       return Container(
@@ -560,18 +566,18 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
-  Widget _buildGenderStatsCard(SuperAdminProvider provider) {
+  Widget _buildGenderStatsCard(SuperAdminState provider) {
     // Debug: Print all gender stats to see what's available
 
     final genders = [
       {
         'name': 'ذكور',
-        'count': provider.genderStats['ذكر'] ?? 0,
+        'count': (provider.dashboardData?['genderStats']?['ذكر'] ?? 0),
         'color': Colors.blue,
       },
       {
         'name': 'إناث',
-        'count': provider.genderStats['أنثى'] ?? 0,
+        'count': (provider.dashboardData?['genderStats']?['أنثى'] ?? 0),
         'color': Colors.pink,
       },
     ];
@@ -588,8 +594,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         children:
             genders.map((gender) {
               final percentage =
-                  provider.totalUsers > 0
-                      ? (((gender['count'] as int) / provider.totalUsers) * 100)
+                  (provider.dashboardData?['totalUsers'] ?? 0) > 0
+                      ? (((gender['count'] as int) /
+                                  (provider.dashboardData?['totalUsers'] ??
+                                      1)) *
+                              100)
                           .round()
                       : 0;
 
@@ -686,5 +695,16 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         ],
       ),
     );
+  }
+
+  double _calculateGrowthRate(SuperAdminState provider) {
+    final dashboardData = provider.dashboardData;
+    if (dashboardData == null) return 0.0;
+
+    final totalUsers = dashboardData['totalUsers'] as int? ?? 0;
+    final newUsersThisMonth = dashboardData['newUsersThisMonth'] as int? ?? 0;
+
+    if (totalUsers == 0) return 0.0;
+    return (newUsersThisMonth / totalUsers) * 100;
   }
 }

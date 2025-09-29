@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:provider/provider.dart' as legacy_provider;
 import 'package:pivot/screens/section4/assistants/profile/assistant_profile_main.dart';
 import 'package:pivot/screens/section4/doctor/profile/doctor_profile.dart';
-import 'package:provider/provider.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/providers/subject_provider.dart';
@@ -17,16 +18,16 @@ import 'schedule_tab.dart';
 import 'subjects_tab.dart';
 import 'sections_tab.dart';
 
-class ProfileScreen extends StatefulWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
   final int? initialTabIndex;
 
   const ProfileScreen({super.key, this.initialTabIndex});
 
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen>
+class _ProfileScreenState extends ConsumerState<ProfileScreen>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   late TabController _tabController;
   Timer? _debounceTimer;
@@ -162,13 +163,11 @@ class _ProfileScreenState extends State<ProfileScreen>
 
         final provider = context.read<ProfileProvider>();
         provider.fetchProfileData(userProfile);
-      } catch (e) {
-      }
+      } catch (e) {}
     });
   }
 
   void _forceRefreshDataProviders(UserProfile userProfile) {
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
 
@@ -188,7 +187,6 @@ class _ProfileScreenState extends State<ProfileScreen>
           sectionProvider.resetFilter();
         }
 
-
         // Reset loading state and force rebuild
         if (mounted) {
           setState(() {
@@ -206,7 +204,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   void _onDaySelected(int index) {
-    final provider = context.read<ProfileProvider>();
+    final provider = legacy_provider.Provider.of<ProfileProvider>(context);
     provider.updateSelectedDayIndex(index);
   }
 
@@ -218,7 +216,9 @@ class _ProfileScreenState extends State<ProfileScreen>
           // Use additional post-frame callback to ensure these happen after current build
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
-              context.read<SubjectProvider>().resetFilter();
+              legacy_provider.Provider.of<SubjectProvider>(
+                context,
+              ).resetFilter();
             }
           });
         }
@@ -228,7 +228,8 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   @override
   Widget build(BuildContext context) {
-    final userProfile = context.read<UserProfileProvider>().userProfile;
+    final userProfile =
+        legacy_provider.Provider.of<UserProfileProvider>(context).userProfile;
 
     // Check for special user roles first
     if (userProfile != null) {
@@ -242,7 +243,9 @@ class _ProfileScreenState extends State<ProfileScreen>
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           // Only fetch profile data, don't reset sections
-          final provider = context.read<ProfileProvider>();
+          final provider = legacy_provider.Provider.of<ProfileProvider>(
+            context,
+          );
           provider.fetchProfileData(userProfile);
         }
       });

@@ -45,8 +45,6 @@ import 'package:pivot/providers/doctor_subject_provider.dart';
 
 import 'package:pivot/providers/section_provider.dart'; // Import SectionProvider
 import 'package:pivot/providers/bookmarks.dart'; // Import Bookmarks provider
-import 'package:pivot/providers/scheduled_notification_provider.dart'; // Import ScheduledNotificationProvider
-import 'package:pivot/providers/user_notification_provider.dart';
 import 'package:pivot/providers/material_links_provider.dart'; // Import MaterialLinksProvider
 
 import 'package:firebase_core/firebase_core.dart';
@@ -57,7 +55,6 @@ import 'package:pivot/screens/section2/super_admin_panel/analytics_screen.dart'
 import 'package:pivot/services/cache_service.dart';
 import 'package:pivot/services/notification_service.dart';
 import 'package:pivot/services/local_notification_service.dart';
-// import 'package:pivot/services/notification_trigger_service.dart';
 import 'package:pivot/services/permission_service.dart';
 import 'dart:async';
 import 'package:pivot/screens/section2/adminstration/add_user_screen.dart'
@@ -174,7 +171,9 @@ void _initializeAppBackgroundServices(
     userProfileProvider
         .loadLoggedInUserProfile()
         .timeout(const Duration(seconds: 10))
-        .catchError((error) {});
+        .catchError((error) {
+          return false;
+        });
   }
 
   try {
@@ -227,22 +226,36 @@ class Pivot extends StatelessWidget {
   Widget build(BuildContext context) {
     return legacy_provider.MultiProvider(
       providers: [
-        legacy_provider.ChangeNotifierProvider(create: (_) => AnnouncementProvider()),
+        legacy_provider.ChangeNotifierProvider(
+          create: (_) => AnnouncementProvider(),
+        ),
         legacy_provider.ChangeNotifierProvider(
           create: (_) => SectionProvider(),
         ), // Add SectionProvider
         legacy_provider.ChangeNotifierProvider(create: (_) => TaskProvider()),
-        legacy_provider.ChangeNotifierProvider(create: (_) => ScheduleProvider()),
-        legacy_provider.ChangeNotifierProvider.value(value: userProfileProvider),
-        legacy_provider.ChangeNotifierProvider(create: (_) => SubjectProvider()),
+        legacy_provider.ChangeNotifierProvider(
+          create: (_) => ScheduleProvider(),
+        ),
+        legacy_provider.ChangeNotifierProvider.value(
+          value: userProfileProvider,
+        ),
+        legacy_provider.ChangeNotifierProvider(
+          create: (_) => SubjectProvider(),
+        ),
         legacy_provider.ChangeNotifierProvider(create: (_) => Bookmarks()),
-        legacy_provider.ChangeNotifierProvider(create: (_) => DoctorSubjectProvider()),
-        legacy_provider.ChangeNotifierProvider(create: (_) => MaterialLinksProvider()),
-        legacy_provider.ChangeNotifierProvider(create: (_) => SettingsProvider()),
-        legacy_provider.ChangeNotifierProvider(create: (_) => SuperAdminProvider()),
+        legacy_provider.ChangeNotifierProvider(
+          create: (_) => DoctorSubjectProvider(),
+        ),
+        legacy_provider.ChangeNotifierProvider(
+          create: (_) => MaterialLinksProvider(),
+        ),
+        legacy_provider.ChangeNotifierProvider(
+          create: (_) => SettingsProvider(),
+        ),
+        legacy_provider.ChangeNotifierProvider(
+          create: (_) => SuperAdminProvider(),
+        ),
         legacy_provider.ChangeNotifierProvider(create: (_) => GuideProvider()),
-        legacy_provider.ChangeNotifierProvider(create: (_) => ScheduledNotificationProvider()),
-        legacy_provider.ChangeNotifierProvider(create: (_) => UserNotificationProvider()),
         legacy_provider.Provider<RemoteConfigService>(
           create: (_) => RemoteConfigService.instance,
         ),

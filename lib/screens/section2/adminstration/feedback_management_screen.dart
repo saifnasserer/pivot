@@ -1,27 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:pivot/widgets/no_internet_message.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
+import 'package:pivot/features/feedback/providers/feedback_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-
-class FeedbackManagementScreen extends StatefulWidget {
-  // = 'feedback_management_screen';
-
+class FeedbackManagementScreen extends ConsumerStatefulWidget {
   const FeedbackManagementScreen({super.key});
 
   @override
-  State<FeedbackManagementScreen> createState() =>
+  ConsumerState<FeedbackManagementScreen> createState() =>
       _FeedbackManagementScreenState();
 }
 
-class _FeedbackManagementScreenState extends State<FeedbackManagementScreen> {
+class _FeedbackManagementScreenState
+    extends ConsumerState<FeedbackManagementScreen> {
   Future<void> _updateFeedbackStatus(String docId, String status) async {
-    try {
-      await FirebaseFirestore.instance.collection('feedback').doc(docId).update(
-        {'status': status},
-      );
+    final success = await ref
+        .read(feedbackProvider.notifier)
+        .updateFeedbackStatus(docId, status);
+
+    if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('تم تحديث حالة الملاحظة إلى $status'),
@@ -32,10 +33,10 @@ class _FeedbackManagementScreenState extends State<FeedbackManagementScreen> {
           ),
         ),
       );
-    } catch (e) {
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('خطأ في تحديث الحالة: $e'),
+          content: Text('خطأ في تحديث الحالة'),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
@@ -51,270 +52,160 @@ class _FeedbackManagementScreenState extends State<FeedbackManagementScreen> {
       context: context,
       builder:
           (context) => UnifiedDialog(
-            title: feedback['category']?.toString().toUpperCase() ?? 'ملاحظة',
-            subtitle: 'تفاصيل الملاحظة',
-            content: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  // User information section
-                  UnifiedSectionHeader(
-                    title: 'معلومات المستخدم',
-                    icon: Icons.person,
+            title: 'تفاصيل الملاحظة',
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildDetailRow('المستخدم', feedback['userName'] ?? 'غير محدد'),
+                _buildDetailRow(
+                  'البريد الإلكتروني',
+                  feedback['userEmail'] ?? 'غير محدد',
+                ),
+                _buildDetailRow('النوع', feedback['category'] ?? 'غير محدد'),
+                _buildDetailRow('الحالة', _getStatusText(feedback['status'])),
+                _buildDetailRow(
+                  'التاريخ',
+                  _formatTimestamp(feedback['timestamp']),
+                ),
+                SizedBox(height: Responsive.space(context, size: Space.medium)),
+                Text(
+                  'المحتوى:',
+                  style: TextStyle(
+                    fontSize: Responsive.text(context, size: TextSize.medium),
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
                   ),
-                  Container(
-                    padding: EdgeInsets.all(
-                      Responsive.space(context, size: Space.medium),
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[50],
-                      borderRadius: BorderRadius.circular(
-                        Responsive.space(context, size: Space.large),
-                      ),
-                      border: Border.all(color: Colors.grey[200]!),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        _buildInfoRow(
-                          'الاسم',
-                          feedback['userName'] ?? 'غير معروف',
-                        ),
-                        SizedBox(
-                          height: Responsive.space(context, size: Space.small),
-                        ),
-                        _buildInfoRow(
-                          'البريد الإلكتروني',
-                          feedback['userEmail'] ?? 'غير متوفر',
-                        ),
-                        SizedBox(
-                          height: Responsive.space(context, size: Space.small),
-                        ),
-                        _buildInfoRow(
-                          'الدور',
-                          feedback['userRole'] ?? 'غير محدد',
-                        ),
-                      ],
-                    ),
+                ),
+                SizedBox(height: Responsive.space(context, size: Space.small)),
+                Container(
+                  width: double.infinity,
+                  padding: Responsive.padding(context, size: Space.medium),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey[200]!),
                   ),
-                  SizedBox(
-                    height: Responsive.space(context, size: Space.medium),
-                  ),
-
-                  // Feedback content section
-                  if (feedback['feedback'] != null &&
-                      feedback['feedback'].toString().isNotEmpty) ...[
-                    UnifiedSectionHeader(
-                      title: 'التعليق',
-                      icon: Icons.feedback,
+                  child: Text(
+                    feedback['feedback'] ?? 'لا يوجد محتوى',
+                    style: TextStyle(
+                      fontSize: Responsive.text(context, size: TextSize.small),
+                      color: Colors.grey[700],
                     ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                SizedBox(height: Responsive.space(context, size: Space.medium)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
                     Container(
-                      padding: EdgeInsets.all(
-                        Responsive.space(context, size: Space.medium),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: Responsive.space(
+                          context,
+                          size: Space.small,
+                        ),
+                        vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.grey[50],
-                        borderRadius: BorderRadius.circular(
-                          Responsive.space(context, size: Space.large),
-                        ),
-                        border: Border.all(color: Colors.grey[200]!),
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        feedback['feedback'] ?? 'لا يوجد تعليق',
+                        feedback['status'] ?? 'pending',
                         style: TextStyle(
                           fontSize: Responsive.text(
                             context,
-                            size: TextSize.medium,
+                            size: TextSize.small,
                           ),
-                          color: Colors.black87,
-                          height: 1.5,
+                          color: Colors.grey[700],
+                          fontWeight: FontWeight.w500,
                         ),
-                        textAlign: TextAlign.right,
                       ),
                     ),
-                    SizedBox(
-                      height: Responsive.space(context, size: Space.medium),
+                    Text(
+                      _formatTimestamp(feedback['timestamp']),
+                      style: TextStyle(
+                        fontSize: Responsive.text(
+                          context,
+                          size: TextSize.small,
+                        ),
+                        color: Colors.grey[500],
+                      ),
                     ),
                   ],
-
-                  // Status section
-                  UnifiedSectionHeader(
-                    title: 'حالة الملاحظة',
-                    icon: Icons.info,
-                  ),
-                  Container(
-                    padding: EdgeInsets.all(
-                      Responsive.space(context, size: Space.medium),
-                    ),
-                    decoration: BoxDecoration(
-                      color: _getStatusColor(
-                        feedback['status'] ?? 'pending',
-                      ).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(
-                        Responsive.space(context, size: Space.large),
-                      ),
-                      border: Border.all(
-                        color: _getStatusColor(
-                          feedback['status'] ?? 'pending',
-                        ).withOpacity(0.3),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Icon(
-                          _getStatusIcon(feedback['status'] ?? 'pending'),
-                          color: _getStatusColor(
-                            feedback['status'] ?? 'pending',
-                          ),
-                          size: Responsive.space(context, size: Space.medium),
-                        ),
-                        SizedBox(
-                          width: Responsive.space(context, size: Space.medium),
-                        ),
-                        Text(
-                          _getStatusText(feedback['status'] ?? 'pending'),
-                          style: TextStyle(
-                            fontSize: Responsive.text(
-                              context,
-                              size: TextSize.medium,
-                            ),
-                            fontWeight: FontWeight.bold,
-                            color: _getStatusColor(
-                              feedback['status'] ?? 'pending',
-                            ),
-                          ),
-                          textAlign: TextAlign.right,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
             actions: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  ElevatedButton.icon(
-                    icon: Icon(Icons.archive_outlined, size: 20),
-                    label: Text('أرشفة'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(
-                          Responsive.space(context, size: Space.large),
-                        ),
-                      ),
-                      padding: EdgeInsets.symmetric(
-                        horizontal: Responsive.space(
-                          context,
-                          size: Space.medium,
-                        ),
-                        vertical: Responsive.space(context, size: Space.small),
-                      ),
-                    ),
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                      _updateFeedbackStatus(docId, 'archived');
-                    },
-                  ),
-                  ElevatedButton.icon(
-                    icon: Icon(Icons.check_circle_outline_rounded, size: 20),
-                    label: Text('تم القراءة'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(
-                          Responsive.space(context, size: Space.large),
-                        ),
-                      ),
-                      padding: EdgeInsets.symmetric(
-                        horizontal: Responsive.space(
-                          context,
-                          size: Space.medium,
-                        ),
-                        vertical: Responsive.space(context, size: Space.small),
-                      ),
-                    ),
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                      _updateFeedbackStatus(docId, 'read');
-                    },
-                  ),
-                ],
+              if (feedback['status'] == 'pending') ...[
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    _updateFeedbackStatus(docId, 'resolved');
+                  },
+                  child: Text('حل'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    _updateFeedbackStatus(docId, 'rejected');
+                  },
+                  child: Text('رفض'),
+                ),
+              ],
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text('إغلاق'),
               ),
             ],
           ),
     );
   }
 
-  Widget _buildInfoRow(String label, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: Responsive.text(context, size: TextSize.small),
-            color: Colors.black87,
-            fontWeight: FontWeight.w500,
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: Responsive.paddingVertical(context, size: Space.tiny),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 80,
+            child: Text(
+              '$label:',
+              style: TextStyle(
+                fontSize: Responsive.text(context, size: TextSize.small),
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[700],
+              ),
+            ),
           ),
-          textAlign: TextAlign.right,
-        ),
-        SizedBox(width: Responsive.space(context, size: Space.small)),
-        Text(
-          '$label:',
-          style: TextStyle(
-            fontSize: Responsive.text(context, size: TextSize.small),
-            color: Colors.grey[600],
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: Responsive.text(context, size: TextSize.small),
+                color: Colors.black87,
+              ),
+            ),
           ),
-          textAlign: TextAlign.right,
-        ),
-      ],
+        ],
+      ),
     );
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'read':
-        return Colors.green;
-      case 'archived':
-        return Colors.red;
-      case 'pending':
-      default:
-        return Colors.orange;
-    }
-  }
-
-  IconData _getStatusIcon(String status) {
-    switch (status.toLowerCase()) {
-      case 'read':
-        return Icons.check_circle;
-      case 'archived':
-        return Icons.archive;
-      case 'pending':
-      default:
-        return Icons.schedule;
-    }
-  }
-
-  String _getStatusText(String status) {
-    switch (status.toLowerCase()) {
-      case 'read':
-        return 'تم القراءة';
-      case 'archived':
-        return 'مؤرشف';
-      case 'pending':
-      default:
-        return 'في الانتظار';
-    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final feedbackState = ref.watch(feedbackProvider);
+
+    // Load feedback data when the screen is built
+    ref.listen(feedbackProvider, (previous, next) {
+      if (next.feedback.isEmpty && !next.isLoading) {
+        ref.read(feedbackProvider.notifier).loadAllFeedback();
+      }
+    });
+
     return NoInternetMessage(
       child: Scaffold(
         backgroundColor: Colors.white,
@@ -330,244 +221,274 @@ class _FeedbackManagementScreenState extends State<FeedbackManagementScreen> {
           elevation: 0,
           iconTheme: const IconThemeData(color: Colors.black),
         ),
-        body: StreamBuilder<QuerySnapshot>(
-          stream:
-              FirebaseFirestore.instance
-                  .collection('feedback')
-                  .orderBy('timestamp', descending: true)
-                  .snapshots(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const CircularProgressIndicator(color: Colors.black),
-                    SizedBox(
-                      height: Responsive.space(context, size: Space.medium),
-                    ),
-                    Text(
-                      'جاري تحميل الملاحظات...',
-                      style: TextStyle(
-                        fontSize: Responsive.text(
-                          context,
-                          size: TextSize.medium,
-                        ),
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }
-            if (snapshot.hasError) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
-                    SizedBox(
-                      height: Responsive.space(context, size: Space.medium),
-                    ),
-                    Text(
-                      'حدث خطأ: ${snapshot.error}',
-                      style: TextStyle(
-                        fontSize: Responsive.text(
-                          context,
-                          size: TextSize.medium,
-                        ),
-                        color: Colors.grey[600],
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              );
-            }
-            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.feedback_outlined,
-                      size: 64,
-                      color: Colors.grey[400],
-                    ),
-                    SizedBox(
-                      height: Responsive.space(context, size: Space.medium),
-                    ),
-                    Text(
-                      'لا توجد ملاحظات حتى الآن',
-                      style: TextStyle(
-                        fontSize: Responsive.text(
-                          context,
-                          size: TextSize.medium,
-                        ),
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }
+        body: _buildFeedbackList(feedbackState),
+      ),
+    );
+  }
 
-            final feedbackDocs = snapshot.data!.docs;
+  Widget _buildFeedbackList(FeedbackState feedbackState) {
+    if (feedbackState.isLoading) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const CircularProgressIndicator(color: Colors.black),
+            SizedBox(height: Responsive.space(context, size: Space.medium)),
+            Text(
+              'جاري تحميل الملاحظات...',
+              style: TextStyle(
+                fontSize: Responsive.text(context, size: TextSize.medium),
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
-            return ListView.builder(
-              padding: Responsive.padding(context, size: Space.large),
-              itemCount: feedbackDocs.length,
-              itemBuilder: (context, index) {
-                final feedback =
-                    feedbackDocs[index].data() as Map<String, dynamic>;
-                final timestamp = feedback['timestamp'] as Timestamp?;
-                final formattedDate =
-                    timestamp != null
-                        ? DateFormat(
-                          'MMM d, yyyy – hh:mm a',
-                        ).format(timestamp.toDate())
-                        : 'التاريخ غير متوفر';
-
-                return Container(
-                  margin: EdgeInsets.only(
-                    bottom: Responsive.space(context, size: Space.medium),
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey[200]!),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.withOpacity(0.1),
-                        spreadRadius: 1,
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(16),
-                    onTap:
-                        () => _showFeedbackDetails(
-                          feedback,
-                          feedbackDocs[index].id,
-                        ),
-                    child: Padding(
-                      padding: Responsive.padding(context, size: Space.large),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.arrow_back_ios_new_rounded,
-                                color: Colors.grey[400],
-                                size: 16,
-                              ),
-                              Spacer(),
-                              Column(
-                                children: [
-                                  Text(
-                                    feedback['category']
-                                            ?.toString()
-                                            .toUpperCase() ??
-                                        'ملاحظة',
-                                    style: TextStyle(
-                                      fontSize: Responsive.text(
-                                        context,
-                                        size: TextSize.medium,
-                                      ),
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.black87,
-                                    ),
-                                  ),
-                                  Text(
-                                    'من: ${feedback['userName'] ?? 'غير معروف'}',
-                                    style: TextStyle(
-                                      fontSize: Responsive.text(
-                                        context,
-                                        size: TextSize.small,
-                                      ),
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          SizedBox(
-                            height: Responsive.space(
-                              context,
-                              size: Space.medium,
-                            ),
-                          ),
-                          Text(
-                            feedback['feedback'] ?? 'لا يوجد محتوى',
-                            style: TextStyle(
-                              fontSize: Responsive.text(
-                                context,
-                                size: TextSize.small,
-                              ),
-                              color: Colors.grey[700],
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          SizedBox(
-                            height: Responsive.space(
-                              context,
-                              size: Space.medium,
-                            ),
-                          ),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Container(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: Responsive.space(
-                                    context,
-                                    size: Space.small,
-                                  ),
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[100],
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  feedback['status'] ?? 'pending',
-                                  style: TextStyle(
-                                    fontSize: Responsive.text(
-                                      context,
-                                      size: TextSize.small,
-                                    ),
-                                    color: Colors.grey[700],
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                              Text(
-                                formattedDate,
-                                style: TextStyle(
-                                  fontSize: Responsive.text(
-                                    context,
-                                    size: TextSize.small,
-                                  ),
-                                  color: Colors.grey[500],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
+    if (feedbackState.error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+            SizedBox(height: Responsive.space(context, size: Space.medium)),
+            Text(
+              'خطأ في تحميل الملاحظات',
+              style: TextStyle(
+                fontSize: Responsive.text(context, size: TextSize.medium),
+                fontWeight: FontWeight.bold,
+                color: Colors.red[700],
+              ),
+            ),
+            SizedBox(height: Responsive.space(context, size: Space.small)),
+            Text(
+              feedbackState.error!,
+              style: TextStyle(
+                fontSize: Responsive.text(context, size: TextSize.small),
+                color: Colors.grey[600],
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: Responsive.space(context, size: Space.medium)),
+            ElevatedButton(
+              onPressed: () {
+                ref.read(feedbackProvider.notifier).loadAllFeedback();
               },
-            );
-          },
+              child: Text('إعادة المحاولة'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (feedbackState.feedback.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.feedback_outlined, size: 64, color: Colors.grey[400]),
+            SizedBox(height: Responsive.space(context, size: Space.medium)),
+            Text(
+              'لا توجد ملاحظات',
+              style: TextStyle(
+                fontSize: Responsive.text(context, size: TextSize.medium),
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[600],
+              ),
+            ),
+            SizedBox(height: Responsive.space(context, size: Space.small)),
+            Text(
+              'لم يتم إرسال أي ملاحظات بعد',
+              style: TextStyle(
+                fontSize: Responsive.text(context, size: TextSize.small),
+                color: Colors.grey[500],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: Responsive.padding(context, size: Space.medium),
+      itemCount: feedbackState.feedback.length,
+      itemBuilder: (context, index) {
+        final feedback = feedbackState.feedback[index];
+        final docId = feedback['id'] as String;
+        return _buildFeedbackCard(feedback, docId);
+      },
+    );
+  }
+
+  Widget _buildFeedbackCard(Map<String, dynamic> feedback, String docId) {
+    return Container(
+      margin: Responsive.paddingVertical(context, size: Space.small),
+      padding: Responsive.padding(context, size: Space.medium),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  feedback['userName'] ?? 'مستخدم غير معروف',
+                  style: TextStyle(
+                    fontSize: Responsive.text(context, size: TextSize.medium),
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+              _buildStatusChip(feedback['status'] ?? 'pending'),
+            ],
+          ),
+          SizedBox(height: Responsive.space(context, size: Space.small)),
+          Text(
+            feedback['category'] ?? 'غير محدد',
+            style: TextStyle(
+              fontSize: Responsive.text(context, size: TextSize.small),
+              color: Colors.grey[600],
+            ),
+          ),
+          SizedBox(height: Responsive.space(context, size: Space.small)),
+          Text(
+            feedback['feedback'] ?? '',
+            style: TextStyle(
+              fontSize: Responsive.text(context, size: TextSize.medium),
+              color: Colors.black87,
+            ),
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
+          SizedBox(height: Responsive.space(context, size: Space.small)),
+          Row(
+            children: [
+              Icon(Icons.access_time, size: 16, color: Colors.grey[500]),
+              SizedBox(width: Responsive.space(context, size: Space.tiny)),
+              Text(
+                _formatTimestamp(feedback['timestamp']),
+                style: TextStyle(
+                  fontSize: Responsive.text(context, size: TextSize.small),
+                  color: Colors.grey[500],
+                ),
+              ),
+              const Spacer(),
+              TextButton(
+                onPressed: () => _showFeedbackDetails(feedback, docId),
+                child: Text('عرض التفاصيل'),
+              ),
+            ],
+          ),
+          if (feedback['status'] == 'pending') ...[
+            SizedBox(height: Responsive.space(context, size: Space.small)),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => _updateFeedbackStatus(docId, 'resolved'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: Text('حل'),
+                  ),
+                ),
+                SizedBox(width: Responsive.space(context, size: Space.small)),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => _updateFeedbackStatus(docId, 'rejected'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: Text('رفض'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusChip(String status) {
+    Color color;
+    String text;
+
+    switch (status) {
+      case 'resolved':
+        color = Colors.green;
+        text = 'محلول';
+        break;
+      case 'rejected':
+        color = Colors.red;
+        text = 'مرفوض';
+        break;
+      default:
+        color = Colors.orange;
+        text = 'في الانتظار';
+    }
+
+    return Container(
+      padding: Responsive.padding(context, size: Space.tiny),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: Responsive.text(context, size: TextSize.small),
+          color: color,
+          fontWeight: FontWeight.bold,
         ),
       ),
     );
+  }
+
+  String _formatTimestamp(dynamic timestamp) {
+    if (timestamp == null) return 'غير محدد';
+
+    try {
+      DateTime dateTime;
+      if (timestamp is Timestamp) {
+        dateTime = timestamp.toDate();
+      } else if (timestamp is DateTime) {
+        dateTime = timestamp;
+      } else {
+        return 'غير محدد';
+      }
+
+      return DateFormat('dd/MM/yyyy HH:mm').format(dateTime);
+    } catch (e) {
+      return 'غير محدد';
+    }
+  }
+
+  String _getStatusText(String? status) {
+    switch (status) {
+      case 'resolved':
+        return 'محلول';
+      case 'rejected':
+        return 'مرفوض';
+      default:
+        return 'في الانتظار';
+    }
   }
 }

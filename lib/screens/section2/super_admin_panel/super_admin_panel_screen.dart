@@ -1,25 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:pivot/providers/super_admin_provider.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pivot/features/administration/providers/super_admin_provider.dart';
 import 'package:pivot/responsive.dart';
 
-
-class SuperAdminPanelScreen extends StatefulWidget {
+class SuperAdminPanelScreen extends ConsumerStatefulWidget {
   const SuperAdminPanelScreen({super.key});
   @override
-  State<SuperAdminPanelScreen> createState() => _SuperAdminPanelScreenState();
+  ConsumerState<SuperAdminPanelScreen> createState() =>
+      _SuperAdminPanelScreenState();
 }
 
-class _SuperAdminPanelScreenState extends State<SuperAdminPanelScreen> {
+class _SuperAdminPanelScreenState extends ConsumerState<SuperAdminPanelScreen> {
   @override
   void initState() {
     super.initState();
     // Fetch data when the screen is first loaded
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<SuperAdminProvider>(
-        context,
-        listen: false,
-      ).fetchDashboardData();
+      ref.read(superAdminProvider.notifier).fetchDashboardData();
     });
   }
 
@@ -41,15 +38,22 @@ class _SuperAdminPanelScreenState extends State<SuperAdminPanelScreen> {
       ),
       body: Directionality(
         textDirection: TextDirection.rtl,
-        child: Consumer<SuperAdminProvider>(
-          builder: (context, provider, child) {
-            if (provider.isLoading) {
+        child: Consumer(
+          builder: (context, ref, child) {
+            final superAdminState = ref.watch(superAdminProvider);
+
+            if (superAdminState.isLoading) {
               return Center(
                 child: CircularProgressIndicator(color: Colors.black),
               );
             }
+
             return RefreshIndicator(
-              onRefresh: () => provider.fetchDashboardData(),
+              onRefresh:
+                  () =>
+                      ref
+                          .read(superAdminProvider.notifier)
+                          .fetchDashboardData(),
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: Responsive.padding(context, size: Space.large),
@@ -66,7 +70,7 @@ class _SuperAdminPanelScreenState extends State<SuperAdminPanelScreen> {
                     SizedBox(
                       height: Responsive.space(context, size: Space.large),
                     ),
-                    _buildAnalyticsSection(provider),
+                    _buildAnalyticsSection(),
                   ],
                 ),
               ),
@@ -77,7 +81,7 @@ class _SuperAdminPanelScreenState extends State<SuperAdminPanelScreen> {
     );
   }
 
-  Widget _buildAnalyticsSection(SuperAdminProvider provider) {
+  Widget _buildAnalyticsSection() {
     return ElevatedButton.icon(
       onPressed: () {
         Navigator.pushNamed(context, '/analytics');
@@ -201,10 +205,7 @@ class _SuperAdminPanelScreenState extends State<SuperAdminPanelScreen> {
               final result = await Navigator.pushNamed(context, '/add-user');
               if (result == true) {
                 // Refresh data if user was added successfully
-                Provider.of<SuperAdminProvider>(
-                  context,
-                  listen: false,
-                ).fetchDashboardData();
+                ref.read(superAdminProvider.notifier).fetchDashboardData();
               }
             },
           ),

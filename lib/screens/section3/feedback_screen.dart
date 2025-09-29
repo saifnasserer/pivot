@@ -1,24 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/responsive.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
-import 'package:provider/provider.dart';
+import 'package:provider/provider.dart' as legacy_provider;
 import 'package:pivot/widgets/no_internet_message.dart';
 import 'package:pivot/services/permission_service.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:pivot/features/feedback/providers/feedback_provider.dart';
 import 'dart:io';
 
-class FeedbackScreen extends StatefulWidget {
+class FeedbackScreen extends ConsumerStatefulWidget {
   const FeedbackScreen({super.key});
 
   @override
-  State<FeedbackScreen> createState() => _FeedbackScreenState();
+  ConsumerState<FeedbackScreen> createState() => _FeedbackScreenState();
 }
 
-class _FeedbackScreenState extends State<FeedbackScreen>
+class _FeedbackScreenState extends ConsumerState<FeedbackScreen>
     with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _feedbackController = TextEditingController();
@@ -679,47 +678,61 @@ class _FeedbackScreenState extends State<FeedbackScreen>
         throw Exception('User not authenticated');
       }
 
-      final userProfileProvider = Provider.of<UserProfileProvider>(
-        context,
-        listen: false,
-      );
+      final userProfileProvider = legacy_provider
+          .Provider.of<UserProfileProvider>(context, listen: false);
       final userProfile = userProfileProvider.loggedInUserProfile;
 
       if (userProfile == null) {
         throw Exception('User profile not found');
       }
 
-      final feedbackData = {
-        'userId': user.uid,
-        'userName': userProfile.name,
-        'userEmail': userProfile.email,
-        'category': _selectedCategory,
-        'feedback': _feedbackController.text.trim(),
-        'imageUrl': _uploadedImageUrl,
-        'timestamp': FieldValue.serverTimestamp(),
-        'status': 'pending',
-      };
-
-      await FirebaseFirestore.instance.collection('feedback').add(feedbackData);
+      final success = await ref
+          .read(feedbackProvider.notifier)
+          .submitFeedback(
+            userId: user.uid,
+            userName: userProfile.name,
+            userEmail: userProfile.email ?? '',
+            category: _selectedCategory,
+            feedback: _feedbackController.text.trim(),
+            imageUrl: _uploadedImageUrl ?? '',
+          );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'تم إرسال ملاحظاتك بنجاح! شكراً لك',
-              style: TextStyle(
-                fontSize: Responsive.text(context, size: TextSize.medium),
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'تم إرسال ملاحظاتك بنجاح! شكراً لك',
+                style: TextStyle(
+                  fontSize: Responsive.text(context, size: TextSize.medium),
+                ),
+              ),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
             ),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        );
+          );
 
-        Navigator.of(context).pop();
+          Navigator.of(context).pop();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'حدث خطأ أثناء إرسال الملاحظات. يرجى المحاولة مرة أخرى',
+                style: TextStyle(
+                  fontSize: Responsive.text(context, size: TextSize.medium),
+                ),
+              ),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -785,36 +798,18 @@ class _FeedbackScreenState extends State<FeedbackScreen>
       });
 
       try {
-        // Compress the image
-        final compressedBytes = await FlutterImageCompress.compressWithFile(
-          pickedFile.path,
-          minWidth: 1024,
-          minHeight: 1024,
-          quality: 80,
-        );
+        final imageUrl = await ref
+            .read(feedbackProvider.notifier)
+            .uploadFeedbackImage(File(pickedFile.path));
 
-        if (compressedBytes != null) {
-          final fileName =
-              'feedback_${DateTime.now().millisecondsSinceEpoch}.jpg';
-          final ref = FirebaseStorage.instance.ref().child(
-            'feedback/$fileName',
-          );
-
-          final uploadTask = ref.putData(compressedBytes);
-          final snapshot = await uploadTask;
-
-          if (snapshot.state == TaskState.success) {
-            final downloadUrl = await snapshot.ref.getDownloadURL();
-            setState(() {
-              _selectedImage = File(pickedFile.path);
-              _uploadedImageUrl = downloadUrl;
-              _isUploadingImage = false;
-            });
-          } else {
-            throw Exception('Upload failed');
-          }
+        if (imageUrl != null) {
+          setState(() {
+            _selectedImage = File(pickedFile.path);
+            _uploadedImageUrl = imageUrl;
+            _isUploadingImage = false;
+          });
         } else {
-          throw Exception('Image compression failed');
+          throw Exception('Upload failed');
         }
       } catch (e) {
         setState(() {
