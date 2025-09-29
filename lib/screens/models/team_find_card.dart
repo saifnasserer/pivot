@@ -135,7 +135,7 @@ class _TeamFindCardState extends State<TeamFindCard> {
                         ),
                         if (widget.department != null &&
                             widget.department!.isNotEmpty &&
-                            widget.department != 'عام' &&
+                            widget.department != 'اخبار عامة' &&
                             widget.department!.toLowerCase() != 'general')
                           Padding(
                             padding: EdgeInsets.only(

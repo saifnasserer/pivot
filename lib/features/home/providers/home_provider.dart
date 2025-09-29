@@ -80,7 +80,10 @@ class HomeNotifier extends StateNotifier<HomeState> {
         isTeamFormationEnabled: shouldShowUpdate,
         hasUpdates: hasUpdates,
         isInitialized: true,
-        currentCategoryIndex: categories.isNotEmpty ? categories.length - 1 : 0,
+        currentCategoryIndex:
+            categories.isNotEmpty
+                ? categories.length - 1
+                : 0, // Start from rightmost tab (اخبار النهاردة)
       );
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());

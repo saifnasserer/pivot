@@ -1,9 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:pivot/screens/section1/login/login.dart';
+import 'package:pivot/features/onboarding/screens/login/login.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
-
 
 class SessionManagementService {
   static final SessionManagementService _instance =
@@ -150,7 +149,7 @@ class SessionManagementService {
       // Navigate to login screen
       if (context.mounted) {
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const Login()),
+          MaterialPageRoute(builder: (context) => const LoginPage()),
           (route) => false,
         );
       }

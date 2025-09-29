@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pivot/screens/section1/login/forgot_password_screen.dart';
+import 'package:pivot/features/onboarding/screens/login/forgot_password_screen.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/screens/models/circular_button.dart';

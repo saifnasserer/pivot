@@ -32,15 +32,33 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   final Ref _ref;
   late final AuthRepository _repo = _ref.read(authRepositoryProvider);
+  bool _disposed = false;
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
+  void _checkDisposed() {
+    if (_disposed) {
+      throw StateError('AuthNotifier has been disposed');
+    }
+  }
 
   Future<UserProfile?> login(String email, String password) async {
+    _checkDisposed();
     state = state.copyWith(isLoading: true, error: null);
     try {
       final user = await _repo.signInWithEmailAndPassword(email, password);
-      state = state.copyWith(isLoading: false, user: user);
+      if (!_disposed) {
+        state = state.copyWith(isLoading: false, user: user);
+      }
       return user;
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      if (!_disposed) {
+        state = state.copyWith(isLoading: false, error: e.toString());
+      }
       rethrow;
     }
   }
@@ -50,6 +68,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String password,
     required Map<String, dynamic> userData,
   }) async {
+    _checkDisposed();
     state = state.copyWith(isLoading: true, error: null);
     try {
       final user = await _repo.signUpWithEmailAndPassword(
@@ -57,16 +76,23 @@ class AuthNotifier extends StateNotifier<AuthState> {
         password,
         userData,
       );
-      state = state.copyWith(isLoading: false, user: user);
+      if (!_disposed) {
+        state = state.copyWith(isLoading: false, user: user);
+      }
       return user;
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      if (!_disposed) {
+        state = state.copyWith(isLoading: false, error: e.toString());
+      }
       rethrow;
     }
   }
 
   Future<void> logout() async {
+    _checkDisposed();
     await _repo.signOut();
-    state = const AuthState();
+    if (!_disposed) {
+      state = const AuthState();
+    }
   }
 }

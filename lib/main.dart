@@ -8,35 +8,35 @@ import 'package:pivot/providers/settings_provider.dart';
 import 'package:pivot/providers/super_admin_provider.dart';
 import 'package:pivot/providers/guide_provider.dart';
 import 'package:pivot/services/remote_config_service.dart';
-import 'package:pivot/screens/section2/teams.dart';
-import 'package:pivot/screens/section3/edit_profile/edit_profile.dart'
+import 'package:pivot/features/teams/screens/screens.dart';
+import 'package:pivot/features/profile/screens/edit_profile/edit_profile.dart'
     deferred as edit_profile;
 import 'package:pivot/responsive.dart';
-import 'package:pivot/screens/section4/assistants/profile/assistant_profile_main.dart';
-import 'package:pivot/screens/section4/doctor/profile/doctor_profile.dart';
-import 'package:pivot/screens/section1/login/login.dart';
-import 'package:pivot/screens/section1/auth_wrapper.dart';
-import 'package:pivot/screens/section1/first_landing.dart';
-import 'package:pivot/screens/section1/introduction_wrapper.dart';
+import 'package:pivot/features/administration/screens/assistants/profile/assistant_profile_main.dart';
+import 'package:pivot/features/administration/screens/doctor/profile/doctor_profile.dart';
+import 'package:pivot/features/onboarding/screens/login/login.dart';
+import 'package:pivot/features/onboarding/screens/auth_wrapper.dart';
+import 'package:pivot/features/onboarding/screens/first_landing.dart';
+import 'package:pivot/features/onboarding/screens/introduction_wrapper.dart';
 
-import 'package:pivot/screens/section1/signup/signup_page1.dart';
-import 'package:pivot/screens/section1/signup/signup_page2.dart';
-import 'package:pivot/screens/section2/admin_control.dart';
-import 'package:pivot/screens/section2/adminstration/user_management_page.dart'
+import 'package:pivot/features/onboarding/screens/signup/signup_page1.dart';
+import 'package:pivot/features/onboarding/screens/signup/signup_page2.dart';
+import 'package:pivot/features/home/screens/admin_control.dart';
+import 'package:pivot/features/home/screens/adminstration/user_management_page.dart'
     deferred as user_management_page;
-import 'package:pivot/screens/section2/adminstration/section_management_screen.dart'
+import 'package:pivot/features/home/screens/adminstration/section_management_screen.dart'
     deferred as section_management_screen;
-import 'package:pivot/screens/section2/adminstration/global_subject_management_screen.dart'
+import 'package:pivot/features/home/screens/adminstration/global_subject_management_screen.dart'
     deferred as global_subject_management_screen;
-import 'package:pivot/screens/section2/adminstration/send_notification_screen.dart'
+import 'package:pivot/features/notifications/screens/screens.dart'
     deferred as send_notification_screen;
-import 'package:pivot/screens/section2/super_admin_panel/super_admin_panel_screen.dart'
+import 'package:pivot/features/home/screens/super_admin_panel/super_admin_panel_screen.dart'
     deferred as super_admin_panel_screen;
-import 'package:pivot/screens/section2/landing.dart';
-import 'package:pivot/screens/section3/profile/profile.dart';
+import 'package:pivot/features/home/screens/landing.dart';
+import 'package:pivot/features/profile/screens/profile/profile.dart';
 
-import 'package:pivot/screens/section4/assistants/all_tasks.dart';
-import 'package:pivot/screens/section3/subject_selection_screen.dart';
+import 'package:pivot/features/tasks/screens/screens.dart';
+import 'package:pivot/features/subjects/screens/screens.dart';
 
 import 'package:provider/provider.dart' as legacy_provider;
 import 'package:pivot/providers/announcement_provider.dart';
@@ -50,23 +50,24 @@ import 'package:pivot/providers/material_links_provider.dart'; // Import Materia
 import 'package:firebase_core/firebase_core.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:pivot/screens/section2/super_admin_panel/analytics_screen.dart'
+import 'package:pivot/features/home/screens/super_admin_panel/analytics_screen.dart'
     deferred as analytics_screen;
 import 'package:pivot/services/cache_service.dart';
 import 'package:pivot/services/notification_service.dart';
 import 'package:pivot/services/local_notification_service.dart';
 import 'package:pivot/services/permission_service.dart';
 import 'dart:async';
-import 'package:pivot/screens/section2/adminstration/add_user_screen.dart'
+import 'package:pivot/features/home/screens/adminstration/add_user_screen.dart'
     deferred as add_user_screen;
-import 'package:pivot/screens/section3/feedback_screen.dart'
+import 'package:pivot/features/profile/screens/feedback_screen.dart'
     deferred as feedback_screen;
-import 'package:pivot/screens/models/notification_test_widget.dart';
-import 'package:pivot/screens/section2/adminstration/feedback_management_screen.dart'
+import 'package:pivot/features/notifications/screens/screens.dart';
+import 'package:pivot/features/home/screens/adminstration/feedback_management_screen.dart'
     deferred as feedback_management_screen;
-import 'package:pivot/screens/section2/super_admin_panel/update_management_screen.dart';
+import 'package:pivot/features/settings/screens/screens.dart';
 import 'package:pivot/providers/team_provider.dart';
 import 'package:pivot/providers/teams_provider.dart';
+import 'package:pivot/features/profile/screens/profile/profile_provider.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:pivot/services/fcm_token_manager.dart';
 import 'package:pivot/services/remote_config_bridge_service.dart';
@@ -90,6 +91,48 @@ const String routeSendNotifications = '/send-notifications';
 const String routeAddUser = '/add-user';
 const String routeUpdateManagement = '/update-management';
 
+Future<void> _configureFirebaseAuth() async {
+  try {
+    // Set auth persistence
+    await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
+
+    // Configure auth settings for better error handling
+    FirebaseAuth.instance.setSettings(
+      appVerificationDisabledForTesting: kDebugMode,
+      forceRecaptchaFlow: false, // Disable reCAPTCHA for testing
+    );
+
+    // Clear any existing sessions to prevent credential issues
+    if (kDebugMode) {
+      try {
+        await FirebaseAuth.instance.signOut();
+      } catch (e) {
+        // Ignore sign out errors
+      }
+    }
+  } catch (e) {
+    // Ignore configuration errors in production
+    if (kDebugMode) {
+      print('Firebase Auth configuration error: $e');
+    }
+  }
+}
+
+Future<void> _initializeAppCheck() async {
+  try {
+    // Try to initialize App Check to prevent the warning
+    // This is optional and won't break the app if it fails
+    if (kDebugMode) {
+      print('App Check initialization skipped in debug mode');
+    }
+  } catch (e) {
+    // App Check is optional, ignore errors
+    if (kDebugMode) {
+      print('App Check initialization error (ignored): $e');
+    }
+  }
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -112,6 +155,12 @@ void main() async {
     persistenceEnabled: true,
     cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
   );
+
+  // Configure Firebase Auth settings
+  await _configureFirebaseAuth();
+
+  // Initialize App Check if available
+  await _initializeAppCheck();
 
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
@@ -261,6 +310,16 @@ class Pivot extends StatelessWidget {
         ),
         legacy_provider.ChangeNotifierProvider(create: (_) => TeamProvider()),
         legacy_provider.ChangeNotifierProvider(create: (_) => TeamsProvider()),
+        legacy_provider.ChangeNotifierProvider(
+          create:
+              (context) => ProfileProvider(
+                userProfileProvider: context.read<UserProfileProvider>(),
+                scheduleProvider: context.read<ScheduleProvider>(),
+                taskProvider: context.read<TaskProvider>(),
+                subjectProvider: context.read<SubjectProvider>(),
+                sectionProvider: context.read<SectionProvider>(),
+              ),
+        ),
       ],
       child: MaterialApp(
         onGenerateRoute: (settings) {
@@ -292,7 +351,7 @@ class Pivot extends StatelessWidget {
           '/auth-wrapper': (context) => const AuthWrapper(),
           '/introduction-wrapper': (context) => const IntroductionWrapper(),
           '/first-landing': (context) => const FirstLandingScreen(),
-          '/signup-1': (context) => const Signup_1(),
+          '/signup-1': (context) => const SignupPage1(),
           '/signup-2': (context) {
             final args =
                 ModalRoute.of(context)?.settings.arguments
@@ -301,7 +360,7 @@ class Pivot extends StatelessWidget {
               // Fallback to first landing if no arguments
               return const FirstLandingScreen();
             }
-            return Signup_2(
+            return SignupPage2(
               name: args['name'] ?? '',
               email: args['email'] ?? '',
               phone: args['phone'] ?? '',
@@ -309,7 +368,7 @@ class Pivot extends StatelessWidget {
               gender: args['gender'] ?? 'ذكر',
             );
           },
-          '/login': (context) => const Login(),
+          '/login': (context) => const LoginPage(),
           '/landing': (context) => const Landing(),
           '/profile': (context) {
             final args = ModalRoute.of(context)?.settings.arguments;

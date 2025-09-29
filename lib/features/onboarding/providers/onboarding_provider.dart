@@ -91,4 +91,8 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
     await _repo.clearPendingDeepLink();
     state = state.copyWith(pendingDeepLink: null);
   }
+
+  Future<bool> checkIfIntroShown() async {
+    return await _repo.isIntroShown();
+  }
 }

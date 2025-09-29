@@ -196,7 +196,7 @@ class FeedbackService {
 
   // Get feedback categories
   List<String> getFeedbackCategories() {
-    return ['فيدباك عام', 'مشكلة تقنية', 'شكوى', 'استفسار', 'أخرى'];
+    return ['فيدباك اخبار عامة', 'مشكلة تقنية', 'شكوى', 'استفسار', 'أخرى'];
   }
 
   // Get feedback statuses

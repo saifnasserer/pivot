@@ -10,22 +10,95 @@ class AuthService {
   // Stream to listen to authentication state changes
   Stream<User?> get authStateChanges => _firebaseAuth.authStateChanges();
 
+  // Clear any cached credentials and auth state
+  Future<void> clearAuthState() async {
+    try {
+      if (_firebaseAuth.currentUser != null) {
+        await _firebaseAuth.signOut();
+      }
+      // Wait for sign out to complete
+      await Future.delayed(const Duration(milliseconds: 200));
+    } catch (e) {
+      // Ignore sign out errors
+    }
+  }
+
   // Sign in with email and password
   Future<UserProfile?> signInWithEmailAndPassword(
     String email,
     String password,
   ) async {
-    UserCredential result = await _firebaseAuth.signInWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
-    User? user = result.user;
+    try {
+      // Validate inputs
+      if (email.isEmpty || password.isEmpty) {
+        throw FirebaseAuthException(
+          code: 'invalid-credential',
+          message: 'البريد الإلكتروني وكلمة المرور مطلوبان',
+        );
+      }
 
-    if (user != null) {
-      // Fetch the user profile after successful login
-      return await getUserProfile(user.uid);
+      // Clean email input
+      final cleanEmail = email.trim().toLowerCase();
+
+      // Clear any existing auth state to prevent credential conflicts
+      await clearAuthState();
+
+      // Validate email format
+      if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(cleanEmail)) {
+        throw FirebaseAuthException(
+          code: 'invalid-email',
+          message: 'البريد الإلكتروني غير صحيح',
+        );
+      }
+
+      UserCredential result = await _firebaseAuth.signInWithEmailAndPassword(
+        email: cleanEmail,
+        password: password,
+      );
+
+      User? user = result.user;
+
+      if (user != null) {
+        // Verify email if needed
+        if (!user.emailVerified) {
+          // For now, we'll allow unverified emails, but you might want to handle this
+          print('Warning: User email is not verified');
+        }
+
+        // Fetch the user profile after successful login
+        return await getUserProfile(user.uid);
+      }
+      return null;
+    } on FirebaseAuthException catch (e) {
+      // Handle specific Firebase Auth errors
+      String errorMessage;
+      switch (e.code) {
+        case 'user-not-found':
+          errorMessage = 'لا يوجد مستخدم بهذا البريد الإلكتروني';
+          break;
+        case 'wrong-password':
+          errorMessage = 'كلمة المرور غير صحيحة';
+          break;
+        case 'invalid-email':
+          errorMessage = 'البريد الإلكتروني غير صحيح';
+          break;
+        case 'user-disabled':
+          errorMessage = 'تم تعطيل هذا الحساب';
+          break;
+        case 'too-many-requests':
+          errorMessage = 'محاولات كثيرة جداً، حاول مرة أخرى لاحقاً';
+          break;
+        case 'invalid-credential':
+          errorMessage = 'البريد الإلكتروني أو كلمة المرور غير صحيحة';
+          break;
+        default:
+          errorMessage = 'فشل في تسجيل الدخول: ${e.message}';
+      }
+      throw FirebaseAuthException(code: e.code, message: errorMessage);
+    } catch (e) {
+      // Handle other errors
+      throw Exception('حدث خطأ غير متوقع: $e');
     }
-    return null;
   }
 
   // Sign out

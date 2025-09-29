@@ -20,13 +20,8 @@ class UserNumberService {
           currentNumber = (counterDoc.data()?['count'] as int?) ?? 0;
         }
 
-        // Always increment by 1, ensuring we start from 1
-        int nextNumber = currentNumber + 1;
-
-        // If no counter exists yet, start from 1
-        if (!counterDoc.exists) {
-          nextNumber = 1;
-        }
+        // Calculate next number: if no counter exists, start from 1, otherwise increment
+        int nextNumber = counterDoc.exists ? currentNumber + 1 : 1;
 
         transaction.set(counterRef, {'count': nextNumber});
 
@@ -48,8 +43,57 @@ class UserNumberService {
       if (kDebugMode) {
         print('[UserNumberService] Error generating user number: $e');
       }
-      // Fallback: return timestamp-based number if counter fails
-      return DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      // Fallback: try to get current count and increment manually
+      try {
+        final currentCount = await getCurrentUserCount();
+        return currentCount + 1;
+      } catch (fallbackError) {
+        if (kDebugMode) {
+          print('[UserNumberService] Fallback also failed: $fallbackError');
+        }
+        // Last resort: use timestamp but warn about it
+        final timestampNumber = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+        if (kDebugMode) {
+          print(
+            '[UserNumberService] Using timestamp fallback: $timestampNumber',
+          );
+        }
+        return timestampNumber;
+      }
+    }
+  }
+
+  /// Initializes the counter if it doesn't exist
+  static Future<void> initializeCounter() async {
+    try {
+      final counterRef = _firestore.collection('counters').doc('userNumber');
+      final counterDoc = await counterRef.get();
+
+      if (!counterDoc.exists) {
+        await counterRef.set({'count': 0});
+        if (kDebugMode) {
+          print('[UserNumberService] Counter initialized with 0');
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('[UserNumberService] Error initializing counter: $e');
+      }
+    }
+  }
+
+  /// Resets the counter to 0 (use with caution - for testing only)
+  static Future<void> resetCounter() async {
+    try {
+      final counterRef = _firestore.collection('counters').doc('userNumber');
+      await counterRef.set({'count': 0});
+      if (kDebugMode) {
+        print('[UserNumberService] Counter reset to 0');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('[UserNumberService] Error resetting counter: $e');
+      }
     }
   }
 

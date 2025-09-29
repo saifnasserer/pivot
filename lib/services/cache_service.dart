@@ -2,7 +2,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/models/section_model.dart';
 import 'package:pivot/screens/models/schedule_item.dart';
-import 'package:pivot/screens/section2/adminstration/models/announcement_data.dart';
+import 'package:pivot/features/home/screens/adminstration/models/announcement_data.dart';
 import 'package:pivot/models/subject_model.dart';
 
 class CacheService {

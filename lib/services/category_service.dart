@@ -1,7 +1,7 @@
 class CategoryService {
   static const List<String> baseCategories = [
     'اخبار النهاردة',
-    'عام',
+    'اخبار عامة',
     'SC',
     'AI',
     'CS',
@@ -10,36 +10,33 @@ class CategoryService {
   ];
 
   /// Get categories based on user department
-  /// Returns ordered list: Today's News - General - User's Department - Other Departments
-  /// Reversed for RTL display (rightmost first)
+  /// Returns ordered list: Other Departments - User's Department - General - Today's News
+  /// For RTL display (rightmost is Today's News)
   static List<String> getCategories(String? userDepartment) {
-    // If no user department, return default order
-    if (userDepartment == null) {
-      return baseCategories.reversed.toList(); // Reverse for RTL
-    }
-
-    // Create ordered list: Today's News - General - User's Department - Other Departments
+    // Create ordered list: Other Departments - User's Department - General - Today's News
     final orderedCategories = <String>[];
 
-    // 1. Today's News (always first)
-    orderedCategories.add('اخبار النهاردة');
-
-    // 2. General (always second)
-    orderedCategories.add('عام');
-
-    // 3. User's Department (if it exists in the list)
-    if (baseCategories.contains(userDepartment)) {
-      orderedCategories.add(userDepartment);
-    }
-
-    // 4. Other departments (excluding the ones already added)
+    // 1. Other departments (excluding Today's News and General)
     for (final category in baseCategories) {
-      if (!orderedCategories.contains(category)) {
+      if (category != 'اخبار النهاردة' && category != 'اخبار عامة') {
         orderedCategories.add(category);
       }
     }
 
-    return orderedCategories.reversed.toList(); // Reverse for RTL display
+    // 2. User's Department (if it exists in the list and not already added)
+    if (userDepartment != null &&
+        baseCategories.contains(userDepartment) &&
+        !orderedCategories.contains(userDepartment)) {
+      orderedCategories.add(userDepartment);
+    }
+
+    // 3. General (always second to last)
+    orderedCategories.add('اخبار عامة');
+
+    // 4. Today's News (always last/rightmost)
+    orderedCategories.add('اخبار النهاردة');
+
+    return orderedCategories; // No need to reverse - already in correct RTL order
   }
 
   /// Normalize department name by removing 'اخبار قسم ' prefix
@@ -56,7 +53,6 @@ class CategoryService {
   /// Get department code for API calls
   static String? getDepartmentCode(String category, String? userDepartment) {
     String? departmentCode;
-    String? timeFilter;
 
     if (category == 'SC' ||
         category == 'AI' ||
@@ -71,11 +67,10 @@ class CategoryService {
       if (normalizedDepartment != null) {
         departmentCode = 'today_mixed:اخبار قسم $normalizedDepartment';
       } else {
-        departmentCode = 'عام';
+        departmentCode = 'اخبار عامة';
       }
-      timeFilter = 'today';
-    } else if (category == 'عام') {
-      departmentCode = 'عام';
+    } else if (category == 'اخبار عامة') {
+      departmentCode = 'اخبار عامة';
     }
 
     return departmentCode;

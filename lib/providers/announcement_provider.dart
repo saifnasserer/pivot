@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:pivot/screens/section2/adminstration/models/announcement_data.dart';
+import 'package:pivot/features/home/screens/adminstration/models/announcement_data.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:pivot/services/cache_service.dart';
 import 'package:pivot/services/notification_trigger_service.dart';
@@ -56,12 +56,12 @@ class AnnouncementProvider with ChangeNotifier {
       final String? departmentToFilter = department;
 
       if (departmentToFilter != null && departmentToFilter.isNotEmpty) {
-        if (departmentToFilter == 'عام') {
-          // Filter for general announcements (those with 'عام' tag)
-          // //debugprint('[ANNOUNCEMENT_PROVIDER] Filtering for عام announcements');
-          query = query.where('tags', arrayContains: 'عام');
+        if (departmentToFilter == 'اخبار عامة') {
+          // Filter for general announcements (those with 'اخبار عامة' tag)
+          // //debugprint('[ANNOUNCEMENT_PROVIDER] Filtering for اخبار عامة announcements');
+          query = query.where('tags', arrayContains: 'اخبار عامة');
         } else if (departmentToFilter.startsWith('today_mixed:')) {
-          // Special case for today's news: include both user's department and عام announcements
+          // Special case for today's news: include both user's department and اخبار عامة announcements
           // Format: 'today_mixed:userDeptTag'
           // final userDeptTag = departmentToFilter.substring(
           //   'today_mixed:'.length,
@@ -119,7 +119,7 @@ class AnnouncementProvider with ChangeNotifier {
           timeFilter == 'today') {
         //debugprint('[ANNOUNCEMENT_PROVIDER] Executing today mixed filtering');
 
-        // Fetch announcements from today that are either from user's department OR are عام
+        // Fetch announcements from today that are either from user's department OR are اخبار عامة
         final now = DateTime.now();
         // Use last 24 hours instead of calendar day
         final startDate = now.subtract(const Duration(hours: 24));
@@ -152,16 +152,16 @@ class AnnouncementProvider with ChangeNotifier {
         //   '[ANNOUNCEMENT_PROVIDER] DEBUG: Announcements with tag $userDeptTag (any time): ${deptAnyTimeSnapshot.docs.length}',
         // );
 
-        // DEBUG: Check announcements with عام tag (any time)
+        // DEBUG: Check announcements with اخبار عامة tag (any time)
         //debugprint(
-        //   '[ANNOUNCEMENT_PROVIDER] DEBUG: Checking announcements with tag: عام (any time)',
+        //   '[ANNOUNCEMENT_PROVIDER] DEBUG: Checking announcements with tag: اخبار عامة (any time)',
         // );
         // final generalAnyTimeQuery = _firestore
         //     .collection(_collectionPath)
-        //     .where('tags', arrayContains: 'عام');
+        //     .where('tags', arrayContains: 'اخبار عامة');
         // final generalAnyTimeSnapshot = await generalAnyTimeQuery.get();
         //debugprint(
-        //   '[ANNOUNCEMENT_PROVIDER] DEBUG: Announcements with tag عام (any time): ${generalAnyTimeSnapshot.docs.length}',
+        //   '[ANNOUNCEMENT_PROVIDER] DEBUG: Announcements with tag اخبار عامة (any time): ${generalAnyTimeSnapshot.docs.length}',
         // );
 
         // DEBUG: Check announcements from today (any tag)
@@ -197,10 +197,10 @@ class AnnouncementProvider with ChangeNotifier {
         //   '[ANNOUNCEMENT_PROVIDER] Today mixed - Department query returned ${deptSnapshot.docs.length} documents',
         // );
 
-        // Query 2: Today's عام announcements
+        // Query 2: Today's اخبار عامة announcements
         Query generalQuery = _firestore
             .collection(_collectionPath)
-            .where('tags', arrayContains: 'عام')
+            .where('tags', arrayContains: 'اخبار عامة')
             .where(
               'timestamp',
               isGreaterThanOrEqualTo: startDate.millisecondsSinceEpoch,
@@ -208,7 +208,7 @@ class AnnouncementProvider with ChangeNotifier {
             .orderBy('timestamp', descending: true);
 
         //debugprint(
-        //   '[ANNOUNCEMENT_PROVIDER] Today mixed - Executing general query for عام (last 24h)',
+        //   '[ANNOUNCEMENT_PROVIDER] Today mixed - Executing general query for اخبار عامة (last 24h)',
         // );
         final generalSnapshot = await generalQuery.get();
         //debugprint(

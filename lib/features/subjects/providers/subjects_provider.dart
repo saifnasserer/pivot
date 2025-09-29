@@ -100,13 +100,27 @@ class SubjectsNotifier extends StateNotifier<SubjectsState> {
 
   final Ref _ref;
   late final SubjectsRepository _repo = _ref.read(subjectsRepositoryProvider);
+  bool _disposed = false;
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
+  void _checkDisposed() {
+    if (_disposed) {
+      throw StateError('SubjectsNotifier has been disposed');
+    }
+  }
 
   Future<void> initialize() async {
+    _checkDisposed();
     state = state.copyWith(isLoading: true, error: null);
     try {
       // Try to load from cache first
       final cachedSubjects = await _repo.getCachedSubjects();
-      if (cachedSubjects.isNotEmpty) {
+      if (!_disposed && cachedSubjects.isNotEmpty) {
         state = state.copyWith(
           isLoading: false,
           subjects: cachedSubjects,
@@ -114,14 +128,24 @@ class SubjectsNotifier extends StateNotifier<SubjectsState> {
         );
       }
 
+      if (_disposed) return;
+
       // Load fresh data
       final subjects = await _repo.getAllSubjects();
+      if (_disposed) return;
+
       final years = await _repo.getAvailableYears();
+      if (_disposed) return;
+
       final departments = await _repo.getAvailableDepartments();
+      if (_disposed) return;
+
       final levels = await _repo.getAvailableLevels();
+      if (_disposed) return;
 
       // Cache the fresh data
       await _repo.cacheSubjects(subjects);
+      if (_disposed) return;
 
       state = state.copyWith(
         isLoading: false,
@@ -132,36 +156,52 @@ class SubjectsNotifier extends StateNotifier<SubjectsState> {
         availableLevels: levels,
       );
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      if (!_disposed) {
+        state = state.copyWith(isLoading: false, error: e.toString());
+      }
     }
   }
 
   Future<void> loadUserSubjects(String userId) async {
+    _checkDisposed();
     state = state.copyWith(isLoading: true, error: null);
     try {
       final userSubjects = await _repo.getSubjectsByUser(userId);
-      state = state.copyWith(isLoading: false, userSubjects: userSubjects);
+      if (!_disposed) {
+        state = state.copyWith(isLoading: false, userSubjects: userSubjects);
+      }
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      if (!_disposed) {
+        state = state.copyWith(isLoading: false, error: e.toString());
+      }
     }
   }
 
   Future<void> searchSubjects(String query) async {
+    _checkDisposed();
     if (query.isEmpty) {
-      state = state.copyWith(
-        searchQuery: '',
-        filteredSubjects: state.subjects,
-        isSearching: false,
-      );
+      if (!_disposed) {
+        state = state.copyWith(
+          searchQuery: '',
+          filteredSubjects: state.subjects,
+          isSearching: false,
+        );
+      }
       return;
     }
 
-    state = state.copyWith(isSearching: true, searchQuery: query);
+    if (!_disposed) {
+      state = state.copyWith(isSearching: true, searchQuery: query);
+    }
     try {
       final results = await _repo.searchSubjects(query);
-      state = state.copyWith(isSearching: false, filteredSubjects: results);
+      if (!_disposed) {
+        state = state.copyWith(isSearching: false, filteredSubjects: results);
+      }
     } catch (e) {
-      state = state.copyWith(isSearching: false, error: e.toString());
+      if (!_disposed) {
+        state = state.copyWith(isSearching: false, error: e.toString());
+      }
     }
   }
 
@@ -171,6 +211,7 @@ class SubjectsNotifier extends StateNotifier<SubjectsState> {
     String? department,
     String? level,
   }) async {
+    _checkDisposed();
     state = state.copyWith(isLoading: true, error: null);
     try {
       final filteredSubjects = await _repo.getFilteredSubjects(
@@ -180,47 +221,61 @@ class SubjectsNotifier extends StateNotifier<SubjectsState> {
         level: level,
       );
 
-      state = state.copyWith(
-        isLoading: false,
-        filteredSubjects: filteredSubjects,
-        searchQuery: searchQuery ?? '',
-        selectedYear: year,
-        selectedDepartment: department,
-        selectedLevel: level,
-      );
+      if (!_disposed) {
+        state = state.copyWith(
+          isLoading: false,
+          filteredSubjects: filteredSubjects,
+          searchQuery: searchQuery ?? '',
+          selectedYear: year,
+          selectedDepartment: department,
+          selectedLevel: level,
+        );
+      }
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      if (!_disposed) {
+        state = state.copyWith(isLoading: false, error: e.toString());
+      }
     }
   }
 
   Future<bool> enrollUserInSubject(String userId, String subjectId) async {
+    _checkDisposed();
     state = state.copyWith(isEnrolling: true, error: null);
     try {
       final success = await _repo.enrollUserInSubject(userId, subjectId);
-      if (success) {
+      if (success && !_disposed) {
         // Reload user subjects
         await loadUserSubjects(userId);
       }
-      state = state.copyWith(isEnrolling: false);
+      if (!_disposed) {
+        state = state.copyWith(isEnrolling: false);
+      }
       return success;
     } catch (e) {
-      state = state.copyWith(isEnrolling: false, error: e.toString());
+      if (!_disposed) {
+        state = state.copyWith(isEnrolling: false, error: e.toString());
+      }
       return false;
     }
   }
 
   Future<bool> unenrollUserFromSubject(String userId, String subjectId) async {
+    _checkDisposed();
     state = state.copyWith(isEnrolling: true, error: null);
     try {
       final success = await _repo.unenrollUserFromSubject(userId, subjectId);
-      if (success) {
+      if (success && !_disposed) {
         // Reload user subjects
         await loadUserSubjects(userId);
       }
-      state = state.copyWith(isEnrolling: false);
+      if (!_disposed) {
+        state = state.copyWith(isEnrolling: false);
+      }
       return success;
     } catch (e) {
-      state = state.copyWith(isEnrolling: false, error: e.toString());
+      if (!_disposed) {
+        state = state.copyWith(isEnrolling: false, error: e.toString());
+      }
       return false;
     }
   }
@@ -229,22 +284,28 @@ class SubjectsNotifier extends StateNotifier<SubjectsState> {
     String userId,
     List<String> subjectIds,
   ) async {
+    _checkDisposed();
     state = state.copyWith(isEnrolling: true, error: null);
     try {
       final success = await _repo.updateUserSubjects(userId, subjectIds);
-      if (success) {
+      if (success && !_disposed) {
         // Reload user subjects
         await loadUserSubjects(userId);
       }
-      state = state.copyWith(isEnrolling: false);
+      if (!_disposed) {
+        state = state.copyWith(isEnrolling: false);
+      }
       return success;
     } catch (e) {
-      state = state.copyWith(isEnrolling: false, error: e.toString());
+      if (!_disposed) {
+        state = state.copyWith(isEnrolling: false, error: e.toString());
+      }
       return false;
     }
   }
 
   Future<void> loadMoreSubjects() async {
+    _checkDisposed();
     if (!state.hasMorePages || state.isPaginating) return;
 
     state = state.copyWith(isPaginating: true, error: null);
@@ -257,28 +318,39 @@ class SubjectsNotifier extends StateNotifier<SubjectsState> {
         level: state.selectedLevel,
       );
 
-      state = state.copyWith(
-        isPaginating: false,
-        currentPage: state.currentPage + 1,
-        hasMorePages: moreSubjects.length >= 20, // Assuming 20 is the page size
-        filteredSubjects: [...state.filteredSubjects, ...moreSubjects],
-      );
+      if (!_disposed) {
+        state = state.copyWith(
+          isPaginating: false,
+          currentPage: state.currentPage + 1,
+          hasMorePages:
+              moreSubjects.length >= 20, // Assuming 20 is the page size
+          filteredSubjects: [...state.filteredSubjects, ...moreSubjects],
+        );
+      }
     } catch (e) {
-      state = state.copyWith(isPaginating: false, error: e.toString());
+      if (!_disposed) {
+        state = state.copyWith(isPaginating: false, error: e.toString());
+      }
     }
   }
 
   void clearFilters() {
-    state = state.copyWith(
-      searchQuery: '',
-      selectedYear: null,
-      selectedDepartment: null,
-      selectedLevel: null,
-      filteredSubjects: state.subjects,
-    );
+    _checkDisposed();
+    if (!_disposed) {
+      state = state.copyWith(
+        searchQuery: '',
+        selectedYear: null,
+        selectedDepartment: null,
+        selectedLevel: null,
+        filteredSubjects: state.subjects,
+      );
+    }
   }
 
   void clearError() {
-    state = state.copyWith(error: null);
+    _checkDisposed();
+    if (!_disposed) {
+      state = state.copyWith(error: null);
+    }
   }
 }
