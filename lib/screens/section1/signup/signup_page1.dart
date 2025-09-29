@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:pivot/screens/section1/signup/signup_page2.dart';
 import 'package:pivot/data/form_options.dart';
 import 'package:pivot/screens/models/circular_button.dart';
 import 'package:pivot/widgets/custom_dropdown.dart';

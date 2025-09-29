@@ -4,18 +4,20 @@ import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/section1/introduction_wrapper.dart';
 import 'package:pivot/screens/section2/landing.dart';
-import 'package:provider/provider.dart';
+import 'package:provider/provider.dart' as legacy_provider;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pivot/features/onboarding/providers/onboarding_provider.dart';
 import 'package:pivot/services/cache_service.dart';
 
-class AuthWrapper extends StatefulWidget {
+class AuthWrapper extends ConsumerStatefulWidget {
   // = 'auth_wrapper';
   const AuthWrapper({super.key});
 
   @override
-  State<AuthWrapper> createState() => _AuthWrapperState();
+  ConsumerState<AuthWrapper> createState() => _AuthWrapperState();
 }
 
-class _AuthWrapperState extends State<AuthWrapper> {
+class _AuthWrapperState extends ConsumerState<AuthWrapper> {
   late final Stream<User?> _authStateChanges;
   bool _loadingProfile = false;
   bool _cacheReady = false;
@@ -43,7 +45,10 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
   Future<void> _loadProfileAndNavigate(User user) async {
     setState(() => _loadingProfile = true);
-    final provider = Provider.of<UserProfileProvider>(context, listen: false);
+    final provider = legacy_provider.Provider.of<UserProfileProvider>(
+      context,
+      listen: false,
+    );
 
     // Check if profile is already loaded for this user
     if (provider.loggedInUserProfile?.id == user.uid) {
@@ -89,7 +94,8 @@ class _AuthWrapperState extends State<AuthWrapper> {
       stream: _authStateChanges,
       builder: (context, snapshot) {
         final user = snapshot.data;
-        final userProfileProvider = Provider.of<UserProfileProvider>(context);
+        final userProfileProvider = legacy_provider
+            .Provider.of<UserProfileProvider>(context);
 
         //debugprint(
         //   '[AuthWrapper] Build called - User: ${user?.uid}, Profile: ${userProfileProvider.loggedInUserProfile?.id}, Loading: $_loadingProfile',

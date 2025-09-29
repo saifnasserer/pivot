@@ -6,10 +6,11 @@ import 'package:pivot/providers/settings_provider.dart';
 import 'package:pivot/widgets/custom_dropdown.dart';
 import 'package:pivot/widgets/no_internet_message.dart';
 import '../../../../responsive.dart';
-import 'package:provider/provider.dart';
+import 'package:provider/provider.dart' as legacy_provider;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pivot/features/auth/providers/auth_provider.dart';
 import '../../../providers/user_profile_provider.dart';
 import '../../../models/user_profile.dart';
-import '../../../services/auth_service.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import '../../../services/permission_service.dart';
 import '../../../services/notification_service.dart';
@@ -17,7 +18,7 @@ import 'package:flutter/foundation.dart';
 import 'package:pivot/screens/section1/privacy_policy_screen.dart';
 import 'package:pivot/widgets/user_welcome_dialog.dart';
 
-class Signup_2 extends StatefulWidget {
+class Signup_2 extends ConsumerStatefulWidget {
   final String name;
   final String email;
   final String phone;
@@ -35,15 +36,15 @@ class Signup_2 extends StatefulWidget {
 
   static String id = 'signup2';
   @override
-  State<Signup_2> createState() => _Signup_2State();
+  ConsumerState<Signup_2> createState() => _Signup_2State();
 }
 
-class _Signup_2State extends State<Signup_2> {
+class _Signup_2State extends ConsumerState<Signup_2> {
   final _formKey = GlobalKey<FormState>();
   final FocusNode _yearFocus = FocusNode();
   final FocusNode _departmentFocus = FocusNode();
   final FocusNode _sectionFocus = FocusNode();
-  bool _isLoading = false;
+  // Loading and error via Riverpod
   bool _privacyPolicyAccepted = false;
 
   String? selectedYear;
@@ -53,7 +54,7 @@ class _Signup_2State extends State<Signup_2> {
   List<String> _availableDepartments = [];
   List<String> _availableSections = [];
 
-  final AuthService _authService = AuthService();
+  // Auth handled via Riverpod provider now
 
   @override
   void initState() {
@@ -61,7 +62,7 @@ class _Signup_2State extends State<Signup_2> {
     _availableDepartments = FormOptions.getDepartmentsForYear(null);
     // Fetch section counts after the first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<SettingsProvider>(
+      legacy_provider.Provider.of<SettingsProvider>(
         context,
         listen: false,
       ).fetchSectionCounts();
@@ -98,7 +99,9 @@ class _Signup_2State extends State<Signup_2> {
 
   @override
   Widget build(BuildContext context) {
-    final settingsProvider = Provider.of<SettingsProvider>(context);
+    final settingsProvider = legacy_provider.Provider.of<SettingsProvider>(
+      context,
+    );
 
     // Show loading indicator if section counts are still loading
     if (settingsProvider.isLoading) {
@@ -224,11 +227,11 @@ class _Signup_2State extends State<Signup_2> {
                                   selectedSection = null;
 
                                   // Get section count from settings provider
-                                  final settingsProvider =
-                                      Provider.of<SettingsProvider>(
-                                        context,
-                                        listen: false,
-                                      );
+                                  final settingsProvider = legacy_provider
+                                      .Provider.of<SettingsProvider>(
+                                    context,
+                                    listen: false,
+                                  );
                                   if (newValue != null &&
                                       settingsProvider.sectionCounts
                                           .containsKey(newValue)) {
@@ -426,8 +429,10 @@ class _Signup_2State extends State<Signup_2> {
                           context,
                           size: Space.large,
                         ),
-                        child:
-                            _isLoading
+                        child: Builder(
+                          builder: (context) {
+                            final authState = ref.watch(authProvider);
+                            return authState.isLoading
                                 ? const Center(
                                   child: CircularProgressIndicator(),
                                 )
@@ -437,7 +442,9 @@ class _Signup_2State extends State<Signup_2> {
                                           ? _submitForm
                                           : () {},
                                   icon: Icons.check,
-                                ),
+                                );
+                          },
+                        ),
                       ),
                     ],
                   ),
@@ -477,9 +484,7 @@ class _Signup_2State extends State<Signup_2> {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
 
-      setState(() {
-        _isLoading = true;
-      });
+      final auth = ref.read(authProvider.notifier);
 
       Map<String, dynamic> userData = {
         'name': widget.name,
@@ -492,12 +497,11 @@ class _Signup_2State extends State<Signup_2> {
       };
 
       try {
-        UserProfile? userProfile = await _authService
-            .signUpWithEmailAndPassword(
-              widget.email,
-              widget.password,
-              userData,
-            );
+        UserProfile? userProfile = await auth.signup(
+          email: widget.email,
+          password: widget.password,
+          userData: userData,
+        );
 
         if (mounted && userProfile != null) {
           //debugprint(
@@ -505,7 +509,7 @@ class _Signup_2State extends State<Signup_2> {
           // );
 
           // Set the user profile in the provider
-          final provider = Provider.of<UserProfileProvider>(
+          final provider = legacy_provider.Provider.of<UserProfileProvider>(
             context,
             listen: false,
           );
@@ -596,13 +600,7 @@ class _Signup_2State extends State<Signup_2> {
             ),
           );
         }
-      } finally {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
-        }
-      }
+      } finally {}
     }
   }
 }

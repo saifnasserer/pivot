@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import '../responsive.dart';
-import 'package:pivot/responsive.dart';
-
 
 class IOSInstallInstructionsScreen extends StatelessWidget {
   const IOSInstallInstructionsScreen({super.key});

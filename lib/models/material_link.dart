@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
-import 'package:pivot/models/subject_model.dart';
 
 part 'material_link.g.dart';
 

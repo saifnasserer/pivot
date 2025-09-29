@@ -3,8 +3,6 @@ import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/screens/models/instructors_gate.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/models/subject_model.dart';
-import 'package:pivot/models/material_link.dart';
-
 
 /// Enhanced subjects builder with better UX and performance
 class SubjectsBuilder {

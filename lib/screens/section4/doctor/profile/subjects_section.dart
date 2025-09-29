@@ -30,6 +30,7 @@ class _SubjectsSectionState extends State<SubjectsSection>
   late TabController _tabController;
   List<Subject> _previousSubjects = [];
   String? _previousDoctorId;
+  Subject? _preservedTargetSubject;
 
   @override
   void initState() {
@@ -47,6 +48,12 @@ class _SubjectsSectionState extends State<SubjectsSection>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+
+    // Preserve target subject if it's provided and we don't have one yet
+    if (widget.targetSubject != null && _preservedTargetSubject == null) {
+      _preservedTargetSubject = widget.targetSubject;
+    }
+
     _checkForUpdates();
   }
 
@@ -80,6 +87,23 @@ class _SubjectsSectionState extends State<SubjectsSection>
       _previousSubjects = List.from(subjects);
       _updateTabController();
       print('Subjects changed, updating tab controller');
+    } else if (_preservedTargetSubject != null) {
+      // If subjects haven't changed but we have a preserved target subject, ensure we're on the right tab
+      final targetIndex = subjects.indexWhere(
+        (subject) => subject.id == _preservedTargetSubject!.id,
+      );
+      if (targetIndex != -1 && _tabController.index != targetIndex) {
+        print('Switching to preserved target subject at index $targetIndex');
+        _tabController.animateTo(targetIndex);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _loadLecturesForSubject(targetIndex);
+            _notifyCurrentSubjectChanged();
+            // Clear preserved target subject after using it
+            _preservedTargetSubject = null;
+          }
+        });
+      }
     }
   }
 
@@ -93,14 +117,27 @@ class _SubjectsSectionState extends State<SubjectsSection>
       _tabController.removeListener(_onTabChanged);
       _tabController.dispose();
 
-      // Determine initial index - prioritize target subject if provided
+      // Determine initial index - prioritize preserved target subject if available
       int initialIndex = subjects.isNotEmpty ? subjects.length - 1 : 0;
-      if (widget.targetSubject != null) {
+      if (_preservedTargetSubject != null) {
+        final targetIndex = subjects.indexWhere(
+          (subject) => subject.id == _preservedTargetSubject!.id,
+        );
+        if (targetIndex != -1) {
+          initialIndex = targetIndex;
+          print(
+            'Setting initial index to $targetIndex for preserved target subject',
+          );
+        }
+      } else if (widget.targetSubject != null) {
         final targetIndex = subjects.indexWhere(
           (subject) => subject.id == widget.targetSubject!.id,
         );
         if (targetIndex != -1) {
           initialIndex = targetIndex;
+          print(
+            'Setting initial index to $targetIndex for widget target subject',
+          );
         }
       }
 
@@ -119,6 +156,10 @@ class _SubjectsSectionState extends State<SubjectsSection>
           if (mounted) {
             _loadLecturesForSubject(initialIndex);
             _notifyCurrentSubjectChanged();
+            // Clear preserved target subject after tab controller is set
+            if (_preservedTargetSubject != null) {
+              _preservedTargetSubject = null;
+            }
           }
         });
       }

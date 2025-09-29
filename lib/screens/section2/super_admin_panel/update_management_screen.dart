@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/services/remote_config_service.dart';
 import 'package:pivot/services/remote_config_bridge_service.dart';
 import 'package:pivot/services/update_service.dart';
-import 'package:pivot/widgets/custom_text_field.dart';
 
 class UpdateManagementScreen extends StatefulWidget {
   const UpdateManagementScreen({super.key});

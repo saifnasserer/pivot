@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/responsive.dart';
 import 'package:video_player/video_player.dart';
-import 'package:pivot/services/introduction_service.dart';
+import 'package:pivot/features/onboarding/providers/onboarding_provider.dart';
 
-class IntroductionScreen extends StatefulWidget {
+class IntroductionScreen extends ConsumerStatefulWidget {
   const IntroductionScreen({super.key});
 
   @override
-  State<IntroductionScreen> createState() => _IntroductionScreenState();
+  ConsumerState<IntroductionScreen> createState() => _IntroductionScreenState();
 }
 
-class _IntroductionScreenState extends State<IntroductionScreen> {
+class _IntroductionScreenState extends ConsumerState<IntroductionScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
   late VideoPlayerController _videoController;
@@ -87,7 +88,7 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
       );
     } else {
       // Mark onboarding as seen
-      await IntroductionService.markIntroductionAsSeen();
+      await ref.read(onboardingProvider.notifier).markIntroShown();
       // Go to main app
       if (mounted) {
         Navigator.pushNamedAndRemoveUntil(

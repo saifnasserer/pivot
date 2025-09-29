@@ -8,9 +8,7 @@ import 'package:pivot/screens/section4/doctor/profile/add_material_dialog.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:pivot/responsive.dart';
-import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/models/material_link.dart';
-
 
 class MaterialLinksScreen extends StatefulWidget {
   final Lecture lecture;
@@ -627,7 +625,6 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
   }
 
   void _rateMaterial(MaterialLink materialLink, double rating) async {
-
     if (widget.loggedInUser == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

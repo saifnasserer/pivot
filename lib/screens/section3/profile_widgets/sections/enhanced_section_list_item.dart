@@ -7,9 +7,7 @@ import 'package:provider/provider.dart';
 import 'assistant_selection_dialog.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/models/subject_model.dart';
-import 'package:pivot/models/material_link.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
-
 
 /// Enhanced section list item with simplified approach - similar to subjects
 class EnhancedSectionListItem extends StatefulWidget {
@@ -333,8 +331,7 @@ class _EnhancedSectionListItemState extends State<EnhancedSectionListItem>
             subject.id: selectedAssistantId,
           });
         }
-      } catch (e) {
-      }
+      } catch (e) {}
     }
 
     showDialog(
@@ -365,7 +362,6 @@ class _EnhancedSectionListItemState extends State<EnhancedSectionListItem>
                     if (loggedInUser == null) {
                       throw Exception('No logged-in user found');
                     }
-
 
                     await userProfileProvider.updateAssistantPreferences({
                       ...loggedInUser.assistantPreferences,

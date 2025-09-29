@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:pivot/screens/section1/login/forgot_password_screen.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/screens/models/circular_button.dart';
 import 'package:pivot/widgets/custom_text_field.dart';
-import 'package:provider/provider.dart';
+import 'package:provider/provider.dart' as legacy_provider;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pivot/features/auth/providers/auth_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../responsive.dart';
-import '../../../services/auth_service.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import '../../../services/local_auth_service.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -17,19 +17,19 @@ import '../../../services/permission_service.dart';
 import '../../../services/notification_service.dart';
 import 'package:pivot/widgets/no_internet_message.dart';
 
-class Login extends StatefulWidget {
+class Login extends ConsumerStatefulWidget {
   const Login({super.key});
   static String id = 'login';
   @override
-  State<Login> createState() => _LoginState();
+  ConsumerState<Login> createState() => _LoginState();
 }
 
-class _LoginState extends State<Login> {
+class _LoginState extends ConsumerState<Login> {
   final _formKey = GlobalKey<FormState>();
   final FocusNode _emailFocus = FocusNode();
   final FocusNode _passwordFocus = FocusNode();
 
-  final AuthService _authService = AuthService();
+  // Auth handled via Riverpod provider now
   final LocalAuthService _localAuthService = LocalAuthService();
   final _storage = const FlutterSecureStorage();
 
@@ -41,8 +41,7 @@ class _LoginState extends State<Login> {
   bool _isPasswordVisible = false;
   bool _isEmailValid = false;
   bool _isPasswordValid = false;
-  bool _isBiometricAvailable = false;
-  bool _isLoading = false;
+  // Loading comes from Riverpod's AuthState
 
   @override
   void initState() {
@@ -61,16 +60,8 @@ class _LoginState extends State<Login> {
   }
 
   Future<void> _initBiometrics() async {
-    if (!kIsWeb) {
-      final isAvailable = await _localAuthService.isBiometricSupported();
-      final prefs = await SharedPreferences.getInstance();
-      final isBiometricEnabled = prefs.getBool('isBiometricEnabled') ?? false;
-      if (mounted) {
-        setState(() {
-          _isBiometricAvailable = isAvailable && isBiometricEnabled;
-        });
-      }
-    }
+    // Biometric initialization for automatic credential saving
+    // No UI changes needed since biometric login is handled in first_landing.dart
   }
 
   @override
@@ -110,18 +101,17 @@ class _LoginState extends State<Login> {
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
+    // Loading handled by Riverpod state
 
     try {
-      UserProfile? userProfile = await _authService.signInWithEmailAndPassword(
+      final auth = ref.read(authProvider.notifier);
+      UserProfile? userProfile = await auth.login(
         _email.toLowerCase().trim(),
         _password,
       );
       if (mounted && userProfile != null) {
         //debugprint('[Login] User profile received: ${userProfile.id}');
-        final provider = Provider.of<UserProfileProvider>(
+        final provider = legacy_provider.Provider.of<UserProfileProvider>(
           context,
           listen: false,
         );
@@ -140,8 +130,10 @@ class _LoginState extends State<Login> {
           _password,
         );
 
-        // Let AuthWrapper handle navigation automatically
-        // This ensures consistent navigation flow and prevents conflicts
+        // Navigate to landing screen after successful login
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/landing');
+        }
       } else {
         // Handle case where login succeeded but no profile was returned
         if (mounted) {
@@ -178,13 +170,7 @@ class _LoginState extends State<Login> {
           backgroundColor: Colors.red,
         ),
       );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
+    } finally {}
   }
 
   Future<void> _enableBiometricAutomatically(
@@ -200,11 +186,6 @@ class _LoginState extends State<Login> {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool('isBiometricEnabled', true);
         //debugprint('Biometrics enabled automatically.');
-        if (mounted) {
-          setState(() {
-            _isBiometricAvailable = true;
-          });
-        }
       }
     } catch (e) {
       //debugprint('Could not enable biometrics automatically: $e');
@@ -294,10 +275,19 @@ class _LoginState extends State<Login> {
 
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authProvider);
     return WillPopScope(
       onWillPop: () async {
+        // Dismiss keyboard first if it's open
+        FocusScope.of(context).unfocus();
+
+        // Wait a bit for keyboard to dismiss
+        await Future.delayed(const Duration(milliseconds: 100));
+
         // Navigate back to first landing instead of closing app
-        Navigator.pushReplacementNamed(context, '/first-landing');
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/first-landing');
+        }
         return false;
       },
       child: NoInternetMessage(
@@ -308,7 +298,15 @@ class _LoginState extends State<Login> {
               leading: IconButton(
                 icon: const Icon(Icons.arrow_back_ios),
                 onPressed: () {
-                  Navigator.pushReplacementNamed(context, '/first-landing');
+                  // Dismiss keyboard first if it's open
+                  FocusScope.of(context).unfocus();
+
+                  // Wait a bit for keyboard to dismiss, then navigate
+                  Future.delayed(const Duration(milliseconds: 100), () {
+                    if (mounted) {
+                      Navigator.pushReplacementNamed(context, '/first-landing');
+                    }
+                  });
                 },
               ),
             ),
@@ -402,6 +400,24 @@ class _LoginState extends State<Login> {
                                 ],
                               ),
                             ),
+                            if (authState.error != null)
+                              Padding(
+                                padding: Responsive.paddingVertical(
+                                  context,
+                                  size: Space.small,
+                                ),
+                                child: Text(
+                                  authState.error!,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Colors.red,
+                                    fontSize: Responsive.text(
+                                      context,
+                                      size: TextSize.small,
+                                    ),
+                                  ),
+                                ),
+                              ),
                             Padding(
                               padding: Responsive.paddingVertical(
                                 context,
@@ -438,7 +454,7 @@ class _LoginState extends State<Login> {
                                   ) *
                                   2,
                             ),
-                            _isLoading
+                            authState.isLoading
                                 ? const Center(
                                   child: CircularProgressIndicator(),
                                 )

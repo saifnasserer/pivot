@@ -7,8 +7,6 @@ import 'package:provider/provider.dart';
 import 'enhanced_section_list_item.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/models/subject_model.dart';
-import 'package:pivot/models/material_link.dart';
-
 
 /// Enhanced sections builder with simplified logic - similar to subjects
 class SectionsBuilder {

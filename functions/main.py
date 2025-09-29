@@ -1,6 +1,6 @@
 import firebase_functions
 from firebase_functions import https_fn
-from firebase_admin import initialize_app, messaging, exceptions, firestore
+from firebase_admin import initialize_app, messaging, exceptions, firestore, auth
 import json
 
 # Initialize Firebase app
@@ -195,6 +195,127 @@ def sync_remote_config(req: https_fn.Request) -> https_fn.Response:
             status=200,
             headers=headers
         )
+        
+    except Exception as e:
+        return https_fn.Response(
+            json.dumps({'error': f'Internal server error: {str(e)}'}),
+            status=500,
+            headers=headers
+        )
+
+@https_fn.on_request()
+def delete_user_auth(req: https_fn.Request) -> https_fn.Response:
+    """
+    Delete a user's Firebase Auth account using Admin SDK
+    This function can only be called by authenticated admin users
+    """
+    # Handle CORS
+    if req.method == 'OPTIONS':
+        headers = {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST',
+            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Max-Age': '3600'
+        }
+        return https_fn.Response('', status=204, headers=headers)
+    
+    # Set CORS headers for the main request
+    headers = {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST',
+        'Access-Control-Allow-Headers': 'Content-Type'
+    }
+    
+    try:
+        # Only allow POST requests
+        if req.method != 'POST':
+            return https_fn.Response(
+                json.dumps({'error': 'Method not allowed'}),
+                status=405,
+                headers=headers
+            )
+        
+        data = req.get_json()
+        if not data:
+            return https_fn.Response(
+                json.dumps({'error': 'No data provided'}),
+                status=400,
+                headers=headers
+            )
+        
+        # Get the user ID to delete
+        target_user_id = data.get('targetUserId')
+        if not target_user_id:
+            return https_fn.Response(
+                json.dumps({'error': 'targetUserId is required'}),
+                status=400,
+                headers=headers
+            )
+        
+        # Get the admin user ID (should be passed from the client)
+        admin_user_id = data.get('adminUserId')
+        if not admin_user_id:
+            return https_fn.Response(
+                json.dumps({'error': 'adminUserId is required'}),
+                status=400,
+                headers=headers
+            )
+        
+        # Verify admin permissions
+        db = firestore.client()
+        admin_doc = db.collection('users').document(admin_user_id).get()
+        
+        if not admin_doc.exists:
+            return https_fn.Response(
+                json.dumps({'error': 'Admin user not found'}),
+                status=404,
+                headers=headers
+            )
+        
+        admin_data = admin_doc.to_dict()
+        admin_role = admin_data.get('role', '')
+        
+        if admin_role not in ['Admin', 'Super Admin']:
+            return https_fn.Response(
+                json.dumps({'error': 'Insufficient permissions. Admin role required.'}),
+                status=403,
+                headers=headers
+            )
+        
+        # Verify target user exists
+        target_user_doc = db.collection('users').document(target_user_id).get()
+        if not target_user_doc.exists:
+            return https_fn.Response(
+                json.dumps({'error': 'Target user not found'}),
+                status=404,
+                headers=headers
+            )
+        
+        # Delete the Firebase Auth account using Admin SDK
+        try:
+            auth.delete_user(target_user_id)
+            
+            return https_fn.Response(
+                json.dumps({
+                    'success': True,
+                    'message': f'User {target_user_id} authentication account deleted successfully'
+                }),
+                status=200,
+                headers=headers
+            )
+            
+        except auth.UserNotFoundError:
+            return https_fn.Response(
+                json.dumps({'error': 'User authentication account not found'}),
+                status=404,
+                headers=headers
+            )
+        except Exception as auth_error:
+            return https_fn.Response(
+                json.dumps({'error': f'Failed to delete auth account: {str(auth_error)}'}),
+                status=500,
+                headers=headers
+            )
         
     except Exception as e:
         return https_fn.Response(

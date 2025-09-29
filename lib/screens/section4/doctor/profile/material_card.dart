@@ -5,11 +5,9 @@ import 'package:pivot/screens/section4/doctor/profile/pdf_viewer_screen.dart';
 import 'package:pivot/screens/section4/doctor/profile/video_player_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:pivot/responsive.dart';
-import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/models/material_link.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-
 
 class MaterialCard extends StatefulWidget {
   final MaterialLink materialLink;
@@ -55,8 +53,7 @@ class _MaterialCardState extends State<MaterialCard>
     );
 
     // Debug logging for user data
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {});
   }
 
   @override
@@ -449,11 +446,9 @@ class _MaterialCardState extends State<MaterialCard>
   Widget _buildClickableRating(BuildContext context, double? userRating) {
     return GestureDetector(
       onTap: () {
-
         if (widget.loggedInUser != null && widget.onRate != null) {
           _showRatingDialog(context, userRating);
-        } else {
-        }
+        } else {}
       },
       child: Container(
         padding: EdgeInsets.symmetric(
@@ -524,7 +519,6 @@ class _MaterialCardState extends State<MaterialCard>
   void _showRatingDialog(BuildContext context, double? currentRating) {
     double selectedRating = currentRating ?? 0.0;
 
-
     showDialog(
       context: context,
       builder:
@@ -575,8 +569,7 @@ class _MaterialCardState extends State<MaterialCard>
                           Navigator.of(context).pop();
                           if (widget.onRate != null) {
                             widget.onRate!(selectedRating);
-                          } else {
-                          }
+                          } else {}
                         }
                         : null,
                 confirmText: 'تقييم',

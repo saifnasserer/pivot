@@ -1,0 +1,112 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pivot/features/home/repositories/home_repository.dart';
+import 'package:pivot/features/home/services/home_service.dart';
+
+final homeServiceProvider = Provider<HomeService>((ref) => HomeService());
+
+final homeRepositoryProvider = Provider<HomeRepository>((ref) {
+  final service = ref.watch(homeServiceProvider);
+  return HomeRepository(service);
+});
+
+class HomeState {
+  final List<String> categories;
+  final int currentCategoryIndex;
+  final String? userDepartment;
+  final bool isInitialized;
+  final bool isTeamFormationEnabled;
+  final bool hasUpdates;
+  final Map<String, dynamic>? updateInfo;
+  final bool isLoading;
+  final String? error;
+
+  const HomeState({
+    this.categories = const [],
+    this.currentCategoryIndex = 0,
+    this.userDepartment,
+    this.isInitialized = false,
+    this.isTeamFormationEnabled = false,
+    this.hasUpdates = false,
+    this.updateInfo,
+    this.isLoading = false,
+    this.error,
+  });
+
+  HomeState copyWith({
+    List<String>? categories,
+    int? currentCategoryIndex,
+    String? userDepartment,
+    bool? isInitialized,
+    bool? isTeamFormationEnabled,
+    bool? hasUpdates,
+    Map<String, dynamic>? updateInfo,
+    bool? isLoading,
+    String? error,
+  }) => HomeState(
+    categories: categories ?? this.categories,
+    currentCategoryIndex: currentCategoryIndex ?? this.currentCategoryIndex,
+    userDepartment: userDepartment ?? this.userDepartment,
+    isInitialized: isInitialized ?? this.isInitialized,
+    isTeamFormationEnabled:
+        isTeamFormationEnabled ?? this.isTeamFormationEnabled,
+    hasUpdates: hasUpdates ?? this.hasUpdates,
+    updateInfo: updateInfo ?? this.updateInfo,
+    isLoading: isLoading ?? this.isLoading,
+    error: error ?? this.error,
+  );
+}
+
+final homeProvider = StateNotifierProvider.autoDispose<HomeNotifier, HomeState>(
+  (ref) => HomeNotifier(ref),
+);
+
+class HomeNotifier extends StateNotifier<HomeState> {
+  HomeNotifier(this._ref) : super(const HomeState());
+
+  final Ref _ref;
+  late final HomeRepository _repo = _ref.read(homeRepositoryProvider);
+
+  Future<void> initialize(String? userDepartment) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final categories = _repo.getCategories(userDepartment);
+      final shouldShowUpdate = await _repo.shouldShowUpdateButton();
+      final hasUpdates = await _repo.areUpdatesAvailable();
+
+      state = state.copyWith(
+        isLoading: false,
+        categories: categories,
+        userDepartment: userDepartment,
+        isTeamFormationEnabled: shouldShowUpdate,
+        hasUpdates: hasUpdates,
+        isInitialized: true,
+        currentCategoryIndex: categories.isNotEmpty ? categories.length - 1 : 0,
+      );
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
+  Future<void> changeCategory(int index) async {
+    if (index >= 0 && index < state.categories.length) {
+      state = state.copyWith(currentCategoryIndex: index);
+    }
+  }
+
+  String? getDepartmentCode(String category) {
+    return _repo.getDepartmentCode(category, state.userDepartment);
+  }
+
+  String? getTimeFilter(String category) {
+    return _repo.getTimeFilter(category);
+  }
+
+  Future<void> refreshUpdates() async {
+    try {
+      final hasUpdates = await _repo.areUpdatesAvailable();
+      state = state.copyWith(hasUpdates: hasUpdates);
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+    }
+  }
+}

@@ -341,6 +341,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
                       height: Responsive.space(context, size: Space.medium),
                     ),
                     PasswordSection(
+                      provider: provider,
                       currentPasswordController: _currentPasswordController,
                       newPasswordController: _newPasswordController,
                       confirmPasswordController: _confirmPasswordController,

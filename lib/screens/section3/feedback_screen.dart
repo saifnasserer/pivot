@@ -9,9 +9,7 @@ import 'package:pivot/widgets/no_internet_message.dart';
 import 'package:pivot/services/permission_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:io';
-import 'dart:typed_data';
 
 class FeedbackScreen extends StatefulWidget {
   const FeedbackScreen({super.key});

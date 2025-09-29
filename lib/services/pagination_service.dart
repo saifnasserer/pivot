@@ -97,7 +97,7 @@ class PaginatedResult<T> {
 
 /// Mixin for providers that need pagination
 mixin PaginationMixin<T> {
-  List<T> _allItems = [];
+  final List<T> _allItems = [];
   DocumentSnapshot? _lastDocument;
   bool _hasMore = true;
   bool _isLoadingMore = false;

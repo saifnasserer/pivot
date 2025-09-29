@@ -33,11 +33,18 @@ match /databases/{database}/documents {
       );
     }
 
+    function canPerformAdminOperations() {
+      return isAdmin();
+    }
+
     // ===== USERS =====
     match /users/{userId} {
       allow read: if request.auth != null;
-      allow update, delete: if (request.auth != null && request.auth.uid == userId) || isAdmin();
+      allow update: if (request.auth != null && request.auth.uid == userId) || isAdmin();
+      allow delete: if isAdmin(); // Only admins can delete users completely
       allow create: if isSignedIn() || isAdmin();
+      // Allow admin queries for user deletion (including fcmToken queries)
+      allow list: if canPerformAdminOperations();
 
       match /tasks/{taskId} {
         allow read, write: if isUser(userId);
@@ -61,7 +68,8 @@ match /databases/{database}/documents {
     // ===== ANNOUNCEMENTS =====
     match /announcements/{announcementId} {
       allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow create: if isSignedIn(); // Users can create announcements
+      allow update, delete: if isAdmin(); // Only admins can modify/delete announcements
 
       match /comments/{commentId} {
         allow read, create: if isSignedIn();
@@ -150,6 +158,8 @@ match /databases/{database}/documents {
         request.auth.uid == request.resource.data.userId ||
         isAdmin()
       );
+      // Allow admin queries for user deletion
+      allow list: if canPerformAdminOperations();
     }
 
     // ===== GLOBAL SCHEDULES (for notification system) =====
@@ -160,6 +170,133 @@ match /databases/{database}/documents {
         request.auth.uid == request.resource.data.userId ||
         isAdmin()
       );
+      // Allow admin queries for user deletion
+      allow list: if canPerformAdminOperations();
+    }
+
+    // ===== REPORTS =====
+    match /reports/{reportId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && (
+        request.auth.uid == resource.data.reporterId ||
+        isAdmin()
+      );
+      // Allow admin queries for user deletion
+      allow list: if canPerformAdminOperations();
+    }
+
+    // ===== USER SETTINGS =====
+    match /user_settings/{settingId} {
+      allow read, write: if isSignedIn() && (
+        request.auth.uid == resource.data.userId ||
+        request.auth.uid == request.resource.data.userId ||
+        isAdmin()
+      );
+      // Allow admin queries for user deletion
+      allow list: if canPerformAdminOperations();
+    }
+
+    // ===== BLOCKED USERS =====
+    match /blocked_users/{blockId} {
+      allow read, write: if isSignedIn() && (
+        request.auth.uid == resource.data.userId ||
+        request.auth.uid == resource.data.blockedUserId ||
+        request.auth.uid == request.resource.data.userId ||
+        request.auth.uid == request.resource.data.blockedUserId ||
+        isAdmin()
+      );
+      // Allow admin queries for user deletion
+      allow list: if canPerformAdminOperations();
+    }
+
+    // ===== FCM TOKENS =====
+    match /fcm_tokens/{tokenId} {
+      allow read, write: if isSignedIn() && (
+        request.auth.uid == resource.data.userId ||
+        request.auth.uid == request.resource.data.userId ||
+        isAdmin()
+      );
+      // Allow admin queries for user deletion
+      allow list: if canPerformAdminOperations();
+    }
+
+    // ===== POSTS =====
+    match /posts/{postId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && (
+        request.auth.uid == resource.data.authorId ||
+        isAdmin()
+      );
+      // Allow admin queries for user deletion
+      allow list: if canPerformAdminOperations();
+
+      match /comments/{commentId} {
+        allow read, create: if isSignedIn();
+        allow update, delete: if isSignedIn() && (
+          request.auth.uid == resource.data.userId ||
+          isAdmin()
+        );
+        // Allow admin queries for user deletion
+        allow list: if canPerformAdminOperations();
+      }
+
+      match /likes/{likeId} {
+        allow read, create, delete: if isSignedIn();
+        allow update: if false;
+        // Allow admin queries for user deletion
+        allow list: if canPerformAdminOperations();
+      }
+    }
+
+    // ===== COMMENTS (Global Collection) =====
+    match /comments/{commentId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && (
+        request.auth.uid == resource.data.authorId ||
+        isAdmin()
+      );
+      // Allow admin queries for user deletion
+      allow list: if canPerformAdminOperations();
+    }
+
+    // ===== NOTIFICATIONS =====
+    match /notifications/{notificationId} {
+      allow read: if isSignedIn() && (
+        request.auth.uid == resource.data.userId ||
+        isAdmin()
+      );
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && (
+        request.auth.uid == resource.data.userId ||
+        isAdmin()
+      );
+      // Allow admin queries for user deletion
+      allow list: if canPerformAdminOperations();
+    }
+
+    // ===== USER FILES =====
+    match /user_files/{fileId} {
+      allow read, write: if isSignedIn() && (
+        request.auth.uid == resource.data.userId ||
+        request.auth.uid == request.resource.data.userId ||
+        isAdmin()
+      );
+      // Allow admin queries for user deletion
+      allow list: if canPerformAdminOperations();
+    }
+
+    // ===== USER IMAGES =====
+    match /user_images/{imageId} {
+      allow read, write: if isSignedIn() && (
+        request.auth.uid == resource.data.userId ||
+        request.auth.uid == request.resource.data.userId ||
+        isAdmin()
+      );
+      // Allow admin queries for user deletion
+      allow list: if canPerformAdminOperations();
     }
 
     // ===== DEFAULT DENY =====

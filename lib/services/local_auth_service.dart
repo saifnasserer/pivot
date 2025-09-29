@@ -75,8 +75,9 @@ class LocalAuthService {
 
     // Priority: Face > Fingerprint > Iris > Unknown
     if (availableTypes.contains(BiometricType.face)) return BiometricType.face;
-    if (availableTypes.contains(BiometricType.fingerprint))
+    if (availableTypes.contains(BiometricType.fingerprint)) {
       return BiometricType.fingerprint;
+    }
     if (availableTypes.contains(BiometricType.iris)) return BiometricType.iris;
     return BiometricType.unknown;
   }

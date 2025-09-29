@@ -1,6 +1,4 @@
-import 'dart:developer' as developer;
 import 'package:pivot/models/subject_model.dart';
-import 'package:pivot/models/material_link.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SubjectService {

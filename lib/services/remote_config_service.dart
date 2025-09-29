@@ -1,6 +1,5 @@
 import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:pivot/services/remote_config_service.dart';
 
 class RemoteConfigService {
   // Private constructor
@@ -81,18 +80,15 @@ class RemoteConfigService {
           minimumFetchInterval: const Duration(hours: 12),
         ),
       );
-    } catch (e) {
-    }
+    } catch (e) {}
 
     try {
       await _remoteConfig.setDefaults(_defaultConfig);
-    } catch (e) {
-    }
+    } catch (e) {}
 
     try {
       await _remoteConfig.fetchAndActivate();
-    } catch (e) {
-    }
+    } catch (e) {}
   }
 
   // Forces a fetch and activation of the remote config, bypassing the cache.
@@ -123,7 +119,6 @@ class RemoteConfigService {
   // Force refresh and ensure values are read from local defaults
   Future<bool> forceRefreshAndActivate() async {
     try {
-
       // Force activation to ensure local defaults are used
       await _remoteConfig.activate();
 
@@ -148,7 +143,6 @@ class RemoteConfigService {
       final currentVersion = packageInfo.version;
       final requiredVersion = updateVersion;
 
-
       return _compareVersions(currentVersion, requiredVersion) < 0;
     } catch (e) {
       return false;
@@ -161,7 +155,6 @@ class RemoteConfigService {
       // Clean version strings by removing any prefixes and extra spaces
       final cleanCurrent = current.replaceAll(RegExp(r'[^0-9.]'), '').trim();
       final cleanRequired = required.replaceAll(RegExp(r'[^0-9.]'), '').trim();
-
 
       final currentParts = cleanCurrent.split('.').map(int.parse).toList();
       final requiredParts = cleanRequired.split('.').map(int.parse).toList();

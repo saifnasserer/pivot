@@ -4,8 +4,6 @@ import 'package:pivot/screens/models/category_model.dart';
 import 'package:pivot/screens/models/section_card.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/models/subject_model.dart';
-import 'package:pivot/models/material_link.dart';
-
 
 List<Widget> buildDoctorSubjectsSlivers({
   required BuildContext context,

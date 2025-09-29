@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/providers/user_profile_provider.dart';

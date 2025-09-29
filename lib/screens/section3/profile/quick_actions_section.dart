@@ -6,8 +6,6 @@ import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/providers/subject_provider.dart';
 import 'package:pivot/screens/section3/subject_selection_screen.dart';
 import 'package:pivot/responsive.dart';
-import 'package:pivot/widgets/unified_dialog.dart';
-
 
 class QuickActionsSection extends StatefulWidget {
   final UserProfile userProfile;
@@ -338,8 +336,7 @@ class _QuickActionsSectionState extends State<QuickActionsSection>
         final subjectProvider = context.read<SubjectProvider>();
         subjectProvider.fetchAndFilterSubjects(userProfile);
       }
-    } catch (e) {
-    }
+    } catch (e) {}
   }
 
   // Future<void> _showNotificationSettingsDialog(BuildContext context) async {

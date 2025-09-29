@@ -20,14 +20,21 @@ class UserNumberService {
           currentNumber = (counterDoc.data()?['count'] as int?) ?? 0;
         }
 
+        // Always increment by 1, ensuring we start from 1
         int nextNumber = currentNumber + 1;
 
-        // Ensure the counter starts from 1 if it's the first user
-        if (currentNumber == 0 && !counterDoc.exists) {
+        // If no counter exists yet, start from 1
+        if (!counterDoc.exists) {
           nextNumber = 1;
         }
 
         transaction.set(counterRef, {'count': nextNumber});
+
+        if (kDebugMode) {
+          print(
+            '[UserNumberService] Counter updated: $currentNumber -> $nextNumber',
+          );
+        }
 
         return nextNumber;
       });
@@ -75,7 +82,7 @@ class UserNumberService {
     } else if (userNumber <= 5000) {
       return 'المشاركون الأوائل'; // Early Participants
     } else {
-      return 'عضو نشط'; // Active Member
+      return 'عضو'; // Member
     }
   }
 

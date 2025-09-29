@@ -1,49 +1,33 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/screens/section1/introduction_screen.dart';
 import 'package:pivot/screens/section1/first_landing.dart';
-import 'package:pivot/services/introduction_service.dart';
+import 'package:pivot/features/onboarding/providers/onboarding_provider.dart';
 
-class IntroductionWrapper extends StatefulWidget {
+class IntroductionWrapper extends ConsumerStatefulWidget {
   const IntroductionWrapper({super.key});
   // = 'introduction_wrapper';
 
   @override
-  State<IntroductionWrapper> createState() => _IntroductionWrapperState();
+  ConsumerState<IntroductionWrapper> createState() =>
+      _IntroductionWrapperState();
 }
 
-class _IntroductionWrapperState extends State<IntroductionWrapper> {
-  bool _isLoading = true;
-  bool _hasSeenIntroduction = false;
-
+class _IntroductionWrapperState extends ConsumerState<IntroductionWrapper> {
   @override
   void initState() {
     super.initState();
-    _checkIntroductionStatus();
-  }
-
-  Future<void> _checkIntroductionStatus() async {
-    try {
-      final hasSeen = await IntroductionService.hasSeenIntroduction();
-      if (mounted) {
-        setState(() {
-          _hasSeenIntroduction = hasSeen;
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      // If there's an error, assume they haven't seen it
-      if (mounted) {
-        setState(() {
-          _hasSeenIntroduction = false;
-          _isLoading = false;
-        });
-      }
-    }
+    // Initialize onboarding state
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(onboardingProvider.notifier).initialize();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
+    final onboardingState = ref.watch(onboardingProvider);
+
+    if (onboardingState.isLoading) {
       return const Scaffold(
         backgroundColor: Color(0xff161616),
         body: Center(
@@ -55,7 +39,7 @@ class _IntroductionWrapperState extends State<IntroductionWrapper> {
     }
 
     // Show introduction if user hasn't seen it, otherwise show first landing
-    return _hasSeenIntroduction
+    return onboardingState.isIntroShown
         ? const FirstLandingScreen()
         : const IntroductionScreen();
   }

@@ -92,6 +92,14 @@ class SubjectProvider with ChangeNotifier {
       return;
     }
 
+    // Prevent multiple simultaneous calls
+    if (_isLoading) {
+      if (kDebugMode) {
+        print('[SubjectProvider] Already loading, skipping duplicate call');
+      }
+      return;
+    }
+
     _isLoading = true;
     _error = null;
     if (!_disposed) {

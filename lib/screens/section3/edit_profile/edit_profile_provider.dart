@@ -34,8 +34,14 @@ class EditProfileProvider extends ChangeNotifier {
   bool _isFormValid = false;
   bool _hasSaved = false;
   bool _hasUnsavedChanges = false;
-  Map<String, String> _fieldErrors = {};
+  final Map<String, String> _fieldErrors = {};
   double _completionPercentage = 0.0;
+
+  // Individual section unsaved changes
+  bool _hasUnsavedProfileImage = false;
+  bool _hasUnsavedBasicInfo = false;
+  bool _hasUnsavedEducationalInfo = false;
+  bool _hasUnsavedPassword = false;
 
   // Getters
   UserProfile? get userProfile => _userProfile;
@@ -50,6 +56,11 @@ class EditProfileProvider extends ChangeNotifier {
   Map<String, String> get fieldErrors => _fieldErrors;
   double get completionPercentage => _completionPercentage;
 
+  bool get hasUnsavedProfileImage => _hasUnsavedProfileImage;
+  bool get hasUnsavedBasicInfo => _hasUnsavedBasicInfo;
+  bool get hasUnsavedEducationalInfo => _hasUnsavedEducationalInfo;
+  bool get hasUnsavedPassword => _hasUnsavedPassword;
+
   // Load user profile and settings
   Future<void> loadProfile() async {
     _isLoading = true;
@@ -62,9 +73,7 @@ class EditProfileProvider extends ChangeNotifier {
       _sectionCounts = _settingsProvider.sectionCounts;
 
       // Only update user profile if it's not already loaded
-      if (_userProfile == null) {
-        _userProfile = _userProfileProvider.userProfile;
-      }
+      _userProfile ??= _userProfileProvider.userProfile;
 
       if (_userProfile != null) {
         _validateForm();
@@ -82,6 +91,8 @@ class EditProfileProvider extends ChangeNotifier {
   // Update profile image
   void updateProfileImage(File imageFile) {
     _profileImage = imageFile;
+    _hasUnsavedProfileImage = true;
+    _updateOverallUnsavedChanges();
     notifyListeners();
   }
 
@@ -90,7 +101,8 @@ class EditProfileProvider extends ChangeNotifier {
     if (_userProfile != null) {
       _userProfile = _userProfile!.copyWith(name: name, gender: gender);
       _validateForm();
-      _hasUnsavedChanges = true;
+      _hasUnsavedBasicInfo = true;
+      _updateOverallUnsavedChanges();
       notifyListeners();
     }
   }
@@ -104,9 +116,19 @@ class EditProfileProvider extends ChangeNotifier {
         section: section,
       );
       _validateForm();
-      _hasUnsavedChanges = true;
+      _hasUnsavedEducationalInfo = true;
+      _updateOverallUnsavedChanges();
       notifyListeners();
     }
+  }
+
+  // Update overall unsaved changes status
+  void _updateOverallUnsavedChanges() {
+    _hasUnsavedChanges =
+        _hasUnsavedProfileImage ||
+        _hasUnsavedBasicInfo ||
+        _hasUnsavedEducationalInfo ||
+        _hasUnsavedPassword;
   }
 
   // Validate form
@@ -178,13 +200,13 @@ class EditProfileProvider extends ChangeNotifier {
     }
   }
 
-  // Save profile
+  // Save profile - intelligently saves only changed sections
   Future<void> saveProfile({
     String? currentPassword,
     String? newPassword,
     String? confirmPassword,
   }) async {
-    if (_userProfile == null) return;
+    if (_userProfile == null || !_hasUnsavedChanges) return;
 
     _isSaving = true;
     _errorMessage = null;
@@ -192,13 +214,20 @@ class EditProfileProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final Map<String, dynamic> updateData = {
-        'name': _userProfile!.name,
-        'gender': _userProfile!.gender,
-        'level': _userProfile!.level,
-        'department': _userProfile!.department,
-        'section': _userProfile!.section,
-      };
+      final Map<String, dynamic> updateData = {};
+
+      // Only include basic info if it has changes
+      if (_hasUnsavedBasicInfo) {
+        updateData['name'] = _userProfile!.name;
+        updateData['gender'] = _userProfile!.gender;
+      }
+
+      // Only include educational info if it has changes
+      if (_hasUnsavedEducationalInfo) {
+        updateData['level'] = _userProfile!.level;
+        updateData['department'] = _userProfile!.department;
+        updateData['section'] = _userProfile!.section;
+      }
 
       // Handle password update if provided
       if (newPassword != null && newPassword.isNotEmpty) {
@@ -223,26 +252,47 @@ class EditProfileProvider extends ChangeNotifier {
 
         updateData['password'] = newPassword;
         updateData['currentPassword'] = currentPassword;
+        _hasUnsavedPassword = true; // Mark password as having changes
       }
 
-      // Check if profile image exists
-      // Image will be handled in the updateUserProfileData call below
+      // Determine if we need to update image
+      XFile? imageFile;
+      if (_hasUnsavedProfileImage && _profileImage != null) {
+        imageFile = XFile(_profileImage!.path);
+      }
 
-      await _userProfileProvider.updateUserProfileData(
-        _userProfile!.id,
-        updateData,
-        imageFile: _profileImage != null ? XFile(_profileImage!.path) : null,
-      );
+      // Only call updateUserProfileData if there's something to update
+      if (updateData.isNotEmpty || imageFile != null) {
+        await _userProfileProvider.updateUserProfileData(
+          _userProfile!.id,
+          updateData,
+          imageFile: imageFile,
+        );
+      }
+
+      // Reset all unsaved change flags
+      _hasUnsavedProfileImage = false;
+      _hasUnsavedBasicInfo = false;
+      _hasUnsavedEducationalInfo = false;
+      _hasUnsavedPassword = false;
+      _updateOverallUnsavedChanges();
 
       _isSaving = false;
       _hasSaved = true;
-      _hasUnsavedChanges = false;
+      _validateForm(); // Recalculate completion percentage
       notifyListeners();
     } catch (e) {
       _errorMessage = _getErrorMessage(e.toString());
       _isSaving = false;
       notifyListeners();
     }
+  }
+
+  // Mark password as having changes (called when user enters password fields)
+  void markPasswordAsChanged() {
+    _hasUnsavedPassword = true;
+    _updateOverallUnsavedChanges();
+    notifyListeners();
   }
 
   // Get specific error message

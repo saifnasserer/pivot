@@ -3,7 +3,6 @@ import 'package:flutter/material.dart' hide MaterialType;
 import 'package:pivot/models/lecture_model.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/responsive.dart';
-import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/models/material_link.dart';
 
 class MaterialBrowserBottomSheet extends StatefulWidget {

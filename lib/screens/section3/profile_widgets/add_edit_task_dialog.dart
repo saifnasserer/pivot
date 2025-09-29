@@ -2,9 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:pivot/screens/models/task.dart';
 import 'package:uuid/uuid.dart';
-import 'dart:io';
-import 'package:file_picker/file_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart' as firebase_storage;
 import 'package:pivot/responsive.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
 

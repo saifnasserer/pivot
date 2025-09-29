@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/widgets/custom_text_field.dart';
-
-
+import 'edit_profile_provider.dart';
 
 class PasswordSection extends StatefulWidget {
+  final EditProfileProvider provider;
   final TextEditingController currentPasswordController;
   final TextEditingController newPasswordController;
   final TextEditingController confirmPasswordController;
 
   const PasswordSection({
     super.key,
+    required this.provider,
     required this.currentPasswordController,
     required this.newPasswordController,
     required this.confirmPasswordController,
@@ -66,6 +67,7 @@ class _PasswordSectionState extends State<PasswordSection> {
             hint: 'كلمة المرور الحالية',
             keyboardType: TextInputType.visiblePassword,
             obscureText: !_isCurrentPasswordVisible,
+            onChanged: (value) => widget.provider.markPasswordAsChanged(),
             suffixIcon: IconButton(
               icon: Icon(
                 _isCurrentPasswordVisible
@@ -86,6 +88,7 @@ class _PasswordSectionState extends State<PasswordSection> {
             hint: 'كلمة المرور الجديدة',
             keyboardType: TextInputType.visiblePassword,
             obscureText: !_isPasswordVisible,
+            onChanged: (value) => widget.provider.markPasswordAsChanged(),
             suffixIcon: IconButton(
               icon: Icon(
                 _isPasswordVisible ? Icons.visibility_off : Icons.visibility,
@@ -104,6 +107,7 @@ class _PasswordSectionState extends State<PasswordSection> {
             hint: 'تأكيد كلمة المرور الجديدة',
             keyboardType: TextInputType.visiblePassword,
             obscureText: !_isConfirmPasswordVisible,
+            onChanged: (value) => widget.provider.markPasswordAsChanged(),
             suffixIcon: IconButton(
               icon: Icon(
                 _isConfirmPasswordVisible

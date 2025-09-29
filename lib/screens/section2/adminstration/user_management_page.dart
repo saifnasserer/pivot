@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/services/auth_service.dart';
+import 'package:pivot/services/data_deletion_service.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:provider/provider.dart';
@@ -24,7 +25,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
   final Map<String, String> _selectedRoles = {};
   final Set<String> _selectedUsers = {};
   bool _isLoading = true;
-  String _selectedRoleFilter = 'الكل';
+  final String _selectedRoleFilter = 'الكل';
   bool showSearchBar = false;
 
   @override
@@ -102,15 +103,6 @@ class _UserManagementPageState extends State<UserManagementPage> {
     });
   }
 
-  void _onRoleFilterChanged(String? newValue) {
-    if (newValue != null) {
-      setState(() {
-        _selectedRoleFilter = newValue;
-        _filterUsers();
-      });
-    }
-  }
-
   Future<void> _updateRole(UserProfile user) async {
     final newRole = _selectedRoles[user.id];
     if (newRole == null) return;
@@ -144,8 +136,8 @@ class _UserManagementPageState extends State<UserManagementPage> {
       context: context,
       builder:
           (context) => UnifiedDialog(
-            title: 'تأكيد الحذف',
-            subtitle: 'لا يمكن التراجع عن هذا الإجراء',
+            title: 'تأكيد الحذف الكامل',
+            subtitle: 'سيتم حذف جميع بيانات المستخدم نهائياً',
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -156,16 +148,60 @@ class _UserManagementPageState extends State<UserManagementPage> {
                 ),
                 SizedBox(height: Responsive.space(context, size: Space.medium)),
                 Text(
-                  'هل أنت متأكد أنك تريد حذف المستخدم ${user.name}?',
+                  'هل أنت متأكد أنك تريد حذف المستخدم ${user.name} نهائياً؟',
                   style: TextStyle(
                     fontSize: Responsive.text(context, size: TextSize.medium),
                     color: Colors.black87,
                   ),
                   textAlign: TextAlign.center,
                 ),
+                SizedBox(height: Responsive.space(context, size: Space.small)),
+                Container(
+                  padding: EdgeInsets.all(
+                    Responsive.space(context, size: Space.medium),
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.red.withOpacity(0.3)),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        'سيتم حذف:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red[700],
+                          fontSize: Responsive.text(
+                            context,
+                            size: TextSize.small,
+                          ),
+                        ),
+                      ),
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.small),
+                      ),
+                      Text(
+                        '• حساب المصادقة (اسم المستخدم وكلمة المرور)\n'
+                        '• الملف الشخصي\n'
+                        '• جميع المنشورات والتعليقات\n'
+                        '• جميع الملفات والصور\n'
+                        '• جميع البيانات الأخرى',
+                        style: TextStyle(
+                          color: Colors.red[600],
+                          fontSize: Responsive.text(
+                            context,
+                            size: TextSize.small,
+                          ),
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
-            confirmText: 'حذف',
+            confirmText: 'حذف نهائياً',
             confirmIcon: Icons.delete_forever,
             onConfirm: () => Navigator.of(context).pop(true),
             onCancel: () => Navigator.of(context).pop(false),
@@ -173,26 +209,323 @@ class _UserManagementPageState extends State<UserManagementPage> {
     );
 
     if (confirm == true) {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder:
+            (context) => AlertDialog(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.medium),
+                  ),
+                  Text(
+                    'جاري حذف المستخدم...',
+                    style: TextStyle(
+                      fontSize: Responsive.text(context, size: TextSize.medium),
+                    ),
+                  ),
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.small),
+                  ),
+                  Text(
+                    'قد تستغرق هذه العملية بضع دقائق',
+                    style: TextStyle(
+                      fontSize: Responsive.text(context, size: TextSize.small),
+                      color: Colors.grey[600],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+      );
+
       try {
-        await _authService.deleteUser(user.id);
-        setState(() {
-          _allUsers.removeWhere((u) => u.id == user.id);
-          _filteredUsers.removeWhere((u) => u.id == user.id);
-          _selectedUsers.remove(user.id);
-        });
+        // Use the comprehensive deletion service (admin-initiated)
+        final success = await DataDeletionService.deleteUserCompletelyAsAdmin(
+          user.id,
+          context,
+        );
+
+        // Close loading dialog
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
+
+        if (success) {
+          // Remove user from local lists
+          setState(() {
+            _allUsers.removeWhere((u) => u.id == user.id);
+            _filteredUsers.removeWhere((u) => u.id == user.id);
+            _selectedUsers.remove(user.id);
+          });
+
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('تم حذف المستخدم ${user.name} نهائياً'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        } else {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'فشل في حذف بعض بيانات المستخدم. يرجى المحاولة مرة أخرى',
+              ),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
+      } catch (e) {
+        // Close loading dialog
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
+
         if (!mounted) return;
+
+        String errorMessage = 'فشل حذف المستخدم: $e';
+
+        // Handle specific errors
+        if (e.toString().contains('requires recent authentication')) {
+          errorMessage =
+              'يجب على المستخدم تسجيل الدخول مرة أخرى قبل حذف الحساب';
+        } else if (e.toString().contains('too many deletion attempts')) {
+          errorMessage = 'محاولات حذف كثيرة. يرجى المحاولة لاحقاً';
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('تم حذف المستخدم بنجاح'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 5),
           ),
         );
+      }
+    }
+  }
+
+  Future<void> _bulkDeleteUsers() async {
+    if (_selectedUsers.isEmpty) return;
+
+    final selectedUsersProfiles =
+        _allUsers.where((user) => _selectedUsers.contains(user.id)).toList();
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => UnifiedDialog(
+            title: 'حذف متعدد',
+            subtitle: 'سيتم حذف ${_selectedUsers.length} مستخدم نهائياً',
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.warning_amber_rounded,
+                  size: Responsive.space(context, size: Space.large) * 2,
+                  color: Colors.red,
+                ),
+                SizedBox(height: Responsive.space(context, size: Space.medium)),
+                Text(
+                  'هل أنت متأكد أنك تريد حذف ${_selectedUsers.length} مستخدم نهائياً؟',
+                  style: TextStyle(
+                    fontSize: Responsive.text(context, size: TextSize.medium),
+                    color: Colors.black87,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: Responsive.space(context, size: Space.small)),
+                Container(
+                  padding: EdgeInsets.all(
+                    Responsive.space(context, size: Space.medium),
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.red.withOpacity(0.3)),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        'المستخدمون المحددون:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red[700],
+                          fontSize: Responsive.text(
+                            context,
+                            size: TextSize.small,
+                          ),
+                        ),
+                      ),
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.small),
+                      ),
+                      ...selectedUsersProfiles
+                          .take(5)
+                          .map(
+                            (user) => Text(
+                              '• ${user.name} (${user.role})',
+                              style: TextStyle(
+                                color: Colors.red[600],
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.small,
+                                ),
+                              ),
+                            ),
+                          ),
+                      if (selectedUsersProfiles.length > 5)
+                        Text(
+                          '... و ${selectedUsersProfiles.length - 5} مستخدم آخر',
+                          style: TextStyle(
+                            color: Colors.red[600],
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.small,
+                            ),
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            confirmText: 'حذف الكل',
+            confirmIcon: Icons.delete_forever,
+            onConfirm: () => Navigator.of(context).pop(true),
+            onCancel: () => Navigator.of(context).pop(false),
+          ),
+    );
+
+    if (confirm == true) {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder:
+            (context) => AlertDialog(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.medium),
+                  ),
+                  Text(
+                    'جاري حذف ${_selectedUsers.length} مستخدم...',
+                    style: TextStyle(
+                      fontSize: Responsive.text(context, size: TextSize.medium),
+                    ),
+                  ),
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.small),
+                  ),
+                  Text(
+                    'قد تستغرق هذه العملية عدة دقائق',
+                    style: TextStyle(
+                      fontSize: Responsive.text(context, size: TextSize.small),
+                      color: Colors.grey[600],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+      );
+
+      int successCount = 0;
+      int failureCount = 0;
+      List<String> failedUsers = [];
+
+      try {
+        for (final userId in _selectedUsers) {
+          try {
+            final success =
+                await DataDeletionService.deleteUserCompletelyAsAdmin(
+                  userId,
+                  context,
+                );
+            if (success) {
+              successCount++;
+            } else {
+              failureCount++;
+              final user = _allUsers.firstWhere((u) => u.id == userId);
+              failedUsers.add(user.name);
+            }
+          } catch (e) {
+            failureCount++;
+            final user = _allUsers.firstWhere((u) => u.id == userId);
+            failedUsers.add(user.name);
+          }
+        }
+
+        // Close loading dialog
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
+
+        // Remove successfully deleted users from local lists
+        setState(() {
+          _allUsers.removeWhere(
+            (u) => _selectedUsers.contains(u.id) && successCount > 0,
+          );
+          _filteredUsers.removeWhere(
+            (u) => _selectedUsers.contains(u.id) && successCount > 0,
+          );
+          _selectedUsers.clear();
+        });
+
+        if (!mounted) return;
+
+        // Show result message
+        if (successCount > 0 && failureCount == 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('تم حذف $successCount مستخدم بنجاح'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        } else if (successCount > 0 && failureCount > 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'تم حذف $successCount مستخدم، فشل حذف $failureCount مستخدم',
+              ),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('فشل حذف جميع المستخدمين المحددين'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
       } catch (e) {
+        // Close loading dialog
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
+
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('فشل حذف المستخدم: $e'),
+            content: Text('حدث خطأ أثناء حذف المستخدمين: $e'),
             backgroundColor: Colors.red,
+            duration: Duration(seconds: 5),
           ),
         );
       }
@@ -357,15 +690,6 @@ class _UserManagementPageState extends State<UserManagementPage> {
 
   @override
   Widget build(BuildContext context) {
-    final roles = [
-      'الكل',
-      'Super Admin',
-      'Admin',
-      'Professor',
-      'miniProfessor',
-      'Student',
-    ];
-
     return Directionality(
       textDirection: TextDirection.rtl,
       child: NoInternetMessage(
@@ -427,7 +751,35 @@ class _UserManagementPageState extends State<UserManagementPage> {
                   });
                 },
               ),
-              if (_selectedUsers.isNotEmpty)
+              if (_selectedUsers.isNotEmpty) ...[
+                Container(
+                  margin: EdgeInsets.only(
+                    right: Responsive.space(context, size: Space.medium),
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: TextButton.icon(
+                    onPressed: _bulkDeleteUsers,
+                    icon: Icon(
+                      Icons.delete_forever,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                    label: Text(
+                      'حذف ${_selectedUsers.length}',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: Responsive.text(
+                          context,
+                          size: TextSize.small,
+                        ),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
                 Container(
                   margin: EdgeInsets.only(
                     right: Responsive.space(context, size: Space.medium),
@@ -452,6 +804,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                     ),
                   ),
                 ),
+              ],
             ],
           ),
           body: RefreshIndicator(
@@ -522,47 +875,6 @@ class _UserManagementPageState extends State<UserManagementPage> {
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatTile(
-    BuildContext context,
-    IconData icon,
-    String title,
-    String value,
-    Color color,
-  ) {
-    return Expanded(
-      child: Container(
-        padding: Responsive.padding(context, size: Space.medium),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.3)),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 24),
-            SizedBox(height: Responsive.space(context, size: Space.small)),
-            Text(
-              value,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: Responsive.text(context, size: TextSize.medium),
-                color: color,
-              ),
-            ),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: Responsive.text(context, size: TextSize.small),
-                color: Colors.grey[600],
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
         ),
       ),
     );

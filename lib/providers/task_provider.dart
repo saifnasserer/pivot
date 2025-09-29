@@ -4,7 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pivot/screens/models/task.dart';
 import 'package:pivot/services/notification_trigger_service.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:pivot/services/local_notification_service.dart';
 import 'package:pivot/services/sound_service.dart';
 import 'package:pivot/services/smart_refresh_service.dart';
@@ -59,9 +58,7 @@ class TaskProvider extends ChangeNotifier {
         force: force,
       );
 
-      if (result != null) {
-        _tasks = result;
-      }
+      _tasks = result;
 
       // After syncing tasks, (re)schedule local reminders on mobile
       if (!kIsWeb) {

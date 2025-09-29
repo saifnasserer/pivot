@@ -13,161 +13,167 @@ class UserWelcomeDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Container(
-        constraints: BoxConstraints(
-          maxHeight: Responsive.height(context) * 0.8,
-          maxWidth: Responsive.width(context) * 0.9,
-        ),
-        padding: Responsive.padding(context, size: Space.large),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Colors.white, Colors.green[50]!],
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Container(
+          constraints: BoxConstraints(
+            maxHeight: Responsive.height(context) * 0.8,
+            maxWidth: Responsive.width(context) * 0.9,
           ),
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Celebration Icon
-              Container(
-                padding: EdgeInsets.all(
-                  Responsive.space(context, size: Space.large),
+          padding: Responsive.padding(context, size: Space.large),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Colors.white, Colors.green[50]!],
+            ),
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Celebration Icon
+                Container(
+                  padding: EdgeInsets.all(
+                    Responsive.space(context, size: Space.large),
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.green[100],
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.celebration,
+                    size: 64,
+                    color: Colors.green[600],
+                  ),
                 ),
-                decoration: BoxDecoration(
-                  color: Colors.green[100],
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.celebration,
-                  size: 64,
-                  color: Colors.green[600],
-                ),
-              ),
 
-              SizedBox(height: Responsive.space(context, size: Space.medium)),
+                SizedBox(height: Responsive.space(context, size: Space.medium)),
 
-              // Welcome Title
-              Text(
-                'مرحباً بك $userName! 🎉',
-                style: TextStyle(
-                  fontSize: Responsive.text(context, size: TextSize.heading),
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-
-              SizedBox(height: Responsive.space(context, size: Space.medium)),
-
-              // User Number Badge
-              Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: Responsive.space(context, size: Space.medium),
-                  vertical: Responsive.space(context, size: Space.small),
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.circular(25),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      spreadRadius: 2,
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.person, color: Colors.white, size: 20),
-                    SizedBox(
-                      width: Responsive.space(context, size: Space.small),
-                    ),
-                    Flexible(
-                      child: Text(
-                        'المستخدم رقم #$userNumber',
-                        style: TextStyle(
-                          fontSize: Responsive.text(
-                            context,
-                            size: TextSize.medium,
-                          ),
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              SizedBox(height: Responsive.space(context, size: Space.medium)),
-
-              // Milestone Badge
-              _buildMilestoneBadge(context),
-
-              SizedBox(height: Responsive.space(context, size: Space.medium)),
-
-              // Welcome Message
-              Container(
-                width: double.infinity,
-                padding: Responsive.padding(context, size: Space.medium),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey[200]!),
-                ),
-                child: Text(
-                  _getWelcomeMessage(),
+                // Welcome Title
+                Text(
+                  'مرحباً بك $userName! 🎉',
                   style: TextStyle(
-                    fontSize: Responsive.text(context, size: TextSize.medium),
+                    fontSize: Responsive.text(context, size: TextSize.heading),
+                    fontWeight: FontWeight.bold,
                     color: Colors.black87,
-                    height: 1.5,
                   ),
                   textAlign: TextAlign.center,
-                  maxLines: 5,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-              ),
 
-              SizedBox(height: Responsive.space(context, size: Space.large)),
+                SizedBox(height: Responsive.space(context, size: Space.medium)),
 
-              // Action Button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green[600],
-                    foregroundColor: Colors.white,
-                    padding: EdgeInsets.symmetric(
-                      vertical: Responsive.space(context, size: Space.medium),
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 3,
+                // User Number Badge
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: Responsive.space(context, size: Space.medium),
+                    vertical: Responsive.space(context, size: Space.small),
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black,
+                    borderRadius: BorderRadius.circular(25),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        spreadRadius: 2,
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.person, color: Colors.white, size: 20),
+                      SizedBox(
+                        width: Responsive.space(context, size: Space.small),
+                      ),
+                      Flexible(
+                        child: Text(
+                          'المستخدم رقم #$userNumber',
+                          style: TextStyle(
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.medium,
+                            ),
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                SizedBox(height: Responsive.space(context, size: Space.medium)),
+
+                // Milestone Badge
+                _buildMilestoneBadge(context),
+
+                SizedBox(height: Responsive.space(context, size: Space.medium)),
+
+                // Welcome Message
+                Container(
+                  width: double.infinity,
+                  padding: Responsive.padding(context, size: Space.medium),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey[200]!),
                   ),
                   child: Text(
-                    'ابدأ رحلتك! 🚀',
+                    _getWelcomeMessage(),
                     style: TextStyle(
                       fontSize: Responsive.text(context, size: TextSize.medium),
-                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                      height: 1.5,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 5,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+
+                SizedBox(height: Responsive.space(context, size: Space.large)),
+
+                // Action Button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green[600],
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(
+                        vertical: Responsive.space(context, size: Space.medium),
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(25), // Round button
+                      ),
+                      elevation: 3,
+                    ),
+                    child: Text(
+                      'ابدأ رحلتك! 🚀',
+                      style: TextStyle(
+                        fontSize: Responsive.text(
+                          context,
+                          size: TextSize.medium,
+                        ),
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -221,7 +227,7 @@ class UserWelcomeDialog extends StatelessWidget {
     } else if (userNumber <= 5000) {
       return 'المشاركون الأوائل';
     } else {
-      return 'عضو نشط';
+      return 'عضو';
     }
   }
 

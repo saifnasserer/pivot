@@ -9,21 +9,22 @@ import 'package:pivot/services/auth_service.dart';
 import 'package:pivot/services/local_auth_service.dart';
 import 'package:pivot/services/introduction_service.dart';
 import 'package:pivot/widgets/no_internet_message.dart';
-import 'package:provider/provider.dart';
+import 'package:provider/provider.dart' as legacy_provider;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pivot/features/onboarding/providers/onboarding_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../responsive.dart';
-import 'package:pivot/responsive.dart';
 
-class FirstLandingScreen extends StatefulWidget {
+class FirstLandingScreen extends ConsumerStatefulWidget {
   const FirstLandingScreen({super.key});
   // = 'first_landing_screen';
 
   @override
-  State<FirstLandingScreen> createState() => _FirstLandingScreenState();
+  ConsumerState<FirstLandingScreen> createState() => _FirstLandingScreenState();
 }
 
-class _FirstLandingScreenState extends State<FirstLandingScreen> {
+class _FirstLandingScreenState extends ConsumerState<FirstLandingScreen> {
   final AuthService _authService = AuthService();
   final LocalAuthService _localAuthService = LocalAuthService();
   final _storage = const FlutterSecureStorage();
@@ -42,7 +43,7 @@ class _FirstLandingScreenState extends State<FirstLandingScreen> {
       try {
         UserProfile? userProfile = await _authService.getUserProfile(user.uid);
         if (mounted && userProfile != null) {
-          Provider.of<UserProfileProvider>(
+          legacy_provider.Provider.of<UserProfileProvider>(
             context,
             listen: false,
           ).setUserProfile(userProfile);
@@ -93,15 +94,17 @@ class _FirstLandingScreenState extends State<FirstLandingScreen> {
                 .signInWithEmailAndPassword(email, password);
 
             if (mounted && userProfile != null) {
-              final provider = Provider.of<UserProfileProvider>(
+              final provider = legacy_provider.Provider.of<UserProfileProvider>(
                 context,
                 listen: false,
               );
               provider.setLoggedInUserProfile(userProfile);
               provider.setUserProfile(userProfile);
 
-              // Let AuthWrapper handle navigation automatically
-              // This ensures consistent navigation flow and prevents conflicts
+              // Navigate to landing screen after successful biometric login
+              if (mounted) {
+                Navigator.pushReplacementNamed(context, '/landing');
+              }
               return; // Exit after successful login
             } else if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(

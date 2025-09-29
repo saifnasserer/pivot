@@ -38,7 +38,7 @@ import 'package:pivot/screens/section3/profile/profile.dart';
 import 'package:pivot/screens/section4/assistants/all_tasks.dart';
 import 'package:pivot/screens/section3/subject_selection_screen.dart';
 
-import 'package:provider/provider.dart';
+import 'package:provider/provider.dart' as legacy_provider;
 import 'package:pivot/providers/announcement_provider.dart';
 import 'package:pivot/providers/task_provider.dart';
 import 'package:pivot/providers/doctor_subject_provider.dart';
@@ -52,7 +52,6 @@ import 'package:pivot/providers/material_links_provider.dart'; // Import Materia
 import 'package:firebase_core/firebase_core.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:pivot/screens/section2/super_admin_panel/analytics_screen.dart'
     deferred as analytics_screen;
 import 'package:pivot/services/cache_service.dart';
@@ -79,6 +78,7 @@ import 'firebase_options.dart';
 import 'widgets/platform_service.dart';
 import 'widgets/ios_install_instructions_screen.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // Route name constants
 const String routeUserManagement = '/user-management';
@@ -127,7 +127,11 @@ void main() async {
 
   final userProfileProvider = UserProfileProvider();
 
-  runApp(PivotWithNotifications(userProfileProvider: userProfileProvider));
+  runApp(
+    ProviderScope(
+      child: PivotWithNotifications(userProfileProvider: userProfileProvider),
+    ),
+  );
 
   if (kIsWeb) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -140,8 +144,12 @@ void main() async {
 
 Future<void> _setupFirebaseMessagingWeb() async {
   final messaging = FirebaseMessaging.instance;
-  messaging.requestPermission().catchError((_) {});
-  registerServiceWorkerWeb().catchError((_) {});
+  try {
+    await messaging.requestPermission();
+  } catch (_) {}
+  try {
+    await registerServiceWorkerWeb();
+  } catch (_) {}
   FirebaseMessaging.onMessage.listen((RemoteMessage message) {
     // Optionally handle foreground message
   });
@@ -156,10 +164,10 @@ void _initializeAppBackgroundServices(
 
   // Add error handling for Google Play Services
   try {
-    RemoteConfigService.instance.initialize().catchError((error) {});
+    await RemoteConfigService.instance.initialize();
 
     // Initialize Remote Config Bridge Service
-    RemoteConfigBridgeService().initialize().catchError((error) {});
+    await RemoteConfigBridgeService().initialize();
   } catch (e) {}
 
   if (FirebaseAuth.instance.currentUser != null) {
@@ -174,7 +182,9 @@ void _initializeAppBackgroundServices(
     if (!kIsWeb) {
       LocalNotificationService.instance.initialize();
       // Ensure notification permission is requested every launch if not granted
-      PermissionService.requestNotificationPermission();
+      try {
+        await PermissionService.requestNotificationPermission();
+      } catch (_) {}
     }
 
     // Initialize FCM token manager
@@ -215,29 +225,29 @@ class Pivot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
+    return legacy_provider.MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AnnouncementProvider()),
-        ChangeNotifierProvider(
+        legacy_provider.ChangeNotifierProvider(create: (_) => AnnouncementProvider()),
+        legacy_provider.ChangeNotifierProvider(
           create: (_) => SectionProvider(),
         ), // Add SectionProvider
-        ChangeNotifierProvider(create: (_) => TaskProvider()),
-        ChangeNotifierProvider(create: (_) => ScheduleProvider()),
-        ChangeNotifierProvider.value(value: userProfileProvider),
-        ChangeNotifierProvider(create: (_) => SubjectProvider()),
-        ChangeNotifierProvider(create: (_) => Bookmarks()),
-        ChangeNotifierProvider(create: (_) => DoctorSubjectProvider()),
-        ChangeNotifierProvider(create: (_) => MaterialLinksProvider()),
-        ChangeNotifierProvider(create: (_) => SettingsProvider()),
-        ChangeNotifierProvider(create: (_) => SuperAdminProvider()),
-        ChangeNotifierProvider(create: (_) => GuideProvider()),
-        ChangeNotifierProvider(create: (_) => ScheduledNotificationProvider()),
-        ChangeNotifierProvider(create: (_) => UserNotificationProvider()),
-        Provider<RemoteConfigService>(
+        legacy_provider.ChangeNotifierProvider(create: (_) => TaskProvider()),
+        legacy_provider.ChangeNotifierProvider(create: (_) => ScheduleProvider()),
+        legacy_provider.ChangeNotifierProvider.value(value: userProfileProvider),
+        legacy_provider.ChangeNotifierProvider(create: (_) => SubjectProvider()),
+        legacy_provider.ChangeNotifierProvider(create: (_) => Bookmarks()),
+        legacy_provider.ChangeNotifierProvider(create: (_) => DoctorSubjectProvider()),
+        legacy_provider.ChangeNotifierProvider(create: (_) => MaterialLinksProvider()),
+        legacy_provider.ChangeNotifierProvider(create: (_) => SettingsProvider()),
+        legacy_provider.ChangeNotifierProvider(create: (_) => SuperAdminProvider()),
+        legacy_provider.ChangeNotifierProvider(create: (_) => GuideProvider()),
+        legacy_provider.ChangeNotifierProvider(create: (_) => ScheduledNotificationProvider()),
+        legacy_provider.ChangeNotifierProvider(create: (_) => UserNotificationProvider()),
+        legacy_provider.Provider<RemoteConfigService>(
           create: (_) => RemoteConfigService.instance,
         ),
-        ChangeNotifierProvider(create: (_) => TeamProvider()),
-        ChangeNotifierProvider(create: (_) => TeamsProvider()),
+        legacy_provider.ChangeNotifierProvider(create: (_) => TeamProvider()),
+        legacy_provider.ChangeNotifierProvider(create: (_) => TeamsProvider()),
       ],
       child: MaterialApp(
         onGenerateRoute: (settings) {

@@ -5,28 +5,26 @@ import 'package:pivot/providers/announcement_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/section2/landing_categories.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:provider/provider.dart' as legacy_provider;
+import 'package:pivot/features/home/providers/home_provider.dart';
 import 'package:pivot/screens/models/card_model.dart';
 import 'package:pivot/screens/models/search_card.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
-import 'package:pivot/services/category_service.dart';
 import 'package:pivot/services/update_service.dart';
 import 'package:pivot/providers/settings_provider.dart';
 
-class Landing extends StatefulWidget {
+class Landing extends ConsumerStatefulWidget {
   const Landing({super.key});
   // = 'landing';
 
   @override
-  State<Landing> createState() => LandingState();
+  ConsumerState<Landing> createState() => LandingState();
 }
 
-class LandingState extends State<Landing> with TickerProviderStateMixin {
-  String? _userDepartment;
-  int _currentCategoryIndex = 0;
-  List<String> _categories = []; // Add categories list to ensure consistency
-  bool _isInitialized =
-      false; // Add flag to prevent listener during initialization
+class LandingState extends ConsumerState<Landing>
+    with TickerProviderStateMixin {
+  // State now managed by Riverpod home provider
 
   final TextEditingController _userSearchController = TextEditingController();
   final PageController _pageController = PageController();
@@ -37,113 +35,36 @@ class LandingState extends State<Landing> with TickerProviderStateMixin {
   void initState() {
     super.initState();
 
-    // Initialize categories first
-    _categories = CategoryService.getCategories(_userDepartment);
-
-    // Initialize TabController with categories
+    // Initialize TabController with empty length first
     _tabController = TabController(
-      length: _categories.length,
+      length: 1, // Will be updated when categories are loaded
       vsync: this,
-      initialIndex: _categories.length - 1, // Start from rightmost tab
+      initialIndex: 0,
     );
 
     // Listen to tab changes and sync with PageController
     _tabController.addListener(() {
-      if (_tabController.indexIsChanging && _isInitialized) {
+      if (_tabController.indexIsChanging) {
         final newIndex = _tabController.index;
         print('🔍 [Landing] TabController changed to index: $newIndex');
-        if (newIndex != _currentCategoryIndex) {
-          print('🔍 [Landing] Syncing PageView to index: $newIndex');
-          _categoryPageController.animateToPage(
-            newIndex,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeInOut,
-          );
-          setState(() {
-            _currentCategoryIndex = newIndex;
-          });
-        }
+        _categoryPageController.animateToPage(
+          newIndex,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+        // Update category via Riverpod provider
+        ref.read(homeProvider.notifier).changeCategory(newIndex);
       }
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final userProfileProvider = Provider.of<UserProfileProvider>(
-        context,
-        listen: false,
-      );
-      _userDepartment = userProfileProvider.loggedInUserProfile?.department;
+      final userProfileProvider = legacy_provider
+          .Provider.of<UserProfileProvider>(context, listen: false);
+      final userDepartment =
+          userProfileProvider.loggedInUserProfile?.department;
 
-      // Update categories with actual user department
-      _categories = CategoryService.getCategories(_userDepartment);
-
-      // Use CategoryService for initial fetch
-      final normalizedDepartment = CategoryService.normalizeDepartment(
-        _userDepartment,
-      );
-
-      print(
-        '🔍 [Landing] Initial setup - normalizedDepartment: $normalizedDepartment',
-      );
-      print('🔍 [Landing] Initial categories: $_categories');
-
-      if (_categories.isNotEmpty) {
-        final lastCategory =
-            _categories[_categories.length -
-                1]; // Use last category (rightmost)
-        print(
-          '🔍 [Landing] Initial category: $lastCategory (index: ${_categories.length - 1})',
-        );
-
-        // Set initial state properly
-        setState(() {
-          _currentCategoryIndex = _categories.length - 1;
-        });
-
-        // Ensure PageView is at the correct initial position
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (_categoryPageController.hasClients) {
-            _categoryPageController.jumpToPage(_categories.length - 1);
-            print(
-              '🔍 [Landing] Set PageView to initial index: ${_categories.length - 1}',
-            );
-          }
-
-          // Ensure TabController is at the correct initial position
-          if (_tabController.index != _categories.length - 1) {
-            _tabController.index = _categories.length - 1;
-            print(
-              '🔍 [Landing] Set TabController to initial index: ${_categories.length - 1}',
-            );
-          }
-
-          // Mark as initialized after setup is complete
-          _isInitialized = true;
-          print('🔍 [Landing] Initialization complete, listener enabled');
-        });
-
-        final departmentCode = CategoryService.getDepartmentCode(
-          lastCategory,
-          _userDepartment,
-        );
-        final timeFilter = CategoryService.getTimeFilter(lastCategory);
-
-        final announcementProvider = Provider.of<AnnouncementProvider>(
-          context,
-          listen: false,
-        );
-
-        announcementProvider.fetchAnnouncements(
-          timeFilter: timeFilter,
-          department: departmentCode,
-        );
-
-        // Initialize team formation button visibility
-        final settingsProvider = Provider.of<SettingsProvider>(
-          context,
-          listen: false,
-        );
-        settingsProvider.fetchTeamFormationButtonVisibility();
-      }
+      // Initialize home provider with user department
+      ref.read(homeProvider.notifier).initialize(userDepartment);
     });
   }
 
@@ -156,34 +77,33 @@ class LandingState extends State<Landing> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  void _handleCategoryChange(String category) {
+  void _handleCategoryChange(String category) async {
     print('🔍 [Landing] Handling category change: $category');
-    final announcementProvider = Provider.of<AnnouncementProvider>(
-      context,
-      listen: false,
-    );
+    final announcementProvider = legacy_provider
+        .Provider.of<AnnouncementProvider>(context, listen: false);
 
-    final departmentCode = CategoryService.getDepartmentCode(
-      category,
-      _userDepartment,
-    );
-    final timeFilter = CategoryService.getTimeFilter(category);
+    final departmentCode = ref
+        .read(homeProvider.notifier)
+        .getDepartmentCode(category);
+    final timeFilter = ref.read(homeProvider.notifier).getTimeFilter(category);
 
     print(
       '🔍 [Landing] Fetching with department: $departmentCode, timeFilter: $timeFilter',
     );
 
-    // Fetch announcements with the determined parameters
-    announcementProvider.fetchAnnouncements(
-      timeFilter: timeFilter,
-      department: departmentCode,
-    );
+    // Only fetch if we have valid values
+    if (departmentCode != null && timeFilter != null) {
+      announcementProvider.fetchAnnouncements(
+        timeFilter: timeFilter,
+        department: departmentCode,
+      );
+    }
   }
 
   Widget _buildCategoryContent(String category) {
     return Padding(
       padding: EdgeInsets.all(Responsive.space(context, size: Space.small)),
-      child: Consumer<AnnouncementProvider>(
+      child: legacy_provider.Consumer<AnnouncementProvider>(
         builder: (context, provider, child) {
           if (provider.isLoading) {
             return const Center(child: CircularProgressIndicator());
@@ -238,310 +158,378 @@ class LandingState extends State<Landing> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    // Normalize the user department for category ordering
-    String? normalizedDepartment;
-    if (_userDepartment != null && _userDepartment!.startsWith('اخبار قسم ')) {
-      normalizedDepartment = _userDepartment!.replaceFirst('اخبار قسم ', '');
-    } else {
-      normalizedDepartment = _userDepartment;
-    }
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
-        statusBarBrightness: Brightness.dark,
-      ),
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        body: SafeArea(
-          child: Column(
-            children: [
-              LandingCategories(
-                userDepartment: normalizedDepartment,
-                tabController: _tabController,
-                categories: _categories, // Pass categories for consistency
-                onCategoryChanged: (category) {
-                  // Category change is now handled by TabController listener
-                  // This callback can be used for additional UI updates if needed
-                },
-              ),
-              // Main content with horizontal swipe navigation
-              Expanded(
-                child: PageView(
-                  controller: _categoryPageController,
-                  scrollDirection: Axis.horizontal,
-                  onPageChanged: (index) {
-                    print('🔍 [Landing] PageView changed to index: $index');
-                    setState(() {
-                      _currentCategoryIndex = index;
-                    });
-                    // Sync with TabController
-                    if (_tabController.index != index) {
-                      print(
-                        '🔍 [Landing] Syncing TabController to index: $index',
-                      );
-                      _tabController.animateTo(index);
-                    }
-                    // Trigger category change when swiping
-                    if (index < _categories.length) {
-                      final category = _categories[index];
-                      print(
-                        '🔍 [Landing] Category changed to: $category (index: $index)',
-                      );
-                      _handleCategoryChange(category);
-                    }
-                  },
-                  children:
-                      _categories.map((category) {
-                        return _buildCategoryContent(category);
-                      }).toList(),
-                ),
-              ),
-            ],
+    return Consumer(
+      builder: (context, ref, child) {
+        final homeState = ref.watch(homeProvider);
+
+        // Show loading if not initialized
+        if (!homeState.isInitialized || homeState.isLoading) {
+          return Scaffold(
+            backgroundColor: Colors.white,
+            body: Center(child: CircularProgressIndicator(color: Colors.black)),
+          );
+        }
+
+        // Update TabController when categories are loaded
+        if (homeState.categories.isNotEmpty &&
+            _tabController.length != homeState.categories.length) {
+          _tabController.dispose();
+          _tabController = TabController(
+            length: homeState.categories.length,
+            vsync: this,
+            initialIndex: homeState.currentCategoryIndex,
+          );
+
+          // Set up listener again
+          _tabController.addListener(() {
+            if (_tabController.indexIsChanging) {
+              final newIndex = _tabController.index;
+              _categoryPageController.animateToPage(
+                newIndex,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+              );
+              ref.read(homeProvider.notifier).changeCategory(newIndex);
+            }
+          });
+        }
+
+        // Normalize the user department for category ordering
+        String? normalizedDepartment;
+        if (homeState.userDepartment != null &&
+            homeState.userDepartment!.startsWith('اخبار قسم ')) {
+          normalizedDepartment = homeState.userDepartment!.replaceFirst(
+            'اخبار قسم ',
+            '',
+          );
+        } else {
+          normalizedDepartment = homeState.userDepartment;
+        }
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: Brightness.dark,
+            statusBarBrightness: Brightness.dark,
           ),
-        ),
-        floatingActionButton: SpeedDial(
-          icon: Icons.menu,
-          activeIcon: Icons.close,
-          backgroundColor: Theme.of(context).primaryColor,
-          foregroundColor: Colors.white,
-          childPadding: EdgeInsets.all(4),
-          children: [
-            SpeedDialChild(
-              child: Icon(
-                Icons.person_outline_rounded,
-                color: Colors.white,
-                size: 20,
-              ),
-              backgroundColor: Colors.black,
-              shape: const CircleBorder(),
-              labelWidget: Container(
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.circular(
-                    Responsive.space(context, size: Space.large),
+          child: Scaffold(
+            backgroundColor: Colors.white,
+            body: SafeArea(
+              child: Column(
+                children: [
+                  LandingCategories(
+                    userDepartment: normalizedDepartment,
+                    tabController: _tabController,
+                    categories:
+                        homeState
+                            .categories, // Use categories from Riverpod state
+                    onCategoryChanged: (category) {
+                      // Category change is now handled by TabController listener
+                      // This callback can be used for additional UI updates if needed
+                    },
                   ),
-                ),
-                alignment: Alignment.center,
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    vertical: Responsive.space(context, size: Space.small),
-                    horizontal: Responsive.space(context, size: Space.medium),
-                  ),
-                  child: Text(
-                    'حسابي',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
+                  // Main content with horizontal swipe navigation
+                  Expanded(
+                    child: PageView(
+                      controller: _categoryPageController,
+                      scrollDirection: Axis.horizontal,
+                      onPageChanged: (index) {
+                        print('🔍 [Landing] PageView changed to index: $index');
+                        // Update category via Riverpod provider
+                        ref.read(homeProvider.notifier).changeCategory(index);
+                        // Sync with TabController
+                        if (_tabController.index != index) {
+                          print(
+                            '🔍 [Landing] Syncing TabController to index: $index',
+                          );
+                          _tabController.animateTo(index);
+                        }
+                        // Trigger category change when swiping
+                        if (index < homeState.categories.length) {
+                          final category = homeState.categories[index];
+                          print(
+                            '🔍 [Landing] Category changed to: $category (index: $index)',
+                          );
+                          _handleCategoryChange(category);
+                        }
+                      },
+                      children:
+                          homeState.categories.map((category) {
+                            return _buildCategoryContent(category);
+                          }).toList(),
                     ),
-                    textAlign: TextAlign.center,
                   ),
-                ),
+                ],
               ),
-              onTap: () {
-                Navigator.pushNamed(context, '/profile');
-              },
             ),
-            SpeedDialChild(
-              child: Icon(Icons.search, color: Colors.white, size: 20),
-              backgroundColor: Colors.black,
-              shape: const CircleBorder(),
-              labelWidget: Container(
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.circular(
-                    Responsive.space(context, size: Space.large),
+            floatingActionButton: SpeedDial(
+              icon: Icons.menu,
+              activeIcon: Icons.close,
+              backgroundColor: Theme.of(context).primaryColor,
+              foregroundColor: Colors.white,
+              childPadding: EdgeInsets.all(4),
+              children: [
+                SpeedDialChild(
+                  child: Icon(
+                    Icons.person_outline_rounded,
+                    color: Colors.white,
+                    size: 20,
                   ),
-                ),
-                alignment: Alignment.center,
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    vertical: Responsive.space(context, size: Space.small),
-                    horizontal: Responsive.space(context, size: Space.medium),
-                  ),
-                  child: Text(
-                    'بحث',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ),
-              onTap: () => showUserSearchModal(context),
-            ),
-            SpeedDialChild(
-              child: Icon(
-                Icons.add_circle_outline_rounded,
-                color: Colors.white,
-                size: 20,
-              ),
-              backgroundColor: Colors.black,
-              shape: const CircleBorder(),
-              labelWidget: Container(
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.circular(
-                    Responsive.space(context, size: Space.large),
-                  ),
-                ),
-                alignment: Alignment.center,
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    vertical: Responsive.space(context, size: Space.small),
-                    horizontal: Responsive.space(context, size: Space.medium),
-                  ),
-                  child: Text(
-                    'إدارة',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ),
-              visible:
-                  Provider.of<UserProfileProvider>(
-                    context,
-                    listen: false,
-                  ).loggedInUserProfile?.role !=
-                  'Student',
-              onTap: () {
-                Navigator.pushNamed(context, '/admin-control');
-              },
-            ),
-            SpeedDialChild(
-              child: Icon(
-                Icons.admin_panel_settings,
-                color: Colors.white,
-                size: 20,
-              ),
-              backgroundColor: Colors.red,
-              shape: const CircleBorder(),
-              labelWidget: Container(
-                decoration: BoxDecoration(
-                  color: Colors.red,
-                  borderRadius: BorderRadius.circular(
-                    Responsive.space(context, size: Space.large),
-                  ),
-                ),
-                alignment: Alignment.center,
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    vertical: Responsive.space(context, size: Space.small),
-                    horizontal: Responsive.space(context, size: Space.medium),
-                  ),
-                  child: Text(
-                    'لوحة السوبر أدمن',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ),
-              visible:
-                  Provider.of<UserProfileProvider>(
-                    context,
-                    listen: false,
-                  ).loggedInUserProfile?.role ==
-                  'Super Admin',
-              onTap: () {
-                Navigator.pushNamed(context, '/super-admin-panel');
-              },
-            ),
-            SpeedDialChild(
-              child: Icon(
-                FontAwesomeIcons.handshake,
-                color: Colors.white,
-                size: 20,
-              ),
-              backgroundColor: Colors.black,
-              shape: const CircleBorder(),
-              labelWidget: Container(
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.circular(
-                    Responsive.space(context, size: Space.large),
-                  ),
-                ),
-                alignment: Alignment.center,
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    vertical: Responsive.space(context, size: Space.small),
-                    horizontal: Responsive.space(context, size: Space.medium),
-                  ),
-                  child: Text(
-                    'تكوين فريق',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ),
-              visible:
-                  Provider.of<SettingsProvider>(
-                    context,
-                    listen: false,
-                  ).showTeamFormationButton,
-              onTap: () {
-                Navigator.pushNamed(context, '/teams');
-              },
-            ),
-            // Update button - only shown when Firestore allows it
-            if (UpdateService().shouldShowUpdateButtonSync()) ...[
-              SpeedDialChild(
-                child: Icon(Icons.system_update, color: Colors.white, size: 20),
-                backgroundColor: Colors.red,
-                shape: const CircleBorder(),
-                labelWidget: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                    borderRadius: BorderRadius.circular(
-                      Responsive.space(context, size: Space.large),
-                    ),
-                  ),
-                  alignment: Alignment.center,
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(
-                      vertical: Responsive.space(context, size: Space.small),
-                      horizontal: Responsive.space(context, size: Space.medium),
-                    ),
-                    child: Text(
-                      'تحديث جديد',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
+                  backgroundColor: Colors.black,
+                  shape: const CircleBorder(),
+                  labelWidget: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black,
+                      borderRadius: BorderRadius.circular(
+                        Responsive.space(context, size: Space.large),
                       ),
-                      textAlign: TextAlign.center,
+                    ),
+                    alignment: Alignment.center,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        vertical: Responsive.space(context, size: Space.small),
+                        horizontal: Responsive.space(
+                          context,
+                          size: Space.medium,
+                        ),
+                      ),
+                      child: Text(
+                        'حسابي',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                   ),
+                  onTap: () {
+                    Navigator.pushNamed(context, '/profile');
+                  },
                 ),
-                onTap: () async {
-                  // Check if updates are available before showing bottom sheet
-                  final hasUpdates =
-                      await UpdateService().areUpdatesAvailable();
-                  if (hasUpdates) {
-                    UpdateService().showUpdateBottomSheet(context);
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('لا توجد تحديثات متاحة حالياً'),
-                        backgroundColor: Colors.blue,
+                SpeedDialChild(
+                  child: Icon(Icons.search, color: Colors.white, size: 20),
+                  backgroundColor: Colors.black,
+                  shape: const CircleBorder(),
+                  labelWidget: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black,
+                      borderRadius: BorderRadius.circular(
+                        Responsive.space(context, size: Space.large),
                       ),
-                    );
-                  }
-                },
-              ),
-            ],
-          ],
-        ),
-      ),
+                    ),
+                    alignment: Alignment.center,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        vertical: Responsive.space(context, size: Space.small),
+                        horizontal: Responsive.space(
+                          context,
+                          size: Space.medium,
+                        ),
+                      ),
+                      child: Text(
+                        'بحث',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                  onTap: () => showUserSearchModal(context),
+                ),
+                SpeedDialChild(
+                  child: Icon(
+                    Icons.add_circle_outline_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                  backgroundColor: Colors.black,
+                  shape: const CircleBorder(),
+                  labelWidget: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black,
+                      borderRadius: BorderRadius.circular(
+                        Responsive.space(context, size: Space.large),
+                      ),
+                    ),
+                    alignment: Alignment.center,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        vertical: Responsive.space(context, size: Space.small),
+                        horizontal: Responsive.space(
+                          context,
+                          size: Space.medium,
+                        ),
+                      ),
+                      child: Text(
+                        'إدارة',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                  visible:
+                      legacy_provider.Provider.of<UserProfileProvider>(
+                        context,
+                        listen: false,
+                      ).loggedInUserProfile?.role !=
+                      'Student',
+                  onTap: () {
+                    Navigator.pushNamed(context, '/admin-control');
+                  },
+                ),
+                SpeedDialChild(
+                  child: Icon(
+                    Icons.admin_panel_settings,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                  backgroundColor: Colors.red,
+                  shape: const CircleBorder(),
+                  labelWidget: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(
+                        Responsive.space(context, size: Space.large),
+                      ),
+                    ),
+                    alignment: Alignment.center,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        vertical: Responsive.space(context, size: Space.small),
+                        horizontal: Responsive.space(
+                          context,
+                          size: Space.medium,
+                        ),
+                      ),
+                      child: Text(
+                        'لوحة السوبر أدمن',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                  visible:
+                      legacy_provider.Provider.of<UserProfileProvider>(
+                        context,
+                        listen: false,
+                      ).loggedInUserProfile?.role ==
+                      'Super Admin',
+                  onTap: () {
+                    Navigator.pushNamed(context, '/super-admin-panel');
+                  },
+                ),
+                SpeedDialChild(
+                  child: Icon(
+                    FontAwesomeIcons.handshake,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                  backgroundColor: Colors.black,
+                  shape: const CircleBorder(),
+                  labelWidget: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black,
+                      borderRadius: BorderRadius.circular(
+                        Responsive.space(context, size: Space.large),
+                      ),
+                    ),
+                    alignment: Alignment.center,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        vertical: Responsive.space(context, size: Space.small),
+                        horizontal: Responsive.space(
+                          context,
+                          size: Space.medium,
+                        ),
+                      ),
+                      child: Text(
+                        'تكوين فريق',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                  visible:
+                      legacy_provider.Provider.of<SettingsProvider>(
+                        context,
+                        listen: false,
+                      ).showTeamFormationButton,
+                  onTap: () {
+                    Navigator.pushNamed(context, '/teams');
+                  },
+                ),
+                // Update button - only shown when Firestore allows it
+                if (UpdateService().shouldShowUpdateButtonSync()) ...[
+                  SpeedDialChild(
+                    child: Icon(
+                      Icons.system_update,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                    backgroundColor: Colors.red,
+                    shape: const CircleBorder(),
+                    labelWidget: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(
+                          Responsive.space(context, size: Space.large),
+                        ),
+                      ),
+                      alignment: Alignment.center,
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          vertical: Responsive.space(
+                            context,
+                            size: Space.small,
+                          ),
+                          horizontal: Responsive.space(
+                            context,
+                            size: Space.medium,
+                          ),
+                        ),
+                        child: Text(
+                          'تحديث جديد',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                    onTap: () async {
+                      // Check if updates are available before showing bottom sheet
+                      final hasUpdates =
+                          await UpdateService().areUpdatesAvailable();
+                      if (hasUpdates) {
+                        UpdateService().showUpdateBottomSheet(context);
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('لا توجد تحديثات متاحة حالياً'),
+                            backgroundColor: Colors.blue,
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

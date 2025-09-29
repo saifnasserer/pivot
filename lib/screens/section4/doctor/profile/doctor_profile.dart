@@ -234,11 +234,20 @@ class _DoctorProfileState extends State<DoctorProfile>
               onCurrentSubjectChanged: (subject) {
                 setState(() {
                   _currentSubject = subject;
-                  // Clear target subject after it's been used
-                  if (_targetSubject != null) {
-                    _targetSubject = null;
-                  }
                 });
+                // Clear target subject after it's been used, but only if we have a subject
+                // and the target subject matches the current subject
+                if (subject != null &&
+                    _targetSubject != null &&
+                    subject.id == _targetSubject!.id) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) {
+                      setState(() {
+                        _targetSubject = null;
+                      });
+                    }
+                  });
+                }
               },
             ),
           ),

@@ -344,7 +344,7 @@ class _BiometricSettingsWidgetState extends State<BiometricSettingsWidget> {
               Switch(
                 value: _isEnabled,
                 onChanged: (value) => _toggleBiometric(),
-                activeColor: Colors.green[600],
+                activeThumbColor: Colors.green[600],
               ),
             ],
           ),

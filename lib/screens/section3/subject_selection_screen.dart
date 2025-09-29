@@ -35,6 +35,9 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
   bool _showEnglish = false; // Language toggle
   static const int maxHours = 18; // Maximum allowed hours
 
+  // Prevent multiple data loading calls
+  bool _isInitializing = false;
+
   // Search functionality
   bool _isSearchMode = false;
   final TextEditingController _searchController = TextEditingController();
@@ -51,6 +54,9 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
   String? _lastSearchQuery;
   int? _lastSelectedYear;
 
+  // Prevent unnecessary rebuilds
+  String? _lastSubjectsHash;
+
   @override
   void initState() {
     super.initState();
@@ -62,7 +68,15 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
   }
 
   Future<void> _loadSubjectsAndData() async {
+    if (_isInitializing) return;
+    _isInitializing = true;
+
     try {
+      final subjectProvider = Provider.of<SubjectProvider>(
+        context,
+        listen: false,
+      );
+
       // First, try to load from cache if available
       final cachedSubjects = await _tryLoadFromCache();
       if (cachedSubjects.isNotEmpty) {
@@ -71,18 +85,23 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
             '[SubjectSelectionScreen] Loaded ${cachedSubjects.length} subjects from cache immediately',
           );
         }
-      }
 
-      // Then fetch fresh data in background
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+        // Only fetch fresh data if we don't have cached data or it's very old
+        // Use a debounced approach to avoid multiple calls
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted && subjectProvider.allSubjects.isEmpty) {
+            _fetchFreshData();
+          }
+        });
+      } else {
+        // No cache available, fetch immediately
         _fetchFreshData();
-      });
+      }
     } catch (e) {
       debugPrint('SubjectSelectionScreen: Error in initial load: $e');
-      // Fallback to post-frame callback if immediate load fails
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _fetchFreshData();
-      });
+      _fetchFreshData();
+    } finally {
+      _isInitializing = false;
     }
   }
 
@@ -107,26 +126,31 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
 
   void _fetchFreshData() {
     try {
-      // For subject selection, we need ALL subjects, not just user's subjects
       final subjectProvider = Provider.of<SubjectProvider>(
         context,
         listen: false,
       );
 
-      subjectProvider.fetchAllSubjects();
+      // Only fetch if not already loading and don't have data
+      if (!subjectProvider.isLoading && subjectProvider.allSubjects.isEmpty) {
+        subjectProvider.fetchAllSubjects();
+      }
 
       // Only fetch guide content if not already loaded
       final guideProvider = Provider.of<GuideProvider>(context, listen: false);
-      if (guideProvider.guideContent == null) {
+      if (guideProvider.guideContent == null && !guideProvider.isLoading) {
         guideProvider.fetchGuideContent();
       }
 
       // If targetUserId is provided, fetch all users for Super Admin functionality
       if (widget.targetUserId != null) {
-        Provider.of<UserProfileProvider>(
+        final userProvider = Provider.of<UserProfileProvider>(
           context,
           listen: false,
-        ).fetchAllUsers();
+        );
+        if (userProvider.allUsers.isEmpty) {
+          userProvider.fetchAllUsers();
+        }
       }
     } catch (e) {
       debugPrint('SubjectSelectionScreen: Error in fresh data fetch: $e');
@@ -169,10 +193,15 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
   }
 
   void _updateAvailableFilters(List<Subject> subjects) {
-    // Only update if the years list has changed significantly
-    if (_availableYears.isNotEmpty) {
+    // Create a hash of the subjects list to detect changes
+    final subjectsHash = subjects.map((s) => s.id).join(',');
+
+    // Skip if we've already processed this exact list
+    if (_lastSubjectsHash == subjectsHash && _availableYears.isNotEmpty) {
       return;
     }
+
+    _lastSubjectsHash = subjectsHash;
 
     final years = <int>{};
 
@@ -182,8 +211,9 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
 
     final newYears = years.toList()..sort();
 
-    // Only update state if the list has actually changed
-    if (_availableYears.length != newYears.length) {
+    // Only update state if the list has actually changed and is different
+    if (_availableYears.length != newYears.length &&
+        !_listEquals(_availableYears, newYears)) {
       // Use post-frame callback to avoid setState during build
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
@@ -193,6 +223,14 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
         }
       });
     }
+  }
+
+  bool _listEquals<T>(List<T> list1, List<T> list2) {
+    if (list1.length != list2.length) return false;
+    for (int i = 0; i < list1.length; i++) {
+      if (list1[i] != list2[i]) return false;
+    }
+    return true;
   }
 
   List<Subject> _filterSubjects(List<Subject> subjects) {
@@ -1425,42 +1463,52 @@ class _SubjectSelectionScreenState extends State<SubjectSelectionScreen> {
                     : null,
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(40),
-              child: Consumer<SubjectProvider>(
-                builder: (context, subjectProvider, child) {
-                  final totalHours = _calculateTotalHours();
-                  final isOverLimit = totalHours > maxHours;
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Consumer<SubjectProvider>(
+                      builder: (context, subjectProvider, child) {
+                        final totalHours = _calculateTotalHours();
+                        final isOverLimit = totalHours > maxHours;
 
-                  return Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.access_time,
-                          size: 16,
-                          color: isOverLimit ? Colors.red : Colors.grey[600],
-                        ),
-                        SizedBox(
-                          width: Responsive.space(context, size: Space.small),
-                        ),
-                        Text(
-                          'الساعات المختارة: $totalHours / $maxHours',
-                          style: TextStyle(
-                            fontSize: Responsive.text(
-                              context,
-                              size: TextSize.small,
+                        return Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.access_time,
+                              size: 16,
+                              color:
+                                  isOverLimit ? Colors.red : Colors.grey[600],
                             ),
-                            fontWeight: FontWeight.w500,
-                            color: isOverLimit ? Colors.red : Colors.grey[600],
-                          ),
-                        ),
-                      ],
+                            SizedBox(
+                              width: Responsive.space(
+                                context,
+                                size: Space.small,
+                              ),
+                            ),
+                            Text(
+                              'الساعات المختارة: $totalHours / $maxHours',
+                              style: TextStyle(
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.small,
+                                ),
+                                fontWeight: FontWeight.w500,
+                                color:
+                                    isOverLimit ? Colors.red : Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
-                  );
-                },
+                  ],
+                ),
               ),
             ),
             actions: [

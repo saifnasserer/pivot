@@ -1,5 +1,4 @@
 import 'package:hive/hive.dart';
-import 'package:pivot/models/material_link.dart';
 
 part 'subject_model.g.dart';
 
