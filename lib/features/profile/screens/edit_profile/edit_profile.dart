@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:pivot/providers/settings_provider.dart';
+import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:provider/provider.dart';
 
-import 'package:pivot/providers/user_profile_provider.dart';
-import 'package:pivot/providers/settings_provider.dart';
 import 'edit_profile_provider.dart';
 import 'edit_profile_screen.dart';
 

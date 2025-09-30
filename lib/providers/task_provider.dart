@@ -116,9 +116,14 @@ class TaskProvider extends ChangeNotifier {
       }
 
       // Send instant notification
-      await LocalNotificationService.instance.sendTestNotification(
+      await LocalNotificationService.instance.sendImmediateNotification(
         title: notificationTitle,
         body: notificationBody,
+        payload: {
+          'type': 'new_task',
+          'taskId': task.id,
+          'taskTitle': task.title,
+        },
       );
 
       print(

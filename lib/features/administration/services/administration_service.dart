@@ -1,7 +1,9 @@
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/models/subject_model.dart';
+import 'package:pivot/models/section_model.dart';
 import 'package:pivot/services/auth_service.dart';
 import 'package:pivot/services/subject_service.dart';
+import 'package:pivot/services/section_service.dart';
 import 'package:pivot/services/data_deletion_service.dart';
 import 'package:pivot/services/storage_optimization_service.dart';
 import 'package:pivot/services/notification_service.dart';
@@ -9,6 +11,7 @@ import 'package:pivot/services/notification_service.dart';
 class AdministrationService {
   final AuthService _authService = AuthService();
   final SubjectService _subjectService = SubjectService();
+  final SectionService _sectionService = SectionService();
   final StorageOptimizationService _storageService =
       StorageOptimizationService();
   final NotificationService _notificationService = NotificationService();
@@ -215,5 +218,18 @@ class AdministrationService {
   Future<List<Subject>> getSubjectsByYear(int year) async {
     final allSubjects = await getAllSubjects();
     return allSubjects.where((subject) => subject.year == year).toList();
+  }
+
+  // Section Management
+  Future<List<Section>> getAllSections() async {
+    return await _sectionService.getAllSections();
+  }
+
+  Future<List<Section>> getSectionsForAssistant(String assistantId) async {
+    return await _sectionService.getSectionsForAssistant(assistantId);
+  }
+
+  Future<List<Section>> getSectionsForSubjects(List<String> subjectIds) async {
+    return await _sectionService.getSectionsForSubjects(subjectIds);
   }
 }

@@ -596,6 +596,46 @@ class LocalNotificationService {
 
   // ===== Debug & Test Methods =====
 
+  // Send immediate notification for new tasks or events
+  Future<bool> sendImmediateNotification({
+    required String title,
+    required String body,
+    Map<String, String>? payload,
+  }) async {
+    if (kIsWeb) return false;
+
+    try {
+      // Use a safe 32-bit ID (current second since epoch % max 32-bit int)
+      final safeId =
+          (DateTime.now().millisecondsSinceEpoch ~/ 1000) % 2147483647;
+
+      await AwesomeNotifications().createNotification(
+        content: NotificationContent(
+          id: safeId,
+          channelKey: _channelKey,
+          title: title,
+          body: body,
+          category: NotificationCategory.Message,
+          wakeUpScreen: true,
+          icon: 'resource://drawable/ic_notification',
+          payload:
+              payload ??
+              {
+                'type': 'immediate_notification',
+                'timestamp': DateTime.now().millisecondsSinceEpoch.toString(),
+              },
+        ),
+      );
+
+      // Play custom notification sound
+      await SoundService().playNotificationSound();
+
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   // Send immediate test notification to verify local notifications are working
   Future<bool> sendTestNotification({
     String? title,

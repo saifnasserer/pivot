@@ -68,6 +68,13 @@ class ScheduleItem extends HiveObject {
     };
   }
 
+  // Alias for fromJson to maintain compatibility
+  factory ScheduleItem.fromMap(Map<String, dynamic> map) =>
+      ScheduleItem.fromJson(map);
+
+  // Alias for toJson to maintain compatibility
+  Map<String, dynamic> toMap() => toJson();
+
   ScheduleItem copyWith({
     String? id,
     String? title,

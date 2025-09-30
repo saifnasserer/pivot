@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/features/schedule/screens/add_edit_schedule_dialog.dart';
 import 'package:pivot/features/schedule/screens/schadule.dart';
-import 'package:provider/provider.dart';
-
 import 'package:pivot/providers/schadule_provider.dart';
+import 'package:provider/provider.dart';
 
 import 'package:pivot/screens/models/schedule_item.dart';
 import 'profile_provider.dart';

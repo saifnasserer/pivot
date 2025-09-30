@@ -1,12 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:pivot/providers/schadule_provider.dart';
-import 'package:pivot/providers/subject_provider.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
-import 'package:pivot/providers/settings_provider.dart';
-import 'package:pivot/providers/super_admin_provider.dart';
-import 'package:pivot/providers/guide_provider.dart';
+// Legacy provider imports removed - now using Riverpod
 import 'package:pivot/services/remote_config_service.dart';
 import 'package:pivot/features/teams/screens/screens.dart';
 import 'package:pivot/features/profile/screens/edit_profile/edit_profile.dart'
@@ -38,14 +33,7 @@ import 'package:pivot/features/profile/screens/profile/profile.dart';
 import 'package:pivot/features/tasks/screens/screens.dart';
 import 'package:pivot/features/subjects/screens/screens.dart';
 
-import 'package:provider/provider.dart' as legacy_provider;
-import 'package:pivot/providers/announcement_provider.dart';
-import 'package:pivot/providers/task_provider.dart';
-import 'package:pivot/providers/doctor_subject_provider.dart';
-
-import 'package:pivot/providers/section_provider.dart'; // Import SectionProvider
-import 'package:pivot/providers/bookmarks.dart'; // Import Bookmarks provider
-import 'package:pivot/providers/material_links_provider.dart'; // Import MaterialLinksProvider
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -65,9 +53,7 @@ import 'package:pivot/features/notifications/screens/screens.dart';
 import 'package:pivot/features/home/screens/adminstration/feedback_management_screen.dart'
     deferred as feedback_management_screen;
 import 'package:pivot/features/settings/screens/screens.dart';
-import 'package:pivot/providers/team_provider.dart';
-import 'package:pivot/providers/teams_provider.dart';
-import 'package:pivot/features/profile/screens/profile/profile_provider.dart';
+// Legacy provider imports removed - now using Riverpod
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:pivot/services/fcm_token_manager.dart';
 import 'package:pivot/services/remote_config_bridge_service.dart';
@@ -171,20 +157,14 @@ void main() async {
 
   await CacheService.instance.init();
 
-  final userProfileProvider = UserProfileProvider();
-
-  runApp(
-    ProviderScope(
-      child: PivotWithNotifications(userProfileProvider: userProfileProvider),
-    ),
-  );
+  runApp(const ProviderScope(child: PivotWithNotifications()));
 
   if (kIsWeb) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initializeAppBackgroundServices(userProfileProvider);
+      _initializeAppBackgroundServices();
     });
   } else {
-    _initializeAppBackgroundServices(userProfileProvider);
+    _initializeAppBackgroundServices();
   }
 }
 
@@ -201,9 +181,7 @@ Future<void> _setupFirebaseMessagingWeb() async {
   });
 }
 
-void _initializeAppBackgroundServices(
-  UserProfileProvider userProfileProvider,
-) async {
+void _initializeAppBackgroundServices() async {
   if (kIsWeb) {
     _setupFirebaseMessagingWeb().catchError((_) {});
   }
@@ -216,14 +194,10 @@ void _initializeAppBackgroundServices(
     await RemoteConfigBridgeService().initialize();
   } catch (e) {}
 
-  if (FirebaseAuth.instance.currentUser != null) {
-    userProfileProvider
-        .loadLoggedInUserProfile()
-        .timeout(const Duration(seconds: 10))
-        .catchError((error) {
-          return false;
-        });
-  }
+  // TODO: Initialize user profile using Riverpod
+  // if (FirebaseAuth.instance.currentUser != null) {
+  //   // Initialize user profile using Riverpod
+  // }
 
   try {
     // Initialize local notifications on mobile platforms
@@ -268,361 +242,313 @@ Future<void> _getCachedDeferredFuture(
 }
 
 class Pivot extends StatelessWidget {
-  const Pivot({super.key, required this.userProfileProvider});
-  final UserProfileProvider userProfileProvider;
+  const Pivot({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return legacy_provider.MultiProvider(
-      providers: [
-        legacy_provider.ChangeNotifierProvider(
-          create: (_) => AnnouncementProvider(),
-        ),
-        legacy_provider.ChangeNotifierProvider(
-          create: (_) => SectionProvider(),
-        ), // Add SectionProvider
-        legacy_provider.ChangeNotifierProvider(create: (_) => TaskProvider()),
-        legacy_provider.ChangeNotifierProvider(
-          create: (_) => ScheduleProvider(),
-        ),
-        legacy_provider.ChangeNotifierProvider.value(
-          value: userProfileProvider,
-        ),
-        legacy_provider.ChangeNotifierProvider(
-          create: (_) => SubjectProvider(),
-        ),
-        legacy_provider.ChangeNotifierProvider(create: (_) => Bookmarks()),
-        legacy_provider.ChangeNotifierProvider(
-          create: (_) => DoctorSubjectProvider(),
-        ),
-        legacy_provider.ChangeNotifierProvider(
-          create: (_) => MaterialLinksProvider(),
-        ),
-        legacy_provider.ChangeNotifierProvider(
-          create: (_) => SettingsProvider(),
-        ),
-        legacy_provider.ChangeNotifierProvider(
-          create: (_) => SuperAdminProvider(),
-        ),
-        legacy_provider.ChangeNotifierProvider(create: (_) => GuideProvider()),
-        legacy_provider.Provider<RemoteConfigService>(
-          create: (_) => RemoteConfigService.instance,
-        ),
-        legacy_provider.ChangeNotifierProvider(create: (_) => TeamProvider()),
-        legacy_provider.ChangeNotifierProvider(create: (_) => TeamsProvider()),
-        legacy_provider.ChangeNotifierProvider(
-          create:
-              (context) => ProfileProvider(
-                userProfileProvider: context.read<UserProfileProvider>(),
-                scheduleProvider: context.read<ScheduleProvider>(),
-                taskProvider: context.read<TaskProvider>(),
-                subjectProvider: context.read<SubjectProvider>(),
-                sectionProvider: context.read<SectionProvider>(),
-              ),
-        ),
-      ],
-      child: MaterialApp(
-        onGenerateRoute: (settings) {
-          // Remove EditProfile and TasksControl special cases; handle via routes map and arguments
-          return null;
-        },
-        onUnknownRoute: (settings) {
-          // Fallback for unknown routes
-          return MaterialPageRoute(
-            builder:
-                (context) => Scaffold(
-                  appBar: AppBar(title: const Text('Page Not Found')),
-                  body: const Center(
-                    child: Text('The requested page was not found.'),
+    return Consumer(
+      builder: (context, ref, child) {
+        return MaterialApp(
+          onGenerateRoute: (settings) {
+            // Remove EditProfile and TasksControl special cases; handle via routes map and arguments
+            return null;
+          },
+          onUnknownRoute: (settings) {
+            // Fallback for unknown routes
+            return MaterialPageRoute(
+              builder:
+                  (context) => Scaffold(
+                    appBar: AppBar(title: const Text('Page Not Found')),
+                    body: const Center(
+                      child: Text('The requested page was not found.'),
+                    ),
                   ),
-                ),
-          );
-        },
-        home:
-            PlatformService.isIOSWeb()
-                ? const IOSInstallInstructionsScreen()
-                : const AuthWrapper(),
-        // PlatformService.isIOSWeb()
-        //     ? const IOSInstallInstructionsScreen()
-        //     : const AuthWrapper(),
-        routes: {
-          '/ios-install-instructions':
-              (context) => const IOSInstallInstructionsScreen(),
-          '/auth-wrapper': (context) => const AuthWrapper(),
-          '/introduction-wrapper': (context) => const IntroductionWrapper(),
-          '/first-landing': (context) => const FirstLandingScreen(),
-          '/signup-1': (context) => const SignupPage1(),
-          '/signup-2': (context) {
-            final args =
-                ModalRoute.of(context)?.settings.arguments
-                    as Map<String, dynamic>?;
-            if (args == null) {
-              // Fallback to first landing if no arguments
-              return const FirstLandingScreen();
-            }
-            return SignupPage2(
-              name: args['name'] ?? '',
-              email: args['email'] ?? '',
-              phone: args['phone'] ?? '',
-              password: args['password'] ?? '',
-              gender: args['gender'] ?? 'ذكر',
             );
           },
-          '/login': (context) => const LoginPage(),
-          '/landing': (context) => const Landing(),
-          '/profile': (context) {
-            final args = ModalRoute.of(context)?.settings.arguments;
-            final initialTabIndex = args is int ? args : null;
-            return Profile(initialTabIndex: initialTabIndex);
+          home:
+              PlatformService.isIOSWeb()
+                  ? const IOSInstallInstructionsScreen()
+                  : const AuthWrapper(),
+          // PlatformService.isIOSWeb()
+          //     ? const IOSInstallInstructionsScreen()
+          //     : const AuthWrapper(),
+          routes: {
+            '/ios-install-instructions':
+                (context) => const IOSInstallInstructionsScreen(),
+            '/auth-wrapper': (context) => const AuthWrapper(),
+            '/introduction-wrapper': (context) => const IntroductionWrapper(),
+            '/first-landing': (context) => const FirstLandingScreen(),
+            '/signup-1': (context) => const SignupPage1(),
+            '/signup-2': (context) {
+              final args =
+                  ModalRoute.of(context)?.settings.arguments
+                      as Map<String, dynamic>?;
+              if (args == null) {
+                // Fallback to first landing if no arguments
+                return const FirstLandingScreen();
+              }
+              return SignupPage2(
+                name: args['name'] ?? '',
+                email: args['email'] ?? '',
+                phone: args['phone'] ?? '',
+                password: args['password'] ?? '',
+                gender: args['gender'] ?? 'ذكر',
+              );
+            },
+            '/login': (context) => const LoginPage(),
+            '/landing': (context) => const Landing(),
+            '/profile': (context) {
+              final args = ModalRoute.of(context)?.settings.arguments;
+              final initialTabIndex = args is int ? args : null;
+              return Profile(initialTabIndex: initialTabIndex);
+            },
+            '/doctor-profile': (context) => const DoctorProfile(),
+            '/admin-control': (context) => const AdminControl(),
+            '/assistant-profile': (context) => const AssistantProfileMain(),
+            '/notification-test': (context) => const NotificationTestWidget(),
+            // Deferred and custom routes
+            routeUserManagement:
+                (context) => FutureBuilder(
+                  future: _getCachedDeferredFuture(
+                    'user_management',
+                    user_management_page.loadLibrary,
+                  ),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.done) {
+                      return user_management_page.UserManagementPage();
+                    }
+                    return const Scaffold(
+                      backgroundColor: Colors.white,
+                      body: Center(child: CircularProgressIndicator()),
+                    );
+                  },
+                ),
+            routeGlobalSubjectManagement:
+                (context) => FutureBuilder(
+                  future: _getCachedDeferredFuture(
+                    'global_subject_management',
+                    global_subject_management_screen.loadLibrary,
+                  ),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.done) {
+                      return global_subject_management_screen.GlobalSubjectManagementScreen();
+                    }
+                    return const Scaffold(
+                      backgroundColor: Colors.white,
+                      body: Center(child: CircularProgressIndicator()),
+                    );
+                  },
+                ),
+            routeEditProfile:
+                (context) => FutureBuilder(
+                  future: _getCachedDeferredFuture(
+                    'edit_profile',
+                    edit_profile.loadLibrary,
+                  ),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.done) {
+                      return edit_profile.EditProfile();
+                    }
+                    return const Scaffold(
+                      backgroundColor: Colors.white,
+                      body: Center(child: CircularProgressIndicator()),
+                    );
+                  },
+                ),
+            routeFeedback:
+                (context) => FutureBuilder(
+                  future: _getCachedDeferredFuture(
+                    'feedback',
+                    feedback_screen.loadLibrary,
+                  ),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.done) {
+                      return feedback_screen.FeedbackScreen();
+                    }
+                    return const Scaffold(
+                      backgroundColor: Colors.white,
+                      body: Center(child: CircularProgressIndicator()),
+                    );
+                  },
+                ),
+            routeAnalytics:
+                (context) => FutureBuilder(
+                  future: _getCachedDeferredFuture(
+                    'analytics',
+                    analytics_screen.loadLibrary,
+                  ),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.done) {
+                      return analytics_screen.AnalyticsScreen();
+                    }
+                    return const Scaffold(
+                      backgroundColor: Colors.white,
+                      body: Center(child: CircularProgressIndicator()),
+                    );
+                  },
+                ),
+            routeSectionManagement:
+                (context) => FutureBuilder(
+                  future: _getCachedDeferredFuture(
+                    'section_management',
+                    section_management_screen.loadLibrary,
+                  ),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.done) {
+                      return section_management_screen.SectionManagementScreen();
+                    }
+                    return const Scaffold(
+                      backgroundColor: Colors.white,
+                      body: Center(child: CircularProgressIndicator()),
+                    );
+                  },
+                ),
+            routeSuperAdminPanel:
+                (context) => FutureBuilder(
+                  future: _getCachedDeferredFuture(
+                    'super_admin_panel',
+                    super_admin_panel_screen.loadLibrary,
+                  ),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.done) {
+                      return super_admin_panel_screen.SuperAdminPanelScreen();
+                    }
+                    return const Scaffold(
+                      backgroundColor: Colors.white,
+                      body: Center(child: CircularProgressIndicator()),
+                    );
+                  },
+                ),
+            routeFeedbackManagement:
+                (context) => FutureBuilder(
+                  future: _getCachedDeferredFuture(
+                    'feedback_management',
+                    feedback_management_screen.loadLibrary,
+                  ),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.done) {
+                      return feedback_management_screen.FeedbackManagementScreen();
+                    }
+                    return const Scaffold(
+                      backgroundColor: Colors.white,
+                      body: Center(child: CircularProgressIndicator()),
+                    );
+                  },
+                ),
+            routeSendNotifications:
+                (context) => FutureBuilder(
+                  future: _getCachedDeferredFuture(
+                    'send_notifications',
+                    send_notification_screen.loadLibrary,
+                  ),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.done) {
+                      return send_notification_screen.SendNotificationScreen();
+                    }
+                    return const Scaffold(
+                      backgroundColor: Colors.white,
+                      body: Center(child: CircularProgressIndicator()),
+                    );
+                  },
+                ),
+            routeAddUser:
+                (context) => FutureBuilder(
+                  future: _getCachedDeferredFuture(
+                    'add_user',
+                    add_user_screen.loadLibrary,
+                  ),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.done) {
+                      return add_user_screen.AddUserScreen();
+                    }
+                    return const Scaffold(
+                      backgroundColor: Colors.white,
+                      body: Center(child: CircularProgressIndicator()),
+                    );
+                  },
+                ),
+            routeUpdateManagement: (context) => const UpdateManagementScreen(),
+            '/teams': (context) => const TeamsScreen(),
+            '/subject-selection': (context) {
+              final args =
+                  ModalRoute.of(context)?.settings.arguments
+                      as Map<String, dynamic>?;
+              final previouslySelectedIds =
+                  args?['previouslySelectedIds'] as List<String>? ?? [];
+              return SubjectSelectionScreen(
+                previouslySelectedIds: previouslySelectedIds,
+              );
+            },
+            '/tasks-control': (context) {
+              return TasksControl(
+                key: UniqueKey(),
+              ); // sectionId is accessed inside TasksControl
+            },
+            '/notifications-test': (context) => const NotificationTestWidget(),
           },
-          '/doctor-profile': (context) => const DoctorProfile(),
-          '/admin-control': (context) => const AdminControl(),
-          '/assistant-profile': (context) => const AssistantProfileMain(),
-          '/notification-test': (context) => const NotificationTestWidget(),
-          // Deferred and custom routes
-          routeUserManagement:
-              (context) => FutureBuilder(
-                future: _getCachedDeferredFuture(
-                  'user_management',
-                  user_management_page.loadLibrary,
-                ),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.done) {
-                    return user_management_page.UserManagementPage();
-                  }
-                  return const Scaffold(
-                    backgroundColor: Colors.white,
-                    body: Center(child: CircularProgressIndicator()),
-                  );
-                },
-              ),
-          routeGlobalSubjectManagement:
-              (context) => FutureBuilder(
-                future: _getCachedDeferredFuture(
-                  'global_subject_management',
-                  global_subject_management_screen.loadLibrary,
-                ),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.done) {
-                    return global_subject_management_screen.GlobalSubjectManagementScreen();
-                  }
-                  return const Scaffold(
-                    backgroundColor: Colors.white,
-                    body: Center(child: CircularProgressIndicator()),
-                  );
-                },
-              ),
-          routeEditProfile:
-              (context) => FutureBuilder(
-                future: _getCachedDeferredFuture(
-                  'edit_profile',
-                  edit_profile.loadLibrary,
-                ),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.done) {
-                    return edit_profile.EditProfile();
-                  }
-                  return const Scaffold(
-                    backgroundColor: Colors.white,
-                    body: Center(child: CircularProgressIndicator()),
-                  );
-                },
-              ),
-          routeFeedback:
-              (context) => FutureBuilder(
-                future: _getCachedDeferredFuture(
-                  'feedback',
-                  feedback_screen.loadLibrary,
-                ),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.done) {
-                    return feedback_screen.FeedbackScreen();
-                  }
-                  return const Scaffold(
-                    backgroundColor: Colors.white,
-                    body: Center(child: CircularProgressIndicator()),
-                  );
-                },
-              ),
-          routeAnalytics:
-              (context) => FutureBuilder(
-                future: _getCachedDeferredFuture(
-                  'analytics',
-                  analytics_screen.loadLibrary,
-                ),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.done) {
-                    return analytics_screen.AnalyticsScreen();
-                  }
-                  return const Scaffold(
-                    backgroundColor: Colors.white,
-                    body: Center(child: CircularProgressIndicator()),
-                  );
-                },
-              ),
-          routeSectionManagement:
-              (context) => FutureBuilder(
-                future: _getCachedDeferredFuture(
-                  'section_management',
-                  section_management_screen.loadLibrary,
-                ),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.done) {
-                    return section_management_screen.SectionManagementScreen();
-                  }
-                  return const Scaffold(
-                    backgroundColor: Colors.white,
-                    body: Center(child: CircularProgressIndicator()),
-                  );
-                },
-              ),
-          routeSuperAdminPanel:
-              (context) => FutureBuilder(
-                future: _getCachedDeferredFuture(
-                  'super_admin_panel',
-                  super_admin_panel_screen.loadLibrary,
-                ),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.done) {
-                    return super_admin_panel_screen.SuperAdminPanelScreen();
-                  }
-                  return const Scaffold(
-                    backgroundColor: Colors.white,
-                    body: Center(child: CircularProgressIndicator()),
-                  );
-                },
-              ),
-          routeFeedbackManagement:
-              (context) => FutureBuilder(
-                future: _getCachedDeferredFuture(
-                  'feedback_management',
-                  feedback_management_screen.loadLibrary,
-                ),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.done) {
-                    return feedback_management_screen.FeedbackManagementScreen();
-                  }
-                  return const Scaffold(
-                    backgroundColor: Colors.white,
-                    body: Center(child: CircularProgressIndicator()),
-                  );
-                },
-              ),
-          routeSendNotifications:
-              (context) => FutureBuilder(
-                future: _getCachedDeferredFuture(
-                  'send_notifications',
-                  send_notification_screen.loadLibrary,
-                ),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.done) {
-                    return send_notification_screen.SendNotificationScreen();
-                  }
-                  return const Scaffold(
-                    backgroundColor: Colors.white,
-                    body: Center(child: CircularProgressIndicator()),
-                  );
-                },
-              ),
-          routeAddUser:
-              (context) => FutureBuilder(
-                future: _getCachedDeferredFuture(
-                  'add_user',
-                  add_user_screen.loadLibrary,
-                ),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.done) {
-                    return add_user_screen.AddUserScreen();
-                  }
-                  return const Scaffold(
-                    backgroundColor: Colors.white,
-                    body: Center(child: CircularProgressIndicator()),
-                  );
-                },
-              ),
-          routeUpdateManagement: (context) => const UpdateManagementScreen(),
-          '/teams': (context) => const TeamsScreen(),
-          '/subject-selection': (context) {
-            final args =
-                ModalRoute.of(context)?.settings.arguments
-                    as Map<String, dynamic>?;
-            final previouslySelectedIds =
-                args?['previouslySelectedIds'] as List<String>? ?? [];
-            return SubjectSelectionScreen(
-              previouslySelectedIds: previouslySelectedIds,
-            );
-          },
-          '/tasks-control': (context) {
-            return TasksControl(
-              key: UniqueKey(),
-            ); // sectionId is accessed inside TasksControl
-          },
-          '/notifications-test': (context) => const NotificationTestWidget(),
-        },
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSwatch().copyWith(
-            primary: Colors.black,
-            secondary: Colors.white,
-          ),
-          snackBarTheme: SnackBarThemeData(
-            backgroundColor: Colors.black87,
-            contentTextStyle: TextStyle(color: Colors.white),
-          ),
-          fontFamily: 'NotoSansArabic',
-          scaffoldBackgroundColor: Colors.white,
-          appBarTheme: AppBarTheme(
-            backgroundColor: Colors.white,
-            surfaceTintColor: Colors.white,
-            iconTheme: const IconThemeData(color: Colors.black),
-            centerTitle: true,
-            titleTextStyle: TextStyle(
-              color: Colors.black,
-              fontSize: Responsive.text(context, size: TextSize.heading),
-              fontFamily: 'NotoSansArabic',
-              fontWeight: FontWeight.bold,
+          theme: ThemeData(
+            colorScheme: ColorScheme.fromSwatch().copyWith(
+              primary: Colors.black,
+              secondary: Colors.white,
             ),
-          ),
-          dropdownMenuTheme: DropdownMenuThemeData(
-            menuStyle: MenuStyle(
-              shape: WidgetStatePropertyAll(
-                RoundedRectangleBorder(
-                  borderRadius: BorderRadius.all(
-                    Radius.circular(
-                      Responsive.space(context, size: Space.large),
+            snackBarTheme: SnackBarThemeData(
+              backgroundColor: Colors.black87,
+              contentTextStyle: TextStyle(color: Colors.white),
+            ),
+            fontFamily: 'NotoSansArabic',
+            scaffoldBackgroundColor: Colors.white,
+            appBarTheme: AppBarTheme(
+              backgroundColor: Colors.white,
+              surfaceTintColor: Colors.white,
+              iconTheme: const IconThemeData(color: Colors.black),
+              centerTitle: true,
+              titleTextStyle: TextStyle(
+                color: Colors.black,
+                fontSize: Responsive.text(context, size: TextSize.heading),
+                fontFamily: 'NotoSansArabic',
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            dropdownMenuTheme: DropdownMenuThemeData(
+              menuStyle: MenuStyle(
+                shape: WidgetStatePropertyAll(
+                  RoundedRectangleBorder(
+                    borderRadius: BorderRadius.all(
+                      Radius.circular(
+                        Responsive.space(context, size: Space.large),
+                      ),
                     ),
                   ),
                 ),
+                alignment: AlignmentDirectional.centerEnd,
               ),
-              alignment: AlignmentDirectional.centerEnd,
-            ),
-            textStyle: TextStyle(
-              fontFamily: 'NotoSansArabic',
-              fontSize: Responsive.text(context, size: TextSize.medium),
-              color: Colors.black,
-              locale: Locale('ar'),
+              textStyle: TextStyle(
+                fontFamily: 'NotoSansArabic',
+                fontSize: Responsive.text(context, size: TextSize.medium),
+                color: Colors.black,
+                locale: Locale('ar'),
+              ),
             ),
           ),
-        ),
-        debugShowCheckedModeBanner: false,
-        builder: (context, child) {
-          // Add error boundary
-          return MediaQuery(
-            data: MediaQuery.of(
-              context,
-            ).copyWith(textScaler: TextScaler.linear(1.0)),
-            child: child!,
-          );
-        },
-      ),
+          debugShowCheckedModeBanner: false,
+          builder: (context, child) {
+            // Add error boundary
+            return MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: TextScaler.linear(1.0)),
+              child: child!,
+            );
+          },
+        );
+      },
     );
   }
 }
 
 // Add a StatefulWidget wrapper to handle periodic notifications
 class PivotWithNotifications extends StatefulWidget {
-  final UserProfileProvider userProfileProvider;
-
-  const PivotWithNotifications({super.key, required this.userProfileProvider});
+  const PivotWithNotifications({super.key});
 
   @override
   State<PivotWithNotifications> createState() => _PivotWithNotificationsState();
@@ -682,9 +608,7 @@ class _PivotWithNotificationsState extends State<PivotWithNotifications> {
   Widget build(BuildContext context) {
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: ErrorBoundary(
-        child: Pivot(userProfileProvider: widget.userProfileProvider),
-      ),
+      child: ErrorBoundary(child: const Pivot()),
     );
   }
 }

@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:provider/provider.dart' as legacy_provider;
 import 'package:pivot/features/administration/screens/assistants/profile/assistant_profile_main.dart';
 import 'package:pivot/features/administration/screens/doctor/profile/doctor_profile.dart';
 import 'package:pivot/models/user_profile.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/providers/subject_provider.dart';
 import 'package:pivot/providers/section_provider.dart';
 

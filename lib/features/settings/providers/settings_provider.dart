@@ -1,280 +1,93 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pivot/features/settings/services/settings_service.dart';
 import 'package:pivot/features/settings/repositories/settings_repository.dart';
-import 'package:pivot/models/user_profile.dart';
+import 'package:pivot/features/settings/services/settings_service.dart';
 
-// Services
-final settingsServiceProvider = Provider<SettingsService>((ref) {
-  return SettingsService();
-});
+final settingsServiceProvider = Provider<SettingsService>(
+  (ref) => SettingsService(),
+);
 
-// Repositories
 final settingsRepositoryProvider = Provider<SettingsRepository>((ref) {
   final service = ref.watch(settingsServiceProvider);
   return SettingsRepository(service);
 });
 
-// State classes
 class SettingsState {
+  final Map<String, int> sectionCounts;
   final bool isLoading;
   final String? error;
-  final Map<String, dynamic> userSettings;
-  final Map<String, dynamic> localPreferences;
-  final Map<String, dynamic>? statistics;
-  final bool hasChanges;
-  final DateTime? lastUpdated;
+  final bool showTeamFormationButton;
 
   const SettingsState({
+    this.sectionCounts = const {},
     this.isLoading = false,
     this.error,
-    this.userSettings = const {},
-    this.localPreferences = const {},
-    this.statistics,
-    this.hasChanges = false,
-    this.lastUpdated,
+    this.showTeamFormationButton = false,
   });
 
   SettingsState copyWith({
+    Map<String, int>? sectionCounts,
     bool? isLoading,
     String? error,
-    Map<String, dynamic>? userSettings,
-    Map<String, dynamic>? localPreferences,
-    Map<String, dynamic>? statistics,
-    bool? hasChanges,
-    DateTime? lastUpdated,
-  }) {
-    return SettingsState(
-      isLoading: isLoading ?? this.isLoading,
-      error: error ?? this.error,
-      userSettings: userSettings ?? this.userSettings,
-      localPreferences: localPreferences ?? this.localPreferences,
-      statistics: statistics ?? this.statistics,
-      hasChanges: hasChanges ?? this.hasChanges,
-      lastUpdated: lastUpdated ?? this.lastUpdated,
-    );
-  }
+    bool? showTeamFormationButton,
+  }) => SettingsState(
+    sectionCounts: sectionCounts ?? this.sectionCounts,
+    isLoading: isLoading ?? this.isLoading,
+    error: error ?? this.error,
+    showTeamFormationButton:
+        showTeamFormationButton ?? this.showTeamFormationButton,
+  );
 }
 
-// Notifier
+final settingsProvider =
+    StateNotifierProvider.autoDispose<SettingsNotifier, SettingsState>(
+      (ref) => SettingsNotifier(ref),
+    );
+
 class SettingsNotifier extends StateNotifier<SettingsState> {
-  final SettingsRepository _repository;
+  SettingsNotifier(this._ref) : super(const SettingsState());
 
-  SettingsNotifier(this._repository) : super(const SettingsState());
+  final Ref _ref;
+  late final SettingsRepository _repo = _ref.read(settingsRepositoryProvider);
 
-  // Get user settings
-  Future<void> getUserSettings() async {
+  Future<void> fetchSectionCounts() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final settings = await _repository.getUserSettings();
-      state = state.copyWith(
-        isLoading: false,
-        userSettings: settings,
-        lastUpdated: DateTime.now(),
-      );
+      final sectionCounts = await _repo.fetchSectionCounts();
+      state = state.copyWith(isLoading: false, sectionCounts: sectionCounts);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
-  // Get local preferences
-  Future<void> getLocalPreferences() async {
-    state = state.copyWith(isLoading: true, error: null);
+  Future<void> fetchTeamFormationButtonVisibility() async {
     try {
-      final preferences = await _repository.getLocalPreferences();
-      state = state.copyWith(isLoading: false, localPreferences: preferences);
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
-    }
-  }
-
-  // Update notification preferences
-  Future<bool> updateNotificationPreferences(
-    NotificationPreferences preferences,
-  ) async {
-    state = state.copyWith(isLoading: true, error: null);
-    try {
-      final success = await _repository.updateNotificationPreferences(
-        preferences,
-      );
-      if (success) {
-        await getUserSettings(); // Refresh settings
-      }
-      state = state.copyWith(isLoading: false);
-      return success;
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
-      return false;
-    }
-  }
-
-  // Update app settings
-  Future<bool> updateAppSettings(Map<String, dynamic> settings) async {
-    state = state.copyWith(isLoading: true, error: null);
-    try {
-      final success = await _repository.updateAppSettings(settings);
-      if (success) {
-        await getUserSettings(); // Refresh settings
-      }
-      state = state.copyWith(isLoading: false);
-      return success;
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
-      return false;
-    }
-  }
-
-  // Update privacy settings
-  Future<bool> updatePrivacySettings(Map<String, dynamic> settings) async {
-    state = state.copyWith(isLoading: true, error: null);
-    try {
-      final success = await _repository.updatePrivacySettings(settings);
-      if (success) {
-        await getUserSettings(); // Refresh settings
-      }
-      state = state.copyWith(isLoading: false);
-      return success;
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
-      return false;
-    }
-  }
-
-  // Update display settings
-  Future<bool> updateDisplaySettings(Map<String, dynamic> settings) async {
-    state = state.copyWith(isLoading: true, error: null);
-    try {
-      final success = await _repository.updateDisplaySettings(settings);
-      if (success) {
-        await getUserSettings(); // Refresh settings
-      }
-      state = state.copyWith(isLoading: false);
-      return success;
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
-      return false;
-    }
-  }
-
-  // Update local preferences
-  Future<bool> updateLocalPreferences(Map<String, dynamic> preferences) async {
-    state = state.copyWith(isLoading: true, error: null);
-    try {
-      final success = await _repository.updateLocalPreferences(preferences);
-      if (success) {
-        await getLocalPreferences(); // Refresh preferences
-      }
-      state = state.copyWith(isLoading: false);
-      return success;
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
-      return false;
-    }
-  }
-
-  // Reset to defaults
-  Future<bool> resetToDefaults() async {
-    state = state.copyWith(isLoading: true, error: null);
-    try {
-      final success = await _repository.resetToDefaults();
-      if (success) {
-        await getUserSettings(); // Refresh settings
-        await getLocalPreferences(); // Refresh preferences
-      }
-      state = state.copyWith(isLoading: false);
-      return success;
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
-      return false;
-    }
-  }
-
-  // Export settings
-  Future<Map<String, dynamic>> exportSettings() async {
-    try {
-      return await _repository.exportSettings();
+      final showButton = await _repo.fetchTeamFormationButtonVisibility();
+      state = state.copyWith(showTeamFormationButton: showButton);
     } catch (e) {
       state = state.copyWith(error: e.toString());
-      return {};
     }
   }
 
-  // Import settings
-  Future<bool> importSettings(Map<String, dynamic> settingsData) async {
-    state = state.copyWith(isLoading: true, error: null);
+  Future<void> updateSectionCount(String section, int count) async {
     try {
-      final success = await _repository.importSettings(settingsData);
-      if (success) {
-        await getUserSettings(); // Refresh settings
-        await getLocalPreferences(); // Refresh preferences
-      }
-      state = state.copyWith(isLoading: false);
-      return success;
+      await _repo.updateSectionCount(section, count);
+      // Refresh section counts
+      await fetchSectionCounts();
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
-      return false;
+      state = state.copyWith(error: e.toString());
     }
   }
 
-  // Get settings statistics
-  Future<void> getSettingsStatistics() async {
-    state = state.copyWith(isLoading: true, error: null);
+  Future<void> updateTeamFormationButtonVisibility(bool show) async {
     try {
-      final statistics = await _repository.getSettingsStatistics();
-      state = state.copyWith(isLoading: false, statistics: statistics);
+      await _repo.updateTeamFormationButtonVisibility(show);
+      state = state.copyWith(showTeamFormationButton: show);
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(error: e.toString());
     }
   }
 
-  // Validate settings
-  bool validateSettings(Map<String, dynamic> settings) {
-    return _repository.validateSettings(settings);
-  }
-
-  // Mark as having changes
-  void markAsChanged() {
-    state = state.copyWith(hasChanges: true);
-  }
-
-  // Clear changes flag
-  void clearChanges() {
-    state = state.copyWith(hasChanges: false);
+  void clearError() {
+    state = state.copyWith(error: null);
   }
 }
-
-// Providers
-final settingsProvider =
-    AutoDisposeStateNotifierProvider<SettingsNotifier, SettingsState>((ref) {
-      final repository = ref.watch(settingsRepositoryProvider);
-      return SettingsNotifier(repository);
-    });
-
-// Convenience providers for specific data
-final userSettingsProvider = AutoDisposeProvider<Map<String, dynamic>>((ref) {
-  final state = ref.watch(settingsProvider);
-  return state.userSettings;
-});
-
-final localPreferencesProvider = AutoDisposeProvider<Map<String, dynamic>>((
-  ref,
-) {
-  final state = ref.watch(settingsProvider);
-  return state.localPreferences;
-});
-
-final settingsStatisticsProvider = AutoDisposeProvider<Map<String, dynamic>?>((
-  ref,
-) {
-  final state = ref.watch(settingsProvider);
-  return state.statistics;
-});
-
-final settingsHasChangesProvider = AutoDisposeProvider<bool>((ref) {
-  final state = ref.watch(settingsProvider);
-  return state.hasChanges;
-});
-
-final settingsLastUpdatedProvider = AutoDisposeProvider<DateTime?>((ref) {
-  final state = ref.watch(settingsProvider);
-  return state.lastUpdated;
-});

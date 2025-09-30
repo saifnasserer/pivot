@@ -357,4 +357,30 @@ class TasksService {
       throw Exception('Failed to bulk delete tasks: $e');
     }
   }
+
+  // Toggle task completion
+  Future<void> toggleTaskCompletion(String taskId) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) throw Exception('User not logged in');
+
+      final doc = await _tasksCollection.doc(taskId).get();
+      if (!doc.exists) throw Exception('Task not found');
+
+      final task = Task.fromMap(doc.data() as Map<String, dynamic>);
+      final isCompleted = task.completedBy.contains(user.uid);
+
+      if (isCompleted) {
+        await _tasksCollection.doc(taskId).update({
+          'completedBy': FieldValue.arrayRemove([user.uid]),
+        });
+      } else {
+        await _tasksCollection.doc(taskId).update({
+          'completedBy': FieldValue.arrayUnion([user.uid]),
+        });
+      }
+    } catch (e) {
+      throw Exception('Failed to toggle task completion: $e');
+    }
+  }
 }

@@ -4,17 +4,15 @@ class GuideContent {
   final String id;
   final List<Guidebook> guidebooks;
 
-  GuideContent({
-    this.id = 'default_guide',
-    required this.guidebooks,
-  });
+  GuideContent({this.id = 'default_guide', required this.guidebooks});
 
   factory GuideContent.fromMap(Map<String, dynamic> map) {
     return GuideContent(
       id: map['id'] ?? 'default_guide',
-      guidebooks: (map['guidebooks'] as List<dynamic>? ?? [])
-          .map((item) => Guidebook.fromMap(item as Map<String, dynamic>))
-          .toList(),
+      guidebooks:
+          (map['guidebooks'] as List<dynamic>? ?? [])
+              .map((item) => Guidebook.fromMap(item as Map<String, dynamic>))
+              .toList(),
     );
   }
 
@@ -24,5 +22,11 @@ class GuideContent {
       'guidebooks': guidebooks.map((gb) => gb.toMap()).toList(),
     };
   }
-}
 
+  GuideContent copyWith({String? id, List<Guidebook>? guidebooks}) {
+    return GuideContent(
+      id: id ?? this.id,
+      guidebooks: guidebooks ?? this.guidebooks,
+    );
+  }
+}

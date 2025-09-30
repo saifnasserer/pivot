@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:pivot/models/section_model.dart';
 import 'package:pivot/providers/section_provider.dart';
 import 'package:pivot/providers/subject_provider.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/features/administration/screens/assistants/add_edit_section_dialog.dart';
+import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:gradient_borders/gradient_borders.dart';
 import 'package:pivot/responsive.dart';
-
 
 class SectionCard extends StatelessWidget {
   final Section section;

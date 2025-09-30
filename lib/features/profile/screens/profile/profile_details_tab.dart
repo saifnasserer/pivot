@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:provider/provider.dart';
 
 import 'package:pivot/models/user_profile.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/features/profile/screens/profile_details.dart';
 import 'profile_provider.dart';
 import 'quick_actions_section.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
-
 
 class ProfileDetailsTab extends StatefulWidget {
   const ProfileDetailsTab({super.key});

@@ -159,6 +159,87 @@ class AnnouncementData extends HiveObject {
     );
   }
 
+  // Alias for fromFirestore to maintain compatibility
+  factory AnnouncementData.fromMap(Map<String, dynamic> map, String id) {
+    // Parse the data directly
+    DateTime parseDate(dynamic value) {
+      if (value is Timestamp) {
+        return value.toDate();
+      } else if (value is int) {
+        return DateTime.fromMillisecondsSinceEpoch(value);
+      } else if (value is String) {
+        return DateTime.parse(value);
+      }
+      return DateTime.now();
+    }
+
+    return AnnouncementData(
+      id: id,
+      title: map['title'] as String? ?? '',
+      date: map['date'] as String? ?? '',
+      color: Color(map['color'] as int? ?? 0xFF000000),
+      description: map['description'] as String? ?? '',
+      tags: List<String>.from(map['tags'] ?? []),
+      timestamp: parseDate(map['timestamp']),
+      imageUrls: List<String>.from(map['imageUrls'] ?? []),
+      links: List<Map<String, String>>.from(
+        (map['links'] ?? []).map((link) => Map<String, String>.from(link)),
+      ),
+      pinned: map['pinned'] as bool? ?? false,
+      draft: map['draft'] as bool? ?? false,
+      publishAt: map['publishAt'] != null ? parseDate(map['publishAt']) : null,
+      expireAt: map['expireAt'] != null ? parseDate(map['expireAt']) : null,
+      level: map['level'] as String?,
+    );
+  }
+
+  // Alias for toJson to maintain compatibility
+  Map<String, dynamic> toMap() => toJson();
+
+  // copyWith method for easier updates
+  AnnouncementData copyWith({
+    String? id,
+    String? title,
+    String? date,
+    Color? color,
+    String? description,
+    List<String>? tags,
+    DateTime? timestamp,
+    List<String>? imageUrls,
+    List<Map<String, String>>? links,
+    bool? pinned,
+    bool? draft,
+    DateTime? publishAt,
+    DateTime? expireAt,
+    String? level,
+  }) {
+    return AnnouncementData(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      date: date ?? this.date,
+      color: color ?? Color(colorValue),
+      description: description ?? this.description,
+      tags: tags ?? this.tags,
+      timestamp:
+          timestamp ?? DateTime.fromMillisecondsSinceEpoch(timestampMillis),
+      imageUrls: imageUrls ?? this.imageUrls,
+      links: links ?? this.links,
+      pinned: pinned ?? this.pinned,
+      draft: draft ?? this.draft,
+      publishAt:
+          publishAt ??
+          (publishAtMillis != null
+              ? DateTime.fromMillisecondsSinceEpoch(publishAtMillis!)
+              : null),
+      expireAt:
+          expireAt ??
+          (expireAtMillis != null
+              ? DateTime.fromMillisecondsSinceEpoch(expireAtMillis!)
+              : null),
+      level: level ?? this.level,
+    );
+  }
+
   // Convert an AnnouncementData object into a map for Firestore
   Map<String, dynamic> toJson() {
     return {

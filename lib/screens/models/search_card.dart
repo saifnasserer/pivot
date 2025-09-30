@@ -1,10 +1,11 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:pivot/models/user_profile.dart';
+import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/services/auth_service.dart';
 import 'package:pivot/services/cache_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:pivot/providers/user_profile_provider.dart'; // Added import for UserProfileProvider
+import 'package:pivot/features/user/providers/user_profile_provider.dart'; // Added import for UserProfileProvider
 import 'package:provider/provider.dart'; // Added import for Provider
 import 'package:pivot/responsive.dart';
 

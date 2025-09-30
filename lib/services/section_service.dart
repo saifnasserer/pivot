@@ -5,6 +5,15 @@ class SectionService {
   final CollectionReference _sectionsCollection = FirebaseFirestore.instance
       .collection('sections');
 
+  Future<List<Section>> getAllSections() async {
+    try {
+      final QuerySnapshot snapshot = await _sectionsCollection.get();
+      return snapshot.docs.map((doc) => Section.fromFirestore(doc)).toList();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<List<Section>> getSectionsForSubjects(List<String> subjectIds) async {
     if (subjectIds.isEmpty) {
       return [];
@@ -46,7 +55,6 @@ class SectionService {
 
       return sections;
     } catch (e) {
-
       rethrow;
     }
   }

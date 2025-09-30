@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/models/comment_data.dart';
+import 'package:pivot/features/announcements/providers/announcements_provider.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/providers/announcement_provider.dart';
 import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';

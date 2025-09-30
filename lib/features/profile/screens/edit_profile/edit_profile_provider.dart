@@ -4,8 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'package:pivot/models/user_profile.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/providers/settings_provider.dart';
+import 'package:pivot/providers/user_profile_provider.dart';
 
 // Edit Profile Provider for State Management
 class EditProfileProvider extends ChangeNotifier {

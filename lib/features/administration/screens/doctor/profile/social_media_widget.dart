@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
 
-
 class SocialMediaWidget extends StatelessWidget {
   final UserProfile userProfile;
   final bool isOwnProfile;

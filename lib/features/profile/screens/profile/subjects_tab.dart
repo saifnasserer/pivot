@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:provider/provider.dart';
 
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/providers/subject_provider.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/features/profile/screens/profile_widgets/subjects.dart';
 
 class SubjectsTab extends StatefulWidget {
@@ -55,12 +55,10 @@ class _SubjectsTabState extends State<SubjectsTab> {
           final targetProfile = _getTargetProfile(userProfile, loggedInUser);
           final enrolledIds = targetProfile?.enrolledSubjects ?? [];
 
-
           final registeredSubjects =
               subjectProvider.filteredSubjects
                   .where((s) => enrolledIds.contains(s.id))
                   .toList();
-
 
           final subjectSlivers = buildSubjectsSlivers(
             context,

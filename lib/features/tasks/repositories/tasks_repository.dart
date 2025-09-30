@@ -66,6 +66,11 @@ class TasksRepository {
     return await _tasksService.deleteTask(taskId);
   }
 
+  // Toggle task completion
+  Future<void> toggleTaskCompletion(String taskId) async {
+    return await _tasksService.toggleTaskCompletion(taskId);
+  }
+
   // Mark task as completed
   Future<bool> markTaskCompleted(String taskId) async {
     return await _tasksService.markTaskCompleted(taskId);

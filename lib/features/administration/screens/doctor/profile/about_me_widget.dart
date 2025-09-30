@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/features/administration/screens/doctor/edit_about_route.dart';
+import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:provider/provider.dart';
 
 class AboutMeWidget extends StatefulWidget {

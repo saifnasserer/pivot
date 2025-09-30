@@ -430,14 +430,29 @@ class ScheduleProvider extends ChangeNotifier {
               item.type == ScheduleItemType.section ? 'section' : 'lecture',
         );
       } else {
-        // Web: still rely on server-side triggers (no local scheduling)
-        // Fallback to existing remote scheduling if needed
-        await _notificationService.scheduleClassReminder(
-          userId: _getCurrentUserId(),
-          subjectName: item.title,
-          classDateTime: DateTime.now(),
-          reminderTime: DateTime.now(),
-        );
+        // Web: calculate proper class datetime and reminder time
+        final nextOccurrence = _getNextOccurrence(dayOfWeek);
+        if (nextOccurrence != null) {
+          final classDateTime = DateTime(
+            nextOccurrence.year,
+            nextOccurrence.month,
+            nextOccurrence.day,
+            hour,
+            minute,
+          );
+
+          // Set reminder for 15 minutes before class
+          final reminderTime = classDateTime.subtract(
+            const Duration(minutes: 15),
+          );
+
+          await _notificationService.scheduleClassReminder(
+            userId: _getCurrentUserId(),
+            subjectName: item.title,
+            classDateTime: classDateTime,
+            reminderTime: reminderTime,
+          );
+        }
       }
     } catch (e) {
       debugPrint('Error scheduling class notification: $e');

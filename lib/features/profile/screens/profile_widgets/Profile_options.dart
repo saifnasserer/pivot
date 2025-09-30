@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/features/subjects/screens/subject_selection_screen.dart';
+import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pivot/services/permission_service.dart';

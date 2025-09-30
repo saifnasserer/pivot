@@ -3,11 +3,7 @@ class Guidebook {
   final String url;
   final String storagePath;
 
-  Guidebook({
-    required this.name,
-    required this.url,
-    required this.storagePath,
-  });
+  Guidebook({required this.name, required this.url, required this.storagePath});
 
   factory Guidebook.fromMap(Map<String, dynamic> map) {
     return Guidebook(
@@ -18,10 +14,8 @@ class Guidebook {
   }
 
   Map<String, dynamic> toMap() {
-    return {
-      'name': name,
-      'url': url,
-      'storagePath': storagePath,
-    };
+    return {'name': name, 'url': url, 'storagePath': storagePath};
   }
+
+  String get id => name; // Use name as ID for simplicity
 }

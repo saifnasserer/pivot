@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/responsive.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
-import 'package:provider/provider.dart' as legacy_provider;
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/widgets/no_internet_message.dart';
 import 'package:pivot/services/permission_service.dart';
 import 'package:image_picker/image_picker.dart';
@@ -678,9 +677,8 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen>
         throw Exception('User not authenticated');
       }
 
-      final userProfileProvider = legacy_provider
-          .Provider.of<UserProfileProvider>(context, listen: false);
-      final userProfile = userProfileProvider.loggedInUserProfile;
+      final userProfileState = ref.read(userProfileProvider);
+      final userProfile = userProfileState.loggedInUserProfile;
 
       if (userProfile == null) {
         throw Exception('User profile not found');

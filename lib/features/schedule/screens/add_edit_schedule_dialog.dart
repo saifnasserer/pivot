@@ -1,21 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:pivot/providers/schadule_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pivot/features/schedule/providers/schedule_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/models/schedule_item.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
-import 'package:provider/provider.dart';
 
-class AddEditScheduleDialog extends StatefulWidget {
+class AddEditScheduleDialog extends ConsumerStatefulWidget {
   final String day;
   final ScheduleItem? itemToEdit; // Optional: for editing existing items
 
   const AddEditScheduleDialog({super.key, required this.day, this.itemToEdit});
 
   @override
-  State<AddEditScheduleDialog> createState() => _AddEditScheduleDialogState();
+  ConsumerState<AddEditScheduleDialog> createState() =>
+      _AddEditScheduleDialogState();
 }
 
-class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
+class _AddEditScheduleDialogState extends ConsumerState<AddEditScheduleDialog> {
   final _formKey = GlobalKey<FormState>();
   String _title = '';
   String _location = '';
@@ -124,11 +125,6 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
 
   void _submitForm() {
     if (_formKey.currentState!.validate()) {
-      final scheduleProvider = Provider.of<ScheduleProvider>(
-        context,
-        listen: false,
-      );
-
       if (_isEditing) {
         final updatedItem = widget.itemToEdit!.copyWith(
           title: _title,
@@ -137,9 +133,12 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
           type: _selectedType,
           notificationEnabled: _notificationEnabled,
         );
-        scheduleProvider.updateScheduleItem(updatedItem);
+        ref
+            .read(scheduleProvider.notifier)
+            .updateScheduleItem(widget.itemToEdit!.id, updatedItem);
       } else {
-        scheduleProvider.addScheduleItem(
+        final newItem = ScheduleItem(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
           day: widget.day,
           title: _title,
           location: _location,
@@ -147,6 +146,7 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
           type: _selectedType,
           notificationEnabled: _notificationEnabled,
         );
+        ref.read(scheduleProvider.notifier).addScheduleItem(newItem);
       }
       Navigator.of(context).pop();
     }

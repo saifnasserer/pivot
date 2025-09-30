@@ -1,8 +1,9 @@
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
 import 'package:pivot/features/tasks/screens/screens.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:intl/intl.dart'; // For date formatting
+import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:provider/provider.dart';
 
 import 'task.dart'; // Import the Task data model

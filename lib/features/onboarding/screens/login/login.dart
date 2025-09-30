@@ -5,9 +5,9 @@ import 'package:pivot/screens/models/circular_button.dart';
 import 'package:pivot/widgets/custom_text_field.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/features/auth/providers/auth_provider.dart';
-import 'package:provider/provider.dart' as legacy_provider;
-import 'package:pivot/providers/user_profile_provider.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import '../../../../responsive.dart';
+import 'dart:developer' as developer;
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -49,24 +49,63 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       );
 
       if (userProfile != null && mounted) {
-        // Set the user profile in the UserProfileProvider
-        final userProfileProvider = legacy_provider
-            .Provider.of<UserProfileProvider>(context, listen: false);
-        userProfileProvider.setLoggedInUserProfile(userProfile);
+        // Set the user profile using Riverpod
+        ref
+            .read(userProfileProvider.notifier)
+            .setLoggedInUserProfile(userProfile);
+        ref.read(userProfileProvider.notifier).setUserProfile(userProfile);
 
         // Navigate to landing page
         Navigator.pushReplacementNamed(context, '/landing');
       }
     } on FirebaseAuthException catch (e) {
+      // Log full error to console for debugging
+      developer.log(
+        'Firebase Auth Error during login',
+        error: e,
+        name: 'LoginPage',
+      );
+      developer.log('Error code: ${e.code}', name: 'LoginPage');
+      developer.log('Error message: ${e.message}', name: 'LoginPage');
+
+      // Show user-friendly error in UI
       if (mounted) {
+        String userFriendlyError = 'فشل في تسجيل الدخول';
+
+        switch (e.code) {
+          case 'user-not-found':
+          case 'wrong-password':
+          case 'invalid-credential':
+            userFriendlyError = 'البريد الإلكتروني أو كلمة المرور غير صحيحة';
+            break;
+          case 'user-disabled':
+            userFriendlyError = 'تم تعطيل هذا الحساب';
+            break;
+          case 'too-many-requests':
+            userFriendlyError = 'محاولات كثيرة جداً، حاول مرة أخرى لاحقاً';
+            break;
+          case 'network-request-failed':
+            userFriendlyError = 'تحقق من اتصالك بالإنترنت';
+            break;
+        }
+
         setState(() {
-          _errorMessage = e.message ?? 'فشل في تسجيل الدخول';
+          _errorMessage = userFriendlyError;
         });
       }
     } catch (e) {
+      // Log full error to console for debugging
+      developer.log(
+        'Unexpected error during login',
+        error: e,
+        stackTrace: StackTrace.current,
+        name: 'LoginPage',
+      );
+
+      // Show generic error in UI
       if (mounted) {
         setState(() {
-          _errorMessage = 'فشل في تسجيل الدخول: $e';
+          _errorMessage = 'حدث خطأ غير متوقع، يرجى المحاولة مرة أخرى';
         });
       }
     } finally {
@@ -239,15 +278,32 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       ),
 
                     // Login Button
-                    CircularButton(
-                      onPressed: _handleLogin,
-                      icon: Icons.check,
-                      backgroundColor: Colors.black87,
-                      iconColor: Colors.white,
-                      elevation: 0,
-                      iconSizeMultiplier: 1.5,
-                      sizeMultiplier: 4,
-                    ),
+                    _isLoading
+                        ? Container(
+                          width:
+                              Responsive.space(context, size: Space.xlarge) * 4,
+                          height:
+                              Responsive.space(context, size: Space.xlarge) * 4,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.black87,
+                          ),
+                          child: Center(
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          ),
+                        )
+                        : CircularButton(
+                          onPressed: _handleLogin,
+                          icon: Icons.check,
+                          backgroundColor: Colors.black87,
+                          iconColor: Colors.white,
+                          elevation: 0,
+                          iconSizeMultiplier: 1.5,
+                          sizeMultiplier: 4,
+                        ),
                   ],
                 ),
               ),

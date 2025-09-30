@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:pivot/models/user_profile.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:pivot/features/administration/screens/doctor/edit_about_route.dart';

@@ -3,6 +3,7 @@ import 'package:pivot/features/administration/repositories/administration_reposi
 import 'package:pivot/features/administration/services/administration_service.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/models/subject_model.dart';
+import 'package:pivot/models/section_model.dart';
 
 final administrationServiceProvider = Provider<AdministrationService>(
   (ref) => AdministrationService(),
@@ -20,6 +21,8 @@ class AdministrationState {
   final List<UserProfile> filteredUsers;
   final List<Subject> subjects;
   final List<Subject> filteredSubjects;
+  final List<Section> sections;
+  final List<Section> filteredSections;
   final Map<String, dynamic> storageStats;
   final String searchQuery;
   final String selectedRoleFilter;
@@ -37,6 +40,8 @@ class AdministrationState {
     this.filteredUsers = const [],
     this.subjects = const [],
     this.filteredSubjects = const [],
+    this.sections = const [],
+    this.filteredSections = const [],
     this.storageStats = const {},
     this.searchQuery = '',
     this.selectedRoleFilter = 'الكل',
@@ -55,6 +60,8 @@ class AdministrationState {
     List<UserProfile>? filteredUsers,
     List<Subject>? subjects,
     List<Subject>? filteredSubjects,
+    List<Section>? sections,
+    List<Section>? filteredSections,
     Map<String, dynamic>? storageStats,
     String? searchQuery,
     String? selectedRoleFilter,
@@ -71,6 +78,8 @@ class AdministrationState {
     filteredUsers: filteredUsers ?? this.filteredUsers,
     subjects: subjects ?? this.subjects,
     filteredSubjects: filteredSubjects ?? this.filteredSubjects,
+    sections: sections ?? this.sections,
+    filteredSections: filteredSections ?? this.filteredSections,
     storageStats: storageStats ?? this.storageStats,
     searchQuery: searchQuery ?? this.searchQuery,
     selectedRoleFilter: selectedRoleFilter ?? this.selectedRoleFilter,
@@ -112,6 +121,47 @@ class AdministrationNotifier extends StateNotifier<AdministrationState> {
         subjects: subjects,
         filteredSubjects: subjects,
         storageStats: storageStats,
+      );
+
+      // Also fetch sections
+      await loadSections();
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
+  Future<void> loadSections() async {
+    try {
+      final sections = await _repo.getAllSections();
+      state = state.copyWith(sections: sections, filteredSections: sections);
+    } catch (e) {
+      // Don't override main error, sections are optional
+      print('Error loading sections: $e');
+    }
+  }
+
+  Future<void> fetchSectionsForAssistant(String assistantId) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final sections = await _repo.getSectionsForAssistant(assistantId);
+      state = state.copyWith(
+        isLoading: false,
+        sections: sections,
+        filteredSections: sections,
+      );
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
+  Future<void> fetchSectionsForSubjects(List<String> subjectIds) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final sections = await _repo.getSectionsForSubjects(subjectIds);
+      state = state.copyWith(
+        isLoading: false,
+        sections: sections,
+        filteredSections: sections,
       );
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());

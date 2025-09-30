@@ -4,14 +4,13 @@ import 'package:pivot/data/form_options.dart';
 import 'package:pivot/screens/models/circular_button.dart';
 import 'package:pivot/widgets/custom_dropdown.dart';
 import '../../../../responsive.dart';
-import 'package:provider/provider.dart' as legacy_provider;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../providers/user_profile_provider.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import '../../../../services/permission_service.dart';
 import '../../../../services/notification_service.dart';
 import 'package:pivot/features/onboarding/screens/privacy_policy_screen.dart';
 import 'package:pivot/features/auth/providers/auth_provider.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
 
 class SignupPage2 extends ConsumerStatefulWidget {
   final String name;
@@ -93,11 +92,11 @@ class _SignupPage2State extends ConsumerState<SignupPage2> {
       );
 
       if (userProfile != null && mounted) {
-        // Set the user profile in the UserProfileProvider
-        final userProfileProvider = legacy_provider
-            .Provider.of<UserProfileProvider>(context, listen: false);
-        userProfileProvider.setLoggedInUserProfile(userProfile);
-        userProfileProvider.setUserProfile(userProfile);
+        // Set the user profile using Riverpod
+        ref
+            .read(userProfileProvider.notifier)
+            .setLoggedInUserProfile(userProfile);
+        ref.read(userProfileProvider.notifier).setUserProfile(userProfile);
 
         // Request permissions
         if (!kIsWeb) {

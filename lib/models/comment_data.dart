@@ -46,6 +46,36 @@ class CommentData {
     );
   }
 
+  // Alias for fromFirestore to maintain compatibility
+  factory CommentData.fromMap(Map<String, dynamic> map, String id) {
+    // Parse the data directly
+    DateTime parseDate(dynamic value) {
+      if (value is Timestamp) {
+        return value.toDate();
+      } else if (value is int) {
+        return DateTime.fromMillisecondsSinceEpoch(value);
+      } else if (value is String) {
+        return DateTime.parse(value);
+      }
+      return DateTime.now();
+    }
+
+    return CommentData(
+      id: id,
+      userId: map['userId'] as String? ?? '',
+      userName: map['userName'] as String? ?? '',
+      content: map['content'] as String? ?? '',
+      timestamp: parseDate(map['timestamp']),
+      likes: List<String>.from(map['likes'] ?? []),
+      parentId: map['parentId'] as String?,
+      edited: map['edited'] as bool? ?? false,
+      editedAt: map['editedAt'] != null ? parseDate(map['editedAt']) : null,
+    );
+  }
+
+  // Alias for toJson to maintain compatibility
+  Map<String, dynamic> toMap() => toJson();
+
   Map<String, dynamic> toJson() {
     return {
       'userId': userId,

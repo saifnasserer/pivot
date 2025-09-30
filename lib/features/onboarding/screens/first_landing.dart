@@ -4,12 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:pivot/models/user_profile.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/services/auth_service.dart';
 import 'package:pivot/services/local_auth_service.dart';
 import 'package:pivot/services/introduction_service.dart';
 import 'package:pivot/widgets/no_internet_message.dart';
-import 'package:provider/provider.dart' as legacy_provider;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -42,10 +41,7 @@ class _FirstLandingScreenState extends ConsumerState<FirstLandingScreen> {
       try {
         UserProfile? userProfile = await _authService.getUserProfile(user.uid);
         if (mounted && userProfile != null) {
-          legacy_provider.Provider.of<UserProfileProvider>(
-            context,
-            listen: false,
-          ).setUserProfile(userProfile);
+          ref.read(userProfileProvider.notifier).setUserProfile(userProfile);
 
           // Let AuthWrapper handle navigation automatically
           // This ensures consistent navigation flow and prevents conflicts
@@ -93,12 +89,12 @@ class _FirstLandingScreenState extends ConsumerState<FirstLandingScreen> {
                 .signInWithEmailAndPassword(email, password);
 
             if (mounted && userProfile != null) {
-              final provider = legacy_provider.Provider.of<UserProfileProvider>(
-                context,
-                listen: false,
-              );
-              provider.setLoggedInUserProfile(userProfile);
-              provider.setUserProfile(userProfile);
+              ref
+                  .read(userProfileProvider.notifier)
+                  .setLoggedInUserProfile(userProfile);
+              ref
+                  .read(userProfileProvider.notifier)
+                  .setUserProfile(userProfile);
 
               // Navigate to landing screen after successful biometric login
               if (mounted) {

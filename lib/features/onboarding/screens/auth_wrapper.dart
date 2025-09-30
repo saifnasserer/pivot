@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/features/onboarding/screens/introduction_wrapper.dart';
 import 'package:pivot/features/home/screens/landing.dart';
-import 'package:provider/provider.dart' as legacy_provider;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/services/cache_service.dart';
 
@@ -41,11 +40,8 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> {
       } catch (e) {
         // Token is invalid, sign out and show login
         await FirebaseAuth.instance.signOut();
-        final provider = legacy_provider.Provider.of<UserProfileProvider>(
-          context,
-          listen: false,
-        );
-        provider.clearProfile();
+        // TODO: Clear profile using Riverpod
+        // ref.read(userProfileProvider.notifier).clearProfile();
       }
     }
   }
@@ -68,29 +64,29 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> {
     if (_loadingProfile) return; // Prevent multiple simultaneous loads
 
     setState(() => _loadingProfile = true);
-    final provider = legacy_provider.Provider.of<UserProfileProvider>(
-      context,
-      listen: false,
-    );
+    // Use Riverpod to load user profile
+    await ref.read(userProfileProvider.notifier).loadLoggedInUserProfile();
 
     try {
       // Check if profile is already loaded for this user
-      if (provider.loggedInUserProfile?.id == user.uid) {
+      final userProfileState = ref.read(userProfileProvider);
+      if (userProfileState.loggedInUserProfile?.id == user.uid) {
         setState(() => _loadingProfile = false);
         return;
       }
 
-      // Load the user profile
-      final loaded = await provider.loadLoggedInUserProfile();
-
+      // Profile loading is handled by the Riverpod provider
       if (!mounted) return;
 
       setState(() => _loadingProfile = false);
 
-      if (!loaded) {
+      // Check if profile was loaded successfully
+      final currentProfileState = ref.read(userProfileProvider);
+      if (currentProfileState.loggedInUserProfile == null) {
         // If profile fails to load, sign out and go to FirstLandingScreen
         await FirebaseAuth.instance.signOut();
-        provider.clearProfile();
+        // TODO: Clear profile using Riverpod
+        // ref.read(userProfileProvider.notifier).clearProfile();
       }
     } catch (e) {
       // Handle any errors during profile loading
@@ -98,7 +94,8 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> {
         setState(() => _loadingProfile = false);
         // Sign out on error and let user re-authenticate
         await FirebaseAuth.instance.signOut();
-        provider.clearProfile();
+        // TODO: Clear profile using Riverpod
+        // ref.read(userProfileProvider.notifier).clearProfile();
       }
     }
   }
@@ -131,11 +128,10 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> {
       stream: _authStateChanges,
       builder: (context, snapshot) {
         final user = snapshot.data;
-        final userProfileProvider = legacy_provider
-            .Provider.of<UserProfileProvider>(context);
+        final userProfileState = ref.watch(userProfileProvider);
 
         //debugprint(
-        //   '[AuthWrapper] Build called - User: ${user?.uid}, Profile: ${userProfileProvider.loggedInUserProfile?.id}, Loading: $_loadingProfile',
+        //   '[AuthWrapper] Build called - User: ${user?.uid}, Profile: ${userProfileState.loggedInUserProfile?.id}, Loading: $_loadingProfile',
         // );
 
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -169,7 +165,7 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> {
           return const IntroductionWrapper();
         } else {
           // User is authenticated - check profile status
-          final profile = userProfileProvider.loggedInUserProfile;
+          final profile = userProfileState.loggedInUserProfile;
           final isProfileLoaded = profile != null && profile.id == user.uid;
 
           if (isProfileLoaded) {

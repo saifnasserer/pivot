@@ -74,13 +74,14 @@ class UserProfileAdapter extends TypeAdapter<UserProfile> {
       notificationPreferences: fields[14] as NotificationPreferences?,
       socialMediaLinks: (fields[15] as List).cast<SocialMediaLink>(),
       assistantPreferences: (fields[16] as Map).cast<String, String>(),
+      userNumber: fields[17] as int?,
     );
   }
 
   @override
   void write(BinaryWriter writer, UserProfile obj) {
     writer
-      ..writeByte(17)
+      ..writeByte(18)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -114,7 +115,9 @@ class UserProfileAdapter extends TypeAdapter<UserProfile> {
       ..writeByte(15)
       ..write(obj.socialMediaLinks)
       ..writeByte(16)
-      ..write(obj.assistantPreferences);
+      ..write(obj.assistantPreferences)
+      ..writeByte(17)
+      ..write(obj.userNumber);
   }
 
   @override

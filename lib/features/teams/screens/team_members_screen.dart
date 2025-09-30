@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/providers/team_provider.dart';
+import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/screens/models/team_find_card.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pivot/features/teams/screens/add_team_member_dialog.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 
 class TeamMembersScreen extends StatelessWidget {

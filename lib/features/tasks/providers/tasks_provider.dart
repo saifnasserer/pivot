@@ -491,6 +491,17 @@ class TasksNotifier extends StateNotifier<TasksState> {
       showTodayOnly: false,
     );
   }
+
+  // Toggle task completion status
+  Future<void> toggleTaskCompletion(String taskId) async {
+    try {
+      await _repository.toggleTaskCompletion(taskId);
+      // Refresh tasks to get updated completion status
+      await getAllTasks();
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+    }
+  }
 }
 
 // Providers

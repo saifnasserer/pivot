@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:pivot/providers/announcement_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:pivot/features/home/screens/adminstration/models/announcement_data.dart';
-import 'package:pivot/providers/announcement_provider.dart';
 import 'package:pivot/features/home/screens/adminstration/announcement/add_announcement_controller.dart';
 import 'package:pivot/features/home/screens/adminstration/announcement/steps/basic_info_step.dart';
 import 'package:pivot/features/home/screens/adminstration/announcement/steps/attachments_step.dart';
 import 'package:pivot/features/home/screens/adminstration/announcement/steps/styling_step.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:pivot/responsive.dart';
-
 
 class AddAnnouncementMain extends StatefulWidget {
   final bool isEditing;

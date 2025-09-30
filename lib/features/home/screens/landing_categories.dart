@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:pivot/providers/announcement_provider.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pivot/features/announcements/providers/announcements_provider.dart';
 import 'package:pivot/services/category_service.dart';
 import 'package:pivot/responsive.dart';
 
-class LandingCategories extends StatefulWidget {
+class LandingCategories extends ConsumerStatefulWidget {
   const LandingCategories({
     super.key,
     this.userDepartment,
@@ -19,10 +19,10 @@ class LandingCategories extends StatefulWidget {
   final List<String>? categories; // Add this
 
   @override
-  State<LandingCategories> createState() => _LandingCategoriesState();
+  ConsumerState<LandingCategories> createState() => _LandingCategoriesState();
 }
 
-class _LandingCategoriesState extends State<LandingCategories>
+class _LandingCategoriesState extends ConsumerState<LandingCategories>
     with TickerProviderStateMixin {
   late TabController _tabController;
 
@@ -85,11 +85,6 @@ class _LandingCategoriesState extends State<LandingCategories>
   }
 
   void _handleCategoryChange(String category) {
-    final announcementProvider = Provider.of<AnnouncementProvider>(
-      context,
-      listen: false,
-    );
-
     final departmentCode = CategoryService.getDepartmentCode(
       category,
       widget.userDepartment,
@@ -97,10 +92,9 @@ class _LandingCategoriesState extends State<LandingCategories>
     final timeFilter = CategoryService.getTimeFilter(category);
 
     // Fetch announcements with the determined parameters
-    announcementProvider.fetchAnnouncements(
-      timeFilter: timeFilter,
-      department: departmentCode,
-    );
+    ref
+        .read(announcementsProvider.notifier)
+        .fetchAnnouncements(timeFilter: timeFilter, department: departmentCode);
   }
 
   @override

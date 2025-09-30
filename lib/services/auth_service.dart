@@ -2,6 +2,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pivot/models/user_profile.dart'; // Assuming your UserProfile model is here
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pivot/services/user_number_service.dart';
+import 'package:awesome_notifications/awesome_notifications.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class AuthService {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
@@ -103,7 +105,17 @@ class AuthService {
 
   // Sign out
   Future<void> signOut() async {
-    final user = _firebaseAuth.currentUser;
+    // Cancel all local notifications before signing out
+    try {
+      if (!kIsWeb) {
+        // Cancel all scheduled notifications
+        await AwesomeNotifications().cancelAll();
+      }
+    } catch (e) {
+      // Ignore notification cancellation errors
+      print('Warning: Failed to cancel notifications on logout: $e');
+    }
+
     await _firebaseAuth.signOut();
   }
 

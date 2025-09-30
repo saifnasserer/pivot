@@ -4,7 +4,6 @@ import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:pivot/responsive.dart';
 
-
 class EditAboutScreen extends StatefulWidget {
   final UserProfile userProfile;
   final String initialAboutText;

@@ -221,6 +221,13 @@ class UserProfile extends HiveObject {
     );
   }
 
+  // Alias for fromJson to maintain compatibility
+  factory UserProfile.fromMap(Map<String, dynamic> map) =>
+      UserProfile.fromJson(map);
+
+  // Alias for toJson to maintain compatibility
+  Map<String, dynamic> toMap() => toJson();
+
   // Add this method to convert a UserProfile to a Firestore map
   Map<String, dynamic> toJson() {
     return {

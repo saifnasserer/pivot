@@ -1,6 +1,7 @@
 import 'package:pivot/features/administration/services/administration_service.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/models/subject_model.dart';
+import 'package:pivot/models/section_model.dart';
 
 class AdministrationRepository {
   AdministrationRepository(this._service);
@@ -79,4 +80,13 @@ class AdministrationRepository {
 
   Future<List<Subject>> getSubjectsByYear(int year) =>
       _service.getSubjectsByYear(year);
+
+  // Section Management
+  Future<List<Section>> getAllSections() => _service.getAllSections();
+
+  Future<List<Section>> getSectionsForAssistant(String assistantId) =>
+      _service.getSectionsForAssistant(assistantId);
+
+  Future<List<Section>> getSectionsForSubjects(List<String> subjectIds) =>
+      _service.getSectionsForSubjects(subjectIds);
 }

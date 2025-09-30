@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
-import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
 import 'package:pivot/models/section_model.dart';
 import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/providers/section_provider.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
+import 'package:provider/provider.dart' as legacy_provider;
 
-class AddEditSectionDialog extends StatefulWidget {
+class AddEditSectionDialog extends ConsumerStatefulWidget {
   final List<Subject> subjects;
   final String? initialSubjectId;
   final Section? sectionToEdit;
@@ -26,10 +27,11 @@ class AddEditSectionDialog extends StatefulWidget {
   });
 
   @override
-  State<AddEditSectionDialog> createState() => _AddEditSectionDialogState();
+  ConsumerState<AddEditSectionDialog> createState() =>
+      _AddEditSectionDialogState();
 }
 
-class _AddEditSectionDialogState extends State<AddEditSectionDialog> {
+class _AddEditSectionDialogState extends ConsumerState<AddEditSectionDialog> {
   final _formKey = GlobalKey<FormState>();
 
   String? _selectedSubjectId;
@@ -166,17 +168,14 @@ class _AddEditSectionDialogState extends State<AddEditSectionDialog> {
       return;
     }
 
-    final sectionProvider = Provider.of<SectionProvider>(
+    final sectionProvider = legacy_provider.Provider.of<SectionProvider>(
       context,
       listen: false,
     );
 
     // Get the current user and determine the assistant ID
-    final userProfileProvider = Provider.of<UserProfileProvider>(
-      context,
-      listen: false,
-    );
-    final currentUser = userProfileProvider.userProfile;
+    final userProfileState = ref.read(userProfileProvider);
+    final currentUser = userProfileState.userProfile;
 
     if (currentUser == null) {
       _showValidationError('لا يمكن تحديد المستخدم الحالي');

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:provider/provider.dart';
 
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/providers/section_provider.dart';
 import 'package:pivot/providers/subject_provider.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/features/profile/screens/profile_widgets/sections/sections.dart';
 
 class SectionsTab extends StatefulWidget {
@@ -214,8 +214,7 @@ class _SectionsTabState extends State<SectionsTab> {
       } else {
         sectionProvider.resetFilter();
       }
-    } catch (e) {
-    }
+    } catch (e) {}
   }
 
   @override

@@ -1,7 +1,7 @@
 import 'package:pivot/models/subject_model.dart';
+import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/services/subject_service.dart';
 import 'package:pivot/services/cache_service.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/providers/subject_provider.dart';
 
 class SubjectsService {

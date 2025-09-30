@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:pivot/providers/announcement_provider.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
+import 'package:pivot/features/announcements/providers/announcements_provider.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/features/home/screens/landing_categories.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:provider/provider.dart' as legacy_provider;
 import 'package:pivot/features/home/providers/home_provider.dart';
 import 'package:pivot/screens/models/card_model.dart';
 import 'package:pivot/screens/models/search_card.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:pivot/services/update_service.dart';
-import 'package:pivot/providers/settings_provider.dart';
+import 'package:pivot/features/settings/providers/settings_provider.dart';
 
 class Landing extends ConsumerStatefulWidget {
   const Landing({super.key});
@@ -51,10 +50,8 @@ class LandingState extends ConsumerState<Landing>
     _tabController.addListener(_onTabChanged);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final userProfileProvider = legacy_provider
-          .Provider.of<UserProfileProvider>(context, listen: false);
-      final userDepartment =
-          userProfileProvider.loggedInUserProfile?.department;
+      final userProfileState = ref.read(userProfileProvider);
+      final userDepartment = userProfileState.loggedInUserProfile?.department;
 
       // Initialize home provider with user department
       ref.read(homeProvider.notifier).initialize(userDepartment);
@@ -104,8 +101,7 @@ class LandingState extends ConsumerState<Landing>
 
   void _handleCategoryChange(String category) async {
     print('🔍 [Landing] Handling category change: $category');
-    final announcementProvider = legacy_provider
-        .Provider.of<AnnouncementProvider>(context, listen: false);
+    // Use Riverpod to fetch announcements
 
     final departmentCode = ref
         .read(homeProvider.notifier)
@@ -118,22 +114,25 @@ class LandingState extends ConsumerState<Landing>
 
     // Only fetch if we have valid values
     if (departmentCode != null && timeFilter != null) {
-      announcementProvider.fetchAnnouncements(
-        timeFilter: timeFilter,
-        department: departmentCode,
-      );
+      ref
+          .read(announcementsProvider.notifier)
+          .fetchAnnouncements(
+            timeFilter: timeFilter,
+            department: departmentCode,
+          );
     }
   }
 
   Widget _buildCategoryContent(String category) {
     return Padding(
       padding: EdgeInsets.all(Responsive.space(context, size: Space.small)),
-      child: legacy_provider.Consumer<AnnouncementProvider>(
-        builder: (context, provider, child) {
-          if (provider.isLoading) {
+      child: Consumer(
+        builder: (context, ref, child) {
+          final announcementState = ref.watch(announcementsProvider);
+          if (announcementState.isLoading) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (provider.announcements.isEmpty) {
+          if (announcementState.announcements.isEmpty) {
             return Center(
               child: Text(
                 'لا توجد أخبار لعرضها حاليًا',
@@ -144,7 +143,7 @@ class LandingState extends ConsumerState<Landing>
               ),
             );
           }
-          final sortedAnnouncements = List.of(provider.announcements);
+          final sortedAnnouncements = List.of(announcementState.announcements);
           sortedAnnouncements.sort((a, b) {
             if (a.pinned == b.pinned) {
               return b.timestamp.compareTo(a.timestamp);
@@ -438,10 +437,7 @@ class LandingState extends ConsumerState<Landing>
                     ),
                   ),
                   visible:
-                      legacy_provider.Provider.of<UserProfileProvider>(
-                        context,
-                        listen: false,
-                      ).loggedInUserProfile?.role !=
+                      ref.read(userProfileProvider).loggedInUserProfile?.role !=
                       'Student',
                   onTap: () {
                     Navigator.pushNamed(context, '/admin-control');
@@ -482,10 +478,7 @@ class LandingState extends ConsumerState<Landing>
                     ),
                   ),
                   visible:
-                      legacy_provider.Provider.of<UserProfileProvider>(
-                        context,
-                        listen: false,
-                      ).loggedInUserProfile?.role ==
+                      ref.read(userProfileProvider).loggedInUserProfile?.role ==
                       'Super Admin',
                   onTap: () {
                     Navigator.pushNamed(context, '/super-admin-panel');
@@ -525,11 +518,7 @@ class LandingState extends ConsumerState<Landing>
                       ),
                     ),
                   ),
-                  visible:
-                      legacy_provider.Provider.of<SettingsProvider>(
-                        context,
-                        listen: false,
-                      ).showTeamFormationButton,
+                  visible: ref.read(settingsProvider).showTeamFormationButton,
                   onTap: () {
                     Navigator.pushNamed(context, '/teams');
                   },
