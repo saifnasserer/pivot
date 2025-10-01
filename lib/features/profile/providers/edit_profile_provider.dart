@@ -18,7 +18,7 @@ class EditProfileState {
   final bool hasUnsavedChanges;
   final Map<String, String> fieldErrors;
   final double completionPercentage;
-  
+
   // Individual section unsaved changes
   final bool hasUnsavedProfileImage;
   final bool hasUnsavedBasicInfo;
@@ -73,18 +73,23 @@ class EditProfileState {
       hasUnsavedChanges: hasUnsavedChanges ?? this.hasUnsavedChanges,
       fieldErrors: fieldErrors ?? this.fieldErrors,
       completionPercentage: completionPercentage ?? this.completionPercentage,
-      hasUnsavedProfileImage: hasUnsavedProfileImage ?? this.hasUnsavedProfileImage,
+      hasUnsavedProfileImage:
+          hasUnsavedProfileImage ?? this.hasUnsavedProfileImage,
       hasUnsavedBasicInfo: hasUnsavedBasicInfo ?? this.hasUnsavedBasicInfo,
-      hasUnsavedEducationalInfo: hasUnsavedEducationalInfo ?? this.hasUnsavedEducationalInfo,
+      hasUnsavedEducationalInfo:
+          hasUnsavedEducationalInfo ?? this.hasUnsavedEducationalInfo,
       hasUnsavedPassword: hasUnsavedPassword ?? this.hasUnsavedPassword,
     );
   }
 }
 
 /// Edit Profile provider
-final editProfileProvider = StateNotifierProvider.autoDispose<EditProfileNotifier, EditProfileState>((ref) {
-  return EditProfileNotifier(ref);
-});
+final editProfileProvider =
+    StateNotifierProvider.autoDispose<EditProfileNotifier, EditProfileState>((
+      ref,
+    ) {
+      return EditProfileNotifier(ref);
+    });
 
 /// Edit Profile Notifier
 class EditProfileNotifier extends StateNotifier<EditProfileState> {
@@ -101,26 +106,49 @@ class EditProfileNotifier extends StateNotifier<EditProfileState> {
 
   /// Load user profile and settings
   Future<void> loadProfile() async {
-    state = state.copyWith(
-      isLoading: true,
-      errorMessage: null,
-      hasSaved: false,
-      clearError: true,
-    );
+    if (!mounted) return;
+
+    if (mounted) {
+      state = state.copyWith(
+        isLoading: true,
+        errorMessage: null,
+        hasSaved: false,
+        clearError: true,
+      );
+    }
 
     try {
-      // Fetch section counts
-      await _ref.read(settingsProvider.notifier).fetchSectionCounts();
-      final settingsState = _ref.read(settingsProvider);
-      
+      // Try to fetch section counts, but don't fail if provider is disposed
+      Map<String, int> sectionCounts = {};
+      try {
+        if (mounted) {
+          await _ref.read(settingsProvider.notifier).fetchSectionCounts();
+
+          // Check if still mounted after async operation
+          if (!mounted) return;
+
+          final settingsState = _ref.read(settingsProvider);
+          sectionCounts = settingsState.sectionCounts;
+        }
+      } catch (settingsError) {
+        // Settings provider may be disposed, continue without section counts
+        // This is expected behavior when navigating away quickly
+        // Section counts are optional, so we continue gracefully
+      }
+
+      // Check if still mounted
+      if (!mounted) return;
+
       // Get user profile
       final userProfileState = _ref.read(userProfileProvider);
       final userProfile = userProfileState.userProfile;
 
+      if (!mounted) return;
+
       if (userProfile != null) {
         state = state.copyWith(
           userProfile: userProfile,
-          sectionCounts: settingsState.sectionCounts,
+          sectionCounts: sectionCounts,
           isLoading: false,
         );
         _validateForm();
@@ -131,10 +159,12 @@ class EditProfileNotifier extends StateNotifier<EditProfileState> {
         );
       }
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        errorMessage: 'حدث خطأ أثناء تحميل البيانات: $e',
-      );
+      if (mounted) {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: 'حدث خطأ أثناء تحميل البيانات: $e',
+        );
+      }
     }
   }
 
@@ -187,7 +217,7 @@ class EditProfileNotifier extends StateNotifier<EditProfileState> {
         state.hasUnsavedBasicInfo ||
         state.hasUnsavedEducationalInfo ||
         state.hasUnsavedPassword;
-    
+
     state = state.copyWith(hasUnsavedChanges: hasChanges);
   }
 
@@ -273,14 +303,17 @@ class EditProfileNotifier extends StateNotifier<EditProfileState> {
     String? newPassword,
     String? confirmPassword,
   }) async {
+    if (!mounted) return;
     if (state.userProfile == null || !state.hasUnsavedChanges) return;
 
-    state = state.copyWith(
-      isSaving: true,
-      errorMessage: null,
-      hasSaved: false,
-      clearError: true,
-    );
+    if (mounted) {
+      state = state.copyWith(
+        isSaving: true,
+        errorMessage: null,
+        hasSaved: false,
+        clearError: true,
+      );
+    }
 
     try {
       final Map<String, dynamic> updateData = {};
@@ -301,24 +334,30 @@ class EditProfileNotifier extends StateNotifier<EditProfileState> {
       // Handle password update if provided
       if (newPassword != null && newPassword.isNotEmpty) {
         if (currentPassword == null || currentPassword.isEmpty) {
-          state = state.copyWith(
-            errorMessage: 'كلمة المرور الحالية مطلوبة لتغيير كلمة المرور',
-            isSaving: false,
-          );
+          if (mounted) {
+            state = state.copyWith(
+              errorMessage: 'كلمة المرور الحالية مطلوبة لتغيير كلمة المرور',
+              isSaving: false,
+            );
+          }
           return;
         }
         if (newPassword != confirmPassword) {
-          state = state.copyWith(
-            errorMessage: 'كلمة المرور غير متطابقة',
-            isSaving: false,
-          );
+          if (mounted) {
+            state = state.copyWith(
+              errorMessage: 'كلمة المرور غير متطابقة',
+              isSaving: false,
+            );
+          }
           return;
         }
         if (newPassword.length < 6) {
-          state = state.copyWith(
-            errorMessage: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل',
-            isSaving: false,
-          );
+          if (mounted) {
+            state = state.copyWith(
+              errorMessage: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل',
+              isSaving: false,
+            );
+          }
           return;
         }
 
@@ -334,39 +373,48 @@ class EditProfileNotifier extends StateNotifier<EditProfileState> {
 
       // Only call update if there's something to update
       if (updateData.isNotEmpty || imageFile != null) {
-        // TODO: Update this to use Riverpod userProfileProvider
-        // For now, using legacy provider access through repository
         final userProfileNotifier = _ref.read(userProfileProvider.notifier);
-        
-        // We need to add updateUserProfileData method to UserProfileNotifier
-        // For now, call the repository directly
-        await _ref.read(userProfileRepositoryProvider).updateUserProfileData(
-          state.userProfile!.id,
-          updateData,
-          imageFile: imageFile,
-        );
-        
+
+        // Call the repository to update profile
+        await _ref
+            .read(userProfileRepositoryProvider)
+            .updateUserProfileData(
+              state.userProfile!.id,
+              updateData,
+              imageFile: imageFile,
+            );
+
+        // Check if still mounted after async operation
+        if (!mounted) return;
+
         // Reload the user profile
         await userProfileNotifier.loadLoggedInUserProfile();
+
+        // Check again after second async operation
+        if (!mounted) return;
       }
 
-      // Reset all unsaved change flags
-      state = state.copyWith(
-        hasUnsavedProfileImage: false,
-        hasUnsavedBasicInfo: false,
-        hasUnsavedEducationalInfo: false,
-        hasUnsavedPassword: false,
-        hasUnsavedChanges: false,
-        isSaving: false,
-        hasSaved: true,
-      );
-      
-      _validateForm(); // Recalculate completion percentage
+      // Reset all unsaved change flags (only if still mounted)
+      if (mounted) {
+        state = state.copyWith(
+          hasUnsavedProfileImage: false,
+          hasUnsavedBasicInfo: false,
+          hasUnsavedEducationalInfo: false,
+          hasUnsavedPassword: false,
+          hasUnsavedChanges: false,
+          isSaving: false,
+          hasSaved: true,
+        );
+
+        _validateForm(); // Recalculate completion percentage
+      }
     } catch (e) {
-      state = state.copyWith(
-        errorMessage: _getErrorMessage(e.toString()),
-        isSaving: false,
-      );
+      if (mounted) {
+        state = state.copyWith(
+          errorMessage: _getErrorMessage(e.toString()),
+          isSaving: false,
+        );
+      }
     }
   }
 
@@ -427,5 +475,3 @@ class EditProfileNotifier extends StateNotifier<EditProfileState> {
     return state.fieldErrors.containsKey(fieldName);
   }
 }
-
-

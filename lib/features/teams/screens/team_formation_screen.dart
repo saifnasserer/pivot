@@ -1,30 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lottie/lottie.dart';
 import 'package:pivot/data/form_options.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/screens/models/team_find_card.dart';
 import 'package:pivot/models/team_member.dart';
-import 'package:pivot/providers/team_provider.dart';
+import 'package:pivot/features/teams/providers/teams_provider.dart';
 import 'package:pivot/widgets/custom_text_field.dart';
-import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uuid/uuid.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
 
-class TeamFormationScreen extends StatefulWidget {
-  // = 'team_formation';
+class TeamFormationScreen extends ConsumerStatefulWidget {
   final String? teamName;
   final String? teamYear;
 
   const TeamFormationScreen({super.key, this.teamName, this.teamYear});
 
   @override
-  State<TeamFormationScreen> createState() => _TeamFormationScreenState();
+  ConsumerState<TeamFormationScreen> createState() =>
+      _TeamFormationScreenState();
 }
 
-class _TeamFormationScreenState extends State<TeamFormationScreen> {
+class _TeamFormationScreenState extends ConsumerState<TeamFormationScreen> {
   // For the add dialog
   final _formKey = GlobalKey<FormState>();
   String newName = '';
@@ -36,7 +36,6 @@ class _TeamFormationScreenState extends State<TeamFormationScreen> {
   String newWhatsapp = '';
   String? newLinkedin;
   UserProfile? currentUserProfile;
-  late UserProfileProvider _userProfileProvider;
 
   // Add search state
   bool _isSearching = false;
@@ -54,17 +53,13 @@ class _TeamFormationScreenState extends State<TeamFormationScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _userProfileProvider = Provider.of<UserProfileProvider>(
-      context,
-      listen: false,
-    );
     _loadUserProfile();
   }
 
   void _loadUserProfile() {
     try {
       setState(() {
-        currentUserProfile = _userProfileProvider.userProfile;
+        currentUserProfile = ref.read(userProfileProvider).userProfile;
       });
     } catch (e) {
       //debugprint('Error loading user profile: $e');
@@ -340,7 +335,7 @@ class _TeamFormationScreenState extends State<TeamFormationScreen> {
                 confirmIcon: Icons.add,
                 onConfirm: () async {
                   if (_formKey.currentState!.validate()) {
-                    final provider = context.read<TeamProvider>();
+                    final teamsNotifier = ref.read(teamsProvider.notifier);
                     final user = FirebaseAuth.instance.currentUser;
                     if (user == null) {
                       if (context.mounted) {
@@ -372,7 +367,7 @@ class _TeamFormationScreenState extends State<TeamFormationScreen> {
                         createdAt: DateTime.now(),
                         teamName: widget.teamName ?? newPurpose,
                       );
-                      await provider.addTeamMember(member);
+                      await teamsNotifier.addTeamMember(member);
                       if (context.mounted) {
                         Navigator.pop(context);
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -416,11 +411,11 @@ class _TeamFormationScreenState extends State<TeamFormationScreen> {
   @override
   Widget build(BuildContext context) {
     final currentUser = FirebaseAuth.instance.currentUser;
-    final provider = Provider.of<TeamProvider>(context);
-    final userProfileProvider = Provider.of<UserProfileProvider>(context);
+    final teamsState = ref.watch(teamsProvider);
+    final userProfileState = ref.watch(userProfileProvider);
     final hasJoinedTeam =
         currentUser != null &&
-        provider.teamMembers.any(
+        teamsState.teamMembers.any(
           (member) =>
               member.userId == currentUser.uid &&
               member.teamName == widget.teamName,
@@ -501,13 +496,15 @@ class _TeamFormationScreenState extends State<TeamFormationScreen> {
                 backgroundColor: Colors.black,
               )
               : null,
-      body: Consumer<TeamProvider>(
-        builder: (context, provider, child) {
-          if (provider.isLoading) {
+      body: Consumer(
+        builder: (context, ref, child) {
+          final teamsState = ref.watch(teamsProvider);
+
+          if (teamsState.isLoading) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (provider.error != null) {
+          if (teamsState.error != null) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -517,7 +514,7 @@ class _TeamFormationScreenState extends State<TeamFormationScreen> {
                     height: Responsive.space(context, size: Space.medium),
                   ),
                   Text(
-                    provider.error!,
+                    teamsState.error!,
                     style: TextStyle(color: Colors.red[700]),
                     textAlign: TextAlign.center,
                   ),
@@ -526,7 +523,7 @@ class _TeamFormationScreenState extends State<TeamFormationScreen> {
             );
           }
 
-          final teamMembers = provider.teamMembers;
+          final teamMembers = teamsState.teamMembers;
           final filteredMembers =
               teamMembers
                   .where(
@@ -582,7 +579,9 @@ class _TeamFormationScreenState extends State<TeamFormationScreen> {
               final isCurrentUserCard = currentUser?.uid == member.userId;
 
               return FutureBuilder<UserProfile?>(
-                future: userProfileProvider.getUserProfileById(member.userId),
+                future: ref
+                    .read(userProfileProvider.notifier)
+                    .getUserProfileById(member.userId),
                 builder: (context, snapshot) {
                   return TeamFindCard(
                     name: member.name,
@@ -676,7 +675,9 @@ class _TeamFormationScreenState extends State<TeamFormationScreen> {
 
                               if (shouldDelete == true) {
                                 try {
-                                  await provider.deleteTeamMember(member.id);
+                                  await ref
+                                      .read(teamsProvider.notifier)
+                                      .deleteTeamMember(member.id);
                                   if (context.mounted) {
                                     // Check if context is still valid
                                     ScaffoldMessenger.of(context).showSnackBar(

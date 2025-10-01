@@ -208,7 +208,7 @@ Future<void> profile_options(BuildContext context, WidgetRef ref) async {
         context,
         MaterialPageRoute(
           builder:
-              (context) => SubjectSelectionScreen(
+              (context) => SubjectSelectionScreenWithProviders(
                 previouslySelectedIds: loggedInUser?.teachingSubjects ?? [],
               ),
         ),
@@ -219,7 +219,7 @@ Future<void> profile_options(BuildContext context, WidgetRef ref) async {
         context,
         MaterialPageRoute(
           builder:
-              (context) => SubjectSelectionScreen(
+              (context) => SubjectSelectionScreenWithProviders(
                 previouslySelectedIds: loggedInUser?.enrolledSubjects ?? [],
               ),
         ),

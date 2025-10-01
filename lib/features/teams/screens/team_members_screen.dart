@@ -1,41 +1,38 @@
 import 'package:flutter/material.dart';
-import 'package:pivot/providers/team_provider.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pivot/features/teams/providers/teams_provider.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/screens/models/team_find_card.dart';
-import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pivot/features/teams/screens/add_team_member_dialog.dart';
 import 'package:pivot/responsive.dart';
 
-class TeamMembersScreen extends StatelessWidget {
+class TeamMembersScreen extends ConsumerWidget {
   final String teamName;
   const TeamMembersScreen({super.key, required this.teamName});
 
-  void _showAddDialog(BuildContext context) async {
+  void _showAddDialog(BuildContext context, WidgetRef ref) async {
+    final teamsState = ref.read(teamsProvider);
     final purposes =
-        Provider.of<TeamProvider>(context, listen: false).teamMembers
+        teamsState.teamMembers
             .map((m) => {'name': m.teamName, 'year': ''})
             .toSet()
             .toList();
     // If you have a global purposes list, use that instead
-    final userProfile =
-        Provider.of<UserProfileProvider>(context, listen: false).userProfile;
+    final userProfile = ref.read(userProfileProvider).userProfile;
     await showAddTeamMemberDialog(
       context,
       preselectedTeamName: teamName,
       purposes: purposes,
       onAdd: (member) async {
-        await Provider.of<TeamProvider>(
-          context,
-          listen: false,
-        ).addTeamMember(member);
+        await ref.read(teamsProvider.notifier).addTeamMember(member);
       },
       currentUserProfile: userProfile,
     );
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       appBar: AppBar(
         title: Text('أعضاء فريق $teamName'),
@@ -43,10 +40,11 @@ class TeamMembersScreen extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 0,
       ),
-      floatingActionButton: Consumer<TeamProvider>(
-        builder: (context, provider, child) {
+      floatingActionButton: Consumer(
+        builder: (context, ref, child) {
+          final teamsState = ref.watch(teamsProvider);
           final user = FirebaseAuth.instance.currentUser;
-          final isMember = provider.teamMembers.any(
+          final isMember = teamsState.teamMembers.any(
             (m) => m.teamName == teamName && m.userId == user?.uid,
           );
           if (isMember) return const SizedBox.shrink();
@@ -58,7 +56,7 @@ class TeamMembersScreen extends StatelessWidget {
               ),
             ),
             elevation: 0,
-            onPressed: () => _showAddDialog(context),
+            onPressed: () => _showAddDialog(context, ref),
             backgroundColor: Colors.black,
             icon: null,
             label: Row(
@@ -72,19 +70,24 @@ class TeamMembersScreen extends StatelessWidget {
           );
         },
       ),
-      body: Consumer<TeamProvider>(
-        builder: (context, provider, child) {
-          if (provider.isLoading) {
+      body: Consumer(
+        builder: (context, ref, child) {
+          final teamsState = ref.watch(teamsProvider);
+
+          if (teamsState.isLoading) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (provider.error != null) {
+          if (teamsState.error != null) {
             return Center(
-              child: Text(provider.error!, style: TextStyle(color: Colors.red)),
+              child: Text(
+                teamsState.error!,
+                style: TextStyle(color: Colors.red),
+              ),
             );
           }
           final user = FirebaseAuth.instance.currentUser;
           final members =
-              provider.teamMembers
+              teamsState.teamMembers
                   .where((m) => m.teamName == teamName)
                   .toList();
           if (members.isEmpty) {
@@ -112,10 +115,9 @@ class TeamMembersScreen extends StatelessWidget {
                 onDelete:
                     isCurrentUser
                         ? () async {
-                          await Provider.of<TeamProvider>(
-                            context,
-                            listen: false,
-                          ).deleteTeamMember(m.id);
+                          await ref
+                              .read(teamsProvider.notifier)
+                              .deleteTeamMember(m.id);
                         }
                         : null,
               );

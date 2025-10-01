@@ -81,12 +81,25 @@ class CacheService {
 
   Future<void> _openBoxes() async {
     try {
-      await Hive.openBox<UserProfile>(_usersBoxName);
-      await Hive.openBox<Section>(_sectionsBoxName);
-      await Hive.openBox<Subject>(_subjectsBoxName);
-      await Hive.openBox<ScheduleItem>(_scheduleBoxName);
-      await Hive.openBox<AnnouncementData>(_announcementsBoxName);
-      await Hive.openBox<Map>(_cacheMetadataBoxName);
+      // Only open boxes if they're not already open
+      if (!Hive.isBoxOpen(_usersBoxName)) {
+        await Hive.openBox<UserProfile>(_usersBoxName);
+      }
+      if (!Hive.isBoxOpen(_sectionsBoxName)) {
+        await Hive.openBox<Section>(_sectionsBoxName);
+      }
+      if (!Hive.isBoxOpen(_subjectsBoxName)) {
+        await Hive.openBox<Subject>(_subjectsBoxName);
+      }
+      if (!Hive.isBoxOpen(_scheduleBoxName)) {
+        await Hive.openBox<ScheduleItem>(_scheduleBoxName);
+      }
+      if (!Hive.isBoxOpen(_announcementsBoxName)) {
+        await Hive.openBox<AnnouncementData>(_announcementsBoxName);
+      }
+      if (!Hive.isBoxOpen(_cacheMetadataBoxName)) {
+        await Hive.openBox<Map>(_cacheMetadataBoxName);
+      }
     } catch (e) {
       rethrow;
     }

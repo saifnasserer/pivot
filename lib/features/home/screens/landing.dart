@@ -400,7 +400,7 @@ class LandingState extends ConsumerState<Landing>
                       ),
                     ),
                   ),
-                  onTap: () => showUserSearchModal(context),
+                  onTap: () => showUserSearchModal(context, ref),
                 ),
                 SpeedDialChild(
                   child: Icon(
@@ -437,7 +437,10 @@ class LandingState extends ConsumerState<Landing>
                     ),
                   ),
                   visible:
-                      ref.read(userProfileProvider).loggedInUserProfile?.role !=
+                      ref
+                          .watch(userProfileProvider)
+                          .loggedInUserProfile
+                          ?.role !=
                       'Student',
                   onTap: () {
                     Navigator.pushNamed(context, '/admin-control');
@@ -478,7 +481,10 @@ class LandingState extends ConsumerState<Landing>
                     ),
                   ),
                   visible:
-                      ref.read(userProfileProvider).loggedInUserProfile?.role ==
+                      ref
+                          .watch(userProfileProvider)
+                          .loggedInUserProfile
+                          ?.role ==
                       'Super Admin',
                   onTap: () {
                     Navigator.pushNamed(context, '/super-admin-panel');
@@ -518,7 +524,7 @@ class LandingState extends ConsumerState<Landing>
                       ),
                     ),
                   ),
-                  visible: ref.read(settingsProvider).showTeamFormationButton,
+                  visible: ref.watch(settingsProvider).showTeamFormationButton,
                   onTap: () {
                     Navigator.pushNamed(context, '/teams');
                   },

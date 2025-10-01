@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/models/user_profile.dart';
-import 'package:pivot/providers/settings_provider.dart';
 import 'package:pivot/services/auth_service.dart';
 import 'package:pivot/data/form_options.dart';
 import 'package:pivot/widgets/custom_dropdown.dart';
-import 'package:pivot/providers/subject_provider.dart';
+import 'package:pivot/features/subjects/providers/legacy_subject_provider.dart';
 import 'package:pivot/features/settings/providers/settings_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/models/subject_model.dart';
@@ -47,7 +46,7 @@ class _AddUserScreenState extends ConsumerState<AddUserScreen> {
     super.initState();
     _availableDepartments = FormOptions.getDepartmentsForYear(null);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(legacySubjectProviderProvider).fetchAllSubjects();
+      ref.read(legacySubjectProviderProvider.notifier).fetchAllSubjects();
       ref.read(settingsProvider.notifier).fetchSectionCounts();
     });
   }
@@ -115,11 +114,11 @@ class _AddUserScreenState extends ConsumerState<AddUserScreen> {
   }
 
   List<Subject> _getFilteredSubjects() {
-    final subjectProvider = ref.read(legacySubjectProviderProvider);
+    final subjectState = ref.read(legacySubjectProviderProvider);
     if (_subjectSearchQuery.isEmpty) {
-      return subjectProvider.allSubjects;
+      return subjectState.allSubjects;
     }
-    return subjectProvider.allSubjects.where((subject) {
+    return subjectState.allSubjects.where((subject) {
       return subject.name.toLowerCase().contains(
             _subjectSearchQuery.toLowerCase(),
           ) ||
@@ -262,9 +261,9 @@ class _AddUserScreenState extends ConsumerState<AddUserScreen> {
   }
 
   Widget _buildSubjectsList() {
-    final subjectProvider = ref.watch(legacySubjectProviderProvider);
+    final subjectState = ref.watch(legacySubjectProviderProvider);
 
-    if (subjectProvider.isLoading) {
+    if (subjectState.isLoading) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -282,7 +281,7 @@ class _AddUserScreenState extends ConsumerState<AddUserScreen> {
         ),
       );
     }
-    if (subjectProvider.error != null) {
+    if (subjectState.error != null) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -290,7 +289,7 @@ class _AddUserScreenState extends ConsumerState<AddUserScreen> {
             Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
             SizedBox(height: Responsive.space(context, size: Space.medium)),
             Text(
-              'حدث خطأ: ${subjectProvider.error}',
+              'حدث خطأ: ${subjectState.error}',
               style: TextStyle(
                 fontSize: Responsive.text(context, size: TextSize.medium),
                 color: Colors.grey[600],
@@ -301,7 +300,7 @@ class _AddUserScreenState extends ConsumerState<AddUserScreen> {
         ),
       );
     }
-    if (subjectProvider.allSubjects.isEmpty) {
+    if (subjectState.allSubjects.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -702,7 +701,7 @@ class _AddUserScreenState extends ConsumerState<AddUserScreen> {
                       // Subjects count info
                       Builder(
                         builder: (context) {
-                          final subjectProvider = ref.watch(
+                          final subjectState = ref.watch(
                             legacySubjectProviderProvider,
                           );
                           final filteredSubjects = _getFilteredSubjects();
@@ -730,7 +729,7 @@ class _AddUserScreenState extends ConsumerState<AddUserScreen> {
                                   ),
                                 ),
                                 Text(
-                                  'عرض ${filteredSubjects.length} من ${subjectProvider.allSubjects.length} مادة',
+                                  'عرض ${filteredSubjects.length} من ${subjectState.allSubjects.length} مادة',
                                   style: TextStyle(
                                     color: Colors.blue[700],
                                     fontWeight: FontWeight.w500,

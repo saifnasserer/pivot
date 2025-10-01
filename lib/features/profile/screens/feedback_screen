@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:pivot/responsive.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
-import 'package:provider/provider.dart';
 import 'package:pivot/widgets/no_internet_message.dart';
 
 class FeedbackScreen extends StatefulWidget {

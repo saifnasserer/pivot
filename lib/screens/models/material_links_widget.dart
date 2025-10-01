@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pivot/models/lecture_model.dart';
 import 'package:pivot/models/user_profile.dart';
-import 'package:pivot/providers/doctor_subject_provider.dart';
+import 'package:pivot/services/doctor_subject_service.dart';
 import 'package:pivot/features/media/screens/material_links_screen.dart';
 import 'package:pivot/features/administration/screens/doctor/profile/material_links_route.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
-import 'package:provider/provider.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
 
-class SubjectModel extends StatefulWidget {
+class SubjectModel extends ConsumerStatefulWidget {
   final Lecture lecture;
   final IconData? icon;
   final bool canEdit;
@@ -23,10 +23,10 @@ class SubjectModel extends StatefulWidget {
   });
 
   @override
-  State<SubjectModel> createState() => _SubjectModelState();
+  ConsumerState<SubjectModel> createState() => _SubjectModelState();
 }
 
-class _SubjectModelState extends State<SubjectModel>
+class _SubjectModelState extends ConsumerState<SubjectModel>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
@@ -72,14 +72,16 @@ class _SubjectModelState extends State<SubjectModel>
     setState(() => _isLoading = true);
 
     try {
-      final userProvider = context.read<UserProfileProvider>();
+      final userProfileState = ref.read(userProfileProvider);
       final currentUser = FirebaseAuth.instance.currentUser;
 
       // Try to get the current user profile
-      UserProfile? loggedInUser = userProvider.loggedInUserProfile;
+      UserProfile? loggedInUser = userProfileState.loggedInUserProfile;
       if (loggedInUser == null && currentUser != null) {
         // If loggedInUserProfile is null but we have a current user, fetch their profile
-        loggedInUser = await userProvider.getUserProfileById(currentUser.uid);
+        loggedInUser = await ref
+            .read(userProfileProvider.notifier)
+            .getUserProfileById(currentUser.uid);
       }
 
       if (mounted) {
@@ -111,7 +113,7 @@ class _SubjectModelState extends State<SubjectModel>
 
   @override
   Widget build(BuildContext context) {
-    final provider = Provider.of<DoctorSubjectProvider>(context, listen: false);
+    final service = DoctorSubjectService();
 
     return AnimatedBuilder(
       animation: _scaleAnimation,
@@ -194,7 +196,7 @@ class _SubjectModelState extends State<SubjectModel>
                                     ),
                                     onCancel: () => Navigator.of(context).pop(),
                                     onConfirm: () {
-                                      provider.deleteLecture(widget.lecture.id);
+                                      service.deleteLecture(widget.lecture.id);
                                       Navigator.of(context).pop();
                                     },
                                     confirmText: 'حذف',

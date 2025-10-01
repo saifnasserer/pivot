@@ -5,34 +5,33 @@ class UserNumberService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   /// Generates the next sequential user number
-  /// Uses a counter document to ensure atomic increments
+  /// Uses Firestore's atomic increment to ensure unique numbers even with concurrent signups
   static Future<int> getNextUserNumber() async {
     try {
-      // Use a transaction to ensure atomic increment
-      int userNumber = await _firestore.runTransaction<int>((
-        transaction,
-      ) async {
-        final counterRef = _firestore.collection('counters').doc('userNumber');
-        final counterDoc = await transaction.get(counterRef);
+      final counterRef = _firestore.collection('counters').doc('userNumber');
 
-        int currentNumber = 0;
-        if (counterDoc.exists) {
-          currentNumber = (counterDoc.data()?['count'] as int?) ?? 0;
-        }
-
-        // Calculate next number: if no counter exists, start from 1, otherwise increment
-        int nextNumber = counterDoc.exists ? currentNumber + 1 : 1;
-
-        transaction.set(counterRef, {'count': nextNumber});
-
+      // First, ensure the counter document exists
+      final counterDoc = await counterRef.get();
+      if (!counterDoc.exists) {
+        // Initialize counter if it doesn't exist
+        await counterRef.set({
+          'count': 0,
+          'lastUpdated': FieldValue.serverTimestamp(),
+        });
         if (kDebugMode) {
-          print(
-            '[UserNumberService] Counter updated: $currentNumber -> $nextNumber',
-          );
+          print('[UserNumberService] Counter initialized');
         }
+      }
 
-        return nextNumber;
+      // Use atomic increment - this is thread-safe and handles concurrent requests
+      await counterRef.update({
+        'count': FieldValue.increment(1),
+        'lastUpdated': FieldValue.serverTimestamp(),
       });
+
+      // Read the updated count
+      final updatedDoc = await counterRef.get();
+      final userNumber = (updatedDoc.data()?['count'] as int?) ?? 1;
 
       if (kDebugMode) {
         print('[UserNumberService] Generated user number: $userNumber');
@@ -43,22 +42,50 @@ class UserNumberService {
       if (kDebugMode) {
         print('[UserNumberService] Error generating user number: $e');
       }
-      // Fallback: try to get current count and increment manually
+
+      // Fallback: try to initialize and increment again
       try {
-        final currentCount = await getCurrentUserCount();
-        return currentCount + 1;
+        final counterRef = _firestore.collection('counters').doc('userNumber');
+
+        // Set initial value if the error was because document doesn't exist
+        await counterRef.set({
+          'count': 1,
+          'lastUpdated': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+
+        if (kDebugMode) {
+          print('[UserNumberService] Counter initialized via fallback');
+        }
+
+        return 1;
       } catch (fallbackError) {
         if (kDebugMode) {
           print('[UserNumberService] Fallback also failed: $fallbackError');
         }
-        // Last resort: use timestamp but warn about it
-        final timestampNumber = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-        if (kDebugMode) {
-          print(
-            '[UserNumberService] Using timestamp fallback: $timestampNumber',
-          );
+
+        // Last resort: get current count from all users and add 1
+        try {
+          final usersSnapshot =
+              await _firestore
+                  .collection('users')
+                  .orderBy('userNumber', descending: true)
+                  .limit(1)
+                  .get();
+
+          if (usersSnapshot.docs.isNotEmpty) {
+            final lastNumber =
+                usersSnapshot.docs.first.data()['userNumber'] as int? ?? 0;
+            return lastNumber + 1;
+          }
+
+          return 1;
+        } catch (finalError) {
+          if (kDebugMode) {
+            print('[UserNumberService] All fallbacks failed: $finalError');
+          }
+          // Absolute last resort: use timestamp
+          return DateTime.now().millisecondsSinceEpoch ~/ 1000;
         }
-        return timestampNumber;
       }
     }
   }
@@ -70,9 +97,20 @@ class UserNumberService {
       final counterDoc = await counterRef.get();
 
       if (!counterDoc.exists) {
-        await counterRef.set({'count': 0});
+        await counterRef.set({
+          'count': 0,
+          'lastUpdated': FieldValue.serverTimestamp(),
+          'initialized': true,
+        });
         if (kDebugMode) {
           print('[UserNumberService] Counter initialized with 0');
+        }
+      } else {
+        if (kDebugMode) {
+          final currentCount = counterDoc.data()?['count'] ?? 0;
+          print(
+            '[UserNumberService] Counter already exists with count: $currentCount',
+          );
         }
       }
     } catch (e) {
@@ -82,13 +120,17 @@ class UserNumberService {
     }
   }
 
-  /// Resets the counter to 0 (use with caution - for testing only)
-  static Future<void> resetCounter() async {
+  /// Resets the counter to a specific value (use with caution - for testing/admin only)
+  static Future<void> resetCounter({int startValue = 0}) async {
     try {
       final counterRef = _firestore.collection('counters').doc('userNumber');
-      await counterRef.set({'count': 0});
+      await counterRef.set({
+        'count': startValue,
+        'lastUpdated': FieldValue.serverTimestamp(),
+        'reset': true,
+      });
       if (kDebugMode) {
-        print('[UserNumberService] Counter reset to 0');
+        print('[UserNumberService] Counter reset to $startValue');
       }
     } catch (e) {
       if (kDebugMode) {

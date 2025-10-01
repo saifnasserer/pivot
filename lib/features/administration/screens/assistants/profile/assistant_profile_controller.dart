@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/features/subjects/screens/screens.dart';
 import 'package:pivot/models/user_profile.dart';
-import 'package:pivot/providers/section_provider.dart';
-import 'package:pivot/providers/subject_provider.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
-import 'package:provider/provider.dart';
+import 'package:pivot/features/administration/providers/sections_provider.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
+import 'package:pivot/features/subjects/providers/legacy_subject_provider.dart';
 import 'package:pivot/models/subject_model.dart';
 
 class AssistantProfileController {
   static void fetchData(
+    WidgetRef ref,
     BuildContext context,
     UserProfile? displayedProfile,
     Function(List<Subject>) onSubjectsLoaded,
@@ -21,36 +22,31 @@ class AssistantProfileController {
       if (!context.mounted) return;
 
       try {
-        final subjectProvider = Provider.of<SubjectProvider>(
-          context,
-          listen: false,
-        );
-        final sectionProvider = Provider.of<SectionProvider>(
-          context,
-          listen: false,
-        );
-        final userProfileProvider = Provider.of<UserProfileProvider>(
-          context,
-          listen: false,
-        );
-
         // Fetch all users for admin functionality
-        userProfileProvider.fetchAllUsers(forceAll: true).then((_) {
-          subjectProvider.fetchAndFilterSubjects(displayedProfile).then((_) {
-            if (context.mounted) {
-              try {
-                final subjects = subjectProvider.filteredSubjects;
-                onSubjectsLoaded(subjects);
+        ref.read(userProfileProvider.notifier).fetchAllUsers().then((_) {
+          ref
+              .read(legacySubjectProviderProvider.notifier)
+              .fetchAndFilterSubjects(displayedProfile)
+              .then((_) {
+                if (context.mounted) {
+                  try {
+                    final subjects =
+                        ref
+                            .read(legacySubjectProviderProvider)
+                            .filteredSubjects;
+                    onSubjectsLoaded(subjects);
 
-                if (subjects.isNotEmpty) {
-                  onSubjectSelected(0);
+                    if (subjects.isNotEmpty) {
+                      onSubjectSelected(0);
+                    }
+                  } catch (e) {}
                 }
-              } catch (e) {}
-            }
-          });
+              });
         });
         // Fetch sections for this specific assistant
-        sectionProvider.fetchSectionsForAssistant(displayedProfile.id);
+        ref
+            .read(sectionsProvider.notifier)
+            .fetchSectionsForAssistant(displayedProfile.id);
       } catch (e) {}
     });
   }
@@ -115,6 +111,7 @@ class AssistantProfileController {
   }
 
   static Future<void> editTeachingSubjects(
+    WidgetRef ref,
     BuildContext context,
     UserProfile displayedProfile,
     Function(UserProfile) onProfileUpdated,
@@ -124,7 +121,7 @@ class AssistantProfileController {
       context,
       MaterialPageRoute(
         builder:
-            (context) => SubjectSelectionScreen(
+            (context) => SubjectSelectionScreenWithProviders(
               previouslySelectedIds: displayedProfile.teachingSubjects,
               targetUserId: displayedProfile.id,
               targetUserRole: displayedProfile.role,
@@ -133,27 +130,24 @@ class AssistantProfileController {
     );
 
     if (result == true && context.mounted) {
-      // Refresh the displayed profile data
-      final userProfileProvider = Provider.of<UserProfileProvider>(
-        context,
-        listen: false,
-      );
+      // Fetch updated profile data using Riverpod
+      final updatedProfile = await ref
+          .read(userProfileProvider.notifier)
+          .getUserProfileById(displayedProfile.id);
 
-      // Fetch updated profile data
-      final updatedProfile = await userProfileProvider.getUserProfileById(
-        displayedProfile.id,
-      );
       if (updatedProfile != null) {
         onProfileUpdated(updatedProfile);
         onDataFetched();
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('تم تحديث المواد المدرسية بنجاح'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تم تحديث المواد المدرسية بنجاح'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     }
   }
 }

@@ -75,8 +75,8 @@ service cloud.firestore {
         allow read, write: if isUser(userId);
       }
 
-      match /schedule/{scheduleItemId} {
-        allow read, write: if isUser(userId);
+      match /schedule/{scheduleId} {
+        allow read, write: if isSignedIn() && request.auth.uid == userId;
       }
 
       match /notifications/{notificationId} {
@@ -171,15 +171,15 @@ service cloud.firestore {
       allow list: if canPerformAdminOperations();
     }
 
-    match /schedules/{scheduleId} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn() && (
-        request.auth.uid == resource.data.userId ||
-        request.auth.uid == request.resource.data.userId ||
-        isAdmin()
-      );
-      allow list: if canPerformAdminOperations();
+    // Global schedules collection (one document per user)
+    match /schedules/{userId} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow update: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow delete: if isSignedIn() && (request.auth.uid == userId || isAdmin());
     }
+
+    
 
     // ===== ANNOUNCEMENTS =====
     match /announcements/{announcementId} {

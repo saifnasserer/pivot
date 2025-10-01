@@ -245,7 +245,7 @@ class _UserManagementPageState extends ConsumerState<UserManagementPage> {
         // Use the comprehensive deletion service (admin-initiated)
         final success = await DataDeletionService.deleteUserCompletelyAsAdmin(
           user.id,
-          context,
+          ref,
         );
 
         // Close loading dialog
@@ -449,7 +449,7 @@ class _UserManagementPageState extends ConsumerState<UserManagementPage> {
             final success =
                 await DataDeletionService.deleteUserCompletelyAsAdmin(
                   userId,
-                  context,
+                  ref,
                 );
             if (success) {
               successCount++;

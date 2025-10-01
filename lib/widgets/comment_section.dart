@@ -1,19 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/models/comment_data.dart';
-import 'package:pivot/providers/announcement_provider.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
+import 'package:pivot/features/announcements/providers/announcements_provider.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
-import 'package:provider/provider.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:gradient_borders/gradient_borders.dart';
 import 'package:lottie/lottie.dart';
 
-class CommentTile extends StatefulWidget {
+class CommentTile extends ConsumerStatefulWidget {
   final CommentData comment;
   final List<CommentData> allComments;
-  final AnnouncementProvider provider;
   final String announcementId;
   final String userId;
   final bool canEdit;
@@ -35,7 +34,6 @@ class CommentTile extends StatefulWidget {
     super.key,
     required this.comment,
     required this.allComments,
-    required this.provider,
     required this.announcementId,
     required this.userId,
     required this.canEdit,
@@ -55,10 +53,10 @@ class CommentTile extends StatefulWidget {
   });
 
   @override
-  State<CommentTile> createState() => _CommentTileState();
+  ConsumerState<CommentTile> createState() => _CommentTileState();
 }
 
-class _CommentTileState extends State<CommentTile>
+class _CommentTileState extends ConsumerState<CommentTile>
     with AutomaticKeepAliveClientMixin {
   late bool isLiked;
   late int likeCount;
@@ -82,11 +80,9 @@ class _CommentTileState extends State<CommentTile>
       isLiked = !wasLiked;
       likeCount += wasLiked ? -1 : 1;
     });
-    await widget.provider.likeComment(
-      widget.announcementId,
-      widget.comment.id,
-      widget.userId,
-    );
+    await ref
+        .read(announcementsProvider.notifier)
+        .likeComment(widget.announcementId, widget.comment.id, widget.userId);
   }
 
   void handleToggleReplies() {
@@ -212,19 +208,11 @@ class _CommentTileState extends State<CommentTile>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    final userProfileProvider = Provider.of<UserProfileProvider>(
-      context,
-      listen: false,
-    );
-    UserProfile? commenterProfile =
-        userProfileProvider.userProfilesCache[widget.comment.userId];
-    if (commenterProfile == null) {
-      userProfileProvider.getUserProfileById(widget.comment.userId).then((
-        profile,
-      ) {
-        if (profile != null) setState(() {});
-      });
-    }
+    final userProfileState = ref.read(userProfileProvider);
+    // TODO: Implement user profile caching with Riverpod
+    UserProfile? commenterProfile;
+    // Fetch user profile if needed
+    // ref.read(userProfileProvider.notifier).getUserProfileById(widget.comment.userId);
     Widget avatarWidget;
     if (commenterProfile != null &&
         commenterProfile.profileImageUrl != null &&
@@ -733,7 +721,6 @@ class _CommentTileState extends State<CommentTile>
                       key: PageStorageKey('comment-${reply.id}'),
                       comment: reply,
                       allComments: widget.allComments,
-                      provider: widget.provider,
                       announcementId: widget.announcementId,
                       userId: widget.userId,
                       canEdit: widget.userId == reply.userId,
@@ -971,7 +958,7 @@ class _ExpandableTextState extends State<_ExpandableText> {
   }
 }
 
-class CommentSection extends StatefulWidget {
+class CommentSection extends ConsumerStatefulWidget {
   final String announcementId;
   final ScrollController? scrollController;
   const CommentSection({
@@ -981,10 +968,10 @@ class CommentSection extends StatefulWidget {
   });
 
   @override
-  State<CommentSection> createState() => _CommentSectionState();
+  ConsumerState<CommentSection> createState() => _CommentSectionState();
 }
 
-class _CommentSectionState extends State<CommentSection> {
+class _CommentSectionState extends ConsumerState<CommentSection> {
   final TextEditingController _controller = TextEditingController();
   String? _replyToCommentId;
   String? _replyToUserName;
@@ -1010,11 +997,8 @@ class _CommentSectionState extends State<CommentSection> {
   @override
   void initState() {
     super.initState();
-    final userProfileProvider = Provider.of<UserProfileProvider>(
-      context,
-      listen: false,
-    );
-    _userRole = userProfileProvider.loggedInUserProfile?.role;
+    final userProfileState = ref.read(userProfileProvider);
+    _userRole = userProfileState.loggedInUserProfile?.role;
 
     // Listen to text changes
     _controller.addListener(_updateSendState);
@@ -1053,12 +1037,8 @@ class _CommentSectionState extends State<CommentSection> {
   }
 
   void _sendComment(BuildContext context) async {
-    final provider = Provider.of<AnnouncementProvider>(context, listen: false);
-    final userProfileProvider = Provider.of<UserProfileProvider>(
-      context,
-      listen: false,
-    );
-    final userProfile = userProfileProvider.loggedInUserProfile;
+    final userProfileState = ref.read(userProfileProvider);
+    final userProfile = userProfileState.loggedInUserProfile;
     if (userProfile == null) {
       Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
       return;
@@ -1068,12 +1048,10 @@ class _CommentSectionState extends State<CommentSection> {
     final content = _controller.text.trim();
     if (content.isEmpty || content.length > _maxCommentLength) return;
     if (_userRole == 'Student' && _replyToCommentId == null) {
-      final provider = Provider.of<AnnouncementProvider>(
-        context,
-        listen: false,
-      );
-      final comments =
-          await provider.commentsStream(widget.announcementId).first;
+      // Check if student already has a comment
+      final comments = await ref
+          .read(announcementsProvider.notifier)
+          .getCommentsForAnnouncement(widget.announcementId);
       final hasComment = comments.any(
         (c) => c.userId == userId && c.parentId == null,
       );
@@ -1100,13 +1078,13 @@ class _CommentSectionState extends State<CommentSection> {
     );
     try {
       if (_replyToCommentId != null) {
-        await provider.replyToComment(
-          widget.announcementId,
-          _replyToCommentId!,
-          comment,
-        );
+        await ref
+            .read(announcementsProvider.notifier)
+            .replyToComment(widget.announcementId, _replyToCommentId!, comment);
       } else {
-        await provider.addComment(widget.announcementId, comment);
+        await ref
+            .read(announcementsProvider.notifier)
+            .addComment(widget.announcementId, comment);
       }
       setState(() {
         _controller.clear();
@@ -1124,20 +1102,8 @@ class _CommentSectionState extends State<CommentSection> {
     }
   }
 
-  Widget _buildLikeButton(
-    CommentData comment,
-    String announcementId,
-    String userId,
-    AnnouncementProvider provider, {
-    required List<String> likerNames,
-    required bool isOwnLike,
-  }) {
-    return _LikeButton(
-      isLiked: comment.likes.contains(userId),
-      likeCount: comment.likes.length,
-      onTap: () => provider.likeComment(announcementId, comment.id, userId),
-    );
-  }
+  // This method is not used - like functionality is handled in CommentTile
+  // Widget _buildLikeButton(...) { ... }
 
   Widget buildCommentText(
     BuildContext context,
@@ -1173,8 +1139,9 @@ class _CommentSectionState extends State<CommentSection> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<AnnouncementProvider>(
-      builder: (context, provider, _) {
+    return Consumer(
+      builder: (context, ref, _) {
+        final announcementsState = ref.watch(announcementsProvider);
         return Directionality(
           textDirection: TextDirection.rtl,
           child: Scaffold(
@@ -1233,10 +1200,11 @@ class _CommentSectionState extends State<CommentSection> {
                   ),
                   // Comments list
                   Expanded(
-                    child: StreamBuilder<List<CommentData>>(
-                      stream: provider.commentsStream(widget.announcementId),
-                      initialData: _cachedComments,
-                      builder: (context, snapshot) {
+                    child: Consumer(
+                      builder: (context, ref, child) {
+                        // TODO: Implement comments stream with Riverpod
+                        final snapshot =
+                            AsyncSnapshot<List<CommentData>>.nothing();
                         // Update cache if new data is available
                         if (snapshot.hasData && snapshot.data != null) {
                           _cachedComments = snapshot.data;
@@ -1354,25 +1322,24 @@ class _CommentSectionState extends State<CommentSection> {
                                 ),
                                 comment: visibleRootComments[i],
                                 allComments: comments,
-                                provider: provider,
                                 announcementId: widget.announcementId,
                                 userId:
-                                    Provider.of<UserProfileProvider>(
-                                      context,
-                                      listen: false,
-                                    ).loggedInUserProfile?.id ??
+                                    ref
+                                        .read(userProfileProvider)
+                                        .loggedInUserProfile
+                                        ?.id ??
                                     '',
                                 canEdit:
-                                    Provider.of<UserProfileProvider>(
-                                      context,
-                                      listen: false,
-                                    ).loggedInUserProfile?.id ==
+                                    ref
+                                        .read(userProfileProvider)
+                                        .loggedInUserProfile
+                                        ?.id ==
                                     visibleRootComments[i].userId,
                                 isOwnComment:
-                                    Provider.of<UserProfileProvider>(
-                                      context,
-                                      listen: false,
-                                    ).loggedInUserProfile?.id ==
+                                    ref
+                                        .read(userProfileProvider)
+                                        .loggedInUserProfile
+                                        ?.id ==
                                     visibleRootComments[i].userId,
                                 isReply: false,
                                 editController: _editController,
@@ -1388,16 +1355,13 @@ class _CommentSectionState extends State<CommentSection> {
                                 isSavingEdit: _isSavingEdit,
                                 onEditSave: (id, newText) async {
                                   setState(() => _isSavingEdit = true);
-                                  await provider.updateComment(
-                                    widget.announcementId,
-                                    id,
-                                    newText,
-                                    Provider.of<UserProfileProvider>(
-                                          context,
-                                          listen: false,
-                                        ).loggedInUserProfile?.id ??
-                                        '',
-                                  );
+                                  await ref
+                                      .read(announcementsProvider.notifier)
+                                      .updateComment(
+                                        widget.announcementId,
+                                        id,
+                                        newText,
+                                      );
                                   setState(() {
                                     _editingCommentId = null;
                                     _isSavingEdit = false;

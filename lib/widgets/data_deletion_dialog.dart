@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:pivot/services/data_deletion_service.dart';
 
-class DataDeletionDialog extends StatefulWidget {
+class DataDeletionDialog extends ConsumerStatefulWidget {
   const DataDeletionDialog({super.key});
 
   @override
-  State<DataDeletionDialog> createState() => _DataDeletionDialogState();
+  ConsumerState<DataDeletionDialog> createState() => _DataDeletionDialogState();
 }
 
-class _DataDeletionDialogState extends State<DataDeletionDialog> {
+class _DataDeletionDialogState extends ConsumerState<DataDeletionDialog> {
   bool _isLoading = false;
   bool _isDeleting = false;
   bool _confirmDeletion = false;
@@ -66,7 +67,7 @@ class _DataDeletionDialogState extends State<DataDeletionDialog> {
       // Use the complete deletion method that handles everything
       final deletionSuccessful = await DataDeletionService.deleteUserCompletely(
         user.uid,
-        context,
+        ref,
       );
 
       if (!deletionSuccessful) {

@@ -1,12 +1,11 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:pivot/models/user_profile.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/services/auth_service.dart';
 import 'package:pivot/services/cache_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-// Added import for UserProfileProvider
-import 'package:provider/provider.dart'; // Added import for Provider
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 
 class UserSearchCard extends StatelessWidget {
@@ -131,7 +130,7 @@ class UserSearchCard extends StatelessWidget {
   }
 }
 
-void showUserSearchModal(BuildContext context) {
+void showUserSearchModal(BuildContext context, WidgetRef ref) {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
@@ -145,11 +144,7 @@ void showUserSearchModal(BuildContext context) {
     },
   ).then((_) {
     // Restore logged-in user profile when modal is dismissed
-    final userProfileProvider = Provider.of<UserProfileProvider>(
-      context,
-      listen: false,
-    );
-    userProfileProvider.restoreLoggedInUserProfile();
+    ref.read(userProfileProvider.notifier).restoreLoggedInUserProfile();
   });
 }
 

@@ -58,33 +58,56 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
   late final ProfileRepository _repo = _ref.read(profileRepositoryProvider);
 
   Future<void> initialize() async {
-    state = state.copyWith(isLoading: true, error: null);
+    if (!mounted) return;
+
+    if (mounted) {
+      state = state.copyWith(isLoading: true, error: null);
+    }
+
     try {
       final userProfile = await _repo.getCurrentUserProfile();
-      final isBiometricEnabled = await _repo.isBiometricEnabled();
-      final notificationSettings = await _repo.getNotificationSettings();
+      if (!mounted) return;
 
-      state = state.copyWith(
-        isLoading: false,
-        userProfile: userProfile,
-        isBiometricEnabled: isBiometricEnabled,
-        notificationSettings: notificationSettings,
-      );
+      final isBiometricEnabled = await _repo.isBiometricEnabled();
+      if (!mounted) return;
+
+      final notificationSettings = await _repo.getNotificationSettings();
+      if (!mounted) return;
+
+      if (mounted) {
+        state = state.copyWith(
+          isLoading: false,
+          userProfile: userProfile,
+          isBiometricEnabled: isBiometricEnabled,
+          notificationSettings: notificationSettings,
+        );
+      }
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      if (mounted) {
+        state = state.copyWith(isLoading: false, error: e.toString());
+      }
     }
   }
 
   Future<bool> updateProfile(UserProfile userProfile) async {
-    state = state.copyWith(isUpdating: true, error: null);
+    if (!mounted) return false;
+
+    if (mounted) {
+      state = state.copyWith(isUpdating: true, error: null);
+    }
+
     try {
       final success = await _repo.updateUserProfile(userProfile);
-      if (success) {
+      if (!mounted) return false;
+
+      if (success && mounted) {
         state = state.copyWith(isUpdating: false, userProfile: userProfile);
       }
       return success;
     } catch (e) {
-      state = state.copyWith(isUpdating: false, error: e.toString());
+      if (mounted) {
+        state = state.copyWith(isUpdating: false, error: e.toString());
+      }
       return false;
     }
   }
@@ -93,22 +116,40 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
     String currentPassword,
     String newPassword,
   ) async {
-    state = state.copyWith(isUpdating: true, error: null);
+    if (!mounted) return false;
+
+    if (mounted) {
+      state = state.copyWith(isUpdating: true, error: null);
+    }
+
     try {
       final success = await _repo.changePassword(currentPassword, newPassword);
-      state = state.copyWith(isUpdating: false);
+      if (!mounted) return false;
+
+      if (mounted) {
+        state = state.copyWith(isUpdating: false);
+      }
       return success;
     } catch (e) {
-      state = state.copyWith(isUpdating: false, error: e.toString());
+      if (mounted) {
+        state = state.copyWith(isUpdating: false, error: e.toString());
+      }
       return false;
     }
   }
 
   Future<bool> updateProfileImage(String imageUrl) async {
-    state = state.copyWith(isUpdating: true, error: null);
+    if (!mounted) return false;
+
+    if (mounted) {
+      state = state.copyWith(isUpdating: true, error: null);
+    }
+
     try {
       final success = await _repo.updateProfileImage(imageUrl);
-      if (success && state.userProfile != null) {
+      if (!mounted) return false;
+
+      if (success && state.userProfile != null && mounted) {
         final updatedProfile = state.userProfile!.copyWith(
           profileImageUrl: imageUrl,
         );
@@ -116,20 +157,29 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       }
       return success;
     } catch (e) {
-      state = state.copyWith(isUpdating: false, error: e.toString());
+      if (mounted) {
+        state = state.copyWith(isUpdating: false, error: e.toString());
+      }
       return false;
     }
   }
 
   Future<bool> toggleBiometricAuth() async {
-    state = state.copyWith(isUpdating: true, error: null);
+    if (!mounted) return false;
+
+    if (mounted) {
+      state = state.copyWith(isUpdating: true, error: null);
+    }
+
     try {
       final success =
           state.isBiometricEnabled
               ? await _repo.disableBiometricAuth()
               : await _repo.enableBiometricAuth();
 
-      if (success) {
+      if (!mounted) return false;
+
+      if (success && mounted) {
         state = state.copyWith(
           isUpdating: false,
           isBiometricEnabled: !state.isBiometricEnabled,
@@ -137,16 +187,25 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       }
       return success;
     } catch (e) {
-      state = state.copyWith(isUpdating: false, error: e.toString());
+      if (mounted) {
+        state = state.copyWith(isUpdating: false, error: e.toString());
+      }
       return false;
     }
   }
 
   Future<bool> updateNotificationSettings(Map<String, dynamic> settings) async {
-    state = state.copyWith(isUpdating: true, error: null);
+    if (!mounted) return false;
+
+    if (mounted) {
+      state = state.copyWith(isUpdating: true, error: null);
+    }
+
     try {
       final success = await _repo.updateNotificationSettings(settings);
-      if (success) {
+      if (!mounted) return false;
+
+      if (success && mounted) {
         state = state.copyWith(
           isUpdating: false,
           notificationSettings: settings,
@@ -154,18 +213,31 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       }
       return success;
     } catch (e) {
-      state = state.copyWith(isUpdating: false, error: e.toString());
+      if (mounted) {
+        state = state.copyWith(isUpdating: false, error: e.toString());
+      }
       return false;
     }
   }
 
   Future<void> logout() async {
-    state = state.copyWith(isLoading: true, error: null);
+    if (!mounted) return;
+
+    if (mounted) {
+      state = state.copyWith(isLoading: true, error: null);
+    }
+
     try {
       await _repo.logout();
-      state = const ProfileState();
+      if (!mounted) return;
+
+      if (mounted) {
+        state = const ProfileState();
+      }
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      if (mounted) {
+        state = state.copyWith(isLoading: false, error: e.toString());
+      }
     }
   }
 

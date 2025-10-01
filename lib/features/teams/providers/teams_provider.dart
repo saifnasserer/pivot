@@ -175,6 +175,30 @@ class TeamsNotifier extends StateNotifier<TeamsState> {
     }
   }
 
+  // Toggle team pin status
+  Future<bool> toggleTeamPin(String id, bool isPinned) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      // Find the team member and update it
+      final teamMembers = state.teamMembers;
+      final index = teamMembers.indexWhere((member) => member.id == id);
+      if (index != -1) {
+        final updatedMember = teamMembers[index].copyWith(isPinned: isPinned);
+        final success = await _repository.updateTeamMember(updatedMember);
+        if (success) {
+          await getAllTeamMembers(); // Refresh the list
+        }
+        state = state.copyWith(isLoading: false);
+        return success;
+      }
+      state = state.copyWith(isLoading: false);
+      return false;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+      return false;
+    }
+  }
+
   // Search team members
   Future<void> searchTeamMembers(String query) async {
     state = state.copyWith(isLoading: true, error: null, searchQuery: query);

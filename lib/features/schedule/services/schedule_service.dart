@@ -43,26 +43,52 @@ class ScheduleService {
   Future<void> addScheduleItem(ScheduleItem item) async {
     try {
       final user = _auth.currentUser;
+      print('🔐 === ADD SCHEDULE ITEM DEBUG ===');
+      print('  - User authenticated: ${user != null}');
+      print('  - User ID: ${user?.uid}');
+      print('  - User email: ${user?.email}');
+
       if (user == null) throw Exception('User not authenticated');
 
       final scheduleRef = _firestore.collection('schedules').doc(user.uid);
+      print('  - Firestore path: schedules/${user.uid}');
+      print('  - Item day: ${item.day}');
+      print('  - Item data: ${item.toMap()}');
 
+      print('  - Starting transaction...');
       await _firestore.runTransaction((transaction) async {
+        print('    - Transaction: Getting document...');
         final snapshot = await transaction.get(scheduleRef);
+        print('    - Transaction: Document exists: ${snapshot.exists}');
+
         final data = snapshot.data() ?? {};
+        print('    - Transaction: Current data keys: ${data.keys.toList()}');
+
         final dayItems = List<Map<String, dynamic>>.from(data[item.day] ?? []);
+        print(
+          '    - Transaction: Current items for ${item.day}: ${dayItems.length}',
+        );
 
         dayItems.add(item.toMap());
         data[item.day] = dayItems;
+        print(
+          '    - Transaction: New items for ${item.day}: ${dayItems.length}',
+        );
 
+        print('    - Transaction: Setting document...');
         transaction.set(scheduleRef, data);
+        print('    - Transaction: Set complete');
       });
+      print('  - ✅ Transaction committed successfully');
 
       // TODO: Implement notification services
       // if (item.notificationEnabled) {
       //   await NotificationTriggerService().scheduleNotification(item);
       // }
     } catch (e) {
+      print('  - ❌ Error in addScheduleItem:');
+      print('  - Error: $e');
+      print('  - Error type: ${e.runtimeType}');
       throw Exception('Failed to add schedule item: $e');
     }
   }

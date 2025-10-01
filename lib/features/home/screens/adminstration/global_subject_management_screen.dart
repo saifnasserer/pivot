@@ -1,8 +1,8 @@
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pivot/providers/guide_provider.dart';
-import 'package:pivot/providers/subject_provider.dart';
+import 'package:pivot/features/guide/providers/guide_provider.dart';
+import 'package:pivot/features/subjects/providers/legacy_subject_provider.dart';
 import 'package:pivot/features/home/screens/adminstration/add_edit_subject_dialog.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:pivot/responsive.dart';
@@ -28,8 +28,8 @@ class _GlobalSubjectManagementScreenState
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(legacySubjectProviderProvider).fetchAllSubjects();
-      ref.read(legacyGuideProviderProvider).fetchGuideContent();
+      ref.read(legacySubjectProviderProvider.notifier).fetchAllSubjects();
+      ref.read(guideProvider.notifier).fetchGuideContent();
     });
     for (var subject in ref.read(legacySubjectProviderProvider).allSubjects) {
       _expandedState[subject.year] = false;
@@ -183,7 +183,7 @@ class _GlobalSubjectManagementScreenState
     if (updatedSubject != null) {
       try {
         await ref
-            .read(legacySubjectProviderProvider)
+            .read(legacySubjectProviderProvider.notifier)
             .updateSubject(updatedSubject);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -257,7 +257,9 @@ class _GlobalSubjectManagementScreenState
 
     if (confirm == true) {
       try {
-        await ref.read(legacySubjectProviderProvider).deleteSubject(subject.id);
+        await ref
+            .read(legacySubjectProviderProvider.notifier)
+            .deleteSubject(subject.id);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -291,7 +293,9 @@ class _GlobalSubjectManagementScreenState
     final newSubject = await showAddEditSubjectDialog(context);
     if (newSubject != null) {
       try {
-        await ref.read(legacySubjectProviderProvider).addSubject(newSubject);
+        await ref
+            .read(legacySubjectProviderProvider.notifier)
+            .addSubject(newSubject);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -575,11 +579,11 @@ class _GlobalSubjectManagementScreenState
   }
 
   Widget _buildGuideManagementTab() {
-    final guideProvider = ref.watch(legacyGuideProviderProvider);
+    final guideState = ref.watch(guideProvider);
 
     return Builder(
       builder: (context) {
-        if (guideProvider.isLoading && guideProvider.guideContent == null) {
+        if (guideState.isLoading && guideState.guideContent == null) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -597,7 +601,7 @@ class _GlobalSubjectManagementScreenState
             ),
           );
         }
-        if (guideProvider.error != null) {
+        if (guideState.error != null) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -605,7 +609,7 @@ class _GlobalSubjectManagementScreenState
                 Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
                 SizedBox(height: Responsive.space(context, size: Space.medium)),
                 Text(
-                  'حدث خطأ: ${guideProvider.error}',
+                  'حدث خطأ: ${guideState.error}',
                   style: TextStyle(
                     fontSize: Responsive.text(context, size: TextSize.medium),
                     color: Colors.grey[600],
@@ -616,7 +620,7 @@ class _GlobalSubjectManagementScreenState
             ),
           );
         }
-        if (guideProvider.guideContent == null) {
+        if (guideState.guideContent == null) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -639,7 +643,7 @@ class _GlobalSubjectManagementScreenState
           );
         }
 
-        final guideContent = guideProvider.guideContent!;
+        final guideContent = guideState.guideContent!;
 
         return ListView(
           padding: Responsive.padding(context, size: Space.large),
@@ -788,11 +792,11 @@ class _GlobalSubjectManagementScreenState
                                     size: 18,
                                   ),
                                   onPressed:
-                                      guideProvider.isLoading
+                                      guideState.isLoading
                                           ? null
-                                          : () => guideProvider.removeGuidebook(
-                                            guidebook,
-                                          ),
+                                          : () => ref
+                                              .read(guideProvider.notifier)
+                                              .removeGuidebook(guidebook),
                                   tooltip: 'حذف الدليل',
                                 ),
                               ),
@@ -835,9 +839,12 @@ class _GlobalSubjectManagementScreenState
                             ),
                           ),
                           onPressed:
-                              guideProvider.isLoading
+                              guideState.isLoading
                                   ? null
-                                  : () => guideProvider.addGuidebook(),
+                                  : () =>
+                                      ref
+                                          .read(guideProvider.notifier)
+                                          .addGuidebook(),
                           style: TextButton.styleFrom(
                             padding: EdgeInsets.symmetric(
                               vertical: Responsive.space(

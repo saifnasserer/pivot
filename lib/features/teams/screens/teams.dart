@@ -1,42 +1,36 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/data/form_options.dart';
-import 'package:pivot/providers/teams_provider.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
+import 'package:pivot/features/teams/providers/teams_provider.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:pivot/features/teams/screens/team_formation_screen.dart';
 import 'package:pivot/models/user_profile.dart';
-import 'package:provider/provider.dart';
+import 'package:pivot/models/team_member.dart';
 import 'package:gradient_borders/gradient_borders.dart';
 
-class TeamsScreen extends StatefulWidget {
-  // = 'teams';
-
+class TeamsScreen extends ConsumerStatefulWidget {
   const TeamsScreen({super.key});
 
   @override
-  State<TeamsScreen> createState() => _TeamsScreenState();
+  ConsumerState<TeamsScreen> createState() => _TeamsScreenState();
 }
 
-class _TeamsScreenState extends State<TeamsScreen> {
+class _TeamsScreenState extends ConsumerState<TeamsScreen> {
   final List<String> years = FormOptions.academicYears;
   UserProfile? currentUserProfile;
   String? selectedYearFilter;
-  late UserProfileProvider _userProfileProvider;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _userProfileProvider = Provider.of<UserProfileProvider>(
-      context,
-      listen: false,
-    );
     _loadUserProfile();
   }
 
   void _loadUserProfile() {
     try {
-      final profile = _userProfileProvider.userProfile;
+      final profile = ref.read(userProfileProvider).userProfile;
       setState(() {
         currentUserProfile = profile;
       });
@@ -50,7 +44,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
     return role == 'Admin' || role == 'Super Admin';
   }
 
-  List<Team> _filterTeams(List<Team> teams) {
+  List<TeamMember> _filterTeams(List<TeamMember> teams) {
     if (currentUserProfile == null) return [];
 
     if (_isAdmin()) {
@@ -179,9 +173,11 @@ class _TeamsScreenState extends State<TeamsScreen> {
           ],
         ],
       ),
-      body: Consumer<TeamsProvider>(
-        builder: (context, provider, child) {
-          if (provider.isLoading || currentUserProfile == null) {
+      body: Consumer(
+        builder: (context, ref, child) {
+          final teamsState = ref.watch(teamsProvider);
+
+          if (teamsState.isLoading || currentUserProfile == null) {
             return Center(
               child: CircularProgressIndicator(
                 valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
@@ -189,7 +185,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
             );
           }
 
-          if (provider.error != null) {
+          if (teamsState.error != null) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -199,7 +195,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
                     height: Responsive.space(context, size: Space.medium),
                   ),
                   Text(
-                    provider.error!,
+                    teamsState.error!,
                     style: TextStyle(color: Colors.red[700]),
                     textAlign: TextAlign.center,
                   ),
@@ -208,7 +204,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
             );
           }
 
-          final filteredTeams = _filterTeams(provider.teams);
+          final filteredTeams = _filterTeams(teamsState.teamMembers);
 
           if (filteredTeams.isEmpty) {
             return Center(
@@ -316,8 +312,8 @@ class _TeamsScreenState extends State<TeamsScreen> {
                               ),
                               onPressed: () async {
                                 try {
-                                  await context
-                                      .read<TeamsProvider>()
+                                  await ref
+                                      .read(teamsProvider.notifier)
                                       .toggleTeamPin(team.id, !team.isPinned);
                                   if (!context.mounted) return;
                                   Navigator.pop(context);
@@ -360,7 +356,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
                                 ),
                               ),
                               Text(
-                                team.year,
+                                team.year ?? '',
                                 style: TextStyle(
                                   color: Colors.grey[600],
                                   fontSize: Responsive.text(
@@ -514,9 +510,22 @@ class _TeamsScreenState extends State<TeamsScreen> {
                                     if (name.isNotEmpty &&
                                         selectedYear != null) {
                                       try {
-                                        await context
-                                            .read<TeamsProvider>()
-                                            .addTeam(name, selectedYear!);
+                                        await ref
+                                            .read(teamsProvider.notifier)
+                                            .addTeamMember(
+                                              TeamMember(
+                                                id: '',
+                                                name: name,
+                                                skills: [],
+                                                previousProjects: [],
+                                                purpose: '',
+                                                whatsappNumber: '',
+                                                userId: '',
+                                                createdAt: DateTime.now(),
+                                                teamName: name,
+                                                year: selectedYear,
+                                              ),
+                                            );
                                         if (!context.mounted) return;
                                         Navigator.pop(context);
                                       } catch (e) {
@@ -574,11 +583,12 @@ class _TeamsScreenState extends State<TeamsScreen> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Consumer<TeamsProvider>(
-                          builder: (context, provider, child) {
+                        Consumer(
+                          builder: (context, ref, child) {
+                            final teamsState = ref.watch(teamsProvider);
                             return Column(
                               children:
-                                  provider.teams
+                                  teamsState.teamMembers
                                       .map(
                                         (team) => Row(
                                           mainAxisAlignment:
@@ -598,9 +608,11 @@ class _TeamsScreenState extends State<TeamsScreen> {
                                                 color: Colors.red,
                                               ),
                                               onPressed: () async {
-                                                await provider.deleteTeam(
-                                                  team.id,
-                                                );
+                                                await ref
+                                                    .read(
+                                                      teamsProvider.notifier,
+                                                    )
+                                                    .deleteTeamMember(team.id);
                                               },
                                             ),
                                           ],
@@ -678,10 +690,22 @@ class _TeamsScreenState extends State<TeamsScreen> {
                           final v = controller.text.trim();
                           if (v.isNotEmpty && selectedYear != null) {
                             try {
-                              await context.read<TeamsProvider>().addTeam(
-                                v,
-                                selectedYear!,
-                              );
+                              await ref
+                                  .read(teamsProvider.notifier)
+                                  .addTeamMember(
+                                    TeamMember(
+                                      id: '',
+                                      name: v,
+                                      skills: [],
+                                      previousProjects: [],
+                                      purpose: '',
+                                      whatsappNumber: '',
+                                      userId: '',
+                                      createdAt: DateTime.now(),
+                                      teamName: v,
+                                      year: selectedYear,
+                                    ),
+                                  );
                               if (mounted) Navigator.pop(context);
                             } catch (e) {
                               if (mounted) {

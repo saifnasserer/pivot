@@ -36,11 +36,26 @@ class _ScheduleTabState extends ConsumerState<ScheduleTab>
   }
 
   void _refreshScheduleData() {
+    print('📅 === SCHEDULE TAB: Refreshing Data ===');
     final scheduleState = ref.read(scheduleProvider);
 
+    print('  - Schedule empty: ${scheduleState.schedule.isEmpty}');
+    print('  - Is loading: ${scheduleState.isLoading}');
+    print('  - Has error: ${scheduleState.error != null}');
+    if (scheduleState.error != null) {
+      print('  - Error: ${scheduleState.error}');
+    }
+
     if (scheduleState.schedule.isEmpty && !scheduleState.isLoading) {
-      ref.read(scheduleProvider.notifier).fetchSchedule();
+      print('  - 🔄 Fetching schedule...');
+      try {
+        ref.read(scheduleProvider.notifier).fetchSchedule();
+      } catch (e) {
+        print('  - ❌ Error fetching schedule: $e');
+        print('  - Error type: ${e.runtimeType}');
+      }
     } else if (scheduleState.schedule.isNotEmpty) {
+      print('  - ✅ Schedule has ${scheduleState.schedule.length} days');
       // Auto-select today if available
       _autoSelectTodayIfAvailable();
     }
@@ -65,12 +80,25 @@ class _ScheduleTabState extends ConsumerState<ScheduleTab>
   }
 
   Future<void> _refreshSchedule() async {
-    await ref.read(scheduleProvider.notifier).fetchSchedule();
+    print('📅 === SCHEDULE TAB: Manual Refresh ===');
+    try {
+      await ref.read(scheduleProvider.notifier).fetchSchedule();
+      print('  - ✅ Refresh completed successfully');
 
-    // Auto-select today after refreshing schedule data
-    final scheduleState = ref.read(scheduleProvider);
-    if (scheduleState.days.isNotEmpty) {
-      _autoSelectTodayIfAvailable();
+      // Auto-select today after refreshing schedule data
+      final scheduleState = ref.read(scheduleProvider);
+      if (scheduleState.days.isNotEmpty) {
+        print(
+          '  - 📆 Auto-selecting today from ${scheduleState.days.length} days',
+        );
+        _autoSelectTodayIfAvailable();
+      } else {
+        print('  - ⚠️ No days found after refresh');
+      }
+    } catch (e) {
+      print('  - ❌ Refresh failed: $e');
+      print('  - Error type: ${e.runtimeType}');
+      print('  - Stack trace: ${StackTrace.current}');
     }
   }
 
@@ -128,7 +156,13 @@ class _ScheduleTabState extends ConsumerState<ScheduleTab>
     final days = scheduleState.days;
     final selectedDayIndex = 0; // Default to first day
 
+    print('📅 === SCHEDULE TAB: Build ===');
+    print('  - Loading: ${scheduleState.isLoading}');
+    print('  - Has error: ${scheduleState.error != null}');
+    print('  - Days count: ${days.length}');
+
     if (scheduleState.isLoading) {
+      print('  - 🔄 Showing loading indicator');
       return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -142,16 +176,39 @@ class _ScheduleTabState extends ConsumerState<ScheduleTab>
     }
 
     if (scheduleState.error != null) {
+      print('  - ❌ ERROR STATE:');
+      print('  - Error message: ${scheduleState.error}');
+      print('  - Error length: ${scheduleState.error!.length} characters');
+
+      // Try to parse if it's a Firestore error
+      final errorStr = scheduleState.error!;
+      if (errorStr.contains('permission')) {
+        print('  - 🔐 PERMISSION ERROR DETECTED');
+        print('  - This is likely a Firestore security rule issue');
+      }
+      if (errorStr.contains('PERMISSION_DENIED')) {
+        print('  - 🔐 FIREBASE PERMISSION_DENIED ERROR');
+      }
+      if (errorStr.contains('users/')) {
+        print('  - 📁 Path contains "users/" - user subcollection issue');
+      }
+      if (errorStr.contains('schedules/')) {
+        print('  - 📁 Path contains "schedules/" - global collection issue');
+      }
+
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.error_outline, size: 48, color: Colors.red.shade300),
             SizedBox(height: 16),
-            Text(
-              'Error: ${scheduleState.error}',
-              style: TextStyle(color: Colors.red.shade600),
-              textAlign: TextAlign.center,
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24),
+              child: Text(
+                'Error: ${scheduleState.error}',
+                style: TextStyle(color: Colors.red.shade600),
+                textAlign: TextAlign.center,
+              ),
             ),
             SizedBox(height: 16),
             ElevatedButton(

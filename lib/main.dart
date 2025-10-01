@@ -474,7 +474,7 @@ class Pivot extends StatelessWidget {
                       as Map<String, dynamic>?;
               final previouslySelectedIds =
                   args?['previouslySelectedIds'] as List<String>? ?? [];
-              return SubjectSelectionScreen(
+              return SubjectSelectionScreenWithProviders(
                 previouslySelectedIds: previouslySelectedIds,
               );
             },

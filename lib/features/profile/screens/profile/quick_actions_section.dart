@@ -322,7 +322,7 @@ class _QuickActionsSectionState extends ConsumerState<QuickActionsSection>
       context,
       MaterialPageRoute(
         builder:
-            (context) => SubjectSelectionScreen(
+            (context) => SubjectSelectionScreenWithProviders(
               previouslySelectedIds: previouslySelectedIds,
             ),
       ),

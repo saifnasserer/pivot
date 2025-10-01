@@ -1,128 +1,195 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pivot/models/subject_model.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
-import 'package:pivot/services/subject_service.dart';
-import 'package:pivot/services/cache_service.dart';
-import 'package:pivot/providers/subject_provider.dart';
 
 class SubjectsService {
-  final SubjectService _subjectService = SubjectService();
-  final UserProfileProvider _userProfileProvider = UserProfileProvider();
-  final SubjectProvider _subjectProvider = SubjectProvider();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  // Get all subjects
   Future<List<Subject>> getAllSubjects() async {
-    // Use existing SubjectProvider to get all subjects
-    await _subjectProvider.fetchAllSubjectsWithoutFilter();
-    return _subjectProvider.allSubjects;
-  }
-
-  Future<List<Subject>> getSubjectsByUser(String userId) async {
-    // Use existing SubjectProvider to get user's enrolled subjects
-    final user = await _userProfileProvider.getUserProfileById(userId);
-    if (user != null) {
-      await _subjectProvider.fetchAndFilterSubjects(user);
-      return _subjectProvider.filteredSubjects;
+    try {
+      final snapshot = await _firestore.collection('subjects').get();
+      return snapshot.docs.map((doc) => Subject.fromFirestore(doc)).toList();
+    } catch (e) {
+      throw Exception('Failed to fetch subjects: $e');
     }
-    return [];
   }
 
+  // Get subjects by IDs
+  Future<List<Subject>> getSubjectsByIds(List<String> subjectIds) async {
+    if (subjectIds.isEmpty) return [];
+
+    try {
+      final snapshot =
+          await _firestore
+              .collection('subjects')
+              .where(FieldPath.documentId, whereIn: subjectIds)
+              .get();
+      return snapshot.docs.map((doc) => Subject.fromFirestore(doc)).toList();
+    } catch (e) {
+      throw Exception('Failed to fetch subjects by IDs: $e');
+    }
+  }
+
+  // Add a subject
+  Future<Subject> addSubject(Subject subject) async {
+    try {
+      final docRef = await _firestore
+          .collection('subjects')
+          .add(subject.toFirestore());
+      return subject.copyWith(id: docRef.id);
+    } catch (e) {
+      throw Exception('Failed to add subject: $e');
+    }
+  }
+
+  // Update a subject
+  Future<void> updateSubject(Subject subject) async {
+    try {
+      await _firestore
+          .collection('subjects')
+          .doc(subject.id)
+          .update(subject.toFirestore());
+    } catch (e) {
+      throw Exception('Failed to update subject: $e');
+    }
+  }
+
+  // Delete a subject
+  Future<void> deleteSubject(String subjectId) async {
+    try {
+      await _firestore.collection('subjects').doc(subjectId).delete();
+    } catch (e) {
+      throw Exception('Failed to delete subject: $e');
+    }
+  }
+
+  // Get subjects by user (enrolled or teaching)
+  Future<List<Subject>> getSubjectsByUser(String userId) async {
+    try {
+      // This would require querying users collection first to get their subjects
+      // For now, return empty - implement based on your data structure
+      return [];
+    } catch (e) {
+      throw Exception('Failed to fetch subjects for user: $e');
+    }
+  }
+
+  // Get subjects by year
   Future<List<Subject>> getSubjectsByYear(int year) async {
-    // Get all subjects and filter by year
-    final allSubjects = await getAllSubjects();
-    return allSubjects.where((s) => s.year == year).toList();
+    try {
+      final snapshot =
+          await _firestore
+              .collection('subjects')
+              .where('year', isEqualTo: year)
+              .get();
+      return snapshot.docs.map((doc) => Subject.fromFirestore(doc)).toList();
+    } catch (e) {
+      throw Exception('Failed to fetch subjects by year: $e');
+    }
   }
 
+  // Search subjects
   Future<List<Subject>> searchSubjects(String query) async {
-    // Use existing SubjectProvider filtering logic
-    final allSubjects = await getAllSubjects();
-    final lowercaseQuery = query.toLowerCase();
-    return allSubjects
-        .where(
-          (s) =>
-              s.name.toLowerCase().contains(lowercaseQuery) ||
-              s.englishName.toLowerCase().contains(lowercaseQuery) ||
-              (s.description?.toLowerCase().contains(lowercaseQuery) ?? false),
-        )
-        .toList();
+    try {
+      final snapshot = await _firestore.collection('subjects').get();
+      final allSubjects =
+          snapshot.docs.map((doc) => Subject.fromFirestore(doc)).toList();
+
+      // Filter by query
+      return allSubjects.where((subject) {
+        final lowerQuery = query.toLowerCase();
+        return subject.name.toLowerCase().contains(lowerQuery) ||
+            subject.englishName.toLowerCase().contains(lowerQuery);
+      }).toList();
+    } catch (e) {
+      throw Exception('Failed to search subjects: $e');
+    }
   }
 
+  // Get filtered subjects
   Future<List<Subject>> getFilteredSubjects({
     String? searchQuery,
     int? year,
     String? department,
     String? level,
   }) async {
-    final allSubjects = await _subjectService.getSubjects();
-    var filtered = allSubjects;
+    try {
+      Query query = _firestore.collection('subjects');
 
-    if (searchQuery != null && searchQuery.isNotEmpty) {
-      final lowercaseQuery = searchQuery.toLowerCase();
-      filtered =
-          filtered
-              .where(
-                (s) =>
-                    s.name.toLowerCase().contains(lowercaseQuery) ||
-                    s.englishName.toLowerCase().contains(lowercaseQuery) ||
-                    (s.description?.toLowerCase().contains(lowercaseQuery) ??
-                        false),
-              )
-              .toList();
+      if (year != null) {
+        query = query.where('year', isEqualTo: year);
+      }
+      if (department != null) {
+        query = query.where('departments', arrayContains: department);
+      }
+
+      final snapshot = await query.get();
+      var subjects =
+          snapshot.docs.map((doc) => Subject.fromFirestore(doc)).toList();
+
+      // Filter by search query locally
+      if (searchQuery != null && searchQuery.isNotEmpty) {
+        final lowerQuery = searchQuery.toLowerCase();
+        subjects =
+            subjects.where((subject) {
+              return subject.name.toLowerCase().contains(lowerQuery) ||
+                  subject.englishName.toLowerCase().contains(lowerQuery);
+            }).toList();
+      }
+
+      return subjects;
+    } catch (e) {
+      throw Exception('Failed to get filtered subjects: $e');
     }
-
-    if (year != null) {
-      filtered = filtered.where((s) => s.year == year).toList();
-    }
-
-    if (department != null && department.isNotEmpty) {
-      filtered =
-          filtered.where((s) => s.departments.contains(department)).toList();
-    }
-
-    return filtered;
   }
 
+  // Enroll user in subject
   Future<bool> enrollUserInSubject(String userId, String subjectId) async {
     try {
-      // Use existing UserProfileProvider method to update user's enrolled subjects
-      await _userProfileProvider.updateUserEnrolledSubjects(userId, [
-        subjectId,
-      ]);
+      // Update user's enrolled subjects and subject's enrolled students
+      await _firestore.collection('users').doc(userId).update({
+        'enrolledSubjects': FieldValue.arrayUnion([subjectId]),
+      });
+      await _firestore.collection('subjects').doc(subjectId).update({
+        'enrolledStudents': FieldValue.arrayUnion([userId]),
+      });
       return true;
     } catch (e) {
-      return false;
+      throw Exception('Failed to enroll user: $e');
     }
   }
 
+  // Unenroll user from subject
   Future<bool> unenrollUserFromSubject(String userId, String subjectId) async {
     try {
-      // Get current user's enrolled subjects and remove the subject
-      final user = await _userProfileProvider.getUserProfileById(userId);
-      if (user != null) {
-        final updatedSubjects =
-            user.enrolledSubjects.where((id) => id != subjectId).toList();
-        await _userProfileProvider.updateUserEnrolledSubjects(
-          userId,
-          updatedSubjects,
-        );
-      }
+      await _firestore.collection('users').doc(userId).update({
+        'enrolledSubjects': FieldValue.arrayRemove([subjectId]),
+      });
+      await _firestore.collection('subjects').doc(subjectId).update({
+        'enrolledStudents': FieldValue.arrayRemove([userId]),
+      });
       return true;
     } catch (e) {
-      return false;
+      throw Exception('Failed to unenroll user: $e');
     }
   }
 
+  // Update user subjects
   Future<bool> updateUserSubjects(
     String userId,
     List<String> subjectIds,
   ) async {
     try {
-      // Use existing UserProfileProvider method to update user's enrolled subjects
-      await _userProfileProvider.updateUserEnrolledSubjects(userId, subjectIds);
+      await _firestore.collection('users').doc(userId).update({
+        'enrolledSubjects': subjectIds,
+      });
       return true;
     } catch (e) {
-      return false;
+      throw Exception('Failed to update user subjects: $e');
     }
   }
 
+  // Get paginated subjects
   Future<List<Subject>> getPaginatedSubjects({
     int page = 1,
     int limit = 20,
@@ -131,87 +198,81 @@ class SubjectsService {
     String? department,
     String? level,
   }) async {
-    // Get all subjects and apply client-side pagination
-    final allSubjects = await _subjectService.getSubjects();
+    try {
+      Query query = _firestore.collection('subjects');
 
-    // Apply filters first
-    var filteredSubjects = allSubjects;
+      if (year != null) {
+        query = query.where('year', isEqualTo: year);
+      }
+      if (department != null) {
+        query = query.where('departments', arrayContains: department);
+      }
 
-    if (searchQuery != null && searchQuery.isNotEmpty) {
-      final lowercaseQuery = searchQuery.toLowerCase();
-      filteredSubjects =
-          filteredSubjects
-              .where(
-                (s) =>
-                    s.name.toLowerCase().contains(lowercaseQuery) ||
-                    s.englishName.toLowerCase().contains(lowercaseQuery) ||
-                    (s.description?.toLowerCase().contains(lowercaseQuery) ??
-                        false),
-              )
-              .toList();
+      query = query.limit(limit);
+
+      final snapshot = await query.get();
+      return snapshot.docs.map((doc) => Subject.fromFirestore(doc)).toList();
+    } catch (e) {
+      throw Exception('Failed to get paginated subjects: $e');
     }
-
-    if (year != null) {
-      filteredSubjects = filteredSubjects.where((s) => s.year == year).toList();
-    }
-
-    if (department != null && department.isNotEmpty) {
-      filteredSubjects =
-          filteredSubjects
-              .where((s) => s.departments.contains(department))
-              .toList();
-    }
-
-    // Apply pagination
-    final startIndex = (page - 1) * limit;
-    final endIndex = startIndex + limit;
-
-    if (startIndex >= filteredSubjects.length) {
-      return [];
-    }
-
-    return filteredSubjects.sublist(
-      startIndex,
-      endIndex > filteredSubjects.length ? filteredSubjects.length : endIndex,
-    );
   }
 
+  // Cache methods - stub implementations
   Future<List<Subject>> getCachedSubjects() async {
-    // For now, return empty list as cache service doesn't have getSubjects method
-    // This could be implemented with SharedPreferences or Hive for local caching
+    // Implement with Hive or SharedPreferences if needed
     return [];
   }
 
   Future<void> cacheSubjects(List<Subject> subjects) async {
-    // For now, do nothing as cache service doesn't have cacheSubjects method
-    // This could be implemented with SharedPreferences or Hive for local caching
+    // Implement with Hive or SharedPreferences if needed
   }
 
   Future<void> clearSubjectsCache() async {
-    await CacheService.instance.clearAllCache();
+    // Implement with Hive or SharedPreferences if needed
   }
 
+  // Get available years
   Future<List<int>> getAvailableYears() async {
-    final subjects = await getAllSubjects();
-    final years = subjects.map((s) => s.year).toSet().toList();
-    years.sort();
-    return years;
-  }
-
-  Future<List<String>> getAvailableDepartments() async {
-    final subjects = await getAllSubjects();
-    final departments = <String>{};
-    for (final subject in subjects) {
-      departments.addAll(subject.departments);
+    try {
+      final snapshot = await _firestore.collection('subjects').get();
+      final years =
+          snapshot.docs
+              .map((doc) => doc.data()['year'] as int?)
+              .where((year) => year != null)
+              .toSet()
+              .toList();
+      years.sort();
+      return years.cast<int>();
+    } catch (e) {
+      throw Exception('Failed to get available years: $e');
     }
-    final departmentList = departments.toList();
-    departmentList.removeWhere((d) => d.isEmpty);
-    departmentList.sort();
-    return departmentList;
   }
 
+  // Get available departments
+  Future<List<String>> getAvailableDepartments() async {
+    try {
+      final snapshot = await _firestore.collection('subjects').get();
+      final departments = <String>{};
+      for (var doc in snapshot.docs) {
+        final depts = doc.data()['departments'] as List?;
+        if (depts != null) {
+          departments.addAll(depts.cast<String>());
+        }
+      }
+      return departments.toList()..sort();
+    } catch (e) {
+      throw Exception('Failed to get departments: $e');
+    }
+  }
+
+  // Get available levels
   Future<List<String>> getAvailableLevels() async {
-    // Subject model doesn't have level field, return empty list
-    return [];
+    // Return common academic levels
+    return [
+      'المستوى الأول',
+      'المستوى الثاني',
+      'المستوى الثالث',
+      'المستوى الرابع',
+    ];
   }
 }

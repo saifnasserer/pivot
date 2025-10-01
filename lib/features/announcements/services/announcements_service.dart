@@ -176,6 +176,69 @@ class AnnouncementsService {
     }
   }
 
+  // Like a comment
+  Future<void> likeComment(
+    String announcementId,
+    String commentId,
+    String userId,
+  ) async {
+    try {
+      final commentRef = _firestore
+          .collection(_collectionPath)
+          .doc(announcementId)
+          .collection('comments')
+          .doc(commentId);
+
+      final doc = await commentRef.get();
+      if (doc.exists) {
+        final likes = List<String>.from(doc.data()?['likes'] ?? []);
+        if (likes.contains(userId)) {
+          likes.remove(userId);
+        } else {
+          likes.add(userId);
+        }
+        await commentRef.update({'likes': likes});
+      }
+    } catch (e) {
+      throw Exception('Failed to like comment: $e');
+    }
+  }
+
+  // Reply to a comment
+  Future<void> replyToComment(
+    String announcementId,
+    String parentCommentId,
+    CommentData reply,
+  ) async {
+    try {
+      await _firestore
+          .collection(_collectionPath)
+          .doc(announcementId)
+          .collection('comments')
+          .add(reply.toMap());
+    } catch (e) {
+      throw Exception('Failed to reply to comment: $e');
+    }
+  }
+
+  // Update a comment
+  Future<void> updateComment(
+    String announcementId,
+    String commentId,
+    String newContent,
+  ) async {
+    try {
+      await _firestore
+          .collection(_collectionPath)
+          .doc(announcementId)
+          .collection('comments')
+          .doc(commentId)
+          .update({'content': newContent});
+    } catch (e) {
+      throw Exception('Failed to update comment: $e');
+    }
+  }
+
   Future<List<String>> uploadImages(List<String> imagePaths) async {
     try {
       final uploadedUrls = <String>[];

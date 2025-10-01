@@ -3,9 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/models/lecture_model.dart';
 import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/models/user_profile.dart';
-import 'package:pivot/providers/doctor_subject_provider.dart';
-import 'package:pivot/providers/subject_provider.dart';
+import 'package:pivot/features/subjects/providers/legacy_subject_provider.dart';
 import 'package:pivot/features/user/providers/user_profile_provider.dart';
+import 'package:pivot/services/doctor_subject_service.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/features/administration/screens/doctor/add_lecture_dialog.dart';
 import 'package:pivot/features/administration/screens/doctor/doctor_categories.dart';
@@ -113,7 +113,8 @@ class _DoctorProfileState extends ConsumerState<DoctorProfile>
           'Calling fetchAndFilterSubjects for profile: ${profileToUse.name}',
         );
         // Just fetch and filter subjects - no lecture loading here
-        subjectProvider
+        ref
+            .read(legacySubjectProviderProvider.notifier)
             .fetchAndFilterSubjects(profileToUse)
             .then((_) {
               print(
@@ -175,10 +176,9 @@ class _DoctorProfileState extends ConsumerState<DoctorProfile>
           createdAt: DateTime.now(),
         );
 
-        // TODO: Migrate DoctorSubjectProvider to Riverpod
-        await ref
-            .read(legacyDoctorSubjectProviderProvider)
-            .addLecture(newLecture);
+        // Add lecture using service directly
+        final service = DoctorSubjectService();
+        await service.addLecture(newLecture);
 
         // Show success message with subject name
         if (mounted) {
@@ -307,7 +307,7 @@ class _DoctorProfileState extends ConsumerState<DoctorProfile>
       context,
       MaterialPageRoute(
         builder:
-            (context) => SubjectSelectionScreen(
+            (context) => SubjectSelectionScreenWithProviders(
               previouslySelectedIds: profile.teachingSubjects,
               targetUserId: profile.id,
               targetUserRole: profile.role,

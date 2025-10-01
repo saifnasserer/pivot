@@ -9,7 +9,8 @@ import 'package:pivot/screens/models/task.dart';
 import 'package:pivot/screens/models/task_model.dart';
 import 'package:pivot/models/section_model.dart';
 import 'package:pivot/models/user_profile.dart';
-import 'add_edit_task_dialog.dart';
+import 'add_personal_task_dialog.dart';
+
 import 'package:pivot/services/sound_service.dart';
 
 /// Enhanced WeekTasks with analytics, smart organization, and modern UI
@@ -85,10 +86,8 @@ class _WeekTasksState extends ConsumerState<WeekTasks>
       final subjectsState = ref.read(subjectsProvider);
       final loggedInUser = userProfileState.loggedInUserProfile;
 
+      // Silently return if profile is still loading (this is expected during login)
       if (loggedInUser == null) {
-        print(
-          'WeekTasks: No logged-in user found, skipping assistant preferences update',
-        );
         return;
       }
 
@@ -157,12 +156,11 @@ class _WeekTasksState extends ConsumerState<WeekTasks>
   }
 
   void _showAddEditTaskDialog(BuildContext context, {Task? task}) async {
-    await showAddTaskDialog(
+    await showAddPersonalTaskDialog(
       context: context,
       task: task,
-      subjectId: '', // Personal tasks don't need subjectId
       onSave: (task) {
-        // Handle the saved task
+        // Handle the saved personal task
         setState(() {
           final index = _personalTasks.indexWhere((t) => t.id == task.id);
           if (index != -1) {
@@ -259,6 +257,19 @@ class _WeekTasksState extends ConsumerState<WeekTasks>
     final sectionsState = ref.watch(sectionsProvider);
     final subjectsState = ref.watch(subjectsProvider);
 
+    // Listen for when user profile loads and trigger assistant preferences update
+    ref.listen<UserProfileState>(userProfileProvider, (previous, next) {
+      // When profile becomes available (was null, now has value)
+      if (previous?.loggedInUserProfile == null &&
+          next.loggedInUserProfile != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _updateAssistantPreferencesIfNeeded();
+          }
+        });
+      }
+    });
+
     final loggedInUser = userProfileState.loggedInUserProfile;
     final allTasks = [...tasksState.tasks, ..._personalTasks];
 
@@ -270,7 +281,19 @@ class _WeekTasksState extends ConsumerState<WeekTasks>
     });
 
     if (loggedInUser == null) {
-      return Scaffold(body: Center(child: Text('User profile not found')));
+      // Show loading instead of error when profile is still loading
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(color: Colors.black),
+              SizedBox(height: 16),
+              Text('جاري تحميل البيانات...'),
+            ],
+          ),
+        ),
+      );
     }
 
     final userEnrolledSubjectIds = loggedInUser.enrolledSubjects;

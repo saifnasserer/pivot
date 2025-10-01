@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/features/bookmarks/screens/bookmark_card.dart';
-import 'package:pivot/providers/bookmarks.dart';
 import 'package:pivot/features/home/screens/adminstration/models/announcement_data.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/widgets/no_internet_message.dart';
 import 'package:pivot/responsive.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:pivot/features/bookmarks/providers/bookmarks_provider.dart';
 
 /// Simplified BookmarksScreen with permanent search bar
-class BookmarksScreen extends StatefulWidget {
+class BookmarksScreen extends ConsumerStatefulWidget {
   const BookmarksScreen({super.key});
 
   @override
-  State<BookmarksScreen> createState() => _BookmarksScreenState();
+  ConsumerState<BookmarksScreen> createState() => _BookmarksScreenState();
 }
 
-class _BookmarksScreenState extends State<BookmarksScreen> {
+class _BookmarksScreenState extends ConsumerState<BookmarksScreen> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   String _searchQuery = '';
@@ -270,10 +270,7 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
     );
   }
 
-  Widget _buildBookmarksList(
-    List<AnnouncementData> bookmarkedItems,
-    Bookmarks bookmarksProvider,
-  ) {
+  Widget _buildBookmarksList(List<AnnouncementData> bookmarkedItems) {
     final filteredItems = _filterBookmarks(bookmarkedItems);
 
     if (filteredItems.isEmpty) {
@@ -301,7 +298,7 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
           bookmark: bookmark,
           onRemove: () {
             if (bookmark.id != null && bookmark.id!.isNotEmpty) {
-              bookmarksProvider.toggleBookmark(bookmark.id!);
+              ref.read(bookmarksProvider.notifier).toggleBookmark(bookmark.id!);
             }
           },
           onCardTap: () {
@@ -341,10 +338,12 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
           },
           behavior: HitTestBehavior.translucent,
           child: NoInternetMessage(
-            child: Consumer<Bookmarks>(
-              builder: (context, bookmarksProvider, child) {
+            child: Consumer(
+              builder: (context, ref, child) {
+                final bookmarksState = ref.watch(bookmarksProvider);
+
                 // Show loading state
-                if (bookmarksProvider.isLoading) {
+                if (bookmarksState.isLoading) {
                   return const Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -358,7 +357,7 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
                 }
 
                 // Show error state
-                if (bookmarksProvider.error != null) {
+                if (bookmarksState.error != null) {
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -372,7 +371,7 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
                           height: Responsive.space(context, size: Space.medium),
                         ),
                         Text(
-                          bookmarksProvider.error!,
+                          bookmarksState.error!,
                           style: TextStyle(
                             color: Colors.red.shade400,
                             fontSize: Responsive.text(
@@ -387,7 +386,11 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
                           height: Responsive.space(context, size: Space.medium),
                         ),
                         ElevatedButton(
-                          onPressed: () => bookmarksProvider.refreshBookmarks(),
+                          onPressed:
+                              () =>
+                                  ref
+                                      .read(bookmarksProvider.notifier)
+                                      .getUserBookmarks(),
                           child: const Text('إعادة المحاولة'),
                         ),
                       ],
@@ -396,8 +399,7 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
                 }
 
                 // Reverse the list of IDs to show the most recently bookmarked first.
-                final bookmarkIds =
-                    bookmarksProvider.bookmarkIds.reversed.toList();
+                final bookmarkIds = bookmarksState.bookmarks.reversed.toList();
 
                 if (bookmarkIds.isEmpty) {
                   return _buildEmptyState();
@@ -475,10 +477,7 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
                                 }
                               }).toList();
 
-                          return _buildBookmarksList(
-                            filteredBookmarks,
-                            bookmarksProvider,
-                          );
+                          return _buildBookmarksList(filteredBookmarks);
                         },
                       ),
                     ),

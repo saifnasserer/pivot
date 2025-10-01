@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:provider/provider.dart' as legacy_provider;
-import 'package:pivot/providers/guide_provider.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
-import 'package:pivot/providers/subject_provider.dart';
+import 'package:pivot/features/guide/providers/guide_provider.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
+import 'package:pivot/features/subjects/providers/legacy_subject_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:pivot/widgets/no_internet_message.dart';
 import 'dart:async';
@@ -191,14 +190,11 @@ class _SubjectSelectionScreenState
   }
 
   int _calculateTotalHours() {
-    final subjectProvider = legacy_provider.Provider.of<SubjectProvider>(
-      context,
-      listen: false,
-    );
+    final subjectState = ref.read(legacySubjectProviderProvider);
     int totalHours = 0;
 
     for (final subjectId in _selectedSubjectIds) {
-      final subject = subjectProvider.filteredSubjects.firstWhere(
+      final subject = subjectState.filteredSubjects.firstWhere(
         (s) => s.id == subjectId,
         orElse:
             () => Subject(
@@ -638,57 +634,57 @@ class _SubjectSelectionScreenState
 
     bool success = false;
     try {
-      final userProfileProvider = legacy_provider
-          .Provider.of<UserProfileProvider>(context, listen: false);
-      final subjectProvider = legacy_provider.Provider.of<SubjectProvider>(
-        context,
-        listen: false,
-      );
-
-      final userRole = userProfileProvider.loggedInUserProfile?.role;
+      final userProfileState = ref.read(userProfileProvider);
+      final userRole = userProfileState.loggedInUserProfile?.role;
 
       // If targetUserId is provided, Super Admin is editing another user's subjects
       if (widget.targetUserId != null && userRole == 'Super Admin') {
         final targetUserRole = widget.targetUserRole;
 
         if (targetUserRole == 'Student' || targetUserRole == 'Admin') {
-          await userProfileProvider.updateUserEnrolledSubjects(
-            widget.targetUserId!,
-            _selectedSubjectIds.toList(),
-          );
+          await ref
+              .read(userProfileProvider.notifier)
+              .updateUserEnrolledSubjects(
+                widget.targetUserId!,
+                _selectedSubjectIds.toList(),
+              );
         } else if (targetUserRole == 'Professor' ||
             targetUserRole == 'miniProfessor' ||
             targetUserRole == 'Doctor') {
-          await userProfileProvider.updateUserTeachingSubjects(
-            widget.targetUserId!,
-            _selectedSubjectIds.toList(),
-          );
+          await ref
+              .read(userProfileProvider.notifier)
+              .updateUserTeachingSubjects(
+                widget.targetUserId!,
+                _selectedSubjectIds.toList(),
+              );
         } else {
           throw Exception('Unknown target user role: $targetUserRole');
         }
 
-        await userProfileProvider.fetchAllUsers();
-        await subjectProvider.fetchAllSubjects();
+        await ref.read(userProfileProvider.notifier).fetchAllUsers();
+        await ref
+            .read(legacySubjectProviderProvider.notifier)
+            .fetchAllSubjects();
         success = true;
       } else {
         // Normal flow - user editing their own subjects
         if (userRole == 'Student' ||
             userRole == 'Admin' ||
             userRole == 'Super Admin') {
-          await userProfileProvider.updateEnrolledSubjects(
-            _selectedSubjectIds.toList(),
-          );
+          await ref
+              .read(userProfileProvider.notifier)
+              .updateEnrolledSubjects(_selectedSubjectIds.toList());
         } else if (userRole == 'Professor' ||
             userRole == 'miniProfessor' ||
             userRole == 'Doctor') {
-          await userProfileProvider.updateTeachingSubjects(
-            _selectedSubjectIds.toList(),
-          );
+          await ref
+              .read(userProfileProvider.notifier)
+              .updateTeachingSubjects(_selectedSubjectIds.toList());
         } else {
           throw Exception('Unknown user role: $userRole');
         }
 
-        await userProfileProvider.loadLoggedInUserProfile();
+        await ref.read(userProfileProvider.notifier).loadLoggedInUserProfile();
         success = true;
       }
     } catch (e) {
@@ -860,24 +856,23 @@ class _SubjectSelectionScreenState
   Widget _buildGuideSection() {
     return Consumer(
       builder: (context, ref, child) {
-        final guideProvider = legacy_provider.Provider.of<GuideProvider>(
-          context,
-        );
-        if (guideProvider.isLoading && guideProvider.guideContent == null) {
+        final guideState = ref.watch(guideProvider);
+
+        if (guideState.isLoading && guideState.guideContent == null) {
           return const SizedBox(
             height: 200,
             child: Center(child: CircularProgressIndicator()),
           );
         }
 
-        if (guideProvider.error != null) {
+        if (guideState.error != null) {
           return SizedBox(
             height: 200,
-            child: Center(child: Text('خطأ: ${guideProvider.error}')),
+            child: Center(child: Text('خطأ: ${guideState.error}')),
           );
         }
 
-        final guideContent = guideProvider.guideContent;
+        final guideContent = guideState.guideContent;
         if (guideContent == null || guideContent.guidebooks.isEmpty) {
           return const SizedBox(
             height: 200,
@@ -1019,10 +1014,25 @@ class _SubjectSelectionScreenState
   Widget _buildSubjectsList() {
     return Consumer(
       builder: (context, ref, child) {
-        final subjectProvider = legacy_provider.Provider.of<SubjectProvider>(
-          context,
+        final subjectState = ref.watch(legacySubjectProviderProvider);
+
+        // Debug logging
+        print('📚 === SUBJECT SELECTION SCREEN ===');
+        print('  - SubjectProvider isLoading: ${subjectState.isLoading}');
+        print('  - SubjectProvider hasError: ${subjectState.error != null}');
+        print('  - All subjects count: ${subjectState.allSubjects.length}');
+        print(
+          '  - Filtered subjects count: ${subjectState.filteredSubjects.length}',
         );
-        if (subjectProvider.isLoading) {
+        if (subjectState.filteredSubjects.isEmpty &&
+            subjectState.allSubjects.isNotEmpty) {
+          print('  - ⚠️ WARNING: All subjects loaded but filtered is empty!');
+          print(
+            '  - All subjects IDs: ${subjectState.allSubjects.map((s) => s.id).take(5).toList()}...',
+          );
+        }
+
+        if (subjectState.isLoading) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -1040,7 +1050,7 @@ class _SubjectSelectionScreenState
             ),
           );
         }
-        if (subjectProvider.error != null) {
+        if (subjectState.error != null) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -1048,7 +1058,7 @@ class _SubjectSelectionScreenState
                 Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
                 SizedBox(height: Responsive.space(context, size: Space.medium)),
                 Text(
-                  'حدث خطأ: ${subjectProvider.error}',
+                  'حدث خطأ: ${subjectState.error}',
                   style: TextStyle(
                     fontSize: Responsive.text(context, size: TextSize.medium),
                     color: Colors.grey[600],
@@ -1058,7 +1068,9 @@ class _SubjectSelectionScreenState
                 SizedBox(height: Responsive.space(context, size: Space.medium)),
                 ElevatedButton.icon(
                   onPressed: () {
-                    subjectProvider.fetchAllSubjects(forceRefresh: true);
+                    ref
+                        .read(legacySubjectProviderProvider.notifier)
+                        .fetchAllSubjects(forceRefresh: true);
                   },
                   icon: const Icon(Icons.refresh),
                   label: const Text('إعادة المحاولة'),
@@ -1074,7 +1086,7 @@ class _SubjectSelectionScreenState
             ),
           );
         }
-        if (subjectProvider.filteredSubjects.isEmpty) {
+        if (subjectState.filteredSubjects.isEmpty) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -1114,7 +1126,9 @@ class _SubjectSelectionScreenState
                 SizedBox(height: Responsive.space(context, size: Space.medium)),
                 ElevatedButton.icon(
                   onPressed: () {
-                    subjectProvider.fetchAllSubjects(forceRefresh: true);
+                    ref
+                        .read(legacySubjectProviderProvider.notifier)
+                        .fetchAllSubjects(forceRefresh: true);
                   },
                   icon: const Icon(Icons.refresh),
                   label: const Text('إعادة التحميل'),
@@ -1131,7 +1145,7 @@ class _SubjectSelectionScreenState
           );
         }
 
-        final subjects = subjectProvider.filteredSubjects;
+        final subjects = subjectState.filteredSubjects;
 
         // Update available filters when subjects change (optimized)
         _updateAvailableFilters(subjects);
@@ -1451,11 +1465,10 @@ class _SubjectSelectionScreenState
                 ),
                 Consumer(
                   builder: (context, ref, child) {
-                    final guideProvider = legacy_provider
-                        .Provider.of<GuideProvider>(context);
+                    final guideState = ref.watch(guideProvider);
                     final hasContent =
-                        guideProvider.guideContent != null &&
-                        guideProvider.guideContent!.guidebooks.isNotEmpty;
+                        guideState.guideContent != null &&
+                        guideState.guideContent!.guidebooks.isNotEmpty;
                     return IconButton(
                       icon: const Icon(Icons.menu_book_outlined),
                       tooltip: 'عرض دليل الكلية',
@@ -1530,19 +1543,12 @@ class _SubjectSelectionScreenState
 
                           bool success = false;
                           try {
-                            final userProfileProvider = legacy_provider
-                                .Provider.of<UserProfileProvider>(
-                              context,
-                              listen: false,
-                            );
-                            final subjectProvider = legacy_provider
-                                .Provider.of<SubjectProvider>(
-                              context,
-                              listen: false,
+                            final userProfileState = ref.read(
+                              userProfileProvider,
                             );
 
                             final userRole =
-                                userProfileProvider.loggedInUserProfile?.role;
+                                userProfileState.loggedInUserProfile?.role;
 
                             // If targetUserId is provided, Super Admin is editing another user's subjects
                             if (widget.targetUserId != null &&
@@ -1552,7 +1558,8 @@ class _SubjectSelectionScreenState
 
                               if (targetUserRole == 'Student' ||
                                   targetUserRole == 'Admin') {
-                                await userProfileProvider
+                                await ref
+                                    .read(userProfileProvider.notifier)
                                     .updateUserEnrolledSubjects(
                                       widget.targetUserId!,
                                       _selectedSubjectIds.toList(),
@@ -1560,7 +1567,8 @@ class _SubjectSelectionScreenState
                               } else if (targetUserRole == 'Professor' ||
                                   targetUserRole == 'miniProfessor' ||
                                   targetUserRole == 'Doctor') {
-                                await userProfileProvider
+                                await ref
+                                    .read(userProfileProvider.notifier)
                                     .updateUserTeachingSubjects(
                                       widget.targetUserId!,
                                       _selectedSubjectIds.toList(),
@@ -1573,8 +1581,12 @@ class _SubjectSelectionScreenState
 
                               // Update the UI after Super Admin changes
 
-                              await userProfileProvider.fetchAllUsers();
-                              await subjectProvider.fetchAllSubjects();
+                              await ref
+                                  .read(userProfileProvider.notifier)
+                                  .fetchAllUsers();
+                              await ref
+                                  .read(legacySubjectProviderProvider.notifier)
+                                  .fetchAllSubjects();
                               success = true;
                             } else {
                               // Normal flow - user editing their own subjects
@@ -1582,14 +1594,16 @@ class _SubjectSelectionScreenState
                               if (userRole == 'Student' ||
                                   userRole == 'Admin' ||
                                   userRole == 'Super Admin') {
-                                await userProfileProvider
+                                await ref
+                                    .read(userProfileProvider.notifier)
                                     .updateEnrolledSubjects(
                                       _selectedSubjectIds.toList(),
                                     );
                               } else if (userRole == 'Professor' ||
                                   userRole == 'miniProfessor' ||
                                   userRole == 'Doctor') {
-                                await userProfileProvider
+                                await ref
+                                    .read(userProfileProvider.notifier)
                                     .updateTeachingSubjects(
                                       _selectedSubjectIds.toList(),
                                     );
@@ -1602,7 +1616,8 @@ class _SubjectSelectionScreenState
                               // After updating subjects, fetch the latest user profile to ensure
                               // the UI reflects the changes upon returning to the previous screen.
 
-                              await userProfileProvider
+                              await ref
+                                  .read(userProfileProvider.notifier)
                                   .loadLoggedInUserProfile();
                               success = true;
                             }
@@ -1665,6 +1680,29 @@ class _SubjectSelectionScreenState
           ),
         ),
       ),
+    );
+  }
+}
+
+// Helper widget to wrap SubjectSelectionScreen with required providers
+class SubjectSelectionScreenWithProviders extends StatelessWidget {
+  final List<String> previouslySelectedIds;
+  final String? targetUserId;
+  final String? targetUserRole;
+
+  const SubjectSelectionScreenWithProviders({
+    super.key,
+    required this.previouslySelectedIds,
+    this.targetUserId,
+    this.targetUserRole,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SubjectSelectionScreen(
+      previouslySelectedIds: previouslySelectedIds,
+      targetUserId: targetUserId,
+      targetUserRole: targetUserRole,
     );
   }
 }

@@ -5,7 +5,6 @@ import 'package:pivot/screens/models/circular_button.dart';
 import 'package:pivot/widgets/custom_text_field.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/features/auth/providers/auth_provider.dart';
-import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import '../../../../responsive.dart';
 import 'dart:developer' as developer;
 
@@ -49,14 +48,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       );
 
       if (userProfile != null && mounted) {
-        // Set the user profile using Riverpod
-        ref
-            .read(userProfileProvider.notifier)
-            .setLoggedInUserProfile(userProfile);
-        ref.read(userProfileProvider.notifier).setUserProfile(userProfile);
-
-        // Navigate to landing page
-        Navigator.pushReplacementNamed(context, '/landing');
+        // Navigate to auth wrapper which will properly initialize cache and load profile
+        Navigator.pushReplacementNamed(context, '/auth-wrapper');
       }
     } on FirebaseAuthException catch (e) {
       // Log full error to console for debugging

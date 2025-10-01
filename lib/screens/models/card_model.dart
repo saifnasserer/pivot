@@ -1,13 +1,13 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:pivot/providers/bookmarks.dart';
 import 'package:pivot/responsive.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:pivot/widgets/comment_section.dart';
+import 'package:pivot/features/bookmarks/providers/bookmarks_provider.dart';
 
-class CardModel extends StatefulWidget {
+class CardModel extends ConsumerStatefulWidget {
   final String? id;
   final String title;
   final String date;
@@ -42,10 +42,10 @@ class CardModel extends StatefulWidget {
   });
 
   @override
-  State<CardModel> createState() => _CardModelState();
+  ConsumerState<CardModel> createState() => _CardModelState();
 }
 
-class _CardModelState extends State<CardModel> {
+class _CardModelState extends ConsumerState<CardModel> {
   // State variables
   int _currentPage = 0;
   List<Widget> _contentPages = [];
@@ -713,23 +713,9 @@ class _CardModelState extends State<CardModel> {
                                 );
                               }
 
-                              // Try to access the provider safely
-                              try {
-                                Provider.of<Bookmarks>(context, listen: false);
-                              } catch (e) {
-                                return IconButton(
-                                  onPressed: null,
-                                  icon: const Icon(
-                                    Icons.bookmark_border,
-                                    color: Colors.grey,
-                                  ),
-                                  splashRadius: 24,
-                                );
-                              }
-
-                              // Use Consumer only if provider is available
-                              return Consumer<Bookmarks>(
-                                builder: (context, bookmarksConsumer, child) {
+                              // Use Riverpod Consumer for bookmarks
+                              return Consumer(
+                                builder: (context, ref, child) {
                                   // Final mounted check
                                   if (!mounted) {
                                     return IconButton(
@@ -742,39 +728,34 @@ class _CardModelState extends State<CardModel> {
                                     );
                                   }
 
-                                  try {
-                                    final bool isBookmarked = bookmarksConsumer
-                                        .isBookmarked(widget.id!);
+                                  final bookmarksState = ref.watch(
+                                    bookmarksProvider,
+                                  );
+                                  final bool isBookmarked = bookmarksState
+                                      .bookmarks
+                                      .contains(widget.id);
 
-                                    return IconButton(
-                                      onPressed: () {
-                                        // Final mounted check before action
-                                        if (!mounted) return;
+                                  return IconButton(
+                                    onPressed: () async {
+                                      // Final mounted check before action
+                                      if (!mounted) return;
 
-                                        try {
-                                          bookmarksConsumer.toggleBookmark(
-                                            widget.id!,
-                                          );
-                                        } catch (e) {}
-                                      },
-                                      icon: Icon(
-                                        isBookmarked
-                                            ? Icons.bookmark
-                                            : Icons.bookmark_border,
-                                        color: Colors.black,
-                                      ),
-                                      splashRadius: 24,
-                                    );
-                                  } catch (e) {
-                                    return IconButton(
-                                      onPressed: null,
-                                      icon: const Icon(
-                                        Icons.bookmark_border,
-                                        color: Colors.grey,
-                                      ),
-                                      splashRadius: 24,
-                                    );
-                                  }
+                                      try {
+                                        await ref
+                                            .read(bookmarksProvider.notifier)
+                                            .toggleBookmark(widget.id!);
+                                      } catch (e) {
+                                        // Ignore errors silently
+                                      }
+                                    },
+                                    icon: Icon(
+                                      isBookmarked
+                                          ? Icons.bookmark
+                                          : Icons.bookmark_border,
+                                      color: Colors.black,
+                                    ),
+                                    splashRadius: 24,
+                                  );
                                 },
                               );
                             },

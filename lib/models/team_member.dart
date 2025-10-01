@@ -11,6 +11,8 @@ class TeamMember {
   final String userId;
   final DateTime createdAt;
   final String teamName;
+  final String? year;
+  final bool isPinned;
 
   TeamMember({
     required this.id,
@@ -23,6 +25,8 @@ class TeamMember {
     required this.userId,
     required this.createdAt,
     required this.teamName,
+    this.year,
+    this.isPinned = false,
   });
 
   factory TeamMember.fromFirestore(DocumentSnapshot doc) {
@@ -48,6 +52,8 @@ class TeamMember {
       userId: data['userId'] ?? '',
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       teamName: data['teamName'] ?? '',
+      year: data['year'] as String?,
+      isPinned: data['isPinned'] as bool? ?? false,
     );
   }
 
@@ -62,6 +68,8 @@ class TeamMember {
       'userId': userId,
       'createdAt': Timestamp.fromDate(createdAt),
       'teamName': teamName,
+      'year': year,
+      'isPinned': isPinned,
     };
   }
 
@@ -76,6 +84,8 @@ class TeamMember {
     String? userId,
     DateTime? createdAt,
     String? teamName,
+    String? year,
+    bool? isPinned,
   }) {
     return TeamMember(
       id: id ?? this.id,
@@ -88,6 +98,8 @@ class TeamMember {
       userId: userId ?? this.userId,
       createdAt: createdAt ?? this.createdAt,
       teamName: teamName ?? this.teamName,
+      year: year ?? this.year,
+      isPinned: isPinned ?? this.isPinned,
     );
   }
 }

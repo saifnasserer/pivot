@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/models/section_model.dart';
-import 'package:pivot/providers/section_provider.dart';
-import 'package:pivot/providers/subject_provider.dart';
+import 'package:pivot/features/administration/providers/sections_provider.dart';
+import 'package:pivot/features/subjects/providers/legacy_subject_provider.dart';
 import 'package:pivot/features/administration/screens/assistants/add_edit_section_dialog.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
-import 'package:provider/provider.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:gradient_borders/gradient_borders.dart';
 import 'package:pivot/responsive.dart';
 
-class SectionCard extends StatelessWidget {
+class SectionCard extends ConsumerWidget {
   final Section section;
   final String subjectName;
   final bool isCurrentUserSection;
@@ -80,10 +80,11 @@ class SectionCard extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final subjects = context.read<SubjectProvider>().filteredSubjects;
-    final userProfile =
-        context.watch<UserProfileProvider>().loggedInUserProfile;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final subjectState = ref.read(legacySubjectProviderProvider);
+    final subjects = subjectState.filteredSubjects;
+    final userProfileState = ref.watch(userProfileProvider);
+    final userProfile = userProfileState.loggedInUserProfile;
 
     final bool canDelete =
         userProfile != null &&
@@ -250,6 +251,7 @@ class SectionCard extends StatelessWidget {
                               onTap:
                                   () => _showDeleteConfirmation(
                                     context,
+                                    ref,
                                     section.id,
                                   ),
                               child: Container(
@@ -320,11 +322,15 @@ class SectionCard extends StatelessWidget {
     );
   }
 
-  void _showDeleteConfirmation(BuildContext context, String sectionId) {
+  void _showDeleteConfirmation(
+    BuildContext context,
+    WidgetRef ref,
+    String sectionId,
+  ) {
     showDialog(
       context: context,
       barrierDismissible: true,
-      builder: (BuildContext context) {
+      builder: (BuildContext dialogContext) {
         return Dialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(
@@ -463,10 +469,10 @@ class SectionCard extends StatelessWidget {
                           ),
                         ),
                         onPressed: () {
-                          context.read<SectionProvider>().deleteSection(
-                            sectionId,
-                          );
-                          Navigator.of(context).pop();
+                          ref
+                              .read(sectionsProvider.notifier)
+                              .deleteSection(sectionId);
+                          Navigator.of(dialogContext).pop();
                         },
                         child: Text(
                           'امسح',

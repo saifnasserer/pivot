@@ -141,10 +141,6 @@ class ScheduleCalendarBuilder {
     final todayIndex = getTodayIndex(days);
     final initialIndex = todayIndex != -1 ? todayIndex : validSelectedIndex;
 
-    print(
-      '🔍 [Schedule] TabController initialIndex: $initialIndex (todayIndex: $todayIndex, validSelectedIndex: $validSelectedIndex)',
-    );
-
     return DefaultTabController(
       length: days.length,
       initialIndex: initialIndex,
@@ -547,21 +543,15 @@ class ScheduleCalendarBuilder {
     final normalizedDay = day.trim().toLowerCase();
     final normalizedToday = today.trim().toLowerCase();
 
-    print('🔍 [Schedule] Comparing: "$normalizedDay" with "$normalizedToday"');
-
     return normalizedDay == normalizedToday;
   }
 
   /// Gets the index of today in the days list, returns -1 if not found
   static int getTodayIndex(List<String> days) {
     final todayName = getTodayName();
-    print('🔍 [Schedule] Looking for today: "$todayName"');
-    print('🔍 [Schedule] Available days: $days');
 
     for (int i = 0; i < days.length; i++) {
-      print('🔍 [Schedule] Checking day $i: "${days[i]}"');
       if (_isToday(days[i])) {
-        print('🔍 [Schedule] Found today at index: $i');
         return i;
       }
     }
@@ -569,16 +559,13 @@ class ScheduleCalendarBuilder {
     // Fallback: try to find today using alternative day names
     final alternativeToday = _getAlternativeDayName();
     if (alternativeToday.isNotEmpty) {
-      print('🔍 [Schedule] Trying alternative today name: "$alternativeToday"');
       for (int i = 0; i < days.length; i++) {
         if (days[i].trim().toLowerCase() == alternativeToday.toLowerCase()) {
-          print('🔍 [Schedule] Found today with alternative name at index: $i');
           return i;
         }
       }
     }
 
-    print('🔍 [Schedule] Today not found in days list');
     return -1;
   }
 
@@ -612,20 +599,6 @@ class ScheduleCalendarBuilder {
       default:
         return '';
     }
-  }
-
-  /// Debug method to print current day information
-  static void debugTodayInfo() {
-    final now = DateTime.now();
-    final weekday = now.weekday;
-    final todayName = getTodayName();
-    final alternativeName = _getAlternativeDayName();
-
-    print('🔍 [Schedule] Debug Today Info:');
-    print('  - Current DateTime: $now');
-    print('  - Weekday number: $weekday');
-    print('  - Today name: "$todayName"');
-    print('  - Alternative name: "$alternativeName"');
   }
 
   /// Gets day name from weekday number
@@ -676,4 +649,3 @@ List<Widget> buildCalendar({
     onReorder: onReorder,
   );
 }
-

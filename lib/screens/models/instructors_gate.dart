@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/models/section_model.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
-import 'package:provider/provider.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/models/subject_model.dart';
 
@@ -103,7 +103,7 @@ class InstructorsGateConfig {
 }
 
 /// Reusable dialog for displaying and selecting instructors
-class InstructorsGate extends StatefulWidget {
+class InstructorsGate extends ConsumerStatefulWidget {
   final Subject subject;
   final List<UserProfile> instructors;
   final InstructorsGateConfig config;
@@ -120,10 +120,10 @@ class InstructorsGate extends StatefulWidget {
   });
 
   @override
-  State<InstructorsGate> createState() => _InstructorsGateState();
+  ConsumerState<InstructorsGate> createState() => _InstructorsGateState();
 }
 
-class _InstructorsGateState extends State<InstructorsGate> {
+class _InstructorsGateState extends ConsumerState<InstructorsGate> {
   String? _selectedInstructorId;
   bool _isSaving = false;
   bool _isEditMode = false;
@@ -137,15 +137,9 @@ class _InstructorsGateState extends State<InstructorsGate> {
     if (widget.config.enableSelection) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (mounted) {
-          final userProfileProvider = Provider.of<UserProfileProvider>(
-            context,
-            listen: false,
-          );
-
           // Ensure we're using the logged-in user's profile
-          userProfileProvider.ensureLoggedInUserProfileIsCurrent();
-
-          final currentUser = userProfileProvider.loggedInUserProfile;
+          final userProfileState = ref.read(userProfileProvider);
+          final currentUser = userProfileState.loggedInUserProfile;
           if (currentUser != null) {
             final currentInstructorId =
                 currentUser.assistantPreferences[widget.subject.id];
@@ -584,6 +578,7 @@ class _InstructorsGateState extends State<InstructorsGate> {
 /// Helper function to show InstructorsGate dialog
 Future<void> showInstructorsGate({
   required BuildContext context,
+  required WidgetRef ref,
   required Subject subject,
   required List<UserProfile> instructors,
   required InstructorsGateConfig config,
@@ -614,11 +609,7 @@ Future<void> showInstructorsGate({
           ),
         ),
   ).then((_) {
-    // Restore logged-in user profile when dialog is dismissed
-    final userProfileProvider = Provider.of<UserProfileProvider>(
-      context,
-      listen: false,
-    );
-    userProfileProvider.restoreLoggedInUserProfile();
+    // User profile will remain active after dialog dismissal
+    // No need to restore as Riverpod handles state automatically
   });
 }

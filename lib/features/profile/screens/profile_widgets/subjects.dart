@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/screens/models/instructors_gate.dart';
 import 'package:pivot/responsive.dart';
@@ -133,7 +134,7 @@ class SubjectsBuilder {
 }
 
 /// Enhanced subject list item with better design and functionality
-class EnhancedSubjectListItem extends StatefulWidget {
+class EnhancedSubjectListItem extends ConsumerStatefulWidget {
   const EnhancedSubjectListItem({
     super.key,
     required this.subject,
@@ -146,11 +147,12 @@ class EnhancedSubjectListItem extends StatefulWidget {
   final int index;
 
   @override
-  State<EnhancedSubjectListItem> createState() =>
+  ConsumerState<EnhancedSubjectListItem> createState() =>
       _EnhancedSubjectListItemState();
 }
 
-class _EnhancedSubjectListItemState extends State<EnhancedSubjectListItem>
+class _EnhancedSubjectListItemState
+    extends ConsumerState<EnhancedSubjectListItem>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
@@ -364,6 +366,7 @@ class _EnhancedSubjectListItemState extends State<EnhancedSubjectListItem>
   ) {
     showInstructorsGate(
       context: context,
+      ref: ref,
       subject: subject,
       instructors: professors,
       config: InstructorsGateConfig.professors,

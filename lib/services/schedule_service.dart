@@ -37,8 +37,7 @@ class ScheduleService {
     for (var entry in scheduleMap.entries) {
       final day = entry.key;
       final dayItems = entry.value;
-      for (int i = 0; i < dayItems.length; i++) {
-      }
+      for (int i = 0; i < dayItems.length; i++) {}
 
       dayItems.sort((a, b) {
         final aOrder = a.order ?? 0;
@@ -46,8 +45,7 @@ class ScheduleService {
         return aOrder.compareTo(bOrder);
       });
 
-      for (int i = 0; i < dayItems.length; i++) {
-      }
+      for (int i = 0; i < dayItems.length; i++) {}
     }
 
     return scheduleMap;
@@ -55,7 +53,20 @@ class ScheduleService {
 
   // Add a new schedule item
   Future<void> addScheduleItem(ScheduleItem item) async {
-    await _getScheduleCollection().doc(item.id).set(item);
+    try {
+      final user = _auth.currentUser;
+      print('🔐 Schedule Service: Adding item');
+      print('  - User ID: ${user?.uid}');
+      print('  - Path: users/${user?.uid}/schedule/${item.id}');
+      print('  - Item data: ${item.toJson()}');
+
+      await _getScheduleCollection().doc(item.id).set(item);
+      print('  - ✅ Item added successfully');
+    } catch (e) {
+      print('  - ❌ Error adding schedule item: $e');
+      print('  - Error type: ${e.runtimeType}');
+      rethrow;
+    }
   }
 
   // Remove a schedule item by its ID
@@ -68,7 +79,6 @@ class ScheduleService {
     String day,
     List<ScheduleItem> items,
   ) async {
-
     final batch = _firestore.batch();
 
     for (int i = 0; i < items.length; i++) {

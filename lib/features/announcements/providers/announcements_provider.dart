@@ -230,6 +230,56 @@ class AnnouncementsNotifier extends StateNotifier<AnnouncementsState> {
     }
   }
 
+  // Get comments for announcement
+  Future<List<CommentData>> getCommentsForAnnouncement(
+    String announcementId,
+  ) async {
+    try {
+      return await _repo.getCommentsForAnnouncement(announcementId);
+    } catch (e) {
+      throw Exception('Failed to get comments: $e');
+    }
+  }
+
+  // Like comment
+  Future<void> likeComment(
+    String announcementId,
+    String commentId,
+    String userId,
+  ) async {
+    try {
+      await _repo.likeComment(announcementId, commentId, userId);
+    } catch (e) {
+      throw Exception('Failed to like comment: $e');
+    }
+  }
+
+  // Reply to comment
+  Future<void> replyToComment(
+    String announcementId,
+    String parentCommentId,
+    CommentData reply,
+  ) async {
+    try {
+      await _repo.replyToComment(announcementId, parentCommentId, reply);
+    } catch (e) {
+      throw Exception('Failed to reply to comment: $e');
+    }
+  }
+
+  // Update comment
+  Future<void> updateComment(
+    String announcementId,
+    String commentId,
+    String newContent,
+  ) async {
+    try {
+      await _repo.updateComment(announcementId, commentId, newContent);
+    } catch (e) {
+      throw Exception('Failed to update comment: $e');
+    }
+  }
+
   void clearError() {
     state = state.copyWith(error: null);
   }

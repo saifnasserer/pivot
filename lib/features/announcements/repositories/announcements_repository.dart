@@ -36,6 +36,27 @@ class AnnouncementsRepository {
   Future<List<CommentData>> getComments(String announcementId) =>
       _service.getComments(announcementId);
 
+  Future<List<CommentData>> getCommentsForAnnouncement(String announcementId) =>
+      _service.getComments(announcementId);
+
+  Future<void> likeComment(
+    String announcementId,
+    String commentId,
+    String userId,
+  ) => _service.likeComment(announcementId, commentId, userId);
+
+  Future<void> replyToComment(
+    String announcementId,
+    String parentCommentId,
+    CommentData reply,
+  ) => _service.replyToComment(announcementId, parentCommentId, reply);
+
+  Future<void> updateComment(
+    String announcementId,
+    String commentId,
+    String newContent,
+  ) => _service.updateComment(announcementId, commentId, newContent);
+
   Future<List<String>> uploadImages(List<String> imagePaths) =>
       _service.uploadImages(imagePaths);
 }

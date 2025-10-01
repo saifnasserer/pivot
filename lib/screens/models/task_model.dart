@@ -1,15 +1,15 @@
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/features/tasks/screens/screens.dart';
 import 'package:intl/intl.dart'; // For date formatting
-import 'package:pivot/providers/user_profile_provider.dart';
-import 'package:provider/provider.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
 
 import 'task.dart'; // Import the Task data model
 import 'package:pivot/responsive.dart';
 
 /// Enhanced TaskModel with subtle design using white/black palette
-class TaskModel extends StatefulWidget {
+class TaskModel extends ConsumerStatefulWidget {
   final Task task;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
@@ -26,10 +26,10 @@ class TaskModel extends StatefulWidget {
   });
 
   @override
-  State<TaskModel> createState() => _TaskModelState();
+  ConsumerState<TaskModel> createState() => _TaskModelState();
 }
 
-class _TaskModelState extends State<TaskModel>
+class _TaskModelState extends ConsumerState<TaskModel>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
@@ -88,11 +88,8 @@ class _TaskModelState extends State<TaskModel>
 
   @override
   Widget build(BuildContext context) {
-    final userProfileProvider = Provider.of<UserProfileProvider>(
-      context,
-      listen: false,
-    );
-    final userId = userProfileProvider.userProfile?.id;
+    final userProfileState = ref.read(userProfileProvider);
+    final userId = userProfileState.loggedInUserProfile?.id;
 
     // Determine completion status for the current user
     final bool isCompleted =
@@ -320,14 +317,15 @@ class _TaskModelState extends State<TaskModel>
                                         ),
                                         alignment: WrapAlignment.end,
                                         children: [
-                                          // Importance chip
-                                          _buildInfoChip(
-                                            _getImportanceLabel(
-                                              widget.task.importance,
+                                          // Importance chip (hidden for personal tasks)
+                                          if (!widget.task.isPersonal)
+                                            _buildInfoChip(
+                                              _getImportanceLabel(
+                                                widget.task.importance,
+                                              ),
+                                              importanceColor,
+                                              Icons.priority_high,
                                             ),
-                                            importanceColor,
-                                            Icons.priority_high,
-                                          ),
 
                                           // Personal task indicator
                                           if (widget.task.isPersonal)

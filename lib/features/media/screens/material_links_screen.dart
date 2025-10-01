@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart' hide MaterialType;
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/models/lecture_model.dart';
 import 'package:pivot/models/user_profile.dart';
-import 'package:pivot/providers/material_links_provider.dart';
+import 'package:pivot/features/media/providers/materials_provider.dart';
 import 'material_card.dart';
 import 'add_material_dialog.dart';
-import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/models/material_link.dart';
 
-class MaterialLinksScreen extends StatefulWidget {
+class MaterialLinksScreen extends ConsumerStatefulWidget {
   final Lecture lecture;
   final UserProfile? loggedInUser;
 
@@ -21,10 +21,11 @@ class MaterialLinksScreen extends StatefulWidget {
   });
 
   @override
-  State<MaterialLinksScreen> createState() => _MaterialLinksScreenState();
+  ConsumerState<MaterialLinksScreen> createState() =>
+      _MaterialLinksScreenState();
 }
 
-class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
+class _MaterialLinksScreenState extends ConsumerState<MaterialLinksScreen> {
   final TextEditingController _searchController = TextEditingController();
   bool _showSearch = false;
 
@@ -33,9 +34,9 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
     super.initState();
     // Fetch material links when screen initializes
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<MaterialLinksProvider>().fetchMaterialLinks(
-        widget.lecture.id,
-      );
+      ref
+          .read(materialsProvider.notifier)
+          .getMaterialsByLectureId(widget.lecture.id);
     });
   }
 
@@ -74,8 +75,9 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
     );
 
     if (result != null && mounted) {
-      final provider = context.read<MaterialLinksProvider>();
-      await provider.addMaterialLink(widget.lecture.id, result);
+      await ref
+          .read(materialsProvider.notifier)
+          .addMaterialToLecture(widget.lecture.id, result);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -133,13 +135,15 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
       children: [
         if (_showSearch) _buildSearchBar(),
         Expanded(
-          child: Consumer<MaterialLinksProvider>(
-            builder: (context, provider, child) {
-              if (provider.isLoading) {
+          child: Consumer(
+            builder: (context, ref, child) {
+              final materialsState = ref.watch(materialsProvider);
+
+              if (materialsState.isLoading) {
                 return _buildSkeletonLoading();
               }
 
-              if (provider.error != null) {
+              if (materialsState.error != null) {
                 return Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -151,15 +155,16 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
                       ),
                       SizedBox(height: 16),
                       Text(
-                        'خطأ: ${provider.error}',
+                        'خطأ: ${materialsState.error}',
                         style: TextStyle(color: Colors.red.shade600),
                         textAlign: TextAlign.center,
                       ),
                       SizedBox(height: 16),
                       ElevatedButton(
                         onPressed:
-                            () =>
-                                provider.fetchMaterialLinks(widget.lecture.id),
+                            () => ref
+                                .read(materialsProvider.notifier)
+                                .getMaterialsByLectureId(widget.lecture.id),
                         child: const Text('إعادة المحاولة'),
                       ),
                     ],
@@ -167,7 +172,7 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
                 );
               }
 
-              final filteredLinks = provider.filteredLinks;
+              final filteredLinks = materialsState.filteredMaterials;
 
               if (filteredLinks.isEmpty) {
                 return _buildEmptyState();
@@ -175,12 +180,14 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
 
               return Column(
                 children: [
-                  // _buildMaterialStats(provider),
-                  _buildFilterChips(provider),
+                  // _buildMaterialStats(materialsState),
+                  _buildFilterChips(ref, materialsState),
                   Expanded(
                     child: RefreshIndicator(
                       onRefresh:
-                          () => provider.fetchMaterialLinks(widget.lecture.id),
+                          () => ref
+                              .read(materialsProvider.notifier)
+                              .getMaterialsByLectureId(widget.lecture.id),
                       child: ListView.builder(
                         padding: EdgeInsets.all(
                           Responsive.space(context, size: Space.small),
@@ -239,7 +246,9 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
                   setState(() {
                     _showSearch = false;
                     _searchController.clear();
-                    context.read<MaterialLinksProvider>().setSearchQuery('');
+                    ref
+                        .read(materialsProvider.notifier)
+                        .filterMaterials(query: '');
                   });
                 },
               ),
@@ -268,15 +277,17 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
                               icon: const Icon(Icons.clear),
                               onPressed: () {
                                 _searchController.clear();
-                                context
-                                    .read<MaterialLinksProvider>()
-                                    .setSearchQuery('');
+                                ref
+                                    .read(materialsProvider.notifier)
+                                    .filterMaterials(query: '');
                               },
                             )
                             : null,
                   ),
                   onChanged: (value) {
-                    context.read<MaterialLinksProvider>().setSearchQuery(value);
+                    ref
+                        .read(materialsProvider.notifier)
+                        .filterMaterials(query: value);
                   },
                 ),
               ),
@@ -292,9 +303,9 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
   }
 
   Widget _buildSearchSuggestions() {
-    final provider = context.read<MaterialLinksProvider>();
+    final materialsState = ref.read(materialsProvider);
     final suggestions =
-        provider.materialLinks
+        materialsState.materials
             .where(
               (link) =>
                   link.title.toLowerCase().contains(
@@ -330,9 +341,9 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
                     ),
                     onTap: () {
                       _searchController.text = link.title;
-                      context.read<MaterialLinksProvider>().setSearchQuery(
-                        link.title,
-                      );
+                      ref
+                          .read(materialsProvider.notifier)
+                          .filterMaterials(query: link.title);
                     },
                   ),
                 )
@@ -436,8 +447,13 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
     );
   }
 
-  Widget _buildFilterChips(MaterialLinksProvider provider) {
-    final typeCounts = provider.typeCounts;
+  Widget _buildFilterChips(WidgetRef ref, MaterialsState materialsState) {
+    // Calculate type counts from filtered materials
+    final typeCounts = <MaterialType, int>{};
+    for (var material in materialsState.materials) {
+      typeCounts[material.type] = (typeCounts[material.type] ?? 0) + 1;
+    }
+
     if (typeCounts.isEmpty) return const SizedBox.shrink();
 
     return Directionality(
@@ -454,18 +470,20 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
           itemBuilder: (context, index) {
             if (index == 0) {
               // "All" option
-              final isSelected = provider.selectedType == null;
+              final isSelected = materialsState.selectedType == null;
               return _buildFilterChip(
+                ref,
                 'الكل',
                 null,
                 isSelected,
-                provider.materialLinks.length,
+                materialsState.materials.length,
               );
             } else {
               final type = typeCounts.keys.elementAt(index - 1);
               final count = typeCounts[type]!;
-              final isSelected = provider.selectedType == type;
+              final isSelected = materialsState.selectedType == type;
               return _buildFilterChip(
+                ref,
                 _getTypeDisplayName(type),
                 type,
                 isSelected,
@@ -494,6 +512,7 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
   }
 
   Widget _buildFilterChip(
+    WidgetRef ref,
     String label,
     MaterialType? type,
     bool isSelected,
@@ -521,9 +540,9 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
         selected: isSelected,
         onSelected: (selected) {
           HapticFeedback.selectionClick();
-          context.read<MaterialLinksProvider>().setSelectedType(
-            selected ? type : null,
-          );
+          ref
+              .read(materialsProvider.notifier)
+              .filterMaterials(type: selected ? type : null);
         },
         backgroundColor: Colors.grey.shade100,
         selectedColor: Colors.black,
@@ -600,8 +619,9 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
 
     if (confirmed == true && mounted) {
       try {
-        final provider = context.read<MaterialLinksProvider>();
-        await provider.deleteMaterialLink(widget.lecture.id, materialLink);
+        await ref
+            .read(materialsProvider.notifier)
+            .removeMaterialFromLecture(widget.lecture.id, materialLink);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -636,13 +656,13 @@ class _MaterialLinksScreenState extends State<MaterialLinksScreen> {
     }
 
     try {
-      final provider = context.read<MaterialLinksProvider>();
-      await provider.rateMaterial(
-        widget.lecture.id,
-        materialLink,
-        widget.loggedInUser!.id,
-        rating,
-      );
+      // TODO: Implement rating functionality in MaterialsProvider
+      // await ref.read(materialsProvider.notifier).rateMaterial(
+      //   widget.lecture.id,
+      //   materialLink,
+      //   widget.loggedInUser!.id,
+      //   rating,
+      // );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

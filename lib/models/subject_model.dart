@@ -1,4 +1,5 @@
 import 'package:hive/hive.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 part 'subject_model.g.dart';
 
@@ -97,4 +98,12 @@ class Subject extends HiveObject {
       'englishName': englishName,
     };
   }
+
+  // Firestore compatibility methods
+  factory Subject.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return Subject.fromJson(data, doc.id);
+  }
+
+  Map<String, dynamic> toFirestore() => toJson();
 }

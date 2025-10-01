@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/models/section_model.dart';
 import 'package:pivot/models/user_profile.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/screens/models/instructors_gate.dart';
-import 'package:pivot/providers/section_provider.dart';
-import 'package:pivot/providers/subject_provider.dart';
-import 'package:provider/provider.dart';
+import 'package:pivot/features/administration/providers/sections_provider.dart';
+import 'package:pivot/features/subjects/providers/legacy_subject_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/models/subject_model.dart';
 
@@ -13,22 +13,23 @@ import 'package:pivot/models/subject_model.dart';
 class SectionsBuilder {
   /// Builds a complete sections list with enhanced features
   static List<Widget> buildSectionsSlivers(
-    BuildContext context, {
+    BuildContext context,
+    WidgetRef ref, {
     bool enableAnimations = true,
   }) {
-    final userProfileProvider = Provider.of<UserProfileProvider>(context);
-    final sectionProvider = Provider.of<SectionProvider>(context);
-    final subjectProvider = Provider.of<SubjectProvider>(context);
+    final userProfileState = ref.watch(userProfileProvider);
+    final sectionsState = ref.watch(sectionsProvider);
+    final subjectState = ref.watch(legacySubjectProviderProvider);
 
-    if (userProfileProvider.isLoading || sectionProvider.isLoading) {
+    if (userProfileState.isLoading || sectionsState.isLoading) {
       return [_buildLoadingState(context)];
     }
 
-    final loggedInUser = userProfileProvider.loggedInUserProfile;
-    final allSections = sectionProvider.sections;
-    final enrolledSubjects = subjectProvider.filteredSubjects;
+    final loggedInUser = userProfileState.loggedInUserProfile;
+    final allSections = sectionsState.sections;
+    final enrolledSubjects = subjectState.filteredSubjects;
 
-    if (sectionProvider.error != null) {
+    if (sectionsState.error != null) {
       return [
         SliverFillRemaining(
           hasScrollBody: false,
@@ -39,7 +40,7 @@ class SectionsBuilder {
                 Icon(Icons.error_outline, color: Colors.red, size: 48),
                 SizedBox(height: Responsive.space(context, size: Space.medium)),
                 Text(
-                  sectionProvider.error!,
+                  sectionsState.error!,
                   style: TextStyle(
                     color: Colors.red,
                     fontSize: Responsive.text(context, size: TextSize.medium),
@@ -49,9 +50,11 @@ class SectionsBuilder {
                 SizedBox(height: Responsive.space(context, size: Space.medium)),
                 ElevatedButton(
                   onPressed:
-                      () => sectionProvider.fetchSectionsForUserSubjects(
-                        enrolledSubjects.map((s) => s.id).toList(),
-                      ),
+                      () => ref
+                          .read(sectionsProvider.notifier)
+                          .fetchSectionsForUserSubjects(
+                            enrolledSubjects.map((s) => s.id).toList(),
+                          ),
                   child: Text('إعادة المحاولة'),
                 ),
               ],
@@ -83,7 +86,7 @@ class SectionsBuilder {
 
       // Get instructors for this subject
       final instructors =
-          subjectProvider.instructorsBySubject[subject.id]
+          subjectState.instructorsBySubject[subject.id]
               ?.where((prof) => prof.role == 'miniProfessor')
               .toList() ??
           [];
@@ -230,7 +233,7 @@ class SectionsBuilder {
 }
 
 /// Enhanced section list item with better design and functionality
-class EnhancedSectionListItem extends StatefulWidget {
+class EnhancedSectionListItem extends ConsumerStatefulWidget {
   const EnhancedSectionListItem({
     super.key,
     required this.section,
@@ -243,11 +246,12 @@ class EnhancedSectionListItem extends StatefulWidget {
   final int index;
 
   @override
-  State<EnhancedSectionListItem> createState() =>
+  ConsumerState<EnhancedSectionListItem> createState() =>
       _EnhancedSectionListItemState();
 }
 
-class _EnhancedSectionListItemState extends State<EnhancedSectionListItem>
+class _EnhancedSectionListItemState
+    extends ConsumerState<EnhancedSectionListItem>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
@@ -273,10 +277,9 @@ class _EnhancedSectionListItemState extends State<EnhancedSectionListItem>
 
   void _onTap() {
     final instructors =
-        Provider.of<SubjectProvider>(
-          context,
-          listen: false,
-        ).instructorsBySubject[widget.subject.id];
+        ref.read(legacySubjectProviderProvider).instructorsBySubject[widget
+            .subject
+            .id];
     final assistants =
         instructors?.where((prof) => prof.role == 'miniProfessor').toList() ??
         [];
@@ -463,11 +466,8 @@ class _EnhancedSectionListItemState extends State<EnhancedSectionListItem>
     Section section,
     List<UserProfile> assistants,
   ) async {
-    final userProfileProvider = Provider.of<UserProfileProvider>(
-      context,
-      listen: false,
-    );
-    final currentUser = userProfileProvider.userProfile;
+    final userProfileState = ref.read(userProfileProvider);
+    final currentUser = userProfileState.userProfile;
     final currentAssistantId = currentUser?.assistantPreferences[subject.id];
 
     // Auto-select if only one assistant
@@ -476,33 +476,39 @@ class _EnhancedSectionListItemState extends State<EnhancedSectionListItem>
       selectedAssistantId = assistants.first.id;
       // Auto-save the preference
       try {
-        final loggedInUser = userProfileProvider.loggedInUserProfile;
+        final loggedInUser = userProfileState.loggedInUserProfile;
         if (loggedInUser != null) {
-          await userProfileProvider.updateAssistantPreferences({
-            ...loggedInUser.assistantPreferences,
-            subject.id: selectedAssistantId,
-          });
+          await ref
+              .read(userProfileProvider.notifier)
+              .updateAssistantPreferences({
+                ...loggedInUser.assistantPreferences,
+                subject.id: selectedAssistantId,
+              });
         }
       } catch (e) {}
     }
 
     showInstructorsGate(
       context: context,
+      ref: ref,
       subject: subject,
       instructors: assistants,
       config: InstructorsGateConfig.assistants.copyWith(
         onInstructorSelected: (assistantId) async {
           try {
             // Get the current logged-in user profile
-            final loggedInUser = userProfileProvider.loggedInUserProfile;
+            final loggedInUser =
+                ref.read(userProfileProvider).loggedInUserProfile;
             if (loggedInUser == null) {
               throw Exception('No logged-in user found');
             }
 
-            await userProfileProvider.updateAssistantPreferences({
-              ...loggedInUser.assistantPreferences,
-              subject.id: assistantId,
-            });
+            await ref
+                .read(userProfileProvider.notifier)
+                .updateAssistantPreferences({
+                  ...loggedInUser.assistantPreferences,
+                  subject.id: assistantId,
+                });
             // Show success message
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -547,6 +553,11 @@ class _EnhancedSectionListItemState extends State<EnhancedSectionListItem>
 }
 
 // Keep the original function for backward compatibility
+// Note: This should be replaced with the version that includes WidgetRef
+@Deprecated('Use the version with WidgetRef parameter instead')
 List<Widget> buildSectionsSlivers(BuildContext context) {
-  return SectionsBuilder.buildSectionsSlivers(context, enableAnimations: true);
+  throw UnimplementedError(
+    'buildSectionsSlivers now requires a WidgetRef parameter. '
+    'Convert your widget to ConsumerWidget and pass ref.',
+  );
 }

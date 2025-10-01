@@ -2,11 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/services/fcm_token_manager.dart';
 import 'package:pivot/services/cache_service.dart';
-import 'package:provider/provider.dart';
-import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
@@ -542,7 +540,7 @@ class DataDeletionService {
   /// Complete user deletion with proper cleanup (for self-deletion)
   static Future<bool> deleteUserCompletely(
     String userId,
-    BuildContext? context,
+    WidgetRef? ref,
   ) async {
     try {
       if (kDebugMode) {
@@ -602,22 +600,9 @@ class DataDeletionService {
         }
       }
 
-      // Clear user profile provider if context is available
-      if (context != null) {
-        try {
-          final provider = Provider.of<UserProfileProvider>(
-            context,
-            listen: false,
-          );
-          provider.clearProfile();
-          if (kDebugMode) {
-            print('[DataDeletion] User profile provider cleared');
-          }
-        } catch (e) {
-          if (kDebugMode) {
-            print('[DataDeletion] Error clearing user profile provider: $e');
-          }
-        }
+      // User profile provider will be cleared automatically on logout
+      if (kDebugMode) {
+        print('[DataDeletion] User profile will be cleared on logout');
       }
 
       if (kDebugMode) {
@@ -637,7 +622,7 @@ class DataDeletionService {
   /// Complete user deletion initiated by admin (requires admin authentication)
   static Future<bool> deleteUserCompletelyAsAdmin(
     String userId,
-    BuildContext? context,
+    WidgetRef? ref,
   ) async {
     try {
       if (kDebugMode) {
@@ -693,22 +678,9 @@ class DataDeletionService {
         );
       }
 
-      // Clear user profile provider if context is available
-      if (context != null) {
-        try {
-          final provider = Provider.of<UserProfileProvider>(
-            context,
-            listen: false,
-          );
-          provider.clearProfile();
-          if (kDebugMode) {
-            print('[DataDeletion] User profile provider cleared');
-          }
-        } catch (e) {
-          if (kDebugMode) {
-            print('[DataDeletion] Error clearing user profile provider: $e');
-          }
-        }
+      // User profile provider will be cleared automatically on logout
+      if (kDebugMode) {
+        print('[DataDeletion] User profile will be cleared on logout');
       }
 
       if (kDebugMode) {
