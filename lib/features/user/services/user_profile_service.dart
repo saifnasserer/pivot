@@ -1,5 +1,8 @@
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:pivot/models/user_profile.dart';
 
 class UserProfileService {
@@ -182,7 +185,7 @@ class UserProfileService {
           await _firestore
               .collection('users')
               .where('name', isGreaterThanOrEqualTo: query)
-              .where('name', isLessThan: query + 'z')
+              .where('name', isLessThan: '${query}z')
               .get();
 
       return snapshot.docs
@@ -222,6 +225,123 @@ class UserProfileService {
           .toList();
     } catch (e) {
       throw Exception('Failed to get users by department: $e');
+    }
+  }
+
+  Future<void> updateAssistantPreferences(
+    Map<String, String> preferences,
+  ) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) throw Exception('User not logged in');
+
+      await _firestore.collection('users').doc(user.uid).update({
+        'assistantPreferences': preferences,
+      });
+
+      // Clear cache to force refresh
+      _userProfilesCache.remove(user.uid);
+    } catch (e) {
+      throw Exception('Failed to update assistant preferences: $e');
+    }
+  }
+
+  Future<void> updateUserProfileData(
+    String userId,
+    Map<String, dynamic> data, {
+    XFile? imageFile,
+  }) async {
+    try {
+      // Handle image upload if provided
+      if (imageFile != null) {
+        final String imageUrl = await _uploadProfileImage(imageFile, userId);
+        data['profileImageUrl'] = imageUrl;
+      }
+
+      // Handle password update if provided
+      if (data.containsKey('password')) {
+        final newPassword = data['password'] as String;
+        final currentPassword = data['currentPassword'] as String?;
+        data.remove('password');
+        data.remove('currentPassword');
+
+        final user = _auth.currentUser;
+        if (user != null &&
+            currentPassword != null &&
+            currentPassword.isNotEmpty) {
+          // Re-authenticate user before password change
+          final credential = EmailAuthProvider.credential(
+            email: user.email!,
+            password: currentPassword,
+          );
+
+          await user.reauthenticateWithCredential(credential);
+          await user.updatePassword(newPassword);
+        }
+      }
+
+      // Update Firestore document
+      if (data.isNotEmpty) {
+        await _firestore.collection('users').doc(userId).update(data);
+      }
+
+      // Clear cache to force refresh
+      _userProfilesCache.remove(userId);
+    } catch (e) {
+      if (e.toString().contains('wrong-password')) {
+        throw Exception('wrong-password');
+      } else if (e.toString().contains('requires-recent-login')) {
+        throw Exception('requires-recent-login');
+      }
+      throw Exception('Failed to update user profile data: $e');
+    }
+  }
+
+  Future<String> _uploadProfileImage(XFile imageFile, String userId) async {
+    try {
+      final File file = File(imageFile.path);
+      final Reference storageRef = FirebaseStorage.instance
+          .ref()
+          .child('profile_images')
+          .child('$userId.jpg');
+
+      final UploadTask uploadTask = storageRef.putFile(file);
+      final TaskSnapshot snapshot = await uploadTask;
+      final String downloadUrl = await snapshot.ref.getDownloadURL();
+
+      return downloadUrl;
+    } catch (e) {
+      throw Exception('Failed to upload profile image: $e');
+    }
+  }
+
+  Future<void> updateSocialMediaLinks(
+    String userId,
+    List<SocialMediaLink> socialMediaLinks,
+  ) async {
+    try {
+      await _firestore.collection('users').doc(userId).update({
+        'socialMediaLinks':
+            socialMediaLinks.map((link) => link.toJson()).toList(),
+      });
+
+      // Clear cache to force refresh
+      _userProfilesCache.remove(userId);
+    } catch (e) {
+      throw Exception('Failed to update social media links: $e');
+    }
+  }
+
+  Future<void> updateAboutMe(String userId, String aboutMe) async {
+    try {
+      await _firestore.collection('users').doc(userId).update({
+        'aboutMe': aboutMe,
+      });
+
+      // Clear cache to force refresh
+      _userProfilesCache.remove(userId);
+    } catch (e) {
+      throw Exception('Failed to update about me: $e');
     }
   }
 }

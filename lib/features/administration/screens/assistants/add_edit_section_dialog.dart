@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/features/user/providers/user_profile_provider.dart';
+import 'package:pivot/features/administration/providers/sections_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
 import 'package:pivot/models/section_model.dart';
 import 'package:pivot/models/subject_model.dart';
-import 'package:pivot/providers/section_provider.dart';
-import 'package:provider/provider.dart' as legacy_provider;
 
 class AddEditSectionDialog extends ConsumerStatefulWidget {
   final List<Subject> subjects;
@@ -168,11 +167,6 @@ class _AddEditSectionDialogState extends ConsumerState<AddEditSectionDialog> {
       return;
     }
 
-    final sectionProvider = legacy_provider.Provider.of<SectionProvider>(
-      context,
-      listen: false,
-    );
-
     // Get the current user and determine the assistant ID
     final userProfileState = ref.read(userProfileProvider);
     final currentUser = userProfileState.userProfile;
@@ -209,9 +203,9 @@ class _AddEditSectionDialogState extends ConsumerState<AddEditSectionDialog> {
 
     try {
       if (_isEditing) {
-        await sectionProvider.updateSection(newSection);
+        await ref.read(sectionsProvider.notifier).updateSection(newSection);
       } else {
-        await sectionProvider.addSection(newSection);
+        await ref.read(sectionsProvider.notifier).addSection(newSection);
       }
       if (mounted) Navigator.of(context).pop();
     } catch (e) {

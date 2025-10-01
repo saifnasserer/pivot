@@ -1,7 +1,7 @@
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/providers/guide_provider.dart';
-import 'package:provider/provider.dart';
 import 'package:pivot/providers/subject_provider.dart';
 import 'package:pivot/features/home/screens/adminstration/add_edit_subject_dialog.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -10,29 +10,28 @@ import 'package:pivot/models/subject_model.dart';
 
 import 'package:pivot/widgets/unified_dialog.dart';
 
-class GlobalSubjectManagementScreen extends StatefulWidget {
+class GlobalSubjectManagementScreen extends ConsumerStatefulWidget {
   // = 'global_subject_management_screen';
 
   const GlobalSubjectManagementScreen({super.key});
 
   @override
-  State<GlobalSubjectManagementScreen> createState() =>
+  ConsumerState<GlobalSubjectManagementScreen> createState() =>
       _GlobalSubjectManagementScreenState();
 }
 
 class _GlobalSubjectManagementScreenState
-    extends State<GlobalSubjectManagementScreen> {
+    extends ConsumerState<GlobalSubjectManagementScreen> {
   final Map<int, bool> _expandedState = {};
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<SubjectProvider>(context, listen: false).fetchAllSubjects();
-      Provider.of<GuideProvider>(context, listen: false).fetchGuideContent();
+      ref.read(legacySubjectProviderProvider).fetchAllSubjects();
+      ref.read(legacyGuideProviderProvider).fetchGuideContent();
     });
-    for (var subject
-        in Provider.of<SubjectProvider>(context, listen: false).allSubjects) {
+    for (var subject in ref.read(legacySubjectProviderProvider).allSubjects) {
       _expandedState[subject.year] = false;
     }
   }
@@ -183,10 +182,9 @@ class _GlobalSubjectManagementScreenState
     );
     if (updatedSubject != null) {
       try {
-        await Provider.of<SubjectProvider>(
-          context,
-          listen: false,
-        ).updateSubject(updatedSubject);
+        await ref
+            .read(legacySubjectProviderProvider)
+            .updateSubject(updatedSubject);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -259,10 +257,7 @@ class _GlobalSubjectManagementScreenState
 
     if (confirm == true) {
       try {
-        await Provider.of<SubjectProvider>(
-          context,
-          listen: false,
-        ).deleteSubject(subject.id);
+        await ref.read(legacySubjectProviderProvider).deleteSubject(subject.id);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -296,10 +291,7 @@ class _GlobalSubjectManagementScreenState
     final newSubject = await showAddEditSubjectDialog(context);
     if (newSubject != null) {
       try {
-        await Provider.of<SubjectProvider>(
-          context,
-          listen: false,
-        ).addSubject(newSubject);
+        await ref.read(legacySubjectProviderProvider).addSubject(newSubject);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -330,10 +322,12 @@ class _GlobalSubjectManagementScreenState
   }
 
   Widget _buildSubjectsManagementTab() {
+    final subjectProvider = ref.watch(legacySubjectProviderProvider);
+
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Consumer<SubjectProvider>(
-        builder: (context, subjectProvider, child) {
+      body: Builder(
+        builder: (context) {
           if (subjectProvider.isLoading) {
             return Center(
               child: Column(
@@ -581,8 +575,10 @@ class _GlobalSubjectManagementScreenState
   }
 
   Widget _buildGuideManagementTab() {
-    return Consumer<GuideProvider>(
-      builder: (context, guideProvider, child) {
+    final guideProvider = ref.watch(legacyGuideProviderProvider);
+
+    return Builder(
+      builder: (context) {
         if (guideProvider.isLoading && guideProvider.guideContent == null) {
           return Center(
             child: Column(

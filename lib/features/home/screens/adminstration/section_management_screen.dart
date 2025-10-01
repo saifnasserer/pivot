@@ -1,19 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:pivot/providers/settings_provider.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pivot/features/settings/providers/settings_provider.dart';
 import 'package:pivot/responsive.dart';
 
-class SectionManagementScreen extends StatefulWidget {
+class SectionManagementScreen extends ConsumerStatefulWidget {
   // = 'section_management_screen';
 
   const SectionManagementScreen({super.key});
 
   @override
-  State<SectionManagementScreen> createState() =>
+  ConsumerState<SectionManagementScreen> createState() =>
       _SectionManagementScreenState();
 }
 
-class _SectionManagementScreenState extends State<SectionManagementScreen> {
+class _SectionManagementScreenState
+    extends ConsumerState<SectionManagementScreen> {
   final _formKey = GlobalKey<FormState>();
   late final Map<String, TextEditingController> _controllers;
   bool _isSaving = false;
@@ -36,10 +37,7 @@ class _SectionManagementScreenState extends State<SectionManagementScreen> {
     };
     // Fetch data after the first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<SettingsProvider>(
-        context,
-        listen: false,
-      ).fetchSectionCounts();
+      ref.read(settingsProvider.notifier).fetchSectionCounts();
     });
   }
 
@@ -61,10 +59,9 @@ class _SectionManagementScreenState extends State<SectionManagementScreen> {
       });
 
       try {
-        await Provider.of<SettingsProvider>(
-          context,
-          listen: false,
-        ).updateSectionCounts(newCounts);
+        await ref
+            .read(settingsProvider.notifier)
+            .updateSectionCounts(newCounts);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -98,21 +95,24 @@ class _SectionManagementScreenState extends State<SectionManagementScreen> {
     }
   }
 
-  int _getTotalSections() {
-    int total = 0;
-    _controllers.forEach((dept, controller) {
-      total += int.tryParse(controller.text) ?? 0;
-    });
-    return total;
-  }
-
-  int _getAverageSections() {
-    if (_controllers.isEmpty) return 0;
-    return (_getTotalSections() / _controllers.length).round();
-  }
-
   @override
   Widget build(BuildContext context) {
+    final settingsState = ref.watch(settingsProvider);
+
+    // Populate controllers only once after data is loaded
+    if (!settingsState.isLoading &&
+        !_isInitialized &&
+        settingsState.sectionCounts.isNotEmpty) {
+      for (var key in _departmentDisplayNames.keys) {
+        final count = settingsState.sectionCounts[key] ?? 8;
+        _controllers[key]?.text = count.toString();
+      }
+      // Use a post frame callback to avoid calling setState during a build
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _isInitialized = true);
+      });
+    }
+
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
@@ -129,20 +129,8 @@ class _SectionManagementScreenState extends State<SectionManagementScreen> {
           elevation: 0,
           iconTheme: const IconThemeData(color: Colors.black),
         ),
-        body: Consumer<SettingsProvider>(
-          builder: (context, settingsProvider, child) {
-            // Populate controllers only once after data is loaded
-            if (!settingsProvider.isLoading && !_isInitialized) {
-              for (var key in _departmentDisplayNames.keys) {
-                final count = settingsProvider.sectionCounts[key] ?? 8;
-                _controllers[key]?.text = count.toString();
-              }
-              // Use a post frame callback to avoid calling setState during a build
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) setState(() => _isInitialized = true);
-              });
-            }
-
+        body: Builder(
+          builder: (context) {
             // Show loading indicator until controllers are initialized
             if (!_isInitialized) {
               return Center(
@@ -344,47 +332,6 @@ class _SectionManagementScreenState extends State<SectionManagementScreen> {
               ),
             );
           },
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatTile(
-    BuildContext context,
-    IconData icon,
-    String title,
-    String value,
-    Color color,
-  ) {
-    return Expanded(
-      child: Container(
-        padding: Responsive.padding(context, size: Space.medium),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.3)),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 24),
-            SizedBox(height: Responsive.space(context, size: Space.small)),
-            Text(
-              value,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: Responsive.text(context, size: TextSize.medium),
-                color: color,
-              ),
-            ),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: Responsive.text(context, size: TextSize.small),
-                color: Colors.grey[600],
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
         ),
       ),
     );

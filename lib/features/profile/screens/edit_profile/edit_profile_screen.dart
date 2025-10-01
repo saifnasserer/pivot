@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/data/form_options.dart';
-import 'edit_profile_provider.dart';
+import 'package:pivot/features/profile/providers/edit_profile_provider.dart';
 import 'profile_image_section.dart';
 import 'basic_info_section.dart';
 import 'educational_details_section.dart';
@@ -11,14 +11,14 @@ import 'package:pivot/responsive.dart';
 import 'package:pivot/widgets/data_deletion_dialog.dart';
 import 'action_buttons.dart';
 
-class EditProfileScreen extends StatefulWidget {
+class EditProfileScreen extends ConsumerStatefulWidget {
   const EditProfileScreen({super.key});
 
   @override
-  State<EditProfileScreen> createState() => _EditProfileScreenState();
+  ConsumerState<EditProfileScreen> createState() => _EditProfileScreenState();
 }
 
-class _EditProfileScreenState extends State<EditProfileScreen>
+class _EditProfileScreenState extends ConsumerState<EditProfileScreen>
     with WidgetsBindingObserver {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _currentPasswordController =
@@ -41,7 +41,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<EditProfileProvider>().loadProfile();
+      ref.read(editProfileProvider.notifier).loadProfile();
     });
   }
 
@@ -56,8 +56,8 @@ class _EditProfileScreenState extends State<EditProfileScreen>
   }
 
   // Check for unsaved changes before navigation
-  Future<bool> _onWillPop(EditProfileProvider provider) async {
-    if (!provider.hasUnsavedChanges) {
+  Future<bool> _onWillPop(EditProfileState state) async {
+    if (!state.hasUnsavedChanges) {
       return true;
     }
 
@@ -92,99 +92,100 @@ class _EditProfileScreenState extends State<EditProfileScreen>
     setState(() {});
   }
 
-  void _initializeFormData(EditProfileProvider provider) {
-    if (!_isInitialized && provider.userProfile != null) {
-      _nameController.text = provider.userProfile!.name;
-      _selectedYear = provider.userProfile!.level;
-      _selectedDepartment = provider.userProfile!.department;
-      _selectedSection = provider.userProfile!.section;
-      _selectedGender = provider.userProfile!.gender;
+  void _initializeFormData(EditProfileState state) {
+    if (!_isInitialized && state.userProfile != null) {
+      _nameController.text = state.userProfile!.name;
+      _selectedYear = state.userProfile!.level;
+      _selectedDepartment = state.userProfile!.department;
+      _selectedSection = state.userProfile!.section;
+      _selectedGender = state.userProfile!.gender;
 
       _availableDepartments = FormOptions.getDepartmentsForYear(
-        provider.userProfile!.level,
+        state.userProfile!.level,
       );
-      _updateAvailableSections(provider);
+      _updateAvailableSections(state);
 
       _isInitialized = true;
       setState(() {});
     }
   }
 
-  void _updateAvailableSections(EditProfileProvider provider) {
+  void _updateAvailableSections(EditProfileState state) {
     if (_selectedDepartment != null &&
-        provider.sectionCounts.containsKey(_selectedDepartment)) {
-      final count = provider.sectionCounts[_selectedDepartment]!;
+        state.sectionCounts.containsKey(_selectedDepartment)) {
+      final count = state.sectionCounts[_selectedDepartment]!;
       _availableSections = List<String>.generate(count, (i) => '${i + 1}');
     } else {
       _availableSections = [];
     }
   }
 
-  void _updateBasicInfo(EditProfileProvider provider) {
-    provider.updateBasicInfo(_nameController.text, _selectedGender ?? '');
+  void _updateBasicInfo() {
+    ref
+        .read(editProfileProvider.notifier)
+        .updateBasicInfo(_nameController.text, _selectedGender ?? '');
   }
 
-  void _updateEducationalInfo(EditProfileProvider provider) {
-    provider.updateEducationalInfo(
-      _selectedYear ?? '',
-      _selectedDepartment ?? '',
-      _selectedSection ?? '',
-    );
+  void _updateEducationalInfo() {
+    ref
+        .read(editProfileProvider.notifier)
+        .updateEducationalInfo(
+          _selectedYear ?? '',
+          _selectedDepartment ?? '',
+          _selectedSection ?? '',
+        );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<EditProfileProvider>(
-      builder: (context, editProfileProvider, child) {
-        // Initialize form data if not already set
-        if (editProfileProvider.userProfile != null) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _initializeFormData(editProfileProvider);
-          });
-        }
+    final state = ref.watch(editProfileProvider);
 
-        // Show error message if any
-        if (editProfileProvider.errorMessage != null) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(editProfileProvider.errorMessage!),
-                backgroundColor: Colors.red,
-              ),
-            );
-            editProfileProvider.clearError();
-          });
-        }
+    // Initialize form data if not already set
+    if (state.userProfile != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _initializeFormData(state);
+      });
+    }
 
-        // Show success message only when user actually saves
-        if (editProfileProvider.hasSaved) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('تم حفظ التغييرات بنجاح'),
-                  backgroundColor: Colors.green,
-                ),
-              );
-              editProfileProvider.clearSaveStatus();
-              Navigator.pop(context);
-            }
-          });
-        }
+    // Show error message if any
+    if (state.errorMessage != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(state.errorMessage!),
+            backgroundColor: Colors.red,
+          ),
+        );
+        ref.read(editProfileProvider.notifier).clearError();
+      });
+    }
 
-        if (editProfileProvider.isLoading &&
-            editProfileProvider.userProfile == null) {
-          return _buildLoadingScreen();
-        } else if (editProfileProvider.userProfile != null) {
-          return _buildMainScreen(editProfileProvider);
-        } else if (editProfileProvider.errorMessage != null) {
-          return _buildErrorScreen(editProfileProvider);
-        } else {
-          // Show loading while waiting for initial data
-          return _buildLoadingScreen();
+    // Show success message only when user actually saves
+    if (state.hasSaved) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('تم حفظ التغييرات بنجاح'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          ref.read(editProfileProvider.notifier).clearSaveStatus();
+          Navigator.pop(context);
         }
-      },
-    );
+      });
+    }
+
+    if (state.isLoading && state.userProfile == null) {
+      return _buildLoadingScreen();
+    } else if (state.userProfile != null) {
+      return _buildMainScreen(state);
+    } else if (state.errorMessage != null) {
+      return _buildErrorScreen(state);
+    } else {
+      // Show loading while waiting for initial data
+      return _buildLoadingScreen();
+    }
   }
 
   Widget _buildLoadingScreen() {
@@ -214,7 +215,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
     );
   }
 
-  Widget _buildErrorScreen(EditProfileProvider provider) {
+  Widget _buildErrorScreen(EditProfileState state) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -223,7 +224,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
       ),
       child: Scaffold(
         backgroundColor: Colors.grey[50],
-        appBar: _buildAppBar(provider),
+        appBar: _buildAppBar(state),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -239,7 +240,8 @@ class _EditProfileScreenState extends State<EditProfileScreen>
               ),
               const SizedBox(height: 16),
               ElevatedButton(
-                onPressed: () => provider.loadProfile(),
+                onPressed:
+                    () => ref.read(editProfileProvider.notifier).loadProfile(),
                 child: const Text('إعادة المحاولة'),
               ),
             ],
@@ -249,8 +251,8 @@ class _EditProfileScreenState extends State<EditProfileScreen>
     );
   }
 
-  Widget _buildMainScreen(EditProfileProvider provider) {
-    _updateAvailableSections(provider);
+  Widget _buildMainScreen(EditProfileState state) {
+    _updateAvailableSections(state);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
@@ -262,7 +264,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
         canPop: false,
         onPopInvoked: (didPop) async {
           if (!didPop) {
-            final shouldPop = await _onWillPop(provider);
+            final shouldPop = await _onWillPop(state);
             if (shouldPop && mounted) {
               Navigator.of(context).pop();
             }
@@ -272,7 +274,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
           onTap: () => FocusScope.of(context).unfocus(),
           child: Scaffold(
             backgroundColor: Colors.grey[50],
-            appBar: _buildAppBar(provider),
+            appBar: _buildAppBar(state),
             resizeToAvoidBottomInset: true,
             body: SafeArea(
               child: SingleChildScrollView(
@@ -282,30 +284,30 @@ class _EditProfileScreenState extends State<EditProfileScreen>
                 child: Column(
                   children: [
                     // Progress indicator
-                    _buildProgressIndicator(provider),
+                    _buildProgressIndicator(state),
                     SizedBox(
                       height: Responsive.space(context, size: Space.medium),
                     ),
-                    ProfileImageSection(provider: provider, context: context),
+                    ProfileImageSection(state: state, widgetRef: ref),
                     SizedBox(
                       height: Responsive.space(context, size: Space.large),
                     ),
                     BasicInfoSection(
-                      provider: provider,
+                      state: state,
                       nameController: _nameController,
                       selectedGender: _selectedGender,
                       onGenderChanged: (String? newValue) {
                         setState(() {
                           _selectedGender = newValue;
                         });
-                        _updateBasicInfo(provider);
+                        _updateBasicInfo();
                       },
                     ),
                     SizedBox(
                       height: Responsive.space(context, size: Space.medium),
                     ),
                     EducationalDetailsSection(
-                      provider: provider,
+                      state: state,
                       selectedYear: _selectedYear,
                       selectedDepartment: _selectedDepartment,
                       selectedSection: _selectedSection,
@@ -318,30 +320,31 @@ class _EditProfileScreenState extends State<EditProfileScreen>
                           _selectedSection = null;
                           _availableDepartments =
                               FormOptions.getDepartmentsForYear(value);
-                          _updateAvailableSections(provider);
+                          _updateAvailableSections(state);
                         });
-                        _updateEducationalInfo(provider);
+                        _updateEducationalInfo();
                       },
                       onDepartmentChanged: (value) {
                         setState(() {
                           _selectedDepartment = value;
                           _selectedSection = null;
-                          _updateAvailableSections(provider);
+                          _updateAvailableSections(state);
                         });
-                        _updateEducationalInfo(provider);
+                        _updateEducationalInfo();
                       },
                       onSectionChanged: (String? newValue) {
                         setState(() {
                           _selectedSection = newValue;
                         });
-                        _updateEducationalInfo(provider);
+                        _updateEducationalInfo();
                       },
                     ),
                     SizedBox(
                       height: Responsive.space(context, size: Space.medium),
                     ),
                     PasswordSection(
-                      provider: provider,
+                      state: state,
+                      widgetRef: ref,
                       currentPasswordController: _currentPasswordController,
                       newPasswordController: _newPasswordController,
                       confirmPasswordController: _confirmPasswordController,
@@ -351,7 +354,8 @@ class _EditProfileScreenState extends State<EditProfileScreen>
                     ),
 
                     ActionButtons(
-                      provider: provider,
+                      state: state,
+                      widgetRef: ref,
                       currentPasswordController: _currentPasswordController,
                       newPasswordController: _newPasswordController,
                       confirmPasswordController: _confirmPasswordController,
@@ -464,10 +468,10 @@ class _EditProfileScreenState extends State<EditProfileScreen>
     );
   }
 
-  String _getCompletionMessage(EditProfileProvider provider) {
+  String _getCompletionMessage(EditProfileState state) {
     bool hasProfilePicture =
-        provider.userProfile?.profileImageUrl != null &&
-        provider.userProfile!.profileImageUrl!.isNotEmpty;
+        state.userProfile?.profileImageUrl != null &&
+        state.userProfile!.profileImageUrl!.isNotEmpty;
 
     if (hasProfilePicture) {
       return 'أكمل جميع الحقول المطلوبة لتحسين ملفك الشخصي';
@@ -476,7 +480,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
     }
   }
 
-  Widget _buildProgressIndicator(EditProfileProvider provider) {
+  Widget _buildProgressIndicator(EditProfileState state) {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(Responsive.space(context, size: Space.medium)),
@@ -513,7 +517,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
               ),
               const Spacer(),
               Text(
-                '${(provider.completionPercentage * 100).round()}%',
+                '${(state.completionPercentage * 100).round()}%',
                 style: TextStyle(
                   fontSize: Responsive.text(context, size: TextSize.medium),
                   fontWeight: FontWeight.bold,
@@ -524,19 +528,19 @@ class _EditProfileScreenState extends State<EditProfileScreen>
           ),
           SizedBox(height: Responsive.space(context, size: Space.small)),
           LinearProgressIndicator(
-            value: provider.completionPercentage,
+            value: state.completionPercentage,
             backgroundColor: Colors.grey[200],
             valueColor: AlwaysStoppedAnimation<Color>(
-              provider.completionPercentage == 1.0
+              state.completionPercentage == 1.0
                   ? Colors.green
                   : Colors.blue[600]!,
             ),
             minHeight: 8,
           ),
-          if (provider.completionPercentage < 1.0) ...[
+          if (state.completionPercentage < 1.0) ...[
             SizedBox(height: Responsive.space(context, size: Space.small)),
             Text(
-              _getCompletionMessage(provider),
+              _getCompletionMessage(state),
               style: TextStyle(
                 fontSize: Responsive.text(context, size: TextSize.small),
                 color: Colors.grey[600],
@@ -548,7 +552,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
     );
   }
 
-  PreferredSizeWidget _buildAppBar(EditProfileProvider provider) {
+  PreferredSizeWidget _buildAppBar(EditProfileState state) {
     return AppBar(
       title: Text(
         'تعديل الملف الشخصي',
@@ -562,7 +566,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
       elevation: 0,
       iconTheme: const IconThemeData(color: Colors.black),
       actions: [
-        if (provider.hasUnsavedChanges)
+        if (state.hasUnsavedChanges)
           Container(
             margin: EdgeInsets.only(
               right: Responsive.space(context, size: Space.small),

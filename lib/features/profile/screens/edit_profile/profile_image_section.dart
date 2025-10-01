@@ -2,23 +2,24 @@ import 'dart:io';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'package:pivot/services/permission_service.dart';
-import 'edit_profile_provider.dart';
+import 'package:pivot/features/profile/providers/edit_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 class ProfileImageSection extends StatefulWidget {
-  final EditProfileProvider provider;
-  final BuildContext context;
+  final EditProfileState state;
+  final WidgetRef widgetRef;
 
   const ProfileImageSection({
     super.key,
-    required this.provider,
-    required this.context,
+    required this.state,
+    required this.widgetRef,
   });
 
   @override
@@ -64,12 +65,10 @@ class _ProfileImageSectionState extends State<ProfileImageSection>
     try {
       // Request permission first
       final granted =
-          await PermissionService.requestPhotosPermissionWithRationale(
-            widget.context,
-          );
+          await PermissionService.requestPhotosPermissionWithRationale(context);
       if (!granted) {
-        if (widget.context.mounted) {
-          ScaffoldMessenger.of(widget.context).showSnackBar(
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Row(
                 children: [
@@ -105,8 +104,8 @@ class _ProfileImageSectionState extends State<ProfileImageSection>
       if (pickedFile == null) return;
 
       // Show loading indicator
-      if (widget.context.mounted) {
-        ScaffoldMessenger.of(widget.context).showSnackBar(
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
               children: [
@@ -136,10 +135,12 @@ class _ProfileImageSectionState extends State<ProfileImageSection>
       final compressedFile = await _compressImage(pickedFile.path);
       if (compressedFile != null) {
         // Update the provider with the compressed image
-        widget.provider.updateProfileImage(File(compressedFile.path));
+        widget.widgetRef
+            .read(editProfileProvider.notifier)
+            .updateProfileImage(File(compressedFile.path));
 
-        if (widget.context.mounted) {
-          ScaffoldMessenger.of(widget.context).showSnackBar(
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Row(
                 children: [
@@ -162,8 +163,8 @@ class _ProfileImageSectionState extends State<ProfileImageSection>
           );
         }
       } else {
-        if (widget.context.mounted) {
-          ScaffoldMessenger.of(widget.context).showSnackBar(
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Row(
                 children: [
@@ -182,7 +183,7 @@ class _ProfileImageSectionState extends State<ProfileImageSection>
         }
       }
     } catch (e) {
-      if (widget.context.mounted) {
+      if (context.mounted) {
         String errorMessage = 'حدث خطأ أثناء اختيار الصورة';
 
         // Check for specific Firebase Storage authorization errors
@@ -199,7 +200,7 @@ class _ProfileImageSectionState extends State<ProfileImageSection>
           errorMessage = 'حجم الصورة كبير جداً. يرجى اختيار صورة أصغر';
         }
 
-        ScaffoldMessenger.of(widget.context).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
               children: [
@@ -252,12 +253,12 @@ class _ProfileImageSectionState extends State<ProfileImageSection>
 
   Widget _getProfileImageChild() {
     // Show picked image if available
-    if (widget.provider.profileImage != null) {
+    if (widget.state.profileImage != null) {
       return ClipOval(
         child: Image.file(
-          widget.provider.profileImage!,
-          width: Responsive.space(widget.context, size: Space.large) * 10,
-          height: Responsive.space(widget.context, size: Space.large) * 10,
+          widget.state.profileImage!,
+          width: Responsive.space(context, size: Space.large) * 10,
+          height: Responsive.space(context, size: Space.large) * 10,
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) {
             return _buildDefaultIcon();
@@ -267,19 +268,18 @@ class _ProfileImageSectionState extends State<ProfileImageSection>
     }
 
     // Show network image if available
-    if (widget.provider.userProfile?.profileImageUrl != null &&
-        widget.provider.userProfile!.profileImageUrl!.isNotEmpty) {
+    if (widget.state.userProfile?.profileImageUrl != null &&
+        widget.state.userProfile!.profileImageUrl!.isNotEmpty) {
       return ClipOval(
         child: CachedNetworkImage(
-          imageUrl: widget.provider.userProfile!.profileImageUrl!,
-          width: Responsive.space(widget.context, size: Space.large) * 10,
-          height: Responsive.space(widget.context, size: Space.large) * 10,
+          imageUrl: widget.state.userProfile!.profileImageUrl!,
+          width: Responsive.space(context, size: Space.large) * 10,
+          height: Responsive.space(context, size: Space.large) * 10,
           fit: BoxFit.cover,
           placeholder:
               (context, url) => Container(
-                width: Responsive.space(widget.context, size: Space.large) * 10,
-                height:
-                    Responsive.space(widget.context, size: Space.large) * 10,
+                width: Responsive.space(context, size: Space.large) * 10,
+                height: Responsive.space(context, size: Space.large) * 10,
                 decoration: BoxDecoration(
                   color: Colors.grey[200],
                   shape: BoxShape.circle,
@@ -304,8 +304,8 @@ class _ProfileImageSectionState extends State<ProfileImageSection>
 
   Widget _buildDefaultIcon() {
     return Container(
-      width: Responsive.space(widget.context, size: Space.large) * 10,
-      height: Responsive.space(widget.context, size: Space.large) * 10,
+      width: Responsive.space(context, size: Space.large) * 10,
+      height: Responsive.space(context, size: Space.large) * 10,
       decoration: BoxDecoration(
         color: Colors.grey[300],
         shape: BoxShape.circle,
@@ -313,7 +313,7 @@ class _ProfileImageSectionState extends State<ProfileImageSection>
       child: Icon(
         Icons.person,
         color: Colors.grey[600],
-        size: Responsive.space(widget.context, size: Space.large) * 3,
+        size: Responsive.space(context, size: Space.large) * 3,
       ),
     );
   }

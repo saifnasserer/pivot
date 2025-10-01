@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/providers/subject_provider.dart';
-import 'package:pivot/providers/section_provider.dart';
+import 'package:pivot/features/administration/providers/sections_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/models/section_card.dart';
-import 'package:provider/provider.dart';
 
-class AssistantSubjectsSection extends StatefulWidget {
+class AssistantSubjectsSection extends ConsumerStatefulWidget {
   final UserProfile userProfile;
   final UserProfile? loggedInUser;
   final Subject? targetSubject;
@@ -22,11 +22,12 @@ class AssistantSubjectsSection extends StatefulWidget {
   });
 
   @override
-  State<AssistantSubjectsSection> createState() =>
+  ConsumerState<AssistantSubjectsSection> createState() =>
       _AssistantSubjectsSectionState();
 }
 
-class _AssistantSubjectsSectionState extends State<AssistantSubjectsSection>
+class _AssistantSubjectsSectionState
+    extends ConsumerState<AssistantSubjectsSection>
     with TickerProviderStateMixin {
   late TabController _tabController;
   List<Subject> _previousSubjects = [];
@@ -59,7 +60,7 @@ class _AssistantSubjectsSectionState extends State<AssistantSubjectsSection>
   }
 
   void _checkForUpdates() {
-    final subjectProvider = context.watch<SubjectProvider>();
+    final subjectProvider = ref.read(legacySubjectProviderProvider);
     final subjects = subjectProvider.filteredSubjects;
     final currentAssistantId = widget.userProfile.id;
 
@@ -109,7 +110,7 @@ class _AssistantSubjectsSectionState extends State<AssistantSubjectsSection>
   }
 
   void _updateTabController() {
-    final subjectProvider = context.read<SubjectProvider>();
+    final subjectProvider = ref.read(legacySubjectProviderProvider);
     final subjects = subjectProvider.filteredSubjects;
 
     // Only update if the number of subjects actually changed
@@ -195,7 +196,7 @@ class _AssistantSubjectsSectionState extends State<AssistantSubjectsSection>
   }
 
   void _notifyCurrentSubjectChanged() {
-    final subjectProvider = context.read<SubjectProvider>();
+    final subjectProvider = ref.read(legacySubjectProviderProvider);
     final subjects = subjectProvider.filteredSubjects;
 
     if (subjects.isNotEmpty && _tabController.index < subjects.length) {
@@ -207,7 +208,7 @@ class _AssistantSubjectsSectionState extends State<AssistantSubjectsSection>
   }
 
   Subject? getCurrentSubject() {
-    final subjectProvider = context.read<SubjectProvider>();
+    final subjectProvider = ref.read(legacySubjectProviderProvider);
     final subjects = subjectProvider.filteredSubjects;
 
     if (subjects.isNotEmpty && _tabController.index < subjects.length) {
@@ -217,26 +218,27 @@ class _AssistantSubjectsSectionState extends State<AssistantSubjectsSection>
   }
 
   Future<void> _loadSectionsForSubject(int index) async {
-    final subjectProvider = context.read<SubjectProvider>();
+    final subjectProvider = ref.read(legacySubjectProviderProvider);
     final subjects = subjectProvider.filteredSubjects;
 
     if (subjects.isNotEmpty && index < subjects.length) {
       final assistantId = widget.userProfile.id;
 
-      // Use the SectionProvider to load sections for this assistant and subject
-      final sectionProvider = context.read<SectionProvider>();
-      await sectionProvider.fetchSectionsForAssistant(assistantId);
+      // Use the SectionProvider to load sections for this assistant
+      await ref
+          .read(sectionsProvider.notifier)
+          .fetchSectionsForAssistant(assistantId);
     }
   }
 
   Widget _buildSubjectContent(Subject subject) {
-    final sectionProvider = context.watch<SectionProvider>();
+    final sectionsState = ref.watch(sectionsProvider);
     final sections =
-        sectionProvider.sections
+        sectionsState.sections
             .where((section) => section.subjectId == subject.id)
             .toList();
 
-    if (sectionProvider.isLoading) {
+    if (sectionsState.isLoading) {
       return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -249,7 +251,7 @@ class _AssistantSubjectsSectionState extends State<AssistantSubjectsSection>
       );
     }
 
-    if (sectionProvider.error != null) {
+    if (sectionsState.error != null) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -257,7 +259,7 @@ class _AssistantSubjectsSectionState extends State<AssistantSubjectsSection>
             Icon(Icons.error_outline, size: 48, color: Colors.red.shade300),
             SizedBox(height: 16),
             Text(
-              'خطأ: ${sectionProvider.error}',
+              'خطأ: ${sectionsState.error}',
               style: TextStyle(color: Colors.red.shade600),
               textAlign: TextAlign.center,
             ),
@@ -313,7 +315,7 @@ class _AssistantSubjectsSectionState extends State<AssistantSubjectsSection>
 
   @override
   Widget build(BuildContext context) {
-    final subjectProvider = context.watch<SubjectProvider>();
+    final subjectProvider = ref.watch(legacySubjectProviderProvider);
     final subjects = subjectProvider.filteredSubjects;
 
     // Safety check: ensure TabController length matches subjects length

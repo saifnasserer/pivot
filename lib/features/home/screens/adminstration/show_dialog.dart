@@ -1,14 +1,15 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:pivot/features/home/screens/adminstration/models/announcement_data.dart';
-import 'package:pivot/providers/announcement_provider.dart';
-import 'package:provider/provider.dart';
+import 'package:pivot/features/announcements/providers/announcements_provider.dart';
 // import 'package:permission_handler/permission_handler.dart';
 import 'package:pivot/services/permission_service.dart';
+import 'package:pivot/services/storage_optimization_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:pivot/responsive.dart';
@@ -40,9 +41,31 @@ final List<Color> availableColors = [
 final List<String> availableTags =
     DepartmentTag.values.map((tag) => tag.displayName).toList();
 
+// Helper function to upload image
+Future<String> _uploadImageHelper(XFile image) async {
+  try {
+    final storageService = StorageOptimizationService();
+    final downloadUrl = await storageService.uploadFileOptimized(
+      image,
+      folder: 'announcements',
+      usage: 'announcement',
+      checkDuplicate: true,
+    );
+
+    if (downloadUrl == null) {
+      throw Exception('Failed to get download URL');
+    }
+
+    return downloadUrl;
+  } catch (e) {
+    throw Exception('Error uploading image: $e');
+  }
+}
+
 // Show dialog to add or edit an announcement
 void showAddAnnouncementDialog({
   required BuildContext context,
+  required WidgetRef ref,
   required Function(AnnouncementData) onSave,
   bool isEditing = false,
   AnnouncementData? announcement,
@@ -1410,11 +1433,9 @@ void showAddAnnouncementDialog({
                                         },
                                       );
 
-                                      final announcementProvider =
-                                          Provider.of<AnnouncementProvider>(
-                                            context,
-                                            listen: false,
-                                          );
+                                      final announcementProvider = ref.read(
+                                        announcementsProvider.notifier,
+                                      );
                                       List<String> imageUrls = [];
 
                                       // Start with existing images if editing
@@ -1464,14 +1485,14 @@ void showAddAnnouncementDialog({
                                               'نوع الصورة غير مدعوم: $ext',
                                             );
                                           }
-                                          final String? imageUrl =
-                                              await announcementProvider
-                                                  .uploadImage(image);
-                                          if (imageUrl != null) {
+                                          try {
+                                            final String imageUrl =
+                                                await _uploadImageHelper(image);
                                             if (!imageUrls.contains(imageUrl)) {
                                               imageUrls.add(imageUrl);
                                             }
-                                          } else {
+                                          } catch (e) {
+                                            print('Error uploading image: $e');
                                             if (Navigator.canPop(context)) {
                                               Navigator.of(context).pop();
                                             }

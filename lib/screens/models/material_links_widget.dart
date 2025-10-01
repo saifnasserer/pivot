@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pivot/models/lecture_model.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/providers/doctor_subject_provider.dart';
-import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/features/media/screens/material_links_screen.dart';
 import 'package:pivot/features/administration/screens/doctor/profile/material_links_route.dart';
 import 'package:pivot/providers/user_profile_provider.dart';

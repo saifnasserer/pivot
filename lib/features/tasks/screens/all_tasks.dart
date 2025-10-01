@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pivot/providers/section_provider.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
+import 'package:pivot/features/administration/providers/sections_provider.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/screens/models/task.dart';
 import 'package:pivot/screens/models/task_model.dart';
 import 'package:pivot/features/tasks/providers/tasks_provider.dart';
-import 'package:provider/provider.dart' as provider;
 
 import 'add_edit_task_dialog.dart';
 import 'package:pivot/responsive.dart';
@@ -37,12 +36,9 @@ class _TasksControlState extends ConsumerState<TasksControl> {
   Widget build(BuildContext context) {
     final sectionId = ModalRoute.of(context)?.settings.arguments as String?;
     final tasksState = ref.watch(tasksProvider);
-    final sectionProvider = provider.Provider.of<SectionProvider>(context);
-    final userProfile =
-        provider.Provider.of<UserProfileProvider>(
-          context,
-          listen: false,
-        ).userProfile;
+    final sectionsState = ref.watch(sectionsProvider);
+    final userProfileState = ref.watch(userProfileProvider);
+    final userProfile = userProfileState.loggedInUserProfile;
 
     final userRole = userProfile?.role ?? '';
     final canEdit =
@@ -53,7 +49,7 @@ class _TasksControlState extends ConsumerState<TasksControl> {
     String appBarTitle;
     if (sectionId != null) {
       try {
-        final section = sectionProvider.sections.firstWhere(
+        final section = sectionsState.sections.firstWhere(
           (s) => s.id == sectionId,
         );
         appBarTitle = section.name;
@@ -131,10 +127,7 @@ class _TasksControlState extends ConsumerState<TasksControl> {
 
   void _showAddEditTaskDialog(BuildContext context, {Task? task}) {
     final bool isEditing = task != null;
-    final sectionProvider = provider.Provider.of<SectionProvider>(
-      context,
-      listen: false,
-    );
+    final sectionsState = ref.read(sectionsProvider);
 
     // Get sectionId from the task or from the current screen
     final sectionId =
@@ -143,7 +136,7 @@ class _TasksControlState extends ConsumerState<TasksControl> {
     // Find the section and get its subjectId
     final subjectId =
         sectionId != null
-            ? sectionProvider.sections
+            ? sectionsState.sections
                 .firstWhere((s) => s.id == sectionId)
                 .subjectId
             : null;

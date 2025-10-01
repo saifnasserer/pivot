@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/models/user_profile.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
-import 'package:provider/provider.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 
-class EditAboutScreen extends StatefulWidget {
+class EditAboutScreen extends ConsumerStatefulWidget {
   final UserProfile userProfile;
   final String initialAboutText;
 
@@ -15,10 +15,10 @@ class EditAboutScreen extends StatefulWidget {
   });
 
   @override
-  State<EditAboutScreen> createState() => _EditAboutScreenState();
+  ConsumerState<EditAboutScreen> createState() => _EditAboutScreenState();
 }
 
-class _EditAboutScreenState extends State<EditAboutScreen>
+class _EditAboutScreenState extends ConsumerState<EditAboutScreen>
     with TickerProviderStateMixin {
   late TextEditingController _aboutController;
   late AnimationController _animationController;
@@ -73,8 +73,8 @@ class _EditAboutScreenState extends State<EditAboutScreen>
     });
 
     try {
-      final userProfileProvider = context.read<UserProfileProvider>();
-      await userProfileProvider.updateAboutMe(
+      final notifier = ref.read(userProfileProvider.notifier);
+      await notifier.updateAboutMe(
         widget.userProfile.id,
         _aboutController.text.trim(),
       );

@@ -1,25 +1,27 @@
 import 'package:flutter/material.dart';
-import 'package:pivot/providers/section_provider.dart';
-import 'package:pivot/providers/subject_provider.dart';
-import 'package:pivot/providers/task_provider.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pivot/features/administration/providers/sections_provider.dart';
+import 'package:pivot/features/subjects/providers/subjects_provider.dart';
+import 'package:pivot/features/tasks/providers/tasks_provider.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/models/task.dart';
 import 'package:pivot/screens/models/task_model.dart';
 import 'package:pivot/models/section_model.dart';
+import 'package:pivot/models/user_profile.dart';
 import 'add_edit_task_dialog.dart';
 import 'package:pivot/services/sound_service.dart';
-import 'package:provider/provider.dart';
 
 /// Enhanced WeekTasks with analytics, smart organization, and modern UI
-class WeekTasks extends StatefulWidget {
+class WeekTasks extends ConsumerStatefulWidget {
   const WeekTasks({super.key});
 
   @override
-  State<WeekTasks> createState() => _WeekTasksState();
+  ConsumerState<WeekTasks> createState() => _WeekTasksState();
 }
 
-class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
+class _WeekTasksState extends ConsumerState<WeekTasks>
+    with TickerProviderStateMixin {
   bool _isCompletedTasksExpanded = false;
   final List<Task> _personalTasks = [];
   late AnimationController _progressAnimationController;
@@ -63,18 +65,12 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
 
   // Method to trigger assistant preferences update when user profile changes
   void _checkAndUpdateAssistantPreferences() {
-    final userProfileProvider = Provider.of<UserProfileProvider>(
-      context,
-      listen: false,
-    );
-    final subjectProvider = Provider.of<SubjectProvider>(
-      context,
-      listen: false,
-    );
+    final userProfileState = ref.read(userProfileProvider);
+    final subjectsState = ref.read(subjectsProvider);
 
     // Only run if both providers are ready
-    if (!subjectProvider.isLoading &&
-        userProfileProvider.loggedInUserProfile != null) {
+    if (!subjectsState.isLoading &&
+        userProfileState.loggedInUserProfile != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           _updateAssistantPreferencesIfNeeded();
@@ -85,15 +81,9 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
 
   void _updateAssistantPreferencesIfNeeded() async {
     try {
-      final userProfileProvider = Provider.of<UserProfileProvider>(
-        context,
-        listen: false,
-      );
-      final subjectProvider = Provider.of<SubjectProvider>(
-        context,
-        listen: false,
-      );
-      final loggedInUser = userProfileProvider.loggedInUserProfile;
+      final userProfileState = ref.read(userProfileProvider);
+      final subjectsState = ref.read(subjectsProvider);
+      final loggedInUser = userProfileState.loggedInUserProfile;
 
       if (loggedInUser == null) {
         print(
@@ -103,7 +93,7 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
       }
 
       // Check if subject provider is ready
-      if (subjectProvider.isLoading) {
+      if (subjectsState.isLoading) {
         print(
           'WeekTasks: Subject provider is still loading, skipping assistant preferences update',
         );
@@ -123,7 +113,7 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
 
       for (final subjectId in userEnrolledSubjectIds) {
         final instructors =
-            subjectProvider.instructorsBySubject[subjectId]
+            subjectsState.instructorsBySubject[subjectId]
                 ?.where((prof) => prof.role == 'miniProfessor')
                 .toList() ??
             [];
@@ -147,9 +137,9 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
       // Only update if there are changes
       if (hasChanges) {
         print('WeekTasks: Updating assistant preferences: $updatedPreferences');
-        await userProfileProvider.updateAssistantPreferences(
-          updatedPreferences,
-        );
+        await ref
+            .read(userProfileProvider.notifier)
+            .updateAssistantPreferences(updatedPreferences);
         print('WeekTasks: Successfully updated assistant preferences');
       } else {
         print('WeekTasks: No changes needed for assistant preferences');
@@ -241,15 +231,14 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
   List<String> _getSubjectsNeedingAssistantSelection(
     List<String> userEnrolledSubjectIds,
     Map<String, String> assistantPreferences,
-    SubjectProvider subjectProvider,
-    SectionProvider sectionProvider,
+    Map<String, List<UserProfile>> instructorsBySubject,
   ) {
     final subjectsNeedingSelection = <String>[];
 
     for (final subjectId in userEnrolledSubjectIds) {
       // Get instructors for this subject
       final instructors =
-          subjectProvider.instructorsBySubject[subjectId]
+          instructorsBySubject[subjectId]
               ?.where((prof) => prof.role == 'miniProfessor')
               .toList() ??
           [];
@@ -265,12 +254,13 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    final taskProvider = Provider.of<TaskProvider>(context);
-    final userProfileProvider = Provider.of<UserProfileProvider>(context);
-    final sectionProvider = Provider.of<SectionProvider>(context);
-    final subjectProvider = Provider.of<SubjectProvider>(context);
-    final loggedInUser = userProfileProvider.loggedInUserProfile;
-    final allTasks = [...taskProvider.tasks, ..._personalTasks];
+    final tasksState = ref.watch(tasksProvider);
+    final userProfileState = ref.watch(userProfileProvider);
+    final sectionsState = ref.watch(sectionsProvider);
+    final subjectsState = ref.watch(subjectsProvider);
+
+    final loggedInUser = userProfileState.loggedInUserProfile;
+    final allTasks = [...tasksState.tasks, ..._personalTasks];
 
     // Check and update assistant preferences when build is called
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -291,8 +281,7 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
     final subjectsNeedingSelection = _getSubjectsNeedingAssistantSelection(
       userEnrolledSubjectIds,
       assistantPreferences,
-      subjectProvider,
-      sectionProvider,
+      subjectsState.instructorsBySubject,
     );
 
     // Step 1: Check default instructors for each registered subject
@@ -301,7 +290,7 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
     for (final subjectId in userEnrolledSubjectIds) {
       // Get all instructors for this subject
       final instructors =
-          subjectProvider.instructorsBySubject[subjectId]
+          subjectsState.instructorsBySubject[subjectId]
               ?.where((prof) => prof.role == 'miniProfessor')
               .toList() ??
           [];
@@ -324,7 +313,7 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
 
       // Step 2: Find the user's specific section for this subject and default instructor
       final userSubjectSection =
-          sectionProvider.sections.where((section) {
+          sectionsState.sections.where((section) {
             return section.subjectId == subjectId &&
                 section.assistantId == defaultAssistantId &&
                 _matchesUserSectionNumber(section.name, userSection);
@@ -370,18 +359,18 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
           if (subjectsNeedingSelection.isNotEmpty)
             _buildAssistantSelectionWarning(
               subjectsNeedingSelection,
-              subjectProvider,
+              subjectsState,
             ),
 
           if (pendingTasks.isEmpty && completedTasks.isEmpty)
             _buildEmptyState()
           else ...[
             // Grouped Task Lists
-            ..._buildGroupedTaskLists(groupedTasks, taskProvider),
+            ..._buildGroupedTaskLists(groupedTasks),
 
             // Completed Tasks Section
             if (completedTasks.isNotEmpty)
-              _buildCompletedTasksSection(completedTasks, taskProvider),
+              _buildCompletedTasksSection(completedTasks),
           ],
         ],
       ),
@@ -411,10 +400,7 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
   }
 
   /// Build grouped task lists with enhanced organization
-  List<Widget> _buildGroupedTaskLists(
-    Map<String, List<Task>> groupedTasks,
-    TaskProvider taskProvider,
-  ) {
+  List<Widget> _buildGroupedTaskLists(Map<String, List<Task>> groupedTasks) {
     final widgets = <Widget>[];
     final categoryLabels = {
       'overdue': 'متأخرة',
@@ -440,7 +426,6 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
             entry.value,
             categoryLabels[entry.key] ?? entry.key,
             categoryColors[entry.key] ?? Colors.grey,
-            taskProvider,
           ),
         );
       }
@@ -454,7 +439,6 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
     List<Task> tasks,
     String label,
     Color color,
-    TaskProvider taskProvider,
   ) {
     return SliverToBoxAdapter(
       child: AnimatedBuilder(
@@ -542,9 +526,7 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
                       ),
 
                       // Task List
-                      ...tasks.map(
-                        (task) => _buildEnhancedTaskItem(task, taskProvider),
-                      ),
+                      ...tasks.map((task) => _buildEnhancedTaskItem(task)),
                     ],
                   ),
                 ),
@@ -557,7 +539,7 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
   }
 
   /// Build enhanced task item with swipe actions (only for personal tasks)
-  Widget _buildEnhancedTaskItem(Task task, TaskProvider taskProvider) {
+  Widget _buildEnhancedTaskItem(Task task) {
     // Only allow dismissible delete for personal tasks
     if (task.isPersonal) {
       return Dismissible(
@@ -610,9 +592,9 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
         child: TaskModel(
           task: task,
           admin: false,
-          onStatusChanged: () => _handleTaskStatusChange(task, taskProvider),
+          onStatusChanged: () => _handleTaskStatusChange(task),
           onEdit: () => _showAddEditTaskDialog(context, task: task),
-          onDelete: () => _handleTaskDelete(task, taskProvider),
+          onDelete: () => _handleTaskDelete(task),
         ),
       );
     } else {
@@ -624,7 +606,7 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
         child: TaskModel(
           task: task,
           admin: false,
-          onStatusChanged: () => _handleTaskStatusChange(task, taskProvider),
+          onStatusChanged: () => _handleTaskStatusChange(task),
           onEdit: () {}, // Disable editing for system tasks
           onDelete: () {}, // Disable deletion for system tasks
         ),
@@ -632,10 +614,10 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
     }
   }
 
-  void _handleTaskStatusChange(Task task, TaskProvider taskProvider) async {
+  void _handleTaskStatusChange(Task task) async {
     if (task.isPersonal) {
-      final user =
-          Provider.of<UserProfileProvider>(context, listen: false).userProfile;
+      final userProfileState = ref.read(userProfileProvider);
+      final user = userProfileState.userProfile;
       if (user == null) return;
 
       final wasCompleted = task.isCompletedFor(user.id);
@@ -662,17 +644,17 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
         await SoundService().playCorrectSound();
       }
     } else {
-      taskProvider.toggleTaskCompletion(task.id);
+      ref.read(tasksProvider.notifier).toggleTaskCompletion(task.id);
     }
   }
 
-  void _handleTaskDelete(Task task, TaskProvider taskProvider) {
+  void _handleTaskDelete(Task task) {
     if (task.isPersonal) {
       setState(() {
         _personalTasks.removeWhere((t) => t.id == task.id);
       });
     } else {
-      taskProvider.deleteTask(task.id);
+      ref.read(tasksProvider.notifier).deleteTask(task.id);
     }
   }
 
@@ -718,10 +700,7 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
   }
 
   /// Build completed tasks section with enhanced design
-  Widget _buildCompletedTasksSection(
-    List<Task> completedTasks,
-    TaskProvider taskProvider,
-  ) {
+  Widget _buildCompletedTasksSection(List<Task> completedTasks) {
     return SliverToBoxAdapter(
       child: Padding(
         padding: EdgeInsets.symmetric(
@@ -787,11 +766,10 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
                         child: TaskModel(
                           task: task,
                           admin: false,
-                          onStatusChanged:
-                              () => _handleTaskStatusChange(task, taskProvider),
+                          onStatusChanged: () => _handleTaskStatusChange(task),
                           onEdit:
                               () => _showAddEditTaskDialog(context, task: task),
-                          onDelete: () => _handleTaskDelete(task, taskProvider),
+                          onDelete: () => _handleTaskDelete(task),
                         ),
                       );
                     }).toList(),
@@ -827,7 +805,7 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
   /// Build assistant selection warning
   Widget _buildAssistantSelectionWarning(
     List<String> subjectsNeedingSelection,
-    SubjectProvider subjectProvider,
+    SubjectsState subjectsState,
   ) {
     return SliverToBoxAdapter(
       child: Padding(
@@ -897,11 +875,11 @@ class _WeekTasksState extends State<WeekTasks> with TickerProviderStateMixin {
                   // Subject list
                   ...subjectsNeedingSelection.map((subjectId) {
                     final subject =
-                        subjectProvider.filteredSubjects
+                        subjectsState.filteredSubjects
                             .where((s) => s.id == subjectId)
                             .firstOrNull;
                     final instructors =
-                        subjectProvider.instructorsBySubject[subjectId]
+                        subjectsState.instructorsBySubject[subjectId]
                             ?.where((prof) => prof.role == 'miniProfessor')
                             .toList() ??
                         [];

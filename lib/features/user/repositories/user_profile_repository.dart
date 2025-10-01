@@ -1,3 +1,4 @@
+import 'package:image_picker/image_picker.dart';
 import 'package:pivot/features/user/services/user_profile_service.dart';
 import 'package:pivot/models/user_profile.dart';
 
@@ -52,4 +53,21 @@ class UserProfileRepository {
 
   Future<List<UserProfile>> getUsersByDepartment(String department) =>
       _service.getUsersByDepartment(department);
+
+  Future<void> updateAssistantPreferences(Map<String, String> preferences) =>
+      _service.updateAssistantPreferences(preferences);
+
+  Future<void> updateUserProfileData(
+    String userId,
+    Map<String, dynamic> data, {
+    XFile? imageFile,
+  }) => _service.updateUserProfileData(userId, data, imageFile: imageFile);
+
+  Future<void> updateSocialMediaLinks(
+    String userId,
+    List<SocialMediaLink> socialMediaLinks,
+  ) => _service.updateSocialMediaLinks(userId, socialMediaLinks);
+
+  Future<void> updateAboutMe(String userId, String aboutMe) =>
+      _service.updateAboutMe(userId, aboutMe);
 }

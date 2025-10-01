@@ -49,7 +49,7 @@ class ScheduleService {
 
       await _firestore.runTransaction((transaction) async {
         final snapshot = await transaction.get(scheduleRef);
-        final data = snapshot.data() as Map<String, dynamic>? ?? {};
+        final data = snapshot.data() ?? {};
         final dayItems = List<Map<String, dynamic>>.from(data[item.day] ?? []);
 
         dayItems.add(item.toMap());
@@ -76,7 +76,7 @@ class ScheduleService {
 
       await _firestore.runTransaction((transaction) async {
         final snapshot = await transaction.get(scheduleRef);
-        final data = snapshot.data() as Map<String, dynamic>? ?? {};
+        final data = snapshot.data() ?? {};
         final dayItems = List<Map<String, dynamic>>.from(data[item.day] ?? []);
 
         final index = dayItems.indexWhere((item) => item['id'] == id);
@@ -106,7 +106,7 @@ class ScheduleService {
 
       await _firestore.runTransaction((transaction) async {
         final snapshot = await transaction.get(scheduleRef);
-        final data = snapshot.data() as Map<String, dynamic>? ?? {};
+        final data = snapshot.data() ?? {};
 
         for (final day in data.keys) {
           final dayItems = List<Map<String, dynamic>>.from(data[day] ?? []);
@@ -137,7 +137,7 @@ class ScheduleService {
 
       await _firestore.runTransaction((transaction) async {
         final snapshot = await transaction.get(scheduleRef);
-        final data = snapshot.data() as Map<String, dynamic>? ?? {};
+        final data = snapshot.data() ?? {};
 
         // Update order values
         for (int i = 0; i < items.length; i++) {

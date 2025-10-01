@@ -12,6 +12,7 @@ class AnnouncementsService {
   Future<List<AnnouncementData>> fetchAnnouncements({
     String? department,
     String? timeFilter,
+    bool includeScheduledAndExpired = false,
   }) async {
     try {
       Query query = _firestore.collection(_collectionPath);
@@ -49,7 +50,7 @@ class AnnouncementsService {
       query = query.orderBy('timestamp', descending: true);
 
       final snapshot = await query.get();
-      final announcements =
+      var announcements =
           snapshot.docs
               .map(
                 (doc) => AnnouncementData.fromMap(
@@ -58,6 +59,17 @@ class AnnouncementsService {
                 ),
               )
               .toList();
+
+      // TODO: Implement scheduled and expired announcement filtering
+      // when includeScheduledAndExpired is false
+      // This should filter out:
+      // 1. Announcements with publishAt date in the future
+      // 2. Announcements with expireAt date in the past
+      // 3. Delete expired announcements from Firestore
+      if (!includeScheduledAndExpired) {
+        // For now, just return all announcements
+        // Full implementation should be added later
+      }
 
       // Cache the results
       await _cacheAnnouncements(announcements);

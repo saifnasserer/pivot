@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/models/lecture_model.dart';
 import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/providers/doctor_subject_provider.dart';
 import 'package:pivot/providers/subject_provider.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/features/administration/screens/doctor/add_lecture_dialog.dart';
 import 'package:pivot/features/administration/screens/doctor/doctor_categories.dart';
@@ -12,17 +13,16 @@ import 'package:pivot/features/administration/screens/doctor/profile/about_secti
 import 'package:pivot/features/administration/screens/doctor/profile/subjects_section.dart';
 import 'package:pivot/features/profile/screens/profile_widgets/Profile_options.dart';
 import 'package:pivot/features/subjects/screens/subject_selection_screen.dart';
-import 'package:provider/provider.dart';
 import 'package:pivot/widgets/no_internet_message.dart';
 
-class DoctorProfile extends StatefulWidget {
+class DoctorProfile extends ConsumerStatefulWidget {
   const DoctorProfile({super.key});
 
   @override
-  State<DoctorProfile> createState() => _DoctorProfileState();
+  ConsumerState<DoctorProfile> createState() => _DoctorProfileState();
 }
 
-class _DoctorProfileState extends State<DoctorProfile>
+class _DoctorProfileState extends ConsumerState<DoctorProfile>
     with TickerProviderStateMixin {
   UserProfile? _displayedProfile;
   String? _previousProfileId;
@@ -58,7 +58,7 @@ class _DoctorProfileState extends State<DoctorProfile>
       profileToShow = argument['instructor'] as UserProfile?;
       targetSubject = argument['subject'] as Subject?;
     } else {
-      profileToShow = context.watch<UserProfileProvider>().userProfile;
+      profileToShow = ref.watch(userProfileProvider).userProfile;
     }
 
     if (profileToShow != null && profileToShow.id != _previousProfileId) {
@@ -88,7 +88,7 @@ class _DoctorProfileState extends State<DoctorProfile>
     print('Teaching subjects: ${userProfile.teachingSubjects}');
 
     // Check if this is the logged-in user's own profile
-    final loggedInUser = context.read<UserProfileProvider>().userProfile;
+    final loggedInUser = ref.read(userProfileProvider).userProfile;
     final isOwnProfile = loggedInUser?.id == userProfile.id;
     print('Is own profile: $isOwnProfile');
     print('Logged in user ID: ${loggedInUser?.id}');
@@ -105,10 +105,9 @@ class _DoctorProfileState extends State<DoctorProfile>
       if (!mounted) return;
 
       try {
-        final subjectProvider = Provider.of<SubjectProvider>(
-          context,
-          listen: false,
-        );
+        // TODO: Migrate SubjectProvider to Riverpod
+        // For now, using legacy provider access
+        final subjectProvider = ref.read(legacySubjectProviderProvider);
 
         print(
           'Calling fetchAndFilterSubjects for profile: ${profileToUse.name}',
@@ -176,7 +175,10 @@ class _DoctorProfileState extends State<DoctorProfile>
           createdAt: DateTime.now(),
         );
 
-        await context.read<DoctorSubjectProvider>().addLecture(newLecture);
+        // TODO: Migrate DoctorSubjectProvider to Riverpod
+        await ref
+            .read(legacyDoctorSubjectProviderProvider)
+            .addLecture(newLecture);
 
         // Show success message with subject name
         if (mounted) {
@@ -215,7 +217,7 @@ class _DoctorProfileState extends State<DoctorProfile>
   }
 
   List<Widget> _getCategoryContentSlivers(BuildContext context) {
-    final loggedInUser = context.watch<UserProfileProvider>().userProfile;
+    final loggedInUser = ref.watch(userProfileProvider).userProfile;
     final isOwnProfile = loggedInUser?.id == _displayedProfile?.id;
     final userProfile = _displayedProfile;
 
@@ -276,8 +278,7 @@ class _DoctorProfileState extends State<DoctorProfile>
   }
 
   bool _shouldShowEditIcon() {
-    final loggedInUser =
-        context.watch<UserProfileProvider>().loggedInUserProfile;
+    final loggedInUser = ref.watch(userProfileProvider).loggedInUserProfile;
     final isSuperAdmin = loggedInUser?.role == 'Super Admin';
     final isViewingOtherUser = loggedInUser?.id != _displayedProfile?.id;
     final isProfessorOrMiniProfessor =
@@ -288,7 +289,7 @@ class _DoctorProfileState extends State<DoctorProfile>
   }
 
   bool _shouldShowAddLectureButton() {
-    final loggedInUser = context.read<UserProfileProvider>().userProfile;
+    final loggedInUser = ref.read(userProfileProvider).userProfile;
 
     if (loggedInUser == null) return false;
 
@@ -315,14 +316,9 @@ class _DoctorProfileState extends State<DoctorProfile>
     );
 
     if (result == true && mounted) {
-      final userProfileProvider = Provider.of<UserProfileProvider>(
-        context,
-        listen: false,
-      );
-
-      final updatedProfile = await userProfileProvider.getUserProfileById(
-        profile.id,
-      );
+      final updatedProfile = await ref
+          .read(userProfileProvider.notifier)
+          .getUserProfileById(profile.id);
       if (updatedProfile != null) {
         setState(() {
           _displayedProfile = updatedProfile;
@@ -341,18 +337,14 @@ class _DoctorProfileState extends State<DoctorProfile>
 
   void _onBackPressed() {
     // Restore logged-in user profile when navigating back
-    final userProfileProvider = Provider.of<UserProfileProvider>(
-      context,
-      listen: false,
-    );
-    userProfileProvider.restoreLoggedInUserProfile();
+    ref.read(userProfileProvider.notifier).restoreLoggedInUserProfile();
     Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
     final userProfile = _displayedProfile;
-    final loggedInUser = context.watch<UserProfileProvider>().userProfile;
+    final loggedInUser = ref.watch(userProfileProvider).userProfile;
     final isOwnProfile = loggedInUser?.id == userProfile?.id;
 
     if (userProfile == null) {
@@ -372,11 +364,7 @@ class _DoctorProfileState extends State<DoctorProfile>
           print(
             'Navigating back from doctor profile, restoring logged-in user profile',
           );
-          final userProfileProvider = Provider.of<UserProfileProvider>(
-            context,
-            listen: false,
-          );
-          userProfileProvider.restoreLoggedInUserProfile();
+          ref.read(userProfileProvider.notifier).restoreLoggedInUserProfile();
         }
       },
       child: Scaffold(
@@ -410,7 +398,7 @@ class _DoctorProfileState extends State<DoctorProfile>
                     showMenuButton: isOwnProfile,
                     onBackPressed: _onBackPressed,
                     onEditPressed: _editTeachingSubjects,
-                    onMenuPressed: () => profile_options(context),
+                    onMenuPressed: () => profile_options(context, ref),
                   ),
                 ),
                 const SliverToBoxAdapter(

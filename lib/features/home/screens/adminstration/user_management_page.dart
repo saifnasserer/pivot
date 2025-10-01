@@ -1,23 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/models/user_profile.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/services/auth_service.dart';
 import 'package:pivot/services/data_deletion_service.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
-import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pivot/widgets/no_internet_message.dart';
 
-class UserManagementPage extends StatefulWidget {
+class UserManagementPage extends ConsumerStatefulWidget {
   // = 'user_management_page';
   const UserManagementPage({super.key});
 
   @override
-  State<UserManagementPage> createState() => _UserManagementPageState();
+  ConsumerState<UserManagementPage> createState() => _UserManagementPageState();
 }
 
-class _UserManagementPageState extends State<UserManagementPage> {
+class _UserManagementPageState extends ConsumerState<UserManagementPage> {
   final AuthService _authService = AuthService();
   final TextEditingController _searchController = TextEditingController();
   List<UserProfile> _allUsers = [];
@@ -44,11 +44,8 @@ class _UserManagementPageState extends State<UserManagementPage> {
   Future<void> _fetchUsers() async {
     setState(() => _isLoading = true);
     try {
-      final userProfileProvider = Provider.of<UserProfileProvider>(
-        context,
-        listen: false,
-      );
-      final currentUser = userProfileProvider.loggedInUserProfile;
+      final userProfileState = ref.read(userProfileProvider);
+      final currentUser = userProfileState.loggedInUserProfile;
       List<UserProfile> users = [];
       if (currentUser != null &&
           (currentUser.role == 'Super Admin' || currentUser.role == 'Admin')) {

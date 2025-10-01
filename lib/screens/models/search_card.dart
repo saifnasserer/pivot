@@ -5,7 +5,7 @@ import 'package:pivot/providers/user_profile_provider.dart';
 import 'package:pivot/services/auth_service.dart';
 import 'package:pivot/services/cache_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:pivot/features/user/providers/user_profile_provider.dart'; // Added import for UserProfileProvider
+// Added import for UserProfileProvider
 import 'package:provider/provider.dart'; // Added import for Provider
 import 'package:pivot/responsive.dart';
 

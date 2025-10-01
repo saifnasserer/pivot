@@ -74,12 +74,14 @@ class AnnouncementsNotifier extends StateNotifier<AnnouncementsState> {
   Future<void> fetchAnnouncements({
     String? department,
     String? timeFilter,
+    bool includeScheduledAndExpired = false,
   }) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final announcements = await _repo.fetchAnnouncements(
         department: department,
         timeFilter: timeFilter,
+        includeScheduledAndExpired: includeScheduledAndExpired,
       );
       state = state.copyWith(
         isLoading: false,
@@ -149,6 +151,56 @@ class AnnouncementsNotifier extends StateNotifier<AnnouncementsState> {
       state = state.copyWith(announcements: updatedAnnouncements);
     } catch (e) {
       state = state.copyWith(error: e.toString());
+    }
+  }
+
+  Future<void> pinAnnouncement(AnnouncementData announcement) async {
+    if (announcement.id == null) return;
+    try {
+      // Update local state immediately
+      final updatedAnnouncements =
+          state.announcements.map((a) {
+            if (a.id == announcement.id) {
+              return a.copyWith(pinned: true);
+            }
+            return a;
+          }).toList();
+      state = state.copyWith(announcements: updatedAnnouncements);
+
+      // Update in repository
+      await _repo.togglePin(announcement.id!);
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      // Refresh to get correct state on error
+      await fetchAnnouncements(
+        department: state.currentDepartmentFilter,
+        timeFilter: state.currentTimeFilter,
+      );
+    }
+  }
+
+  Future<void> unpinAnnouncement(AnnouncementData announcement) async {
+    if (announcement.id == null) return;
+    try {
+      // Update local state immediately
+      final updatedAnnouncements =
+          state.announcements.map((a) {
+            if (a.id == announcement.id) {
+              return a.copyWith(pinned: false);
+            }
+            return a;
+          }).toList();
+      state = state.copyWith(announcements: updatedAnnouncements);
+
+      // Update in repository
+      await _repo.togglePin(announcement.id!);
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      // Refresh to get correct state on error
+      await fetchAnnouncements(
+        department: state.currentDepartmentFilter,
+        timeFilter: state.currentTimeFilter,
+      );
     }
   }
 

@@ -1,24 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/providers/settings_provider.dart';
 import 'package:pivot/services/auth_service.dart';
 import 'package:pivot/data/form_options.dart';
 import 'package:pivot/widgets/custom_dropdown.dart';
 import 'package:pivot/providers/subject_provider.dart';
-import 'package:provider/provider.dart';
+import 'package:pivot/features/settings/providers/settings_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/widgets/custom_text_field.dart';
 
-class AddUserScreen extends StatefulWidget {
+class AddUserScreen extends ConsumerStatefulWidget {
   // = 'add_user_screen';
   const AddUserScreen({super.key});
 
   @override
-  State<AddUserScreen> createState() => _AddUserScreenState();
+  ConsumerState<AddUserScreen> createState() => _AddUserScreenState();
 }
 
-class _AddUserScreenState extends State<AddUserScreen> {
+class _AddUserScreenState extends ConsumerState<AddUserScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -46,11 +47,8 @@ class _AddUserScreenState extends State<AddUserScreen> {
     super.initState();
     _availableDepartments = FormOptions.getDepartmentsForYear(null);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<SubjectProvider>(context, listen: false).fetchAllSubjects();
-      Provider.of<SettingsProvider>(
-        context,
-        listen: false,
-      ).fetchSectionCounts();
+      ref.read(legacySubjectProviderProvider).fetchAllSubjects();
+      ref.read(settingsProvider.notifier).fetchSectionCounts();
     });
   }
 
@@ -117,10 +115,7 @@ class _AddUserScreenState extends State<AddUserScreen> {
   }
 
   List<Subject> _getFilteredSubjects() {
-    final subjectProvider = Provider.of<SubjectProvider>(
-      context,
-      listen: false,
-    );
+    final subjectProvider = ref.read(legacySubjectProviderProvider);
     if (_subjectSearchQuery.isEmpty) {
       return subjectProvider.allSubjects;
     }
@@ -267,98 +262,92 @@ class _AddUserScreenState extends State<AddUserScreen> {
   }
 
   Widget _buildSubjectsList() {
-    return Consumer<SubjectProvider>(
-      builder: (context, subjectProvider, child) {
-        if (subjectProvider.isLoading) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const CircularProgressIndicator(color: Colors.black),
-                SizedBox(height: Responsive.space(context, size: Space.medium)),
-                Text(
-                  'جاري تحميل المواد...',
-                  style: TextStyle(
-                    fontSize: Responsive.text(context, size: TextSize.medium),
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ],
-            ),
-          );
-        }
-        if (subjectProvider.error != null) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
-                SizedBox(height: Responsive.space(context, size: Space.medium)),
-                Text(
-                  'حدث خطأ: ${subjectProvider.error}',
-                  style: TextStyle(
-                    fontSize: Responsive.text(context, size: TextSize.medium),
-                    color: Colors.grey[600],
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          );
-        }
-        if (subjectProvider.allSubjects.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.menu_book_outlined,
-                  size: 64,
-                  color: Colors.grey[400],
-                ),
-                SizedBox(height: Responsive.space(context, size: Space.medium)),
-                Text(
-                  'لا توجد مواد متاحة',
-                  style: TextStyle(
-                    fontSize: Responsive.text(context, size: TextSize.medium),
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ],
-            ),
-          );
-        }
+    final subjectProvider = ref.watch(legacySubjectProviderProvider);
 
-        final filteredSubjects = _getFilteredSubjects();
-        if (filteredSubjects.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
-                SizedBox(height: Responsive.space(context, size: Space.medium)),
-                Text(
-                  'لا توجد نتائج للبحث',
-                  style: TextStyle(
-                    fontSize: Responsive.text(context, size: TextSize.medium),
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ],
+    if (subjectProvider.isLoading) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const CircularProgressIndicator(color: Colors.black),
+            SizedBox(height: Responsive.space(context, size: Space.medium)),
+            Text(
+              'جاري تحميل المواد...',
+              style: TextStyle(
+                fontSize: Responsive.text(context, size: TextSize.medium),
+                color: Colors.grey[600],
+              ),
             ),
-          );
-        }
+          ],
+        ),
+      );
+    }
+    if (subjectProvider.error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+            SizedBox(height: Responsive.space(context, size: Space.medium)),
+            Text(
+              'حدث خطأ: ${subjectProvider.error}',
+              style: TextStyle(
+                fontSize: Responsive.text(context, size: TextSize.medium),
+                color: Colors.grey[600],
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+    if (subjectProvider.allSubjects.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.menu_book_outlined, size: 64, color: Colors.grey[400]),
+            SizedBox(height: Responsive.space(context, size: Space.medium)),
+            Text(
+              'لا توجد مواد متاحة',
+              style: TextStyle(
+                fontSize: Responsive.text(context, size: TextSize.medium),
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
-        return ListView.builder(
-          shrinkWrap: true,
-          physics: const ClampingScrollPhysics(),
-          padding: Responsive.padding(context, size: Space.large),
-          itemCount: filteredSubjects.length,
-          itemBuilder: (context, index) {
-            final subject = filteredSubjects[index];
-            return _buildSubjectCard(subject);
-          },
-        );
+    final filteredSubjects = _getFilteredSubjects();
+    if (filteredSubjects.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
+            SizedBox(height: Responsive.space(context, size: Space.medium)),
+            Text(
+              'لا توجد نتائج للبحث',
+              style: TextStyle(
+                fontSize: Responsive.text(context, size: TextSize.medium),
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const ClampingScrollPhysics(),
+      padding: Responsive.padding(context, size: Space.large),
+      itemCount: filteredSubjects.length,
+      itemBuilder: (context, index) {
+        final subject = filteredSubjects[index];
+        return _buildSubjectCard(subject);
       },
     );
   }
@@ -568,17 +557,13 @@ class _AddUserScreenState extends State<AddUserScreen> {
                             _selectedSection = null;
 
                             // Get section count from settings provider
-                            final settingsProvider =
-                                Provider.of<SettingsProvider>(
-                                  context,
-                                  listen: false,
-                                );
+                            final settingsState = ref.read(settingsProvider);
                             if (newValue != null &&
-                                settingsProvider.sectionCounts.containsKey(
+                                settingsState.sectionCounts.containsKey(
                                   newValue,
                                 )) {
                               final sectionCount =
-                                  settingsProvider.sectionCounts[newValue] ?? 0;
+                                  settingsState.sectionCounts[newValue] ?? 0;
                               _availableSections = List<String>.generate(
                                 sectionCount,
                                 (i) => '${i + 1}',
@@ -715,8 +700,11 @@ class _AddUserScreenState extends State<AddUserScreen> {
                         height: Responsive.space(context, size: Space.medium),
                       ),
                       // Subjects count info
-                      Consumer<SubjectProvider>(
-                        builder: (context, subjectProvider, child) {
+                      Builder(
+                        builder: (context) {
+                          final subjectProvider = ref.watch(
+                            legacySubjectProviderProvider,
+                          );
                           final filteredSubjects = _getFilteredSubjects();
                           return Container(
                             padding: Responsive.padding(

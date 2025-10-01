@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/features/home/screens/adminstration/show_dialog.dart';
-import 'package:pivot/providers/announcement_provider.dart';
-import 'package:provider/provider.dart';
+import 'package:pivot/features/announcements/providers/announcements_provider.dart';
 import 'package:pivot/features/home/screens/adminstration/announcement_card.dart';
 import 'package:pivot/responsive.dart';
 
 /// A reusable widget that displays a list of announcements
 /// This can be used anywhere in the app to show announcements
-class AnnouncementListWidget extends StatelessWidget {
+class AnnouncementListWidget extends ConsumerWidget {
   final bool showActions;
   final int? maxItems;
   final List<String>? filterTags;
@@ -20,69 +20,72 @@ class AnnouncementListWidget extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    return Consumer<AnnouncementProvider>(
-      builder: (context, provider, child) {
-        // Get announcements from provider
-        var announcements = provider.announcements;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final announcementsState = ref.watch(announcementsProvider);
+    final provider = ref.read(announcementsProvider.notifier);
 
-        // Apply tag filter if needed
-        if (filterTags != null && filterTags!.isNotEmpty) {
-          announcements =
-              announcements.where((announcement) {
-                return announcement.tags.any(
-                  (tag) => filterTags!.contains(tag),
-                );
-              }).toList();
-        }
+    // Get announcements from provider
+    var announcements = announcementsState.announcements;
 
-        // Apply max items limit if needed
-        if (maxItems != null && maxItems! < announcements.length) {
-          announcements = announcements.sublist(0, maxItems);
-        }
+    // Apply tag filter if needed
+    if (filterTags != null && filterTags!.isNotEmpty) {
+      announcements =
+          announcements.where((announcement) {
+            return announcement.tags.any((tag) => filterTags!.contains(tag));
+          }).toList();
+    }
 
-        if (announcements.isEmpty) {
-          return Center(
-            child: Text(
-              'مفيش اخبار',
-              style: TextStyle(
-                fontSize: Responsive.text(context, size: TextSize.medium),
-              ),
-            ),
-          );
-        }
+    // Apply max items limit if needed
+    if (maxItems != null && maxItems! < announcements.length) {
+      announcements = announcements.sublist(0, maxItems);
+    }
 
-        return ListView.builder(
-          shrinkWrap: true,
-          physics: const BouncingScrollPhysics(),
-          itemCount: announcements.length,
-          itemBuilder: (context, index) {
-            final announcement = announcements[index];
-            return AnnouncementCard(
-              announcement: announcement,
-              onEdit:
-                  showActions
-                      ? () {
-                        showAddAnnouncementDialog(
-                          context: context,
-                          isEditing: true,
-                          announcement: announcement,
-                          onSave: (newAnnouncement) {
-                            provider.updateAnnouncement(newAnnouncement);
-                          },
-                        );
-                      }
-                      : () {},
-              onDelete:
-                  showActions
-                      ? () {
+    if (announcements.isEmpty) {
+      return Center(
+        child: Text(
+          'مفيش اخبار',
+          style: TextStyle(
+            fontSize: Responsive.text(context, size: TextSize.medium),
+          ),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const BouncingScrollPhysics(),
+      itemCount: announcements.length,
+      itemBuilder: (context, index) {
+        final announcement = announcements[index];
+        return AnnouncementCard(
+          announcement: announcement,
+          onEdit:
+              showActions
+                  ? () {
+                    showAddAnnouncementDialog(
+                      context: context,
+                      ref: ref,
+                      isEditing: true,
+                      announcement: announcement,
+                      onSave: (newAnnouncement) {
                         if (announcement.id != null) {
-                          provider.deleteAnnouncement(announcement.id!);
+                          provider.updateAnnouncement(
+                            announcement.id!,
+                            newAnnouncement,
+                          );
                         }
-                      }
-                      : () {},
-            );
-          },
+                      },
+                    );
+                  }
+                  : () {},
+          onDelete:
+              showActions
+                  ? () {
+                    if (announcement.id != null) {
+                      provider.deleteAnnouncement(announcement.id!);
+                    }
+                  }
+                  : () {},
         );
       },
     );

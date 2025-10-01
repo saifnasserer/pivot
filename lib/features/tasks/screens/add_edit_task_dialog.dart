@@ -1,12 +1,10 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart' as intl;
-import 'package:pivot/providers/section_provider.dart';
-import 'package:pivot/models/user_profile.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
+import 'package:pivot/features/administration/providers/sections_provider.dart';
 import 'package:pivot/widgets/custom_text_field.dart';
 import 'package:pivot/screens/models/task.dart';
-import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
@@ -22,12 +20,8 @@ Future<void> showAddTaskDialog({
   String? initialSectionId,
   Task? task,
 }) async {
-  // Get current user from provider
-  final userProfileProvider = Provider.of<UserProfileProvider>(
-    context,
-    listen: false,
-  );
-  final currentUser = userProfileProvider.userProfile;
+  // This will be handled inside the dialog content
+  // No need to fetch user here as the dialog is now a ConsumerWidget
 
   return showDialog<void>(
     context: context,
@@ -38,31 +32,29 @@ Future<void> showAddTaskDialog({
         task: task,
         subjectId: subjectId,
         initialSectionId: initialSectionId,
-        currentUser: currentUser,
       );
     },
   );
 }
 
-class _AddEditTaskDialogContent extends StatefulWidget {
+class _AddEditTaskDialogContent extends ConsumerStatefulWidget {
   final Function(Task) onSave;
   final Task? task;
   final String subjectId;
   final String? initialSectionId;
-  final UserProfile? currentUser;
   const _AddEditTaskDialogContent({
     required this.onSave,
     this.task,
     required this.subjectId,
     this.initialSectionId,
-    this.currentUser,
   });
   @override
-  State<_AddEditTaskDialogContent> createState() =>
+  ConsumerState<_AddEditTaskDialogContent> createState() =>
       _AddEditTaskDialogContentState();
 }
 
-class _AddEditTaskDialogContentState extends State<_AddEditTaskDialogContent> {
+class _AddEditTaskDialogContentState
+    extends ConsumerState<_AddEditTaskDialogContent> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _titleController;
   late TextEditingController _descriptionController;
@@ -70,7 +62,6 @@ class _AddEditTaskDialogContentState extends State<_AddEditTaskDialogContent> {
   late TaskImportance _selectedImportance;
   String? _selectedSubjectId;
   String? _selectedSectionId;
-  bool _isLoadingSections = false;
   List<Map<String, String>> attachments = [];
   bool _isEditing = false;
 
@@ -107,40 +98,25 @@ class _AddEditTaskDialogContentState extends State<_AddEditTaskDialogContent> {
     if (!mounted) return;
 
     try {
-      final sectionProvider = Provider.of<SectionProvider>(
-        context,
-        listen: false,
-      );
-      await sectionProvider.fetchSectionsForUserSubjects([_selectedSubjectId!]);
+      await ref.read(sectionsProvider.notifier).fetchSectionsForUserSubjects([
+        _selectedSubjectId!,
+      ]);
 
       if (!mounted) return;
 
-      if (sectionProvider.sections.isNotEmpty) {
+      final sectionsState = ref.read(sectionsProvider);
+      if (sectionsState.sections.isNotEmpty) {
         // Only set _selectedSectionId if it is not already set or not found in the list
-        final found = sectionProvider.sections.any(
+        final found = sectionsState.sections.any(
           (s) => s.id == _selectedSectionId,
         );
-        if (!found) {
-          setState(
-            () => _selectedSectionId = sectionProvider.sections.first.id,
-          );
+        if (!found && mounted) {
+          setState(() => _selectedSectionId = sectionsState.sections.first.id);
         }
-      }
-      if (mounted) {
-        setState(() => _isLoadingSections = false);
       }
     } catch (e) {
       print('Error fetching initial data: $e');
-      if (mounted) {
-        setState(() => _isLoadingSections = false);
-      }
     }
-  }
-
-  void _onSectionChanged(String? newSectionId) {
-    setState(() {
-      _selectedSectionId = newSectionId;
-    });
   }
 
   Future<void> _selectDate(BuildContext context) async {
@@ -166,15 +142,9 @@ class _AddEditTaskDialogContentState extends State<_AddEditTaskDialogContent> {
         return;
       }
 
-      // Get the current user (assistant) ID
-      final currentUser = widget.currentUser;
-
       // Get the section to find its assistant ID
-      final sectionProvider = Provider.of<SectionProvider>(
-        context,
-        listen: false,
-      );
-      final section = sectionProvider.sections.firstWhere(
+      final sectionsState = ref.read(sectionsProvider);
+      final section = sectionsState.sections.firstWhere(
         (s) => s.id == _selectedSectionId,
         orElse: () => throw Exception('Section not found'),
       );

@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-
 import 'package:pivot/widgets/custom_dropdown.dart';
 import 'package:pivot/data/form_options.dart';
-import 'edit_profile_provider.dart';
+import 'package:pivot/features/profile/providers/edit_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 
 class EducationalDetailsSection extends StatelessWidget {
-  final EditProfileProvider provider;
+  final EditProfileState state;
   final String? selectedYear;
   final String? selectedDepartment;
   final String? selectedSection;
@@ -18,7 +17,7 @@ class EducationalDetailsSection extends StatelessWidget {
 
   const EducationalDetailsSection({
     super.key,
-    required this.provider,
+    required this.state,
     required this.selectedYear,
     required this.selectedDepartment,
     required this.selectedSection,
@@ -71,7 +70,7 @@ class EducationalDetailsSection extends StatelessWidget {
             items: FormOptions.academicYears,
             hint: 'اختر الفرقة',
             onChanged: onYearChanged,
-            errorText: provider.getFieldError('level'),
+            errorText: state.fieldErrors['level'],
           ),
           SizedBox(height: Responsive.space(context, size: Space.medium)),
           CustomDropdown(
@@ -80,7 +79,7 @@ class EducationalDetailsSection extends StatelessWidget {
             items: availableDepartments,
             hint: 'اختر القسم',
             onChanged: onDepartmentChanged,
-            errorText: provider.getFieldError('department'),
+            errorText: state.fieldErrors['department'],
           ),
           SizedBox(height: Responsive.space(context, size: Space.medium)),
           CustomDropdown(
@@ -89,7 +88,7 @@ class EducationalDetailsSection extends StatelessWidget {
             items: availableSections,
             hint: 'اختر السكشن',
             onChanged: onSectionChanged,
-            errorText: provider.getFieldError('section'),
+            errorText: state.fieldErrors['section'],
           ),
         ],
       ),

@@ -5,9 +5,14 @@ export 'assistant_selection_dialog.dart';
 
 // Keep the original function for backward compatibility
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'sections_builder.dart';
 
 /// Keep the original function for backward compatibility
-List<Widget> buildSectionsSlivers(BuildContext context) {
-  return SectionsBuilder.buildSectionsSlivers(context, enableAnimations: true);
+List<Widget> buildSectionsSlivers(BuildContext context, WidgetRef ref) {
+  return SectionsBuilder.buildSectionsSlivers(
+    context,
+    ref,
+    enableAnimations: true,
+  );
 }

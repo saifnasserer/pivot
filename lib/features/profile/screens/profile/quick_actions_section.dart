@@ -1,22 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
-import 'package:provider/provider.dart';
-
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/models/user_profile.dart';
-import 'package:pivot/providers/subject_provider.dart';
 import 'package:pivot/features/subjects/screens/subject_selection_screen.dart';
 import 'package:pivot/responsive.dart';
 
-class QuickActionsSection extends StatefulWidget {
+class QuickActionsSection extends ConsumerStatefulWidget {
   final UserProfile userProfile;
 
   const QuickActionsSection({super.key, required this.userProfile});
 
   @override
-  State<QuickActionsSection> createState() => _QuickActionsSectionState();
+  ConsumerState<QuickActionsSection> createState() =>
+      _QuickActionsSectionState();
 }
 
-class _QuickActionsSectionState extends State<QuickActionsSection>
+class _QuickActionsSectionState extends ConsumerState<QuickActionsSection>
     with TickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -210,7 +208,7 @@ class _QuickActionsSectionState extends State<QuickActionsSection>
         Icons.school_outlined,
         () => _navigateToSubjectSelection(
           context,
-          widget.userProfile.enrolledSubjects ?? [],
+          widget.userProfile.enrolledSubjects,
         ),
       );
     } else if (widget.userProfile.role == 'Professor' ||
@@ -222,7 +220,7 @@ class _QuickActionsSectionState extends State<QuickActionsSection>
         Icons.book_outlined,
         () => _navigateToSubjectSelection(
           context,
-          widget.userProfile.teachingSubjects ?? [],
+          widget.userProfile.teachingSubjects,
         ),
       );
     } else {
@@ -329,14 +327,7 @@ class _QuickActionsSectionState extends State<QuickActionsSection>
             ),
       ),
     );
-    // Reset subject filter after returning
-    try {
-      final userProfile = context.read<UserProfileProvider>().userProfile;
-      if (userProfile != null) {
-        final subjectProvider = context.read<SubjectProvider>();
-        subjectProvider.fetchAndFilterSubjects(userProfile);
-      }
-    } catch (e) {}
+    // Subjects will reload automatically through Riverpod
   }
 
   // Future<void> _showNotificationSettingsDialog(BuildContext context) async {

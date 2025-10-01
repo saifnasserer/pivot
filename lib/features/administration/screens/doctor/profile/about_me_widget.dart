@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/features/administration/screens/doctor/edit_about_route.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:provider/provider.dart';
 
-class AboutMeWidget extends StatefulWidget {
+class AboutMeWidget extends ConsumerStatefulWidget {
   final UserProfile userProfile;
   final bool isOwnProfile;
   final Function(UserProfile)? onProfileUpdated;
@@ -19,10 +19,10 @@ class AboutMeWidget extends StatefulWidget {
   });
 
   @override
-  State<AboutMeWidget> createState() => _AboutMeWidgetState();
+  ConsumerState<AboutMeWidget> createState() => _AboutMeWidgetState();
 }
 
-class _AboutMeWidgetState extends State<AboutMeWidget> {
+class _AboutMeWidgetState extends ConsumerState<AboutMeWidget> {
   Future<void> _showEditAboutScreen(BuildContext context) async {
     final result = await Navigator.push(
       context,
@@ -51,7 +51,7 @@ class _AboutMeWidgetState extends State<AboutMeWidget> {
   @override
   Widget build(BuildContext context) {
     // Get the logged-in user to check permissions
-    final loggedInUser = context.watch<UserProfileProvider>().userProfile;
+    final loggedInUser = ref.watch(userProfileProvider).userProfile;
 
     // Edit icon should only appear for:
     // 1. The user themselves (isOwnProfile)

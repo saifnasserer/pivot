@@ -1,5 +1,6 @@
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/models/lecture_model.dart';
 import 'package:pivot/services/doctor_subject_service.dart';
 
@@ -205,3 +206,11 @@ class DoctorSubjectProvider with ChangeNotifier {
     }
   }
 }
+
+// Legacy provider bridge for Riverpod migration
+// TODO: Remove this after DoctorSubjectProvider is fully migrated to Riverpod
+final legacyDoctorSubjectProviderProvider = Provider<DoctorSubjectProvider>((
+  ref,
+) {
+  return DoctorSubjectProvider();
+});

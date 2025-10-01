@@ -62,7 +62,6 @@ import 'firebase_options.dart';
 import 'widgets/platform_service.dart';
 import 'widgets/ios_install_instructions_screen.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // Route name constants
 const String routeUserManagement = '/user-management';

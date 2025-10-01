@@ -3,11 +3,18 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/models/guide_content.dart';
 import 'package:pivot/models/guidebook_model.dart';
 import 'package:pivot/services/storage_optimization_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/foundation.dart';
+
+// Legacy provider bridge for Riverpod migration
+// TODO: Remove this after GuideProvider is fully migrated to Riverpod
+final legacyGuideProviderProvider = Provider<GuideProvider>((ref) {
+  return GuideProvider();
+});
 
 class GuideProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;

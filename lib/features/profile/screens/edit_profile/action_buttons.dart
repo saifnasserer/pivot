@@ -1,24 +1,26 @@
 import 'package:flutter/material.dart';
-
-import 'edit_profile_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pivot/features/profile/providers/edit_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 
-class ActionButtons extends StatelessWidget {
-  final EditProfileProvider provider;
+class ActionButtons extends ConsumerWidget {
+  final EditProfileState state;
+  final WidgetRef widgetRef;
   final TextEditingController currentPasswordController;
   final TextEditingController newPasswordController;
   final TextEditingController confirmPasswordController;
 
   const ActionButtons({
     super.key,
-    required this.provider,
+    required this.state,
+    required this.widgetRef,
     required this.currentPasswordController,
     required this.newPasswordController,
     required this.confirmPasswordController,
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(Responsive.space(context, size: Space.medium)),
@@ -35,7 +37,7 @@ class ActionButtons extends StatelessWidget {
         ],
       ),
       child:
-          provider.isSaving
+          state.isSaving
               ? Column(
                 children: [
                   const CircularProgressIndicator(),
@@ -57,27 +59,33 @@ class ActionButtons extends StatelessWidget {
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed:
-                          provider.isFormValid && provider.hasUnsavedChanges
+                          state.isFormValid && state.hasUnsavedChanges
                               ? () {
-                                provider.saveProfile(
-                                  currentPassword:
-                                      currentPasswordController.text.isNotEmpty
-                                          ? currentPasswordController.text
-                                          : null,
-                                  newPassword:
-                                      newPasswordController.text.isNotEmpty
-                                          ? newPasswordController.text
-                                          : null,
-                                  confirmPassword:
-                                      confirmPasswordController.text.isNotEmpty
-                                          ? confirmPasswordController.text
-                                          : null,
-                                );
+                                widgetRef
+                                    .read(editProfileProvider.notifier)
+                                    .saveProfile(
+                                      currentPassword:
+                                          currentPasswordController
+                                                  .text
+                                                  .isNotEmpty
+                                              ? currentPasswordController.text
+                                              : null,
+                                      newPassword:
+                                          newPasswordController.text.isNotEmpty
+                                              ? newPasswordController.text
+                                              : null,
+                                      confirmPassword:
+                                          confirmPasswordController
+                                                  .text
+                                                  .isNotEmpty
+                                              ? confirmPasswordController.text
+                                              : null,
+                                    );
                               }
                               : null,
                       icon: const Icon(Icons.check, color: Colors.white),
                       label: Text(
-                        provider.hasUnsavedChanges
+                        state.hasUnsavedChanges
                             ? 'حفظ التغييرات'
                             : 'لا توجد تغييرات',
                         style: const TextStyle(
@@ -87,7 +95,7 @@ class ActionButtons extends StatelessWidget {
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor:
-                            provider.hasUnsavedChanges
+                            state.hasUnsavedChanges
                                 ? Colors.green[600]
                                 : Colors.grey[400],
                         padding: EdgeInsets.symmetric(

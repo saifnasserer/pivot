@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/services/subject_service.dart';
@@ -375,3 +376,9 @@ class SubjectProvider with ChangeNotifier {
     });
   }
 }
+
+// Legacy provider bridge for Riverpod migration
+// TODO: Remove this after SubjectProvider is fully migrated to Riverpod
+final legacySubjectProviderProvider = Provider<SubjectProvider>((ref) {
+  return SubjectProvider();
+});

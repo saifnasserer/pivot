@@ -1,23 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/features/home/screens/adminstration/announcement_card.dart';
 import 'package:pivot/features/home/screens/adminstration/announcement/index.dart';
 import 'package:pivot/features/home/screens/adminstration/animated_route.dart';
-import 'package:provider/provider.dart';
-import 'package:pivot/providers/announcement_provider.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
+import 'package:pivot/features/announcements/providers/announcements_provider.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/features/home/screens/adminstration/models/announcement_data.dart';
 import 'package:lottie/lottie.dart';
 
-class AdminControl extends StatefulWidget {
+class AdminControl extends ConsumerStatefulWidget {
   const AdminControl({super.key});
   // = 'admin_id';
 
   @override
-  State<AdminControl> createState() => _AdminControlState();
+  ConsumerState<AdminControl> createState() => _AdminControlState();
 }
 
-class _AdminControlState extends State<AdminControl> {
+class _AdminControlState extends ConsumerState<AdminControl> {
   String _search = '';
   String _departmentFilter = '';
   String _dateFilter = '';
@@ -40,10 +40,9 @@ class _AdminControlState extends State<AdminControl> {
     super.initState();
     // Fetch announcements when the widget is first created
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<AnnouncementProvider>(
-        context,
-        listen: false,
-      ).fetchAnnouncements(includeScheduledAndExpired: true);
+      ref
+          .read(announcementsProvider.notifier)
+          .fetchAnnouncements(includeScheduledAndExpired: true);
     });
   }
 
@@ -508,376 +507,354 @@ class _AdminControlState extends State<AdminControl> {
 
   @override
   Widget build(BuildContext context) {
-    final userProfile =
-        Provider.of<UserProfileProvider>(context, listen: false).userProfile;
-    return Consumer<AnnouncementProvider>(
-      builder: (context, announcementProvider, child) {
-        final filteredAnnouncements = _filterAnnouncements(
-          announcementProvider.announcements,
-        );
-        return Scaffold(
-          backgroundColor: Colors.white,
-          appBar: AppBar(
-            backgroundColor: Colors.white,
-            title: Text(
-              'المطبخ',
-              style: TextStyle(
-                fontSize: Responsive.text(context, size: TextSize.heading),
-                fontWeight: FontWeight.bold,
+    final userProfile = ref.read(userProfileProvider).userProfile;
+    final announcementsState = ref.watch(announcementsProvider);
+    final filteredAnnouncements = _filterAnnouncements(
+      announcementsState.announcements,
+    );
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        title: Text(
+          'المطبخ',
+          style: TextStyle(
+            fontSize: Responsive.text(context, size: TextSize.heading),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        actions: [
+          Directionality(
+            textDirection: TextDirection.rtl,
+            child: Container(
+              margin: EdgeInsets.only(
+                right: Responsive.space(context, size: Space.small),
               ),
-            ),
-            actions: [
-              Directionality(
-                textDirection: TextDirection.rtl,
-                child: Container(
-                  margin: EdgeInsets.only(
-                    right: Responsive.space(context, size: Space.small),
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(
-                      Responsive.space(context, size: Space.large),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(
+                  Responsive.space(context, size: Space.large),
+                ),
+              ),
+              child: PopupMenuButton<String>(
+                icon: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.tune,
+                      color: Colors.black87,
+                      size: Responsive.space(context, size: Space.medium),
                     ),
+                  ],
+                ),
+                tooltip: 'خيارات',
+                offset: Offset(
+                  0,
+                  Responsive.space(context, size: Space.large) * 2,
+                ),
+                elevation: 8,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(
+                    Responsive.space(context, size: Space.large),
                   ),
-                  child: PopupMenuButton<String>(
-                    icon: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.tune,
-                          color: Colors.black87,
-                          size: Responsive.space(context, size: Space.medium),
+                ),
+                color: Colors.white,
+                itemBuilder: (context) {
+                  final List<PopupMenuEntry<String>> items = [
+                    PopupMenuItem(
+                      value: 'search',
+                      child: Container(
+                        padding: EdgeInsets.symmetric(
+                          vertical: Responsive.space(
+                            context,
+                            size: Space.small,
+                          ),
                         ),
-                      ],
-                    ),
-                    tooltip: 'خيارات',
-                    offset: Offset(
-                      0,
-                      Responsive.space(context, size: Space.large) * 2,
-                    ),
-                    elevation: 8,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(
-                        Responsive.space(context, size: Space.large),
-                      ),
-                    ),
-                    color: Colors.white,
-                    itemBuilder: (context) {
-                      final List<PopupMenuEntry<String>> items = [
-                        PopupMenuItem(
-                          value: 'search',
-                          child: Container(
-                            padding: EdgeInsets.symmetric(
-                              vertical: Responsive.space(
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    _showSearch ? 'إغلاق البحث' : 'البحث',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                  Text(
+                                    _showSearch
+                                        ? 'إخفاء شريط البحث'
+                                        : 'البحث في الإعلانات',
+                                    style: TextStyle(
+                                      fontSize: Responsive.text(
+                                        context,
+                                        size: TextSize.small,
+                                      ),
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            SizedBox(
+                              width: Responsive.space(
                                 context,
                                 size: Space.small,
                               ),
                             ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Text(
-                                        _showSearch ? 'إغلاق البحث' : 'البحث',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.black87,
-                                        ),
-                                      ),
-                                      Text(
-                                        _showSearch
-                                            ? 'إخفاء شريط البحث'
-                                            : 'البحث في الإعلانات',
-                                        style: TextStyle(
-                                          fontSize: Responsive.text(
-                                            context,
-                                            size: TextSize.small,
-                                          ),
-                                          color: Colors.grey[600],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                            Container(
+                              padding: EdgeInsets.all(
+                                Responsive.space(context, size: Space.small),
+                              ),
+                              decoration: BoxDecoration(
+                                color:
+                                    _showSearch
+                                        ? Colors.blue[100]
+                                        : Colors.grey[100],
+                                borderRadius: BorderRadius.circular(
+                                  Responsive.space(context, size: Space.large),
                                 ),
-                                SizedBox(
-                                  width: Responsive.space(
-                                    context,
-                                    size: Space.small,
-                                  ),
+                              ),
+                              child: Icon(
+                                _showSearch ? Icons.close : Icons.search,
+                                size: Responsive.space(
+                                  context,
+                                  size: Space.medium,
                                 ),
-                                Container(
-                                  padding: EdgeInsets.all(
-                                    Responsive.space(
-                                      context,
-                                      size: Space.small,
-                                    ),
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color:
-                                        _showSearch
-                                            ? Colors.blue[100]
-                                            : Colors.grey[100],
-                                    borderRadius: BorderRadius.circular(
-                                      Responsive.space(
-                                        context,
-                                        size: Space.large,
-                                      ),
-                                    ),
-                                  ),
-                                  child: Icon(
-                                    _showSearch ? Icons.close : Icons.search,
-                                    size: Responsive.space(
-                                      context,
-                                      size: Space.medium,
-                                    ),
-                                    color:
-                                        _showSearch
-                                            ? Colors.blue[700]
-                                            : Colors.grey[700],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        PopupMenuItem(
-                          value: 'filters',
-                          child: Container(
-                            padding: Responsive.paddingVertical(
-                              context,
-                              size: Space.small,
-                            ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Text(
-                                        _showFilters
-                                            ? 'إغلاق الفلاتر'
-                                            : 'الفلاتر',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.black87,
-                                        ),
-                                      ),
-                                      Text(
-                                        _showFilters
-                                            ? 'إخفاء خيارات التصفية'
-                                            : 'تصفية الإعلانات',
-                                        style: TextStyle(
-                                          fontSize: Responsive.text(
-                                            context,
-                                            size: TextSize.small,
-                                          ),
-                                          color: Colors.grey[600],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                SizedBox(
-                                  width: Responsive.space(
-                                    context,
-                                    size: Space.small,
-                                  ),
-                                ),
-                                Container(
-                                  padding: Responsive.padding(
-                                    context,
-                                    size: Space.small,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color:
-                                        _showFilters
-                                            ? Colors.green[100]
-                                            : Colors.grey[100],
-                                    borderRadius: BorderRadius.circular(
-                                      Responsive.space(
-                                        context,
-                                        size: Space.large,
-                                      ),
-                                    ),
-                                  ),
-
-                                  child: Icon(
-                                    _showFilters
-                                        ? Icons.filter_alt
-                                        : Icons.filter_alt_outlined,
-                                    size: Responsive.space(
-                                      context,
-                                      size: Space.medium,
-                                    ),
-                                    color:
-                                        _showFilters
-                                            ? Colors.green[700]
-                                            : Colors.grey[700],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ];
-                      return items;
-                    },
-                    onSelected: (value) {
-                      if (value == 'search') {
-                        setState(() {
-                          if (_showSearch) {
-                            _showSearch = false;
-                            _search = '';
-                            _searchController.clear();
-                          } else {
-                            _showSearch = true;
-                          }
-                        });
-                      } else if (value == 'filters') {
-                        setState(() => _showFilters = !_showFilters);
-                      }
-                    },
-                  ),
-                ),
-              ),
-            ],
-            surfaceTintColor: Colors.white,
-            centerTitle: true,
-            bottom: PreferredSize(
-              preferredSize: Size.fromHeight(
-                (_showSearch ? 56 : 0) +
-                    (_showFilters
-                        ? (Responsive.space(context, size: Space.large) * 2)
-                        : 0),
-              ),
-              child: Column(
-                children: [_buildAppBarSearchField(), _buildFilterBar()],
-              ),
-            ),
-          ),
-          body: SafeArea(
-            child: Stack(
-              children: [
-                announcementProvider.isLoading
-                    ? Center(
-                      child: Lottie.asset(
-                        'assets/animation/update.json',
-                        width:
-                            Responsive.space(context, size: Space.large) * 2.5,
-                        height:
-                            Responsive.space(context, size: Space.large) * 2.5,
-                        repeat: true,
-                      ),
-                    )
-                    : Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: Responsive.space(
-                          context,
-                          size: Space.medium,
-                        ),
-                        vertical: Responsive.space(context, size: Space.medium),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          if (filteredAnnouncements.isEmpty)
-                            Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Lottie.asset(
-                                  'assets/animation/empty.json',
-                                  width:
-                                      Responsive.space(
-                                        context,
-                                        size: Space.xlarge,
-                                      ) *
-                                      10,
-                                  height:
-                                      Responsive.space(
-                                        context,
-                                        size: Space.xlarge,
-                                      ) *
-                                      10,
-                                  repeat: true,
-                                ),
-                                Text(
-                                  'لا يوجد إعلانات لعرضها حالياً',
-                                  style: TextStyle(
-                                    fontSize: Responsive.text(
-                                      context,
-                                      size: TextSize.heading,
-                                    ),
-                                    color: Colors.grey,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                                SizedBox(
-                                  height: Responsive.space(
-                                    context,
-                                    size: Space.small,
-                                  ),
-                                ),
-                                Text(
-                                  'ابدأ بإضافة إعلان جديد أو جرب تغيير الفلاتر',
-                                  style: TextStyle(
-                                    fontSize: Responsive.text(
-                                      context,
-                                      size: TextSize.medium,
-                                    ),
-                                    color: Colors.grey[500],
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            )
-                          else
-                            Expanded(
-                              child: ListView.builder(
-                                itemCount: filteredAnnouncements.length,
-                                itemBuilder: (context, index) {
-                                  final announcement =
-                                      filteredAnnouncements[index];
-                                  return AnnouncementCard(
-                                    announcement: announcement,
-                                    onEdit:
-                                        () => _editAnnouncement(announcement),
-                                    onDelete:
-                                        () => _deleteAnnouncement(announcement),
-                                    onPin: () => _pinAnnouncement(announcement),
-                                    onUnpin:
-                                        () => _unpinAnnouncement(announcement),
-                                  );
-                                },
+                                color:
+                                    _showSearch
+                                        ? Colors.blue[700]
+                                        : Colors.grey[700],
                               ),
                             ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: Responsive.space(context),
-                  child: AnimatedAddButton(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        AnimatedAddRoute(
-                          startPosition: Offset.zero,
-                          child: AddAnnouncementMain(),
+                    PopupMenuItem(
+                      value: 'filters',
+                      child: Container(
+                        padding: Responsive.paddingVertical(
+                          context,
+                          size: Space.small,
                         ),
-                      );
-                    },
-                    icon: Icons.add_rounded,
-                    iconSizeMultiplier: 3,
-                  ),
-                ),
-              ],
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    _showFilters ? 'إغلاق الفلاتر' : 'الفلاتر',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                  Text(
+                                    _showFilters
+                                        ? 'إخفاء خيارات التصفية'
+                                        : 'تصفية الإعلانات',
+                                    style: TextStyle(
+                                      fontSize: Responsive.text(
+                                        context,
+                                        size: TextSize.small,
+                                      ),
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            SizedBox(
+                              width: Responsive.space(
+                                context,
+                                size: Space.small,
+                              ),
+                            ),
+                            Container(
+                              padding: Responsive.padding(
+                                context,
+                                size: Space.small,
+                              ),
+                              decoration: BoxDecoration(
+                                color:
+                                    _showFilters
+                                        ? Colors.green[100]
+                                        : Colors.grey[100],
+                                borderRadius: BorderRadius.circular(
+                                  Responsive.space(context, size: Space.large),
+                                ),
+                              ),
+
+                              child: Icon(
+                                _showFilters
+                                    ? Icons.filter_alt
+                                    : Icons.filter_alt_outlined,
+                                size: Responsive.space(
+                                  context,
+                                  size: Space.medium,
+                                ),
+                                color:
+                                    _showFilters
+                                        ? Colors.green[700]
+                                        : Colors.grey[700],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ];
+                  return items;
+                },
+                onSelected: (value) {
+                  if (value == 'search') {
+                    setState(() {
+                      if (_showSearch) {
+                        _showSearch = false;
+                        _search = '';
+                        _searchController.clear();
+                      } else {
+                        _showSearch = true;
+                      }
+                    });
+                  } else if (value == 'filters') {
+                    setState(() => _showFilters = !_showFilters);
+                  }
+                },
+              ),
             ),
           ),
-        );
-      },
+        ],
+        surfaceTintColor: Colors.white,
+        centerTitle: true,
+        bottom: PreferredSize(
+          preferredSize: Size.fromHeight(
+            (_showSearch ? 56 : 0) +
+                (_showFilters
+                    ? (Responsive.space(context, size: Space.large) * 2)
+                    : 0),
+          ),
+          child: Column(
+            children: [_buildAppBarSearchField(), _buildFilterBar()],
+          ),
+        ),
+      ),
+      body: SafeArea(
+        child: Stack(
+          children: [
+            announcementsState.isLoading
+                ? Center(
+                  child: Lottie.asset(
+                    'assets/animation/update.json',
+                    width: Responsive.space(context, size: Space.large) * 2.5,
+                    height: Responsive.space(context, size: Space.large) * 2.5,
+                    repeat: true,
+                  ),
+                )
+                : Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: Responsive.space(context, size: Space.medium),
+                    vertical: Responsive.space(context, size: Space.medium),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (filteredAnnouncements.isEmpty)
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Lottie.asset(
+                              'assets/animation/empty.json',
+                              width:
+                                  Responsive.space(
+                                    context,
+                                    size: Space.xlarge,
+                                  ) *
+                                  10,
+                              height:
+                                  Responsive.space(
+                                    context,
+                                    size: Space.xlarge,
+                                  ) *
+                                  10,
+                              repeat: true,
+                            ),
+                            Text(
+                              'لا يوجد إعلانات لعرضها حالياً',
+                              style: TextStyle(
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.heading,
+                                ),
+                                color: Colors.grey,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            SizedBox(
+                              height: Responsive.space(
+                                context,
+                                size: Space.small,
+                              ),
+                            ),
+                            Text(
+                              'ابدأ بإضافة إعلان جديد أو جرب تغيير الفلاتر',
+                              style: TextStyle(
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.medium,
+                                ),
+                                color: Colors.grey[500],
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        )
+                      else
+                        Expanded(
+                          child: ListView.builder(
+                            itemCount: filteredAnnouncements.length,
+                            itemBuilder: (context, index) {
+                              final announcement = filteredAnnouncements[index];
+                              return AnnouncementCard(
+                                announcement: announcement,
+                                onEdit: () => _editAnnouncement(announcement),
+                                onDelete:
+                                    () => _deleteAnnouncement(announcement),
+                                onPin: () => _pinAnnouncement(announcement),
+                                onUnpin: () => _unpinAnnouncement(announcement),
+                              );
+                            },
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: Responsive.space(context),
+              child: AnimatedAddButton(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    AnimatedAddRoute(
+                      startPosition: Offset.zero,
+                      child: AddAnnouncementMain(),
+                    ),
+                  );
+                },
+                icon: Icons.add_rounded,
+                iconSizeMultiplier: 3,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -891,19 +868,18 @@ class _AdminControlState extends State<AdminControl> {
   }
 
   void _deleteAnnouncement(AnnouncementData announcement) {
-    final provider = Provider.of<AnnouncementProvider>(context, listen: false);
     if (announcement.id != null) {
-      provider.deleteAnnouncement(announcement.id!);
+      ref
+          .read(announcementsProvider.notifier)
+          .deleteAnnouncement(announcement.id!);
     }
   }
 
   void _pinAnnouncement(AnnouncementData announcement) {
-    final provider = Provider.of<AnnouncementProvider>(context, listen: false);
-    provider.pinAnnouncement(announcement);
+    ref.read(announcementsProvider.notifier).pinAnnouncement(announcement);
   }
 
   void _unpinAnnouncement(AnnouncementData announcement) {
-    final provider = Provider.of<AnnouncementProvider>(context, listen: false);
-    provider.unpinAnnouncement(announcement);
+    ref.read(announcementsProvider.notifier).unpinAnnouncement(announcement);
   }
 }

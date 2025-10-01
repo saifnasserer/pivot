@@ -1,27 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/providers/subject_provider.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/features/profile/screens/profile_widgets/Profile_options.dart';
 import 'package:pivot/features/subjects/screens/screens.dart';
-import 'package:provider/provider.dart';
 import '../add_edit_section_dialog.dart';
 import '../assistant_categories.dart';
 import 'assistant_about_section.dart';
 import 'assistant_subjects_section.dart';
 
-class AssistantProfileMain extends StatefulWidget {
+class AssistantProfileMain extends ConsumerStatefulWidget {
   final bool isAdmin;
 
   const AssistantProfileMain({super.key, this.isAdmin = false});
 
   @override
-  State<AssistantProfileMain> createState() => _AssistantProfileMainState();
+  ConsumerState<AssistantProfileMain> createState() =>
+      _AssistantProfileMainState();
 }
 
-class _AssistantProfileMainState extends State<AssistantProfileMain>
+class _AssistantProfileMainState extends ConsumerState<AssistantProfileMain>
     with TickerProviderStateMixin {
   UserProfile? _displayedProfile;
   String? _previousProfileId;
@@ -57,7 +58,7 @@ class _AssistantProfileMainState extends State<AssistantProfileMain>
       profileToShow = argument['instructor'] as UserProfile?;
       targetSubject = argument['subject'] as Subject?;
     } else {
-      profileToShow = context.watch<UserProfileProvider>().userProfile;
+      profileToShow = ref.watch(userProfileProvider).userProfile;
     }
 
     if (profileToShow != null && profileToShow.id != _previousProfileId) {
@@ -87,7 +88,7 @@ class _AssistantProfileMainState extends State<AssistantProfileMain>
     print('Teaching subjects: ${userProfile.teachingSubjects}');
 
     // Check if this is the logged-in user's own profile
-    final loggedInUser = context.read<UserProfileProvider>().userProfile;
+    final loggedInUser = ref.read(userProfileProvider).userProfile;
     final isOwnProfile = loggedInUser?.id == userProfile.id;
     print('Is own profile: $isOwnProfile');
 
@@ -102,10 +103,9 @@ class _AssistantProfileMainState extends State<AssistantProfileMain>
       if (!mounted) return;
 
       try {
-        final subjectProvider = Provider.of<SubjectProvider>(
-          context,
-          listen: false,
-        );
+        // TODO: Migrate SubjectProvider to Riverpod
+        // For now, using legacy provider access
+        final subjectProvider = ref.read(legacySubjectProviderProvider);
 
         print(
           'Calling fetchAndFilterSubjects for assistant: ${profileToUse.name}',
@@ -140,7 +140,7 @@ class _AssistantProfileMainState extends State<AssistantProfileMain>
   }
 
   List<Widget> _getCategoryContentSlivers(BuildContext context) {
-    final loggedInUser = context.watch<UserProfileProvider>().userProfile;
+    final loggedInUser = ref.watch(userProfileProvider).userProfile;
     final isOwnProfile = loggedInUser?.id == _displayedProfile?.id;
     final userProfile = _displayedProfile;
 
@@ -201,8 +201,7 @@ class _AssistantProfileMainState extends State<AssistantProfileMain>
   }
 
   bool _shouldShowEditIcon() {
-    final loggedInUser =
-        context.watch<UserProfileProvider>().loggedInUserProfile;
+    final loggedInUser = ref.watch(userProfileProvider).loggedInUserProfile;
     final isSuperAdmin = loggedInUser?.role == 'Super Admin';
     final isViewingOtherUser = loggedInUser?.id != _displayedProfile?.id;
     final isAssistant = _displayedProfile?.role == 'miniProfessor';
@@ -211,7 +210,7 @@ class _AssistantProfileMainState extends State<AssistantProfileMain>
   }
 
   bool _shouldShowAddSectionButton() {
-    final loggedInUser = context.read<UserProfileProvider>().userProfile;
+    final loggedInUser = ref.read(userProfileProvider).userProfile;
 
     if (loggedInUser == null) return false;
 
@@ -238,14 +237,9 @@ class _AssistantProfileMainState extends State<AssistantProfileMain>
     );
 
     if (result == true && mounted) {
-      final userProfileProvider = Provider.of<UserProfileProvider>(
-        context,
-        listen: false,
-      );
-
-      final updatedProfile = await userProfileProvider.getUserProfileById(
-        profile.id,
-      );
+      final updatedProfile = await ref
+          .read(userProfileProvider.notifier)
+          .getUserProfileById(profile.id);
       if (updatedProfile != null) {
         setState(() {
           _displayedProfile = updatedProfile;
@@ -277,7 +271,8 @@ class _AssistantProfileMainState extends State<AssistantProfileMain>
       return;
     }
 
-    final subjectProvider = context.read<SubjectProvider>();
+    // TODO: Migrate SubjectProvider to Riverpod
+    final subjectProvider = ref.read(legacySubjectProviderProvider);
     final subjects = subjectProvider.filteredSubjects;
 
     final result = await showDialog<Map<String, dynamic>>(
@@ -310,18 +305,14 @@ class _AssistantProfileMainState extends State<AssistantProfileMain>
 
   void _onBackPressed() {
     // Restore logged-in user profile when navigating back
-    final userProfileProvider = Provider.of<UserProfileProvider>(
-      context,
-      listen: false,
-    );
-    userProfileProvider.restoreLoggedInUserProfile();
+    ref.read(userProfileProvider.notifier).restoreLoggedInUserProfile();
     Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
     final userProfile = _displayedProfile;
-    final loggedInUser = context.watch<UserProfileProvider>().userProfile;
+    final loggedInUser = ref.watch(userProfileProvider).userProfile;
     final isOwnProfile = loggedInUser?.id == userProfile?.id;
 
     if (userProfile == null) {
@@ -339,11 +330,7 @@ class _AssistantProfileMainState extends State<AssistantProfileMain>
           print(
             'Navigating back from assistant profile, restoring logged-in user profile',
           );
-          final userProfileProvider = Provider.of<UserProfileProvider>(
-            context,
-            listen: false,
-          );
-          userProfileProvider.restoreLoggedInUserProfile();
+          ref.read(userProfileProvider.notifier).restoreLoggedInUserProfile();
         }
       },
       child: Scaffold(
@@ -377,7 +364,7 @@ class _AssistantProfileMainState extends State<AssistantProfileMain>
                     showMenuButton: isOwnProfile,
                     onBackPressed: _onBackPressed,
                     onEditPressed: _editTeachingSubjects,
-                    onMenuPressed: () => profile_options(context),
+                    onMenuPressed: () => profile_options(context, ref),
                   ),
                 ),
                 const SliverToBoxAdapter(

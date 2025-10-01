@@ -10,9 +10,11 @@ class AnnouncementsRepository {
   Future<List<AnnouncementData>> fetchAnnouncements({
     String? department,
     String? timeFilter,
+    bool includeScheduledAndExpired = false,
   }) => _service.fetchAnnouncements(
     department: department,
     timeFilter: timeFilter,
+    includeScheduledAndExpired: includeScheduledAndExpired,
   );
 
   Future<void> addAnnouncement(AnnouncementData announcement) =>

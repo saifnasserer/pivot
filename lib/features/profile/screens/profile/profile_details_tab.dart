@@ -1,22 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
-import 'package:provider/provider.dart';
-
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/features/profile/screens/profile_details.dart';
-import 'profile_provider.dart';
+import 'package:pivot/features/profile/providers/profile_provider.dart';
 import 'quick_actions_section.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
 
-class ProfileDetailsTab extends StatefulWidget {
+class ProfileDetailsTab extends ConsumerStatefulWidget {
   const ProfileDetailsTab({super.key});
 
   @override
-  State<ProfileDetailsTab> createState() => _ProfileDetailsTabState();
+  ConsumerState<ProfileDetailsTab> createState() => _ProfileDetailsTabState();
 }
 
-class _ProfileDetailsTabState extends State<ProfileDetailsTab>
+class _ProfileDetailsTabState extends ConsumerState<ProfileDetailsTab>
     with TickerProviderStateMixin {
   @override
   void initState() {
@@ -25,45 +24,41 @@ class _ProfileDetailsTabState extends State<ProfileDetailsTab>
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<UserProfileProvider>(
-      builder: (context, userProfileProvider, child) {
-        final userProfile = userProfileProvider.loggedInUserProfile;
-        if (userProfile == null) {
-          return _buildLoadingState();
-        }
+    final userProfileState = ref.watch(userProfileProvider);
+    final userProfile = userProfileState.loggedInUserProfile;
 
-        return Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Colors.grey[50]!, Colors.white],
-            ),
-          ),
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: EdgeInsets.all(
-              Responsive.space(context, size: Space.medium),
-            ),
-            child: Column(
-              children: [
-                // Profile Details Section with enhanced styling
-                _buildProfileDetailsSection(userProfile),
+    if (userProfile == null) {
+      return _buildLoadingState();
+    }
 
-                SizedBox(height: Responsive.space(context, size: Space.large)),
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Colors.grey[50]!, Colors.white],
+        ),
+      ),
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: EdgeInsets.all(Responsive.space(context, size: Space.medium)),
+        child: Column(
+          children: [
+            // Profile Details Section with enhanced styling
+            _buildProfileDetailsSection(userProfile),
 
-                // Quick Actions Section with enhanced styling
-                _buildQuickActionsSection(userProfile),
+            SizedBox(height: Responsive.space(context, size: Space.large)),
 
-                SizedBox(height: Responsive.space(context, size: Space.large)),
+            // Quick Actions Section with enhanced styling
+            _buildQuickActionsSection(userProfile),
 
-                // Logout Section
-                _buildLogoutSection(),
-              ],
-            ),
-          ),
-        );
-      },
+            SizedBox(height: Responsive.space(context, size: Space.large)),
+
+            // Logout Section
+            _buildLogoutSection(),
+          ],
+        ),
+      ),
     );
   }
 
@@ -252,8 +247,7 @@ class _ProfileDetailsTabState extends State<ProfileDetailsTab>
           content: Text('متأكد؟', textAlign: TextAlign.center),
           confirmText: 'تأكيد الخروج',
           onConfirm: () async {
-            final provider = context.read<ProfileProvider>();
-            await provider.logout();
+            await ref.read(profileProvider.notifier).logout();
             if (!context.mounted) return;
             Navigator.of(context).pushNamedAndRemoveUntil(
               '/auth-wrapper',

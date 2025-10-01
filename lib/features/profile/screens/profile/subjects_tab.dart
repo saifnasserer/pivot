@@ -1,77 +1,60 @@
 import 'package:flutter/material.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
-import 'package:provider/provider.dart';
-
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/models/user_profile.dart';
-import 'package:pivot/providers/subject_provider.dart';
+import 'package:pivot/features/subjects/providers/subjects_provider.dart';
 import 'package:pivot/features/profile/screens/profile_widgets/subjects.dart';
 
-class SubjectsTab extends StatefulWidget {
+class SubjectsTab extends ConsumerStatefulWidget {
   const SubjectsTab({super.key});
 
   @override
-  State<SubjectsTab> createState() => _SubjectsTabState();
+  ConsumerState<SubjectsTab> createState() => _SubjectsTabState();
 }
 
-class _SubjectsTabState extends State<SubjectsTab> {
+class _SubjectsTabState extends ConsumerState<SubjectsTab> {
   @override
   void initState() {
     super.initState();
-    // Set up profile restoration listener
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        final userProfileProvider = context.read<UserProfileProvider>();
-        userProfileProvider.setOnProfileRestored(() {
-          if (mounted) {
-            final loggedInUser = userProfileProvider.loggedInUserProfile;
-            if (loggedInUser != null) {
-              final subjectProvider = context.read<SubjectProvider>();
-              subjectProvider.updateFilteredSubjectsOnly(loggedInUser);
-            }
-          }
-        });
-      }
-    });
+    // Subjects will auto-load through Riverpod
   }
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<SubjectProvider>(
-      builder: (context, subjectProvider, child) {
-        try {
-          if (subjectProvider.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (subjectProvider.error != null) {
-            return Center(child: Text('Error: ${subjectProvider.error}'));
-          }
+    final subjectsState = ref.watch(subjectsProvider);
+    final userProfileState = ref.watch(userProfileProvider);
 
-          // Get the correct profile to use
-          final userProfileProvider = context.read<UserProfileProvider>();
-          final userProfile = userProfileProvider.userProfile;
-          final loggedInUser = userProfileProvider.loggedInUserProfile;
+    try {
+      if (subjectsState.isLoading) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      if (subjectsState.error != null) {
+        return Center(child: Text('Error: ${subjectsState.error}'));
+      }
 
-          // Determine which profile to use based on context
-          final targetProfile = _getTargetProfile(userProfile, loggedInUser);
-          final enrolledIds = targetProfile?.enrolledSubjects ?? [];
+      // Get the correct profile to use
+      final userProfile = userProfileState.userProfile;
+      final loggedInUser = userProfileState.loggedInUserProfile;
 
-          final registeredSubjects =
-              subjectProvider.filteredSubjects
-                  .where((s) => enrolledIds.contains(s.id))
-                  .toList();
+      // Determine which profile to use based on context
+      final targetProfile = _getTargetProfile(userProfile, loggedInUser);
+      final enrolledIds = targetProfile?.enrolledSubjects ?? [];
 
-          final subjectSlivers = buildSubjectsSlivers(
-            context,
-            registeredSubjects,
-            subjectProvider.instructorsBySubject,
-          );
+      final registeredSubjects =
+          subjectsState.filteredSubjects
+              .where((s) => enrolledIds.contains(s.id))
+              .toList();
 
-          return CustomScrollView(slivers: subjectSlivers);
-        } catch (e) {
-          return const Center(child: Text('لا يمكن تحميل المواد حالياً'));
-        }
-      },
-    );
+      final subjectSlivers = buildSubjectsSlivers(
+        context,
+        registeredSubjects,
+        subjectsState.instructorsBySubject,
+      );
+
+      return CustomScrollView(slivers: subjectSlivers);
+    } catch (e) {
+      return const Center(child: Text('لا يمكن تحميل المواد حالياً'));
+    }
   }
 
   UserProfile? _getTargetProfile(

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/models/section_model.dart';
-import 'package:pivot/providers/section_provider.dart';
-import 'package:pivot/providers/subject_provider.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
-import 'package:provider/provider.dart';
+import 'package:pivot/features/administration/providers/sections_provider.dart';
+import 'package:pivot/features/subjects/providers/subjects_provider.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'enhanced_section_list_item.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/models/subject_model.dart';
@@ -12,22 +12,23 @@ import 'package:pivot/models/subject_model.dart';
 class SectionsBuilder {
   /// Builds a complete sections list with simplified approach
   static List<Widget> buildSectionsSlivers(
-    BuildContext context, {
+    BuildContext context,
+    WidgetRef ref, {
     bool enableAnimations = true,
   }) {
-    final userProfileProvider = Provider.of<UserProfileProvider>(context);
-    final sectionProvider = Provider.of<SectionProvider>(context);
-    final subjectProvider = Provider.of<SubjectProvider>(context);
+    final userProfileState = ref.watch(userProfileProvider);
+    final sectionsState = ref.watch(sectionsProvider);
+    final subjectsState = ref.watch(subjectsProvider);
 
-    if (userProfileProvider.isLoading || sectionProvider.isLoading) {
+    if (userProfileState.isLoading || sectionsState.isLoading) {
       return [_buildLoadingState(context)];
     }
 
-    final loggedInUser = userProfileProvider.loggedInUserProfile;
-    final allSections = sectionProvider.sections;
-    final enrolledSubjects = subjectProvider.filteredSubjects;
+    final loggedInUser = userProfileState.loggedInUserProfile;
+    final allSections = sectionsState.sections;
+    final enrolledSubjects = subjectsState.filteredSubjects;
 
-    if (sectionProvider.error != null) {
+    if (sectionsState.error != null) {
       return [
         SliverFillRemaining(
           hasScrollBody: false,
@@ -38,7 +39,7 @@ class SectionsBuilder {
                 Icon(Icons.error_outline, color: Colors.red, size: 48),
                 SizedBox(height: Responsive.space(context, size: Space.medium)),
                 Text(
-                  sectionProvider.error!,
+                  sectionsState.error!,
                   style: TextStyle(
                     color: Colors.red,
                     fontSize: Responsive.text(context, size: TextSize.medium),
@@ -50,7 +51,9 @@ class SectionsBuilder {
                   onPressed: () {
                     final enrolledIds = loggedInUser?.enrolledSubjects ?? [];
                     if (enrolledIds.isNotEmpty) {
-                      sectionProvider.fetchSectionsForUserSubjects(enrolledIds);
+                      ref
+                          .read(sectionsProvider.notifier)
+                          .fetchSectionsForUserSubjects(enrolledIds);
                     }
                   },
                   child: Text('إعادة المحاولة'),

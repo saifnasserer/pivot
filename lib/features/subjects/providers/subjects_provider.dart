@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/features/subjects/repositories/subjects_repository.dart';
 import 'package:pivot/features/subjects/services/subjects_service.dart';
 import 'package:pivot/models/subject_model.dart';
+import 'package:pivot/models/user_profile.dart';
 
 final subjectsServiceProvider = Provider<SubjectsService>(
   (ref) => SubjectsService(),
@@ -16,6 +17,7 @@ class SubjectsState {
   final List<Subject> subjects;
   final List<Subject> filteredSubjects;
   final List<Subject> userSubjects;
+  final Map<String, List<UserProfile>> instructorsBySubject;
   final List<int> availableYears;
   final List<String> availableDepartments;
   final List<String> availableLevels;
@@ -35,6 +37,7 @@ class SubjectsState {
     this.subjects = const [],
     this.filteredSubjects = const [],
     this.userSubjects = const [],
+    this.instructorsBySubject = const {},
     this.availableYears = const [],
     this.availableDepartments = const [],
     this.availableLevels = const [],
@@ -55,6 +58,7 @@ class SubjectsState {
     List<Subject>? subjects,
     List<Subject>? filteredSubjects,
     List<Subject>? userSubjects,
+    Map<String, List<UserProfile>>? instructorsBySubject,
     List<int>? availableYears,
     List<String>? availableDepartments,
     List<String>? availableLevels,
@@ -73,6 +77,7 @@ class SubjectsState {
     subjects: subjects ?? this.subjects,
     filteredSubjects: filteredSubjects ?? this.filteredSubjects,
     userSubjects: userSubjects ?? this.userSubjects,
+    instructorsBySubject: instructorsBySubject ?? this.instructorsBySubject,
     availableYears: availableYears ?? this.availableYears,
     availableDepartments: availableDepartments ?? this.availableDepartments,
     availableLevels: availableLevels ?? this.availableLevels,
@@ -351,6 +356,43 @@ class SubjectsNotifier extends StateNotifier<SubjectsState> {
     _checkDisposed();
     if (!_disposed) {
       state = state.copyWith(error: null);
+    }
+  }
+
+  // Fetch and filter subjects based on user profile
+  Future<void> fetchAndFilterSubjects(dynamic userProfile) async {
+    _checkDisposed();
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      // Load fresh data
+      final subjects = await _repo.getAllSubjects();
+      if (_disposed) return;
+
+      // Filter based on user profile
+      List<Subject> filteredSubjects;
+      if (userProfile.enrolledSubjects != null &&
+          userProfile.enrolledSubjects.isNotEmpty) {
+        filteredSubjects =
+            subjects
+                .where((s) => userProfile.enrolledSubjects.contains(s.id))
+                .toList();
+      } else {
+        filteredSubjects = subjects;
+      }
+
+      // TODO: Fetch instructors by subject if needed
+      final instructorsBySubject = <String, List<UserProfile>>{};
+
+      state = state.copyWith(
+        isLoading: false,
+        subjects: subjects,
+        filteredSubjects: filteredSubjects,
+        instructorsBySubject: instructorsBySubject,
+      );
+    } catch (e) {
+      if (!_disposed) {
+        state = state.copyWith(isLoading: false, error: e.toString());
+      }
     }
   }
 }

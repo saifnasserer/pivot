@@ -78,6 +78,19 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     }
   }
 
+  Future<void> updateSectionCounts(Map<String, int> sectionCounts) async {
+    try {
+      // Update each section count
+      for (var entry in sectionCounts.entries) {
+        await _repo.updateSectionCount(entry.key, entry.value);
+      }
+      // Refresh section counts after all updates
+      await fetchSectionCounts();
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+    }
+  }
+
   Future<void> updateTeamFormationButtonVisibility(bool show) async {
     try {
       await _repo.updateTeamFormationButtonVisibility(show);

@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/providers/doctor_subject_provider.dart';
 import 'package:pivot/providers/subject_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/models/material_links_widget.dart';
-import 'package:provider/provider.dart';
 
-class SubjectsSection extends StatefulWidget {
+class SubjectsSection extends ConsumerStatefulWidget {
   final UserProfile userProfile;
   final UserProfile? loggedInUser;
   final Subject? targetSubject;
@@ -22,10 +22,10 @@ class SubjectsSection extends StatefulWidget {
   });
 
   @override
-  State<SubjectsSection> createState() => _SubjectsSectionState();
+  ConsumerState<SubjectsSection> createState() => _SubjectsSectionState();
 }
 
-class _SubjectsSectionState extends State<SubjectsSection>
+class _SubjectsSectionState extends ConsumerState<SubjectsSection>
     with TickerProviderStateMixin {
   late TabController _tabController;
   List<Subject> _previousSubjects = [];
@@ -58,7 +58,7 @@ class _SubjectsSectionState extends State<SubjectsSection>
   }
 
   void _checkForUpdates() {
-    final subjectProvider = context.watch<SubjectProvider>();
+    final subjectProvider = ref.watch(legacySubjectProviderProvider);
     final subjects = subjectProvider.filteredSubjects;
     final currentDoctorId = widget.userProfile.id;
 
@@ -108,7 +108,7 @@ class _SubjectsSectionState extends State<SubjectsSection>
   }
 
   void _updateTabController() {
-    final subjectProvider = context.read<SubjectProvider>();
+    final subjectProvider = ref.read(legacySubjectProviderProvider);
     final subjects = subjectProvider.filteredSubjects;
 
     // Only update if the number of subjects actually changed
@@ -180,7 +180,7 @@ class _SubjectsSectionState extends State<SubjectsSection>
   }
 
   void _notifyCurrentSubjectChanged() {
-    final subjectProvider = context.read<SubjectProvider>();
+    final subjectProvider = ref.read(legacySubjectProviderProvider);
     final subjects = subjectProvider.filteredSubjects;
 
     if (subjects.isNotEmpty && _tabController.index < subjects.length) {
@@ -192,7 +192,7 @@ class _SubjectsSectionState extends State<SubjectsSection>
   }
 
   Subject? getCurrentSubject() {
-    final subjectProvider = context.read<SubjectProvider>();
+    final subjectProvider = ref.read(legacySubjectProviderProvider);
     final subjects = subjectProvider.filteredSubjects;
 
     if (subjects.isNotEmpty && _tabController.index < subjects.length) {
@@ -202,7 +202,7 @@ class _SubjectsSectionState extends State<SubjectsSection>
   }
 
   Future<void> _loadLecturesForSubject(int index) async {
-    final subjectProvider = context.read<SubjectProvider>();
+    final subjectProvider = ref.read(legacySubjectProviderProvider);
     final subjects = subjectProvider.filteredSubjects;
 
     if (subjects.isNotEmpty && index < subjects.length) {
@@ -211,14 +211,18 @@ class _SubjectsSectionState extends State<SubjectsSection>
       final doctorId = widget.userProfile.id;
 
       // Use the unified DoctorSubjectProvider
-      final doctorSubjectProvider = context.read<DoctorSubjectProvider>();
+      final doctorSubjectProvider = ref.read(
+        legacyDoctorSubjectProviderProvider,
+      );
       await doctorSubjectProvider.fetchLecturesForSubject(doctorId, subjectId);
     }
   }
 
   Widget _buildSubjectContent(Subject subject) {
     final subjectId = subject.id;
-    final doctorSubjectProvider = context.watch<DoctorSubjectProvider>();
+    final doctorSubjectProvider = ref.watch(
+      legacyDoctorSubjectProviderProvider,
+    );
     final lectures = doctorSubjectProvider.getLecturesForSubject(subjectId);
     final isLoading = doctorSubjectProvider.isSubjectLoading(subjectId);
     final error = doctorSubjectProvider.getSubjectError(subjectId);
@@ -287,11 +291,13 @@ class _SubjectsSectionState extends State<SubjectsSection>
 
     return RefreshIndicator(
       onRefresh: () async {
-        final subjectProvider = context.read<SubjectProvider>();
+        final subjectProvider = ref.read(legacySubjectProviderProvider);
         final subjects = subjectProvider.filteredSubjects;
         if (subjects.isNotEmpty && _tabController.index < subjects.length) {
           final subject = subjects[_tabController.index];
-          final doctorSubjectProvider = context.read<DoctorSubjectProvider>();
+          final doctorSubjectProvider = ref.read(
+            legacyDoctorSubjectProviderProvider,
+          );
           await doctorSubjectProvider.refreshLecturesForSubject(
             widget.userProfile.id,
             subject.id,
@@ -314,7 +320,7 @@ class _SubjectsSectionState extends State<SubjectsSection>
 
   @override
   Widget build(BuildContext context) {
-    final subjectProvider = context.watch<SubjectProvider>();
+    final subjectProvider = ref.watch(legacySubjectProviderProvider);
     final subjects = subjectProvider.filteredSubjects;
 
     // Safety check: ensure TabController length matches subjects length

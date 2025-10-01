@@ -1,17 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
-import 'package:provider/provider.dart' as legacy_provider;
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/features/administration/screens/assistants/profile/assistant_profile_main.dart';
 import 'package:pivot/features/administration/screens/doctor/profile/doctor_profile.dart';
-import 'package:pivot/models/user_profile.dart';
-import 'package:pivot/providers/subject_provider.dart';
-import 'package:pivot/providers/section_provider.dart';
+import 'package:pivot/features/administration/providers/sections_provider.dart';
 
 import 'package:pivot/features/bookmarks/screens/bookmarks_screen.dart';
 import 'package:pivot/features/tasks/screens/week_tasks.dart';
-import 'profile_provider.dart';
 import 'profile_app_bar.dart';
 import 'profile_details_tab.dart';
 import 'schedule_tab.dart';
@@ -31,51 +27,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   late TabController _tabController;
   Timer? _debounceTimer;
-  bool _isRefreshingData = false;
+  final bool _isRefreshingData = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final userProfile = context.read<UserProfileProvider>().userProfile;
-    final provider = context.read<ProfileProvider>();
-
-    // Ensure we're showing the logged-in user's profile
-    final userProfileProvider = context.read<UserProfileProvider>();
-    // Defer this call to avoid build-time notifyListeners
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        userProfileProvider.ensureLoggedInUserProfileIsCurrent();
-      }
-    });
-
-    // Check if we just returned from viewing another user's profile
-    final loggedInUser = userProfileProvider.loggedInUserProfile;
-    final isViewingOwnProfile = userProfile?.id == loggedInUser?.id;
-
-    if (isViewingOwnProfile &&
-        userProfile != null &&
-        provider.hasUserProfileChanged(userProfile)) {
-      // Cancel previous timer if it exists
-      _debounceTimer?.cancel();
-      // Use debounce to avoid multiple rapid calls
-      _debounceTimer = Timer(const Duration(milliseconds: 300), () {
-        if (mounted) {
-          _fetchProfileData(userProfile);
-        }
-      });
-    }
-
-    // Force refresh data providers when returning to own profile
-    if (isViewingOwnProfile && loggedInUser != null && !_isRefreshingData) {
-      _isRefreshingData = true;
-      setState(() {}); // Trigger rebuild to show loading state
-
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          _forceRefreshDataProviders(loggedInUser);
-        }
-      });
-    }
+    // Riverpod handles state automatically now
+    // Individual tabs manage their own data loading
   }
 
   @override
@@ -91,31 +49,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     _tabController.addListener(_onTabChanged);
     WidgetsBinding.instance.addObserver(this);
 
-    // Set up profile restoration callback
+    // Load initial data
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        final userProfileProvider = context.read<UserProfileProvider>();
-        userProfileProvider.setOnProfileRestored(() {
-          if (mounted) {
-            final loggedInUser = userProfileProvider.loggedInUserProfile;
-            if (loggedInUser != null) {
-              _isRefreshingData = true;
-              setState(() {});
-              _forceRefreshDataProviders(loggedInUser);
-            }
-          }
-        });
-      }
-    });
-
-    // Load sections when profile screen opens
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        final userProfile = context.read<UserProfileProvider>().userProfile;
+        final userProfileState = ref.read(userProfileProvider);
+        final userProfile = userProfileState.userProfile;
         if (userProfile != null && userProfile.enrolledSubjects.isNotEmpty) {
-          context.read<SectionProvider>().fetchSectionsForUserSubjects(
-            userProfile.enrolledSubjects,
-          );
+          ref
+              .read(sectionsProvider.notifier)
+              .fetchSectionsForUserSubjects(userProfile.enrolledSubjects);
         }
       }
     });
@@ -133,135 +75,31 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     if (state == AppLifecycleState.resumed) {
-      // Only refresh profile data when app is resumed, don't reset sections
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          final userProfile = context.read<UserProfileProvider>().userProfile;
-          if (userProfile != null) {
-            // Only fetch profile data, don't reset sections
-            final provider = context.read<ProfileProvider>();
-            provider.fetchProfileData(userProfile);
-          }
-        }
-      });
+      // Riverpod providers handle refresh automatically
+      // Individual tabs will reload their data as needed
     }
-  }
-
-  void _fetchProfileData(UserProfile userProfile) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-
-      try {
-        // Only reset SubjectProvider filter, not SectionProvider
-        // Use additional post-frame callback to ensure these happen after current build
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            context.read<SubjectProvider>().resetFilter();
-            // Removed SectionProvider.resetFilter() to prevent sections from disappearing
-          }
-        });
-
-        final provider = context.read<ProfileProvider>();
-        provider.fetchProfileData(userProfile);
-      } catch (e) {}
-    });
-  }
-
-  void _forceRefreshDataProviders(UserProfile userProfile) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-
-      try {
-        final subjectProvider = context.read<SubjectProvider>();
-        final sectionProvider = context.read<SectionProvider>();
-
-        // Force refresh subject provider
-        subjectProvider.updateFilteredSubjectsOnly(userProfile);
-
-        // Force refresh sections
-        if (userProfile.enrolledSubjects.isNotEmpty) {
-          sectionProvider.fetchSectionsForUserSubjects(
-            userProfile.enrolledSubjects,
-          );
-        } else {
-          sectionProvider.resetFilter();
-        }
-
-        // Reset loading state and force rebuild
-        if (mounted) {
-          setState(() {
-            _isRefreshingData = false;
-          });
-        }
-      } catch (e) {
-        if (mounted) {
-          setState(() {
-            _isRefreshingData = false;
-          });
-        }
-      }
-    });
   }
 
   void _onDaySelected(int index) {
-    // Defer the update to avoid calling notifyListeners during build
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        final provider = legacy_provider.Provider.of<ProfileProvider>(
-          context,
-          listen: false,
-        );
-        provider.updateSelectedDayIndex(index);
-      }
-    });
+    // Day selection is now handled within the tab itself
+    // No need for separate provider update
   }
 
   void _onTabChanged() {
-    // Reset filters when switching to subjects tab only
-    if (_tabController.index == 2) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          // Use additional post-frame callback to ensure these happen after current build
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
-              legacy_provider.Provider.of<SubjectProvider>(
-                context,
-                listen: false,
-              ).resetFilter();
-            }
-          });
-        }
-      });
-    }
+    // Filters are now handled automatically by Riverpod
+    // No manual reset needed
   }
 
   @override
   Widget build(BuildContext context) {
-    final userProfile =
-        legacy_provider.Provider.of<UserProfileProvider>(
-          context,
-          listen: false,
-        ).userProfile;
+    final userProfileState = ref.watch(userProfileProvider);
+    final userProfile = userProfileState.userProfile;
 
     // Check for special user roles first
     if (userProfile != null) {
       final lowerCaseRole = userProfile.role.toLowerCase();
       if (lowerCaseRole == 'professor') return const DoctorProfile();
       if (lowerCaseRole == 'miniprofessor') return const AssistantProfileMain();
-    }
-
-    // Update profile data when user profile changes (e.g., when returning from another profile)
-    if (userProfile != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          // Only fetch profile data, don't reset sections
-          final provider = legacy_provider.Provider.of<ProfileProvider>(
-            context,
-            listen: false,
-          );
-          provider.fetchProfileData(userProfile);
-        }
-      });
     }
 
     return Scaffold(

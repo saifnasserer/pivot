@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:pivot/features/administration/screens/doctor/edit_about_route.dart';
-import 'package:provider/provider.dart';
 
 class SocialMediaOption {
   final String name;
@@ -23,7 +23,7 @@ class SocialMediaOption {
   });
 }
 
-class ContactInfoWidget extends StatelessWidget {
+class ContactInfoWidget extends ConsumerWidget {
   final UserProfile userProfile;
   final bool isOwnProfile;
   final Function(UserProfile)? onProfileUpdated;
@@ -161,8 +161,11 @@ class ContactInfoWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildSocialMediaIcons(BuildContext context) {
-    final loggedInUser = context.watch<UserProfileProvider>().userProfile;
+  Widget _buildSocialMediaIcons(
+    BuildContext context,
+    UserProfile? loggedInUser,
+    WidgetRef ref,
+  ) {
     final canEditSocial =
         isOwnProfile ||
         loggedInUser?.role == 'Admin' ||
@@ -185,7 +188,7 @@ class ContactInfoWidget extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               GestureDetector(
-                onTap: () => _showAddSocialMediaDialog(context),
+                onTap: () => _showAddSocialMediaDialog(context, ref),
                 child: Container(
                   width: Responsive.space(context, size: Space.large) * 2,
                   height: Responsive.space(context, size: Space.large) * 2,
@@ -274,7 +277,7 @@ class ContactInfoWidget extends StatelessWidget {
                   right: Responsive.space(context, size: Space.medium),
                 ),
                 child: GestureDetector(
-                  onTap: () => _showAddSocialMediaDialog(context),
+                  onTap: () => _showAddSocialMediaDialog(context, ref),
                   child: Container(
                     width: Responsive.space(context, size: Space.large) * 2,
                     height: Responsive.space(context, size: Space.large) * 2,
@@ -305,7 +308,7 @@ class ContactInfoWidget extends StatelessWidget {
     );
   }
 
-  void _showAddSocialMediaDialog(BuildContext context) {
+  void _showAddSocialMediaDialog(BuildContext context, WidgetRef ref) {
     SocialMediaOption? selectedOption;
     final TextEditingController urlController = TextEditingController();
 
@@ -405,8 +408,8 @@ class ContactInfoWidget extends StatelessWidget {
                   ];
 
                   try {
-                    await context
-                        .read<UserProfileProvider>()
+                    await ref
+                        .read(userProfileProvider.notifier)
                         .updateSocialMediaLinks(userProfile.id, updatedLinks);
 
                     // Update the local userProfile to trigger UI refresh
@@ -474,14 +477,14 @@ class ContactInfoWidget extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final loggedInUser = context.watch<UserProfileProvider>().userProfile;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final loggedInUser = ref.watch(userProfileProvider).userProfile;
     final canEdit =
         isOwnProfile ||
         loggedInUser?.role == 'Admin' ||
         loggedInUser?.role == 'Super Admin';
 
-    return _buildSocialMediaIcons(context);
+    return _buildSocialMediaIcons(context, loggedInUser, ref);
   }
 
   void _navigateToEditAbout(BuildContext context) {

@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/models/section_model.dart';
 import 'package:pivot/models/user_profile.dart';
-import 'package:pivot/providers/subject_provider.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
-import 'package:provider/provider.dart';
+import 'package:pivot/features/subjects/providers/subjects_provider.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'assistant_selection_dialog.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
 
 /// Enhanced section list item with simplified approach - similar to subjects
-class EnhancedSectionListItem extends StatefulWidget {
+class EnhancedSectionListItem extends ConsumerStatefulWidget {
   const EnhancedSectionListItem({
     super.key,
     required this.subject,
@@ -23,11 +23,12 @@ class EnhancedSectionListItem extends StatefulWidget {
   final int index;
 
   @override
-  State<EnhancedSectionListItem> createState() =>
+  ConsumerState<EnhancedSectionListItem> createState() =>
       _EnhancedSectionListItemState();
 }
 
-class _EnhancedSectionListItemState extends State<EnhancedSectionListItem>
+class _EnhancedSectionListItemState
+    extends ConsumerState<EnhancedSectionListItem>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
@@ -52,11 +53,8 @@ class _EnhancedSectionListItemState extends State<EnhancedSectionListItem>
   }
 
   void _onTap() {
-    final instructors =
-        Provider.of<SubjectProvider>(
-          context,
-          listen: false,
-        ).instructorsBySubject[widget.subject.id];
+    final subjectsState = ref.read(subjectsProvider);
+    final instructors = subjectsState.instructorsBySubject[widget.subject.id];
     final assistants =
         instructors?.where((prof) => prof.role == 'miniProfessor').toList() ??
         [];
@@ -311,25 +309,24 @@ class _EnhancedSectionListItemState extends State<EnhancedSectionListItem>
     Section section,
     List<UserProfile> assistants,
   ) async {
-    final userProfileProvider = Provider.of<UserProfileProvider>(
-      context,
-      listen: false,
-    );
-    final currentUser = userProfileProvider.userProfile;
+    final userProfileState = ref.read(userProfileProvider);
+    final currentUser = userProfileState.userProfile;
     final currentAssistantId = currentUser?.assistantPreferences[subject.id];
 
     // Auto-select if only one assistant
     String? selectedAssistantId = currentAssistantId;
-    if (assistants.length == 1 && selectedAssistantId == null) {
+    if (assistants.length == 1) {
       selectedAssistantId = assistants.first.id;
       // Auto-save the preference
       try {
-        final loggedInUser = userProfileProvider.loggedInUserProfile;
+        final loggedInUser = userProfileState.loggedInUserProfile;
         if (loggedInUser != null) {
-          await userProfileProvider.updateAssistantPreferences({
-            ...loggedInUser.assistantPreferences,
-            subject.id: selectedAssistantId,
-          });
+          await ref
+              .read(userProfileProvider.notifier)
+              .updateAssistantPreferences({
+                ...loggedInUser.assistantPreferences,
+                subject.id: selectedAssistantId,
+              });
         }
       } catch (e) {}
     }
@@ -357,16 +354,18 @@ class _EnhancedSectionListItemState extends State<EnhancedSectionListItem>
                 onAssistantSelected: (assistantId) async {
                   try {
                     // Get the current logged-in user profile
-                    final loggedInUser =
-                        userProfileProvider.loggedInUserProfile;
+                    final userProfileState = ref.read(userProfileProvider);
+                    final loggedInUser = userProfileState.loggedInUserProfile;
                     if (loggedInUser == null) {
                       throw Exception('No logged-in user found');
                     }
 
-                    await userProfileProvider.updateAssistantPreferences({
-                      ...loggedInUser.assistantPreferences,
-                      subject.id: assistantId,
-                    });
+                    await ref
+                        .read(userProfileProvider.notifier)
+                        .updateAssistantPreferences({
+                          ...loggedInUser.assistantPreferences,
+                          subject.id: assistantId,
+                        });
                     // Show success message
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(

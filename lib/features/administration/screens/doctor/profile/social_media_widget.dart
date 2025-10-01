@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/models/user_profile.dart';
-import 'package:pivot/providers/user_profile_provider.dart';
-import 'package:provider/provider.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
 
-class SocialMediaWidget extends StatelessWidget {
+class SocialMediaWidget extends ConsumerWidget {
   final UserProfile userProfile;
   final bool isOwnProfile;
   final Function(UserProfile)? onProfileUpdated;
@@ -17,7 +17,7 @@ class SocialMediaWidget extends StatelessWidget {
     this.onProfileUpdated,
   });
 
-  void _showSocialMediaDialog(BuildContext context) {
+  void _showSocialMediaDialog(BuildContext context, WidgetRef ref) {
     final TextEditingController platformController = TextEditingController();
     final TextEditingController urlController = TextEditingController();
     final TextEditingController displayNameController = TextEditingController();
@@ -77,8 +77,8 @@ class SocialMediaWidget extends StatelessWidget {
                   ];
 
                   try {
-                    await context
-                        .read<UserProfileProvider>()
+                    await ref
+                        .read(userProfileProvider.notifier)
                         .updateSocialMediaLinks(userProfile.id, updatedLinks);
 
                     Navigator.of(context).pop();
@@ -223,11 +223,13 @@ class SocialMediaWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildSocialMediaLinksDisplay(BuildContext context) {
-    final loggedInUser = context.watch<UserProfileProvider>().userProfile;
+  Widget _buildSocialMediaLinksDisplay(
+    BuildContext context,
+    UserProfile? loggedInUser,
+  ) {
     final isOwnProfile = loggedInUser?.id == userProfile.id;
     final canEditSocial =
-        isOwnProfile ||
+        this.isOwnProfile ||
         loggedInUser?.role == 'Admin' ||
         loggedInUser?.role == 'Super Admin';
 
@@ -294,8 +296,8 @@ class SocialMediaWidget extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final loggedInUser = context.watch<UserProfileProvider>().userProfile;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final loggedInUser = ref.watch(userProfileProvider).userProfile;
     final isOwnProfile = loggedInUser?.id == userProfile.id;
     final canEditSocial =
         isOwnProfile ||
@@ -331,14 +333,14 @@ class SocialMediaWidget extends StatelessWidget {
                 child: IconButton(
                   icon: const Icon(Icons.add, color: Colors.white),
                   onPressed: () {
-                    _showSocialMediaDialog(context);
+                    _showSocialMediaDialog(context, ref);
                   },
                 ),
               ),
           ],
         ),
         SizedBox(height: Responsive.space(context, size: Space.medium)),
-        _buildSocialMediaLinksDisplay(context),
+        _buildSocialMediaLinksDisplay(context, loggedInUser),
       ],
     );
   }

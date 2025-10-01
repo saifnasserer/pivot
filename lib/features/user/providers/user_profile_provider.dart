@@ -199,6 +199,75 @@ class UserProfileNotifier extends StateNotifier<UserProfileState> {
     state = state.copyWith(userProfile: profile);
   }
 
+  /// Update social media links for a user
+  Future<void> updateSocialMediaLinks(
+    String userId,
+    List<SocialMediaLink> socialMediaLinks,
+  ) async {
+    try {
+      await _repo.updateSocialMediaLinks(userId, socialMediaLinks);
+
+      // Update local state if this is the logged-in user or currently viewed profile
+      if (state.loggedInUserProfile?.id == userId) {
+        final updatedProfile = state.loggedInUserProfile!.copyWith(
+          socialMediaLinks: socialMediaLinks,
+        );
+        state = state.copyWith(loggedInUserProfile: updatedProfile);
+      }
+      if (state.userProfile?.id == userId) {
+        final updatedProfile = state.userProfile!.copyWith(
+          socialMediaLinks: socialMediaLinks,
+        );
+        state = state.copyWith(userProfile: updatedProfile);
+      }
+
+      // Update cache if present
+      if (state.userProfilesCache.containsKey(userId)) {
+        final updatedCache = Map<String, UserProfile>.from(
+          state.userProfilesCache,
+        );
+        updatedCache[userId] = updatedCache[userId]!.copyWith(
+          socialMediaLinks: socialMediaLinks,
+        );
+        state = state.copyWith(userProfilesCache: updatedCache);
+      }
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      rethrow;
+    }
+  }
+
+  /// Update about me text for a user
+  Future<void> updateAboutMe(String userId, String aboutMe) async {
+    try {
+      await _repo.updateAboutMe(userId, aboutMe);
+
+      // Update local state if this is the logged-in user or currently viewed profile
+      if (state.loggedInUserProfile?.id == userId) {
+        final updatedProfile = state.loggedInUserProfile!.copyWith(
+          aboutMe: aboutMe,
+        );
+        state = state.copyWith(loggedInUserProfile: updatedProfile);
+      }
+      if (state.userProfile?.id == userId) {
+        final updatedProfile = state.userProfile!.copyWith(aboutMe: aboutMe);
+        state = state.copyWith(userProfile: updatedProfile);
+      }
+
+      // Update cache if present
+      if (state.userProfilesCache.containsKey(userId)) {
+        final updatedCache = Map<String, UserProfile>.from(
+          state.userProfilesCache,
+        );
+        updatedCache[userId] = updatedCache[userId]!.copyWith(aboutMe: aboutMe);
+        state = state.copyWith(userProfilesCache: updatedCache);
+      }
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      rethrow;
+    }
+  }
+
   void clearError() {
     state = state.copyWith(error: null);
   }
@@ -230,5 +299,44 @@ class UserProfileNotifier extends StateNotifier<UserProfileState> {
                     ),
               ),
     );
+  }
+
+  Future<void> updateAssistantPreferences(
+    Map<String, String> preferences,
+  ) async {
+    try {
+      await _repo.updateAssistantPreferences(preferences);
+      // Reload logged in user profile to get updated preferences
+      await loadLoggedInUserProfile();
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+    }
+  }
+
+  /// Get a user profile by ID (used for viewing other users' profiles)
+  Future<UserProfile?> getUserProfileById(String userId) async {
+    try {
+      final profile = await _repo.getUserProfile(userId);
+      // Cache the profile for future use if not null
+      if (profile != null) {
+        final updatedCache = Map<String, UserProfile>.from(
+          state.userProfilesCache,
+        );
+        updatedCache[userId] = profile;
+        state = state.copyWith(userProfilesCache: updatedCache);
+      }
+      return profile;
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      return null;
+    }
+  }
+
+  /// Restore logged-in user profile as the currently viewed profile
+  /// Used when navigating back from viewing another user's profile
+  void restoreLoggedInUserProfile() {
+    if (state.loggedInUserProfile != null) {
+      state = state.copyWith(userProfile: state.loggedInUserProfile);
+    }
   }
 }

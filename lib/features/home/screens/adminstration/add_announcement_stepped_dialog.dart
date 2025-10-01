@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:pivot/features/home/screens/adminstration/models/announcement_data.dart';
-import 'package:pivot/providers/announcement_provider.dart';
-import 'package:provider/provider.dart';
+import 'package:pivot/features/announcements/providers/announcements_provider.dart';
 import 'package:pivot/services/permission_service.dart';
+import 'package:pivot/services/storage_optimization_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:pivot/responsive.dart';
@@ -36,7 +37,7 @@ final List<Color> availableColors = [
 final List<String> availableTags =
     DepartmentTag.values.map((tag) => tag.displayName).toList();
 
-class AddAnnouncementSteppedDialog extends StatefulWidget {
+class AddAnnouncementSteppedDialog extends ConsumerStatefulWidget {
   final Function(AnnouncementData) onSave;
   final bool isEditing;
   final AnnouncementData? announcement;
@@ -49,12 +50,12 @@ class AddAnnouncementSteppedDialog extends StatefulWidget {
   });
 
   @override
-  State<AddAnnouncementSteppedDialog> createState() =>
+  ConsumerState<AddAnnouncementSteppedDialog> createState() =>
       _AddAnnouncementSteppedDialogState();
 }
 
 class _AddAnnouncementSteppedDialogState
-    extends State<AddAnnouncementSteppedDialog> {
+    extends ConsumerState<AddAnnouncementSteppedDialog> {
   int _currentStep = 0;
   final int _totalSteps = 4;
 
@@ -73,6 +74,27 @@ class _AddAnnouncementSteppedDialogState
   // Form validation
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final ImagePicker _picker = ImagePicker();
+
+  Future<String> _uploadImage(XFile image) async {
+    try {
+      // Use the optimized storage service
+      final storageService = StorageOptimizationService();
+      final downloadUrl = await storageService.uploadFileOptimized(
+        image,
+        folder: 'announcements',
+        usage: 'announcement',
+        checkDuplicate: true,
+      );
+
+      if (downloadUrl == null) {
+        throw Exception('Failed to get download URL');
+      }
+
+      return downloadUrl;
+    } catch (e) {
+      throw Exception('Error uploading image: $e');
+    }
+  }
 
   @override
   void initState() {
@@ -178,10 +200,7 @@ class _AddAnnouncementSteppedDialogState
     );
 
     try {
-      final announcementProvider = Provider.of<AnnouncementProvider>(
-        context,
-        listen: false,
-      );
+      final announcementProvider = ref.read(announcementsProvider.notifier);
       List<String> imageUrls = [];
 
       // Start with existing images if editing
@@ -191,9 +210,11 @@ class _AddAnnouncementSteppedDialogState
 
       // Upload new images
       for (XFile image in _pickedImages) {
-        final String? imageUrl = await announcementProvider.uploadImage(image);
-        if (imageUrl != null) {
+        try {
+          final String imageUrl = await _uploadImage(image);
           imageUrls.add(imageUrl);
+        } catch (e) {
+          print('Error uploading image: $e');
         }
       }
 
