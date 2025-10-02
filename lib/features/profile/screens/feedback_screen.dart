@@ -800,16 +800,22 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen>
             .read(feedbackProvider.notifier)
             .uploadFeedbackImage(File(pickedFile.path));
 
+        print('🖼️ [Screen] Received image URL: $imageUrl');
+
         if (imageUrl != null) {
+          print('🖼️ [Screen] Setting state with image');
           setState(() {
             _selectedImage = File(pickedFile.path);
             _uploadedImageUrl = imageUrl;
             _isUploadingImage = false;
           });
+          print('🖼️ [Screen] State updated successfully');
         } else {
+          print('❌ [Screen] imageUrl is null, throwing exception');
           throw Exception('Upload failed');
         }
       } catch (e) {
+        print('❌ [Screen] Exception caught: $e');
         setState(() {
           _isUploadingImage = false;
         });

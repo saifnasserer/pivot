@@ -5,7 +5,6 @@ import 'package:pivot/responsive.dart';
 import 'package:pivot/features/onboarding/screens/introduction_wrapper.dart';
 import 'package:pivot/features/home/screens/landing.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pivot/services/cache_service.dart';
 
 class AuthWrapper extends ConsumerStatefulWidget {
   // = 'auth_wrapper';
@@ -47,12 +46,8 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> {
   }
 
   Future<void> _initCache() async {
-    // Only initialize cache if not already initialized
-    try {
-      await CacheService.instance.init();
-    } catch (e) {
-      // Cache might already be initialized, ignore error
-    }
+    // CacheService is already initialized in main.dart
+    // Just mark as ready to avoid duplicate initialization
     if (mounted) {
       setState(() {
         _cacheReady = true;

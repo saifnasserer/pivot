@@ -83,10 +83,6 @@ This document outlines a comprehensive beta testing plan for the Pivot academic 
 
 #### Profile Viewing
 
-- [ ] **TC-PROFILE-002**: Profile image displays correctly
-  - **Expected**: Image loads or default avatar shows
-- [ ] **TC-PROFILE-003**: Profile completion percentage accurate
-  - **Expected**: Correct percentage based on filled fields
 - [ ] **TC-PROFILE-004**: All profile sections accessible
   - Details, Schedule, Sections, Subjects tabs
   - **Expected**: All tabs work, data loads

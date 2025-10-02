@@ -559,3 +559,4 @@ lib/
 ```
 
 All providers organized by feature, using Riverpod exclusively.
+

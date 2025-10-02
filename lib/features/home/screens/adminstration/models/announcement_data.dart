@@ -35,6 +35,8 @@ class AnnouncementData extends HiveObject {
   final int? expireAtMillis;
   @HiveField(13)
   final String? level;
+  @HiveField(14)
+  final String? department;
 
   AnnouncementData({
     this.id,
@@ -51,6 +53,7 @@ class AnnouncementData extends HiveObject {
     DateTime? publishAt,
     DateTime? expireAt,
     this.level,
+    this.department,
   }) : colorValue = color?.value ?? 0xFFFFFFFF,
        timestampMillis = (timestamp ?? DateTime.now()).millisecondsSinceEpoch,
        publishAtMillis = publishAt?.millisecondsSinceEpoch,
@@ -72,6 +75,7 @@ class AnnouncementData extends HiveObject {
     this.publishAtMillis,
     this.expireAtMillis,
     this.level,
+    this.department,
   });
 
   Color get color => Color(colorValue);
@@ -102,6 +106,7 @@ class AnnouncementData extends HiveObject {
     int? publishAtMillis,
     int? expireAtMillis,
     String? level,
+    String? department,
   }) {
     return AnnouncementData._hive(
       id: id,
@@ -118,6 +123,7 @@ class AnnouncementData extends HiveObject {
       publishAtMillis: publishAtMillis,
       expireAtMillis: expireAtMillis,
       level: level,
+      department: department,
     );
   }
 
@@ -156,6 +162,7 @@ class AnnouncementData extends HiveObject {
       publishAtMillis: data['publishAtMillis'] as int?,
       expireAtMillis: data['expireAtMillis'] as int?,
       level: data['level'] as String?,
+      department: data['department'] as String?,
     );
   }
 
@@ -190,6 +197,7 @@ class AnnouncementData extends HiveObject {
       publishAt: map['publishAt'] != null ? parseDate(map['publishAt']) : null,
       expireAt: map['expireAt'] != null ? parseDate(map['expireAt']) : null,
       level: map['level'] as String?,
+      department: map['department'] as String?,
     );
   }
 
@@ -212,6 +220,7 @@ class AnnouncementData extends HiveObject {
     DateTime? publishAt,
     DateTime? expireAt,
     String? level,
+    String? department,
   }) {
     return AnnouncementData(
       id: id ?? this.id,
@@ -237,6 +246,7 @@ class AnnouncementData extends HiveObject {
               ? DateTime.fromMillisecondsSinceEpoch(expireAtMillis!)
               : null),
       level: level ?? this.level,
+      department: department ?? this.department,
     );
   }
 
@@ -256,6 +266,7 @@ class AnnouncementData extends HiveObject {
       'publishAt': publishAtMillis,
       'expireAt': expireAtMillis,
       'level': level,
+      'department': department,
     };
   }
 
@@ -302,6 +313,7 @@ class AnnouncementData extends HiveObject {
           data['publishAt'] != null ? parseDate(data['publishAt']) : null,
       expireAt: data['expireAt'] != null ? parseDate(data['expireAt']) : null,
       level: data['level'] as String?,
+      department: data['department'] as String?,
     );
   }
 }

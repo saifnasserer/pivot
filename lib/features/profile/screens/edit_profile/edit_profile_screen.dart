@@ -196,7 +196,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen>
         statusBarBrightness: Brightness.dark,
       ),
       child: Scaffold(
-        backgroundColor: Colors.grey[50],
+        backgroundColor: Colors.white,
         appBar: AppBar(
           title: Text(
             'تعديل الملف الشخصي',
@@ -210,7 +210,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen>
           elevation: 0,
           iconTheme: const IconThemeData(color: Colors.black),
         ),
-        body: const Center(child: CircularProgressIndicator()),
+        body: Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.green[600]!),
+          ),
+        ),
       ),
     );
   }
@@ -223,7 +227,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen>
         statusBarBrightness: Brightness.dark,
       ),
       child: Scaffold(
-        backgroundColor: Colors.grey[50],
+        backgroundColor: Colors.white,
         appBar: _buildAppBar(state),
         body: Center(
           child: Column(
@@ -242,6 +246,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen>
               ElevatedButton(
                 onPressed:
                     () => ref.read(editProfileProvider.notifier).loadProfile(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green[600],
+                  foregroundColor: Colors.white,
+                ),
                 child: const Text('إعادة المحاولة'),
               ),
             ],
@@ -273,25 +281,28 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen>
         child: GestureDetector(
           onTap: () => FocusScope.of(context).unfocus(),
           child: Scaffold(
-            backgroundColor: Colors.grey[50],
+            backgroundColor: Colors.white,
             appBar: _buildAppBar(state),
             resizeToAvoidBottomInset: true,
             body: SafeArea(
               child: SingleChildScrollView(
-                padding: EdgeInsets.all(
-                  Responsive.space(context, size: Space.medium),
+                padding: EdgeInsets.symmetric(
+                  horizontal: Responsive.space(context, size: Space.medium),
+                  vertical: Responsive.space(context, size: Space.large),
                 ),
                 child: Column(
                   children: [
-                    // Progress indicator
-                    _buildProgressIndicator(state),
-                    SizedBox(
-                      height: Responsive.space(context, size: Space.medium),
-                    ),
+                    // Profile image with completion indicator
                     ProfileImageSection(state: state, widgetRef: ref),
                     SizedBox(
-                      height: Responsive.space(context, size: Space.large),
+                      height: Responsive.space(context, size: Space.tiny),
                     ),
+                    _buildCompactProgressIndicator(state),
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.xlarge),
+                    ),
+
+                    // All fields in one clean flow
                     BasicInfoSection(
                       state: state,
                       nameController: _nameController,
@@ -303,9 +314,25 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen>
                         _updateBasicInfo();
                       },
                     ),
+
+                    // Simple divider
                     SizedBox(
-                      height: Responsive.space(context, size: Space.medium),
+                      height: Responsive.space(context, size: Space.xlarge),
                     ),
+                    Container(
+                      height: 1,
+                      color: Colors.grey[200],
+                      margin: EdgeInsets.symmetric(
+                        horizontal: Responsive.space(
+                          context,
+                          size: Space.large,
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.xlarge),
+                    ),
+
                     EducationalDetailsSection(
                       state: state,
                       selectedYear: _selectedYear,
@@ -339,9 +366,25 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen>
                         _updateEducationalInfo();
                       },
                     ),
+
+                    // Simple divider
                     SizedBox(
-                      height: Responsive.space(context, size: Space.medium),
+                      height: Responsive.space(context, size: Space.xlarge),
                     ),
+                    Container(
+                      height: 1,
+                      color: Colors.grey[200],
+                      margin: EdgeInsets.symmetric(
+                        horizontal: Responsive.space(
+                          context,
+                          size: Space.large,
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.xlarge),
+                    ),
+
                     PasswordSection(
                       state: state,
                       widgetRef: ref,
@@ -349,8 +392,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen>
                       newPasswordController: _newPasswordController,
                       confirmPasswordController: _confirmPasswordController,
                     ),
+
                     SizedBox(
-                      height: Responsive.space(context, size: Space.large),
+                      height: Responsive.space(context, size: Space.xlarge),
                     ),
 
                     ActionButtons(
@@ -362,11 +406,15 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen>
                     ),
 
                     SizedBox(
-                      height: Responsive.space(context, size: Space.large),
+                      height: Responsive.space(context, size: Space.xlarge),
                     ),
 
                     // Data Deletion Section
                     _buildDataDeletionSection(),
+
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.medium),
+                    ),
                   ],
                 ),
               ),
@@ -380,86 +428,48 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen>
   Widget _buildDataDeletionSection() {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(Responsive.space(context, size: Space.medium)),
       decoration: BoxDecoration(
-        color: Colors.red[50],
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.red[200]!),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.red.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: Border.all(color: Colors.red.withOpacity(0.2), width: 1),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(
-                Icons.delete_forever,
-                color: Colors.red[700],
-                size: Responsive.text(context, size: TextSize.heading),
+          InkWell(
+            onTap: () {
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (context) => const DataDeletionDialog(),
+              );
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: EdgeInsets.all(
+                Responsive.space(context, size: Space.medium),
               ),
-              SizedBox(width: Responsive.space(context, size: Space.small)),
-              Expanded(
-                child: Text(
-                  'حذف جميع البيانات',
-                  style: TextStyle(
-                    fontSize: Responsive.text(context, size: TextSize.heading),
-                    fontWeight: FontWeight.bold,
-                    color: Colors.red[700],
+              child: Row(
+                children: [
+                  Icon(Icons.delete_outline, color: Colors.red[400], size: 20),
+                  SizedBox(width: Responsive.space(context, size: Space.small)),
+                  Expanded(
+                    child: Text(
+                      'حذف الحساب والبيانات',
+                      style: TextStyle(
+                        fontSize: Responsive.text(
+                          context,
+                          size: TextSize.medium,
+                        ),
+                        color: Colors.red[700],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                   ),
-                ),
-              ),
-            ],
-          ),
-
-          SizedBox(height: Responsive.space(context, size: Space.small)),
-
-          Text(
-            'يمكنك حذف جميع بياناتك وحسابك نهائياً. هذا الإجراء لا يمكن التراجع عنه.',
-            style: TextStyle(
-              fontSize: Responsive.text(context, size: TextSize.medium),
-              color: Colors.red[600],
-              height: 1.4,
-            ),
-          ),
-
-          SizedBox(height: Responsive.space(context, size: Space.medium)),
-
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  barrierDismissible: false,
-                  builder: (context) => const DataDeletionDialog(),
-                );
-              },
-              icon: const Icon(Icons.delete_forever, color: Colors.white),
-              label: Text(
-                'حذف جميع البيانات',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: Responsive.text(context, size: TextSize.medium),
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red[600],
-                padding: EdgeInsets.symmetric(
-                  vertical: Responsive.space(context, size: Space.medium),
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(
-                    Responsive.space(context, size: Space.large),
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    color: Colors.red[300],
+                    size: 16,
                   ),
-                ),
-                elevation: 2,
+                ],
               ),
             ),
           ),
@@ -468,87 +478,59 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen>
     );
   }
 
-  String _getCompletionMessage(EditProfileState state) {
-    bool hasProfilePicture =
-        state.userProfile?.profileImageUrl != null &&
-        state.userProfile!.profileImageUrl!.isNotEmpty;
+  Widget _buildCompactProgressIndicator(EditProfileState state) {
+    final percentage = (state.completionPercentage * 100).round();
+    final isComplete = state.completionPercentage == 1.0;
 
-    if (hasProfilePicture) {
-      return 'أكمل جميع الحقول المطلوبة لتحسين ملفك الشخصي';
-    } else {
-      return 'أضف صورة شخصية لتحقيق 100% من اكتمال الملف الشخصي';
-    }
-  }
-
-  Widget _buildProgressIndicator(EditProfileState state) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(Responsive.space(context, size: Space.medium)),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[200]!),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.assignment_turned_in,
-                color: Colors.blue[600],
-                size: 20,
-              ),
-              SizedBox(width: Responsive.space(context, size: Space.small)),
-              Text(
-                'اكتمال الملف الشخصي',
-                style: TextStyle(
-                  fontSize: Responsive.text(context, size: TextSize.medium),
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                '${(state.completionPercentage * 100).round()}%',
-                style: TextStyle(
-                  fontSize: Responsive.text(context, size: TextSize.medium),
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue[600],
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: Responsive.space(context, size: Space.small)),
-          LinearProgressIndicator(
-            value: state.completionPercentage,
-            backgroundColor: Colors.grey[200],
-            valueColor: AlwaysStoppedAnimation<Color>(
-              state.completionPercentage == 1.0
-                  ? Colors.green
-                  : Colors.blue[600]!,
-            ),
-            minHeight: 8,
-          ),
-          if (state.completionPercentage < 1.0) ...[
-            SizedBox(height: Responsive.space(context, size: Space.small)),
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
             Text(
-              _getCompletionMessage(state),
+              'اكتمال الملف',
               style: TextStyle(
                 fontSize: Responsive.text(context, size: TextSize.small),
                 color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            SizedBox(width: Responsive.space(context, size: Space.tiny)),
+            Text(
+              '$percentage%',
+              style: TextStyle(
+                fontSize: Responsive.text(context, size: TextSize.small),
+                color: isComplete ? Colors.green[600] : Colors.blue[600],
+                fontWeight: FontWeight.bold,
               ),
             ),
           ],
-        ],
-      ),
+        ),
+        SizedBox(height: Responsive.space(context, size: Space.tiny)),
+        Container(
+          width: 120,
+          height: 4,
+          decoration: BoxDecoration(
+            color: Colors.grey[200],
+            borderRadius: BorderRadius.circular(2),
+          ),
+          child: FractionallySizedBox(
+            alignment: Alignment.centerRight,
+            widthFactor: state.completionPercentage,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors:
+                      isComplete
+                          ? [Colors.green[400]!, Colors.green[600]!]
+                          : [Colors.blue[400]!, Colors.blue[600]!],
+                ),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

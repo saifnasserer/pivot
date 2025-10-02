@@ -30,68 +30,35 @@ class EducationalDetailsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(Responsive.space(context, size: Space.medium)),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[200]!),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.school_outlined, color: Colors.green[600], size: 24),
-              SizedBox(width: Responsive.space(context, size: Space.small)),
-              Text(
-                'التفاصيل الدراسية',
-                style: TextStyle(
-                  fontSize: Responsive.text(context, size: TextSize.heading),
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: Responsive.space(context, size: Space.medium)),
-          CustomDropdown(
-            color: const Color(0xfff7f7f7),
-            value: selectedYear,
-            items: FormOptions.academicYears,
-            hint: 'اختر الفرقة',
-            onChanged: onYearChanged,
-            errorText: state.fieldErrors['level'],
-          ),
-          SizedBox(height: Responsive.space(context, size: Space.medium)),
-          CustomDropdown(
-            color: const Color(0xfff7f7f7),
-            value: selectedDepartment,
-            items: availableDepartments,
-            hint: 'اختر القسم',
-            onChanged: onDepartmentChanged,
-            errorText: state.fieldErrors['department'],
-          ),
-          SizedBox(height: Responsive.space(context, size: Space.medium)),
-          CustomDropdown(
-            color: const Color(0xfff7f7f7),
-            value: selectedSection,
-            items: availableSections,
-            hint: 'اختر السكشن',
-            onChanged: onSectionChanged,
-            errorText: state.fieldErrors['section'],
-          ),
-        ],
-      ),
+    return Column(
+      children: [
+        CustomDropdown(
+          color: Colors.grey[50]!,
+          value: selectedYear,
+          items: FormOptions.academicYears,
+          hint: 'اختر الفرقة',
+          onChanged: onYearChanged,
+          errorText: state.fieldErrors['level'],
+        ),
+        SizedBox(height: Responsive.space(context, size: Space.medium)),
+        CustomDropdown(
+          color: Colors.grey[50]!,
+          value: selectedDepartment,
+          items: availableDepartments,
+          hint: 'اختر القسم',
+          onChanged: onDepartmentChanged,
+          errorText: state.fieldErrors['department'],
+        ),
+        SizedBox(height: Responsive.space(context, size: Space.medium)),
+        CustomDropdown(
+          color: Colors.grey[50]!,
+          value: selectedSection,
+          items: availableSections,
+          hint: 'اختر السكشن',
+          onChanged: onSectionChanged,
+          errorText: state.fieldErrors['section'],
+        ),
+      ],
     );
   }
 }

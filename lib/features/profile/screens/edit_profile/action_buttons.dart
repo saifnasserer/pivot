@@ -21,129 +21,118 @@ class ActionButtons extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(Responsive.space(context, size: Space.medium)),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[200]!),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child:
-          state.isSaving
-              ? Column(
-                children: [
-                  const CircularProgressIndicator(),
-                  SizedBox(
-                    height: Responsive.space(context, size: Space.small),
-                  ),
-                  Text(
-                    'يتم حفظ التغييرات...',
-                    style: TextStyle(
-                      fontSize: Responsive.text(context, size: TextSize.small),
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ],
-              )
-              : Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed:
-                          state.isFormValid && state.hasUnsavedChanges
-                              ? () {
-                                widgetRef
-                                    .read(editProfileProvider.notifier)
-                                    .saveProfile(
-                                      currentPassword:
-                                          currentPasswordController
-                                                  .text
-                                                  .isNotEmpty
-                                              ? currentPasswordController.text
-                                              : null,
-                                      newPassword:
-                                          newPasswordController.text.isNotEmpty
-                                              ? newPasswordController.text
-                                              : null,
-                                      confirmPassword:
-                                          confirmPasswordController
-                                                  .text
-                                                  .isNotEmpty
-                                              ? confirmPasswordController.text
-                                              : null,
-                                    );
-                              }
-                              : null,
-                      icon: const Icon(Icons.check, color: Colors.white),
-                      label: Text(
-                        state.hasUnsavedChanges
-                            ? 'حفظ التغييرات'
-                            : 'لا توجد تغييرات',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            state.hasUnsavedChanges
-                                ? Colors.green[600]
-                                : Colors.grey[400],
-                        padding: EdgeInsets.symmetric(
-                          vertical: Responsive.space(
-                            context,
-                            size: Space.small,
-                          ),
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                            Responsive.space(context, size: Space.large),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  SizedBox(
-                    width: Responsive.space(context, size: Space.medium),
-                  ),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close, color: Colors.white),
-                      label: Text(
-                        'إلغاء',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red[600],
-                        padding: EdgeInsets.symmetric(
-                          vertical: Responsive.space(
-                            context,
-                            size: Space.small,
-                          ),
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                            Responsive.space(context, size: Space.large),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+    return state.isSaving
+        ? Center(
+          child: Column(
+            children: [
+              CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.green[600]!),
               ),
-    );
+              SizedBox(height: Responsive.space(context, size: Space.small)),
+              Text(
+                'يتم حفظ التغييرات...',
+                style: TextStyle(
+                  fontSize: Responsive.text(context, size: TextSize.small),
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+        )
+        : Row(
+          children: [
+            Expanded(
+              flex: 2,
+              child: Container(
+                height: 52,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors:
+                        state.hasUnsavedChanges
+                            ? [Colors.green[400]!, Colors.green[600]!]
+                            : [Colors.grey[300]!, Colors.grey[400]!],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow:
+                      state.hasUnsavedChanges
+                          ? [
+                            BoxShadow(
+                              color: Colors.green.withOpacity(0.3),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ]
+                          : [],
+                ),
+                child: ElevatedButton(
+                  onPressed:
+                      state.isFormValid && state.hasUnsavedChanges
+                          ? () {
+                            widgetRef
+                                .read(editProfileProvider.notifier)
+                                .saveProfile(
+                                  currentPassword:
+                                      currentPasswordController.text.isNotEmpty
+                                          ? currentPasswordController.text
+                                          : null,
+                                  newPassword:
+                                      newPasswordController.text.isNotEmpty
+                                          ? newPasswordController.text
+                                          : null,
+                                  confirmPassword:
+                                      confirmPasswordController.text.isNotEmpty
+                                          ? confirmPasswordController.text
+                                          : null,
+                                );
+                          }
+                          : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    state.hasUnsavedChanges
+                        ? 'حفظ التغييرات'
+                        : 'لا توجد تغييرات',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: Responsive.text(context, size: TextSize.medium),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(width: Responsive.space(context, size: Space.medium)),
+            Expanded(
+              child: Container(
+                height: 52,
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey[300]!, width: 1.5),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: TextButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    'إلغاء',
+                    style: TextStyle(
+                      color: Colors.grey[700],
+                      fontWeight: FontWeight.w600,
+                      fontSize: Responsive.text(context, size: TextSize.medium),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
   }
 }

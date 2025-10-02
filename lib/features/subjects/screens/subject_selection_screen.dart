@@ -8,7 +8,6 @@ import 'package:pivot/widgets/no_internet_message.dart';
 import 'dart:async';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/models/subject_model.dart';
-import 'package:pivot/features/subjects/providers/subjects_provider.dart';
 
 class SubjectSelectionScreen extends ConsumerStatefulWidget {
   final List<String> previouslySelectedIds;
@@ -63,9 +62,10 @@ class _SubjectSelectionScreenState
 
     _selectedSubjectIds = Set<String>.from(widget.previouslySelectedIds);
 
-    // Initialize subjects provider
+    // Initialize subjects provider - fetch all subjects and guide content
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(subjectsProvider.notifier).initialize();
+      ref.read(legacySubjectProviderProvider.notifier).fetchAllSubjects();
+      ref.read(guideProvider.notifier).fetchGuideContent();
     });
   }
 
@@ -929,7 +929,7 @@ class _SubjectSelectionScreenState
                             ),
                           ),
                           Text(
-                            'لائحة كلية حاصلة على الشهادة الجامعية',
+                            'لائحة الكلية',
                             style: TextStyle(
                               fontSize: Responsive.text(
                                 context,
@@ -1015,23 +1015,6 @@ class _SubjectSelectionScreenState
     return Consumer(
       builder: (context, ref, child) {
         final subjectState = ref.watch(legacySubjectProviderProvider);
-
-        // Debug logging
-        print('📚 === SUBJECT SELECTION SCREEN ===');
-        print('  - SubjectProvider isLoading: ${subjectState.isLoading}');
-        print('  - SubjectProvider hasError: ${subjectState.error != null}');
-        print('  - All subjects count: ${subjectState.allSubjects.length}');
-        print(
-          '  - Filtered subjects count: ${subjectState.filteredSubjects.length}',
-        );
-        if (subjectState.filteredSubjects.isEmpty &&
-            subjectState.allSubjects.isNotEmpty) {
-          print('  - ⚠️ WARNING: All subjects loaded but filtered is empty!');
-          print(
-            '  - All subjects IDs: ${subjectState.allSubjects.map((s) => s.id).take(5).toList()}...',
-          );
-        }
-
         if (subjectState.isLoading) {
           return Center(
             child: Column(
@@ -1543,21 +1526,32 @@ class _SubjectSelectionScreenState
 
                           bool success = false;
                           try {
+                            print(
+                              '📚 [SubjectSelection] Starting save process...',
+                            );
                             final userProfileState = ref.read(
                               userProfileProvider,
                             );
 
                             final userRole =
                                 userProfileState.loggedInUserProfile?.role;
+                            print('📚 [SubjectSelection] User role: $userRole');
+                            print(
+                              '📚 [SubjectSelection] Selected subjects: ${_selectedSubjectIds.length}',
+                            );
 
                             // If targetUserId is provided, Super Admin is editing another user's subjects
                             if (widget.targetUserId != null &&
                                 userRole == 'Super Admin') {
+                              print('📚 [SubjectSelection] Super Admin mode');
                               // Use the targetUserRole parameter instead of fetching from allUsers
                               final targetUserRole = widget.targetUserRole;
 
                               if (targetUserRole == 'Student' ||
                                   targetUserRole == 'Admin') {
+                                print(
+                                  '📚 [SubjectSelection] Updating enrolled subjects for target user',
+                                );
                                 await ref
                                     .read(userProfileProvider.notifier)
                                     .updateUserEnrolledSubjects(
@@ -1567,6 +1561,9 @@ class _SubjectSelectionScreenState
                               } else if (targetUserRole == 'Professor' ||
                                   targetUserRole == 'miniProfessor' ||
                                   targetUserRole == 'Doctor') {
+                                print(
+                                  '📚 [SubjectSelection] Updating teaching subjects for target user',
+                                );
                                 await ref
                                     .read(userProfileProvider.notifier)
                                     .updateUserTeachingSubjects(
@@ -1580,7 +1577,9 @@ class _SubjectSelectionScreenState
                               }
 
                               // Update the UI after Super Admin changes
-
+                              print(
+                                '📚 [SubjectSelection] Refreshing all users and subjects',
+                              );
                               await ref
                                   .read(userProfileProvider.notifier)
                                   .fetchAllUsers();
@@ -1588,12 +1587,19 @@ class _SubjectSelectionScreenState
                                   .read(legacySubjectProviderProvider.notifier)
                                   .fetchAllSubjects();
                               success = true;
+                              print(
+                                '✅ [SubjectSelection] Super Admin save successful',
+                              );
                             } else {
                               // Normal flow - user editing their own subjects
+                              print('📚 [SubjectSelection] Normal user mode');
 
                               if (userRole == 'Student' ||
                                   userRole == 'Admin' ||
                                   userRole == 'Super Admin') {
+                                print(
+                                  '📚 [SubjectSelection] Updating enrolled subjects',
+                                );
                                 await ref
                                     .read(userProfileProvider.notifier)
                                     .updateEnrolledSubjects(
@@ -1602,6 +1608,9 @@ class _SubjectSelectionScreenState
                               } else if (userRole == 'Professor' ||
                                   userRole == 'miniProfessor' ||
                                   userRole == 'Doctor') {
+                                print(
+                                  '📚 [SubjectSelection] Updating teaching subjects',
+                                );
                                 await ref
                                     .read(userProfileProvider.notifier)
                                     .updateTeachingSubjects(
@@ -1615,13 +1624,17 @@ class _SubjectSelectionScreenState
 
                               // After updating subjects, fetch the latest user profile to ensure
                               // the UI reflects the changes upon returning to the previous screen.
-
+                              print(
+                                '📚 [SubjectSelection] Reloading user profile',
+                              );
                               await ref
                                   .read(userProfileProvider.notifier)
                                   .loadLoggedInUserProfile();
                               success = true;
+                              print('✅ [SubjectSelection] Save successful');
                             }
                           } catch (e) {
+                            print('❌ [SubjectSelection] Error during save: $e');
                             if (mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(

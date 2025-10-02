@@ -89,6 +89,9 @@ class UserProfileService {
         'enrolledSubjects': subjectIds,
         'updatedAt': FieldValue.serverTimestamp(),
       });
+
+      // Clear cache to force refresh
+      _userProfilesCache.remove(user.uid);
     } catch (e) {
       throw Exception('Failed to update enrolled subjects: $e');
     }
@@ -103,6 +106,9 @@ class UserProfileService {
         'teachingSubjects': subjectIds,
         'updatedAt': FieldValue.serverTimestamp(),
       });
+
+      // Clear cache to force refresh
+      _userProfilesCache.remove(user.uid);
     } catch (e) {
       throw Exception('Failed to update teaching subjects: $e');
     }
@@ -117,6 +123,9 @@ class UserProfileService {
         'enrolledSubjects': subjectIds,
         'updatedAt': FieldValue.serverTimestamp(),
       });
+
+      // Clear cache to force refresh
+      _userProfilesCache.remove(userId);
     } catch (e) {
       throw Exception('Failed to update user enrolled subjects: $e');
     }
@@ -131,6 +140,9 @@ class UserProfileService {
         'teachingSubjects': subjectIds,
         'updatedAt': FieldValue.serverTimestamp(),
       });
+
+      // Clear cache to force refresh
+      _userProfilesCache.remove(userId);
     } catch (e) {
       throw Exception('Failed to update user teaching subjects: $e');
     }
@@ -300,10 +312,13 @@ class UserProfileService {
   Future<String> _uploadProfileImage(XFile imageFile, String userId) async {
     try {
       final File file = File(imageFile.path);
+      // Update path to match storage rules: users/{userId}/profile/{fileName}
       final Reference storageRef = FirebaseStorage.instance
           .ref()
-          .child('profile_images')
-          .child('$userId.jpg');
+          .child('users')
+          .child(userId)
+          .child('profile')
+          .child('profile_image.jpg');
 
       final UploadTask uploadTask = storageRef.putFile(file);
       final TaskSnapshot snapshot = await uploadTask;

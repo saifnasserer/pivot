@@ -40,19 +40,19 @@ service firebase.storage {
     }
     
     function isValidImageType() {
-      return resource.contentType.matches('image/.*');
+      return request.resource.contentType.matches('image/.*');
     }
     
     function isValidVideoType() {
-      return resource.contentType.matches('video/.*');
+      return request.resource.contentType.matches('video/.*');
     }
     
     function isValidPdfType() {
-      return resource.contentType == 'application/pdf';
+      return request.resource.contentType == 'application/pdf';
     }
     
     function isValidDocumentType() {
-      return resource.contentType in [
+      return request.resource.contentType in [
         'application/pdf',
         'application/msword',
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -61,19 +61,19 @@ service firebase.storage {
     }
     
     function isValidAudioType() {
-      return resource.contentType.matches('audio/.*');
+      return request.resource.contentType.matches('audio/.*');
     }
     
     function isWithinSizeLimit(maxSizeBytes) {
-      return resource.size <= maxSizeBytes;
+      return request.resource.size <= maxSizeBytes;
     }
     
     // ===== PHASE 1: AUTH - User Profile Images =====
     match /users/{userId}/profile/{fileName} {
-      // Allow read for authenticated users
+      // Allow read for ALL authenticated users (everyone can view everyone's profile photo)
       allow read: if isSignedIn();
       
-      // Allow write for user's own profile or admin
+      // Allow write only for the profile owner or admin
       allow write: if isOwnerOrAdmin(userId) && 
         isValidImageType() && 
         isWithinSizeLimit(5 * 1024 * 1024); // 5MB limit

@@ -353,6 +353,29 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    // ===== SHARED SCHEDULES =====
+    match /shared_schedules/{shareId} {
+      // Allow read for anyone with the link (public sharing)
+      allow read: if isSignedIn();
+      
+      // Allow create for authenticated users
+      allow create: if isSignedIn();
+      
+      // Allow update only for the owner (for access count, expiry, etc.)
+      allow update: if isSignedIn() && (
+        request.auth.uid == resource.data.ownerId ||
+        // Allow system to increment access count
+        (request.resource.data.keys().hasAll(['accessCount']) && 
+         request.resource.data.accessCount == resource.data.accessCount + 1)
+      );
+      
+      // Allow delete only for the owner
+      allow delete: if isSignedIn() && request.auth.uid == resource.data.ownerId;
+      
+      // Allow list only for the owner to see their shared schedules
+      allow list: if isSignedIn() && request.auth.uid == resource.data.ownerId;
+    }
+
     // ===== DEFAULT DENY =====
     match /{document=**} {
       allow read, write: if false;

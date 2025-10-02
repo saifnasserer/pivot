@@ -32,17 +32,21 @@ class CacheService {
       return;
     }
 
-    _initialized = true;
-
     try {
-      await Hive.initFlutter(); // Works for both web and mobile
+      // Check if Hive is already initialized
+      if (!Hive.isAdapterRegistered(0)) {
+        await Hive.initFlutter(); // Works for both web and mobile
+      }
 
       // Register adapters with error handling
       await _registerAdapters();
 
       // Open boxes with error handling
       await _openBoxes();
+
+      _initialized = true;
     } catch (e) {
+      print('CacheService initialization error: $e');
       // Don't rethrow - allow app to continue without cache
       _initialized = false;
     }
@@ -173,9 +177,11 @@ class CacheService {
     await box.clear();
     for (var ann in announcements) {
       final key =
-          ann.id ??
-          ann.title ??
-          DateTime.now().millisecondsSinceEpoch.toString();
+          (ann.id?.isNotEmpty == true)
+              ? ann.id!
+              : (ann.title.isNotEmpty
+                  ? ann.title
+                  : DateTime.now().millisecondsSinceEpoch.toString());
       await box.put(key, ann);
     }
   }

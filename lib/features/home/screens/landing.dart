@@ -62,8 +62,6 @@ class LandingState extends ConsumerState<Landing>
     if (_tabController.indexIsChanging && !_isUpdatingFromPage) {
       _isUpdatingFromTab = true;
       final newIndex = _tabController.index;
-      print('🔍 [Landing] TabController changed to index: $newIndex');
-
       _categoryPageController.animateToPage(
         newIndex,
         duration: const Duration(milliseconds: 300),
@@ -77,9 +75,6 @@ class LandingState extends ConsumerState<Landing>
       final homeState = ref.read(homeProvider);
       if (newIndex < homeState.categories.length) {
         final category = homeState.categories[newIndex];
-        print(
-          '🔍 [Landing] Tab change - Category: $category (index: $newIndex)',
-        );
         _handleCategoryChange(category);
       }
 
@@ -100,26 +95,39 @@ class LandingState extends ConsumerState<Landing>
   }
 
   void _handleCategoryChange(String category) async {
-    print('🔍 [Landing] Handling category change: $category');
     // Use Riverpod to fetch announcements
+    print('🔍 [Landing] Handling category change: $category');
 
     final departmentCode = ref
         .read(homeProvider.notifier)
         .getDepartmentCode(category);
     final timeFilter = ref.read(homeProvider.notifier).getTimeFilter(category);
 
-    print(
-      '🔍 [Landing] Fetching with department: $departmentCode, timeFilter: $timeFilter',
-    );
+    print('🔍 [Landing] Department code: $departmentCode');
+    print('🔍 [Landing] Time filter: $timeFilter');
 
     // Only fetch if we have valid values
     if (departmentCode != null && timeFilter != null) {
+      print(
+        '🔍 [Landing] Fetching announcements with department: $departmentCode, timeFilter: $timeFilter',
+      );
       ref
           .read(announcementsProvider.notifier)
           .fetchAnnouncements(
             timeFilter: timeFilter,
             department: departmentCode,
           );
+    } else if (departmentCode != null) {
+      print(
+        '🔍 [Landing] Fetching announcements with department only: $departmentCode',
+      );
+      ref
+          .read(announcementsProvider.notifier)
+          .fetchAnnouncements(department: departmentCode);
+    } else {
+      print(
+        '🔍 [Landing] No valid department code found for category: $category',
+      );
     }
   }
 
@@ -212,14 +220,6 @@ class LandingState extends ConsumerState<Landing>
           // Navigate to the initial category and load its content
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (homeState.categories.isNotEmpty) {
-              print('🔍 [Landing] Categories order: ${homeState.categories}');
-              print(
-                '🔍 [Landing] Starting from index: ${homeState.categories.length - 1}',
-              );
-              print(
-                '🔍 [Landing] Initial category: ${homeState.categories[homeState.categories.length - 1]}',
-              );
-
               // Navigate to the last page (rightmost category - اخبار النهاردة)
               _categoryPageController.jumpToPage(
                 homeState.categories.length -
@@ -268,58 +268,42 @@ class LandingState extends ConsumerState<Landing>
                   ),
                   // Main content with horizontal swipe navigation
                   Expanded(
-                    child: Directionality(
-                      textDirection: TextDirection.rtl,
-                      child: PageView(
-                        controller: _categoryPageController,
-                        scrollDirection: Axis.horizontal,
-                        reverse:
-                            true, // RTL swipe behavior (high index to low index: 6->5->4->3->2->1->0)
-                        onPageChanged: (index) {
-                          if (!_isUpdatingFromTab) {
-                            _isUpdatingFromPage = true;
-                            print(
-                              '🔍 [Landing] PageView changed to index: $index',
-                            );
-                            // PageView index now directly corresponds to TabController index
-                            final tabIndex = index;
-                            print(
-                              '🔍 [Landing] TabController index: $tabIndex',
-                            );
-                            // Update category via Riverpod provider
-                            ref
-                                .read(homeProvider.notifier)
-                                .changeCategory(tabIndex);
-                            // Sync with TabController
-                            if (_tabController.index != tabIndex) {
-                              print(
-                                '🔍 [Landing] Syncing TabController to index: $tabIndex',
-                              );
-                              _tabController.animateTo(tabIndex);
-                            }
-                            // Trigger category change when swiping
-                            if (tabIndex < homeState.categories.length) {
-                              final category = homeState.categories[tabIndex];
-                              print(
-                                '🔍 [Landing] Category changed to: $category (tabIndex: $tabIndex)',
-                              );
-                              _handleCategoryChange(category);
-                            }
+                    child: PageView(
+                      controller: _categoryPageController,
+                      scrollDirection: Axis.horizontal,
 
-                            // Reset flag after a short delay
-                            Future.delayed(
-                              const Duration(milliseconds: 350),
-                              () {
-                                _isUpdatingFromPage = false;
-                              },
-                            );
+                      onPageChanged: (index) {
+                        if (!_isUpdatingFromTab) {
+                          _isUpdatingFromPage = true;
+
+                          // PageView index now directly corresponds to TabController index
+                          final tabIndex = index;
+
+                          // Update category via Riverpod provider
+                          ref
+                              .read(homeProvider.notifier)
+                              .changeCategory(tabIndex);
+                          // Sync with TabController
+                          if (_tabController.index != tabIndex) {
+                            _tabController.animateTo(tabIndex);
                           }
-                        },
-                        children:
-                            homeState.categories.map((category) {
-                              return _buildCategoryContent(category);
-                            }).toList(),
-                      ),
+                          // Trigger category change when swiping
+                          if (tabIndex < homeState.categories.length) {
+                            final category = homeState.categories[tabIndex];
+
+                            _handleCategoryChange(category);
+                          }
+
+                          // Reset flag after a short delay
+                          Future.delayed(const Duration(milliseconds: 350), () {
+                            _isUpdatingFromPage = false;
+                          });
+                        }
+                      },
+                      children:
+                          homeState.categories.map((category) {
+                            return _buildCategoryContent(category);
+                          }).toList(),
                     ),
                   ),
                 ],

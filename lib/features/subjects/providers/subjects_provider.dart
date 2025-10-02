@@ -3,6 +3,7 @@ import 'package:pivot/features/subjects/repositories/subjects_repository.dart';
 import 'package:pivot/features/subjects/services/subjects_service.dart';
 import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/models/user_profile.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
 
 final subjectsServiceProvider = Provider<SubjectsService>(
   (ref) => SubjectsService(),
@@ -359,6 +360,40 @@ class SubjectsNotifier extends StateNotifier<SubjectsState> {
     }
   }
 
+  /// Helper method to check if a user is an instructor
+  bool _isInstructor(String role) {
+    final lowerRole = role.toLowerCase();
+    return lowerRole == 'professor' ||
+        lowerRole == 'miniprofessor' ||
+        role == 'miniProfessor' ||
+        lowerRole == 'doctor';
+  }
+
+  /// Build instructors map from all users
+  Map<String, List<UserProfile>> _buildInstructorsMap(
+    List<UserProfile> allUsers,
+  ) {
+    final Map<String, List<UserProfile>> instructorsBySubject = {};
+    final instructors =
+        allUsers.where((user) => _isInstructor(user.role)).toList();
+
+    for (final instructor in instructors) {
+      for (final subjectId in instructor.teachingSubjects) {
+        if (instructorsBySubject.containsKey(subjectId)) {
+          if (!instructorsBySubject[subjectId]!.any(
+            (u) => u.id == instructor.id,
+          )) {
+            instructorsBySubject[subjectId]!.add(instructor);
+          }
+        } else {
+          instructorsBySubject[subjectId] = [instructor];
+        }
+      }
+    }
+
+    return instructorsBySubject;
+  }
+
   // Fetch and filter subjects based on user profile
   Future<void> fetchAndFilterSubjects(dynamic userProfile) async {
     _checkDisposed();
@@ -368,6 +403,27 @@ class SubjectsNotifier extends StateNotifier<SubjectsState> {
       final subjects = await _repo.getAllSubjects();
       if (_disposed) return;
 
+      // Get all users to build instructors map
+      final userProfileState = _ref.read(userProfileProvider);
+      var allUsers = userProfileState.allUsers;
+
+      // If allUsers is empty, try to fetch them
+      if (allUsers.isEmpty) {
+        print('📚 [SubjectsProvider] allUsers is empty, fetching...');
+        await _ref.read(userProfileProvider.notifier).fetchAllUsers();
+        if (_disposed) return;
+        allUsers = _ref.read(userProfileProvider).allUsers;
+        print('📚 [SubjectsProvider] Fetched ${allUsers.length} users');
+      }
+
+      print(
+        '📚 [SubjectsProvider] Building instructors map from ${allUsers.length} users',
+      );
+      final instructorsBySubject = _buildInstructorsMap(allUsers);
+      print(
+        '📚 [SubjectsProvider] Built instructors for ${instructorsBySubject.length} subjects',
+      );
+
       // Filter based on user profile
       List<Subject> filteredSubjects;
       if (userProfile.enrolledSubjects != null &&
@@ -376,12 +432,15 @@ class SubjectsNotifier extends StateNotifier<SubjectsState> {
             subjects
                 .where((s) => userProfile.enrolledSubjects.contains(s.id))
                 .toList();
+        print(
+          '📚 [SubjectsProvider] Filtered to ${filteredSubjects.length} enrolled subjects',
+        );
       } else {
         filteredSubjects = subjects;
+        print(
+          '📚 [SubjectsProvider] No filter, showing all ${subjects.length} subjects',
+        );
       }
-
-      // TODO: Fetch instructors by subject if needed
-      final instructorsBySubject = <String, List<UserProfile>>{};
 
       state = state.copyWith(
         isLoading: false,
@@ -390,6 +449,7 @@ class SubjectsNotifier extends StateNotifier<SubjectsState> {
         instructorsBySubject: instructorsBySubject,
       );
     } catch (e) {
+      print('❌ [SubjectsProvider] Error: $e');
       if (!_disposed) {
         state = state.copyWith(isLoading: false, error: e.toString());
       }

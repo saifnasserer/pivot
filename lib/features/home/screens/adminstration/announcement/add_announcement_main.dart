@@ -208,9 +208,14 @@ class _AddAnnouncementMainState extends ConsumerState<AddAnnouncementMain>
       }
 
       // Upload new images
-      // TODO: Implement image upload - using placeholder for now
-      for (XFile image in _pickedImages) {
-        imageUrls.add('placeholder_${DateTime.now().millisecondsSinceEpoch}');
+      if (_pickedImages.isNotEmpty) {
+        print('📤 Uploading ${_pickedImages.length} images...');
+        final imagePaths = _pickedImages.map((img) => img.path).toList();
+        final uploadedUrls = await ref
+            .read(announcementsProvider.notifier)
+            .uploadAnnouncementImages(imagePaths);
+        imageUrls.addAll(uploadedUrls);
+        print('✅ Uploaded ${uploadedUrls.length} images');
       }
 
       // Convert tags to full format
@@ -223,6 +228,9 @@ class _AddAnnouncementMainState extends ConsumerState<AddAnnouncementMain>
                 );
             return departmentTag.fullTag;
           }).toList();
+
+      // Extract department from the first tag (since tags contain department info)
+      final department = convertedTags.isNotEmpty ? convertedTags.first : null;
 
       final newAnnouncement = AnnouncementData(
         id: widget.announcement?.id,
@@ -239,6 +247,7 @@ class _AddAnnouncementMainState extends ConsumerState<AddAnnouncementMain>
         publishAt: DateTime.now(), // Publish immediately
         expireAt: null, // No expiration
         level: _selectedLevels.join(','), // Store as comma-separated string
+        department: department, // Store department for filtering
       );
 
       // Hide loading indicator

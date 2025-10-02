@@ -339,3 +339,4 @@ Future<void> methodWithOptionalDependency() async {
 **Verified by**: User (error caught, no crash)  
 **Status**: ✅ **PRODUCTION READY**
 
+

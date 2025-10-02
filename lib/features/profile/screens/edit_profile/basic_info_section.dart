@@ -22,66 +22,34 @@ class BasicInfoSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(Responsive.space(context, size: Space.medium)),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[200]!),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.person_outline, color: Colors.blue[600], size: 24),
-              SizedBox(width: Responsive.space(context, size: Space.small)),
-              Text(
-                'المعلومات الأساسية',
-                style: TextStyle(
-                  fontSize: Responsive.text(context, size: TextSize.heading),
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: Responsive.space(context, size: Space.medium)),
-          CustomTextField(
-            controller: nameController,
-            hint: 'الاسم',
-            keyboardType: TextInputType.name,
-            onChanged:
-                (value) =>
-                    ref.read(editProfileProvider.notifier).updateBasicInfo(value, selectedGender ?? ''),
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'الاسم مطلوب';
-              }
-              return null;
-            },
-            errorText: state.fieldErrors['name'],
-          ),
-          SizedBox(height: Responsive.space(context, size: Space.medium)),
-          CustomDropdown(
-            color: const Color(0xfff7f7f7),
-            value: selectedGender,
-            items: FormOptions.genders,
-            hint: 'النوع',
-            onChanged: onGenderChanged,
-            errorText: state.fieldErrors['gender'],
-          ),
-        ],
-      ),
+    return Column(
+      children: [
+        CustomTextField(
+          controller: nameController,
+          hint: 'الاسم',
+          keyboardType: TextInputType.name,
+          onChanged:
+              (value) => ref
+                  .read(editProfileProvider.notifier)
+                  .updateBasicInfo(value, selectedGender ?? ''),
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'الاسم مطلوب';
+            }
+            return null;
+          },
+          errorText: state.fieldErrors['name'],
+        ),
+        SizedBox(height: Responsive.space(context, size: Space.medium)),
+        CustomDropdown(
+          color: Colors.grey[50]!,
+          value: selectedGender,
+          items: FormOptions.genders,
+          hint: 'النوع',
+          onChanged: onGenderChanged,
+          errorText: state.fieldErrors['gender'],
+        ),
+      ],
     );
   }
 }

@@ -96,8 +96,8 @@ class EditProfileNotifier extends StateNotifier<EditProfileState> {
   EditProfileNotifier(this._ref) : super(const EditProfileState()) {
     // Initialize with existing user profile if available
     final userProfileState = _ref.read(userProfileProvider);
-    if (userProfileState.userProfile != null) {
-      state = state.copyWith(userProfile: userProfileState.userProfile);
+    if (userProfileState.loggedInUserProfile != null) {
+      state = state.copyWith(userProfile: userProfileState.loggedInUserProfile);
       _validateForm();
     }
   }
@@ -139,9 +139,14 @@ class EditProfileNotifier extends StateNotifier<EditProfileState> {
       // Check if still mounted
       if (!mounted) return;
 
-      // Get user profile
+      // Load the logged-in user profile from Firebase
+      await _ref.read(userProfileProvider.notifier).loadLoggedInUserProfile();
+
+      if (!mounted) return;
+
+      // Get user profile after loading
       final userProfileState = _ref.read(userProfileProvider);
-      final userProfile = userProfileState.userProfile;
+      final userProfile = userProfileState.loggedInUserProfile;
 
       if (!mounted) return;
 
@@ -175,6 +180,19 @@ class EditProfileNotifier extends StateNotifier<EditProfileState> {
       hasUnsavedProfileImage: true,
     );
     _updateOverallUnsavedChanges();
+    // Recalculate completion percentage immediately (goes to 100%)
+    _validateForm();
+  }
+
+  /// Remove profile image
+  void removeProfileImage() {
+    state = state.copyWith(
+      profileImage: null,
+      hasUnsavedProfileImage: state.userProfile?.profileImageUrl != null,
+    );
+    _updateOverallUnsavedChanges();
+    // Recalculate completion percentage immediately (drops to 80%)
+    _validateForm();
   }
 
   /// Update basic info
@@ -276,13 +294,15 @@ class EditProfileNotifier extends StateNotifier<EditProfileState> {
     final isFormValid = fieldErrors.isEmpty;
 
     // Calculate completion percentage
+    // Check for BOTH saved profile image AND newly picked image (not yet saved)
     final bool hasProfilePicture =
-        state.userProfile!.profileImageUrl != null &&
-        state.userProfile!.profileImageUrl!.isNotEmpty;
+        (state.userProfile!.profileImageUrl != null &&
+            state.userProfile!.profileImageUrl!.isNotEmpty) ||
+        state.profileImage != null;
 
     final double completionPercentage;
     if (hasProfilePicture) {
-      // User has profile picture, so all 5 fields can be completed (100%)
+      // User has profile picture (saved OR picked), so all 5 fields can be completed (100%)
       completionPercentage = completedFields / totalFields;
     } else {
       // User doesn't have profile picture, so max is 80% (4/5)
@@ -367,8 +387,15 @@ class EditProfileNotifier extends StateNotifier<EditProfileState> {
 
       // Determine if we need to update image
       XFile? imageFile;
-      if (state.hasUnsavedProfileImage && state.profileImage != null) {
-        imageFile = XFile(state.profileImage!.path);
+
+      if (state.hasUnsavedProfileImage) {
+        if (state.profileImage != null) {
+          // User selected a new image
+          imageFile = XFile(state.profileImage!.path);
+        } else {
+          // User removed the image - clear the image URL
+          updateData['profileImageUrl'] = '';
+        }
       }
 
       // Only call update if there's something to update

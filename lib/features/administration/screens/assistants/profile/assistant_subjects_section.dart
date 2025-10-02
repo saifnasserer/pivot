@@ -325,6 +325,13 @@ class _AssistantSubjectsSectionState
           _updateTabController();
         }
       });
+
+      // Return loading indicator while TabController is being updated
+      return Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(Colors.green[600]!),
+        ),
+      );
     }
 
     if (subjects.isEmpty) {

@@ -50,19 +50,32 @@ class FeedbackService {
         throw Exception('Image compression failed');
       }
 
-      final fileName = 'feedback_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final ref = _storage.ref().child('feedback/$fileName');
+      // Generate a unique feedback ID for the image path
+      final feedbackId = DateTime.now().millisecondsSinceEpoch.toString();
+      final fileName = 'feedback_image.jpg';
+
+      // Update path to match storage rules: feedback/{feedbackId}/images/{fileName}
+      final ref = _storage
+          .ref()
+          .child('feedback')
+          .child(feedbackId)
+          .child('images')
+          .child(fileName);
 
       final uploadTask = ref.putData(compressedBytes);
       final snapshot = await uploadTask;
 
       if (snapshot.state == TaskState.success) {
-        return await snapshot.ref.getDownloadURL();
+        final downloadUrl = await snapshot.ref.getDownloadURL();
+        print('✅ Feedback image uploaded successfully: $downloadUrl');
+        return downloadUrl;
       } else {
-        throw Exception('Upload failed');
+        print('❌ Upload failed with state: ${snapshot.state}');
+        throw Exception('Upload failed with state: ${snapshot.state}');
       }
     } catch (e) {
-      return null;
+      print('❌ Upload error: $e');
+      rethrow; // Re-throw the error instead of returning null
     }
   }
 

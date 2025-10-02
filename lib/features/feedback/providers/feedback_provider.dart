@@ -76,10 +76,14 @@ class FeedbackNotifier extends StateNotifier<FeedbackState> {
         feedback: feedback,
         imageUrl: imageUrl,
       );
-      state = state.copyWith(isLoading: false);
+      if (mounted) {
+        state = state.copyWith(isLoading: false);
+      }
       return success;
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      if (mounted) {
+        state = state.copyWith(isLoading: false, error: e.toString());
+      }
       return false;
     }
   }
@@ -89,13 +93,24 @@ class FeedbackNotifier extends StateNotifier<FeedbackState> {
     state = state.copyWith(isUploadingImage: true, error: null);
     try {
       final imageUrl = await _repository.uploadFeedbackImage(imageFile);
-      state = state.copyWith(
-        isUploadingImage: false,
-        uploadedImageUrl: imageUrl,
-      );
+      print('📦 [Provider] Got image URL from repository: $imageUrl');
+
+      if (mounted) {
+        state = state.copyWith(
+          isUploadingImage: false,
+          uploadedImageUrl: imageUrl,
+        );
+        print('📦 [Provider] State updated, returning URL');
+      } else {
+        print('⚠️ [Provider] Not mounted, skipping state update');
+      }
+
       return imageUrl;
     } catch (e) {
-      state = state.copyWith(isUploadingImage: false, error: e.toString());
+      print('❌ [Provider] Error caught: $e');
+      if (mounted) {
+        state = state.copyWith(isUploadingImage: false, error: e.toString());
+      }
       return null;
     }
   }
@@ -105,9 +120,13 @@ class FeedbackNotifier extends StateNotifier<FeedbackState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final feedback = await _repository.getAllFeedback();
-      state = state.copyWith(isLoading: false, feedback: feedback);
+      if (mounted) {
+        state = state.copyWith(isLoading: false, feedback: feedback);
+      }
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      if (mounted) {
+        state = state.copyWith(isLoading: false, error: e.toString());
+      }
     }
   }
 
@@ -116,9 +135,13 @@ class FeedbackNotifier extends StateNotifier<FeedbackState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final feedback = await _repository.getFeedbackByStatus(status);
-      state = state.copyWith(isLoading: false, feedback: feedback);
+      if (mounted) {
+        state = state.copyWith(isLoading: false, feedback: feedback);
+      }
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      if (mounted) {
+        state = state.copyWith(isLoading: false, error: e.toString());
+      }
     }
   }
 
@@ -127,9 +150,13 @@ class FeedbackNotifier extends StateNotifier<FeedbackState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final feedback = await _repository.getFeedbackByCategory(category);
-      state = state.copyWith(isLoading: false, feedback: feedback);
+      if (mounted) {
+        state = state.copyWith(isLoading: false, feedback: feedback);
+      }
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      if (mounted) {
+        state = state.copyWith(isLoading: false, error: e.toString());
+      }
     }
   }
 
@@ -141,13 +168,17 @@ class FeedbackNotifier extends StateNotifier<FeedbackState> {
         feedbackId,
         status,
       );
-      if (success) {
+      if (success && mounted) {
         await loadAllFeedback();
       }
-      state = state.copyWith(isLoading: false);
+      if (mounted) {
+        state = state.copyWith(isLoading: false);
+      }
       return success;
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      if (mounted) {
+        state = state.copyWith(isLoading: false, error: e.toString());
+      }
       return false;
     }
   }
@@ -157,13 +188,17 @@ class FeedbackNotifier extends StateNotifier<FeedbackState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final success = await _repository.deleteFeedback(feedbackId);
-      if (success) {
+      if (success && mounted) {
         await loadAllFeedback();
       }
-      state = state.copyWith(isLoading: false);
+      if (mounted) {
+        state = state.copyWith(isLoading: false);
+      }
       return success;
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      if (mounted) {
+        state = state.copyWith(isLoading: false, error: e.toString());
+      }
       return false;
     }
   }
@@ -173,9 +208,13 @@ class FeedbackNotifier extends StateNotifier<FeedbackState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final statistics = await _repository.getFeedbackStatistics();
-      state = state.copyWith(isLoading: false, statistics: statistics);
+      if (mounted) {
+        state = state.copyWith(isLoading: false, statistics: statistics);
+      }
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      if (mounted) {
+        state = state.copyWith(isLoading: false, error: e.toString());
+      }
     }
   }
 
@@ -184,9 +223,13 @@ class FeedbackNotifier extends StateNotifier<FeedbackState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final feedback = await _repository.searchFeedback(query);
-      state = state.copyWith(isLoading: false, feedback: feedback);
+      if (mounted) {
+        state = state.copyWith(isLoading: false, feedback: feedback);
+      }
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      if (mounted) {
+        state = state.copyWith(isLoading: false, error: e.toString());
+      }
     }
   }
 
@@ -195,9 +238,13 @@ class FeedbackNotifier extends StateNotifier<FeedbackState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final feedback = await _repository.getFeedbackByUser(userId);
-      state = state.copyWith(isLoading: false, feedback: feedback);
+      if (mounted) {
+        state = state.copyWith(isLoading: false, feedback: feedback);
+      }
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      if (mounted) {
+        state = state.copyWith(isLoading: false, error: e.toString());
+      }
     }
   }
 
@@ -206,9 +253,13 @@ class FeedbackNotifier extends StateNotifier<FeedbackState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final feedback = await _repository.getRecentFeedback(limit: limit);
-      state = state.copyWith(isLoading: false, feedback: feedback);
+      if (mounted) {
+        state = state.copyWith(isLoading: false, feedback: feedback);
+      }
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      if (mounted) {
+        state = state.copyWith(isLoading: false, error: e.toString());
+      }
     }
   }
 

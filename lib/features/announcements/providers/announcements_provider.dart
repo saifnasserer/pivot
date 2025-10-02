@@ -76,12 +76,18 @@ class AnnouncementsNotifier extends StateNotifier<AnnouncementsState> {
     String? timeFilter,
     bool includeScheduledAndExpired = false,
   }) async {
+    print(
+      '🔍 [AnnouncementsProvider] Fetching announcements with department: $department, timeFilter: $timeFilter',
+    );
     state = state.copyWith(isLoading: true, error: null);
     try {
       final announcements = await _repo.fetchAnnouncements(
         department: department,
         timeFilter: timeFilter,
         includeScheduledAndExpired: includeScheduledAndExpired,
+      );
+      print(
+        '🔍 [AnnouncementsProvider] Fetched ${announcements.length} announcements',
       );
       state = state.copyWith(
         isLoading: false,
@@ -90,20 +96,42 @@ class AnnouncementsNotifier extends StateNotifier<AnnouncementsState> {
         currentTimeFilter: timeFilter,
       );
     } catch (e) {
+      print('🔍 [AnnouncementsProvider] Error fetching announcements: $e');
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
   Future<void> addAnnouncement(AnnouncementData announcement) async {
     try {
+      // Add to repository
       await _repo.addAnnouncement(announcement);
-      // Refresh the list
-      await fetchAnnouncements(
-        department: state.currentDepartmentFilter,
-        timeFilter: state.currentTimeFilter,
+
+      // Add to local state immediately for instant feedback
+      if (mounted) {
+        final updatedAnnouncements = [...state.announcements, announcement];
+        state = state.copyWith(announcements: updatedAnnouncements);
+        print('✅ [AnnouncementsProvider] Added to local state');
+      }
+
+      // Wait a moment for Firestore to index the new document
+      await Future.delayed(Duration(milliseconds: 300));
+
+      // Refresh the list to get the server version with ID
+      print(
+        '🔄 [AnnouncementsProvider] Refreshing after add (fetching all announcements)...',
       );
+
+      // Fetch all announcements without filters
+      if (mounted) {
+        await fetchAnnouncements(includeScheduledAndExpired: true);
+      }
+
+      print('✅ [AnnouncementsProvider] Refresh complete');
     } catch (e) {
-      state = state.copyWith(error: e.toString());
+      print('❌ [AnnouncementsProvider] Error adding announcement: $e');
+      if (mounted) {
+        state = state.copyWith(error: e.toString());
+      }
     }
   }
 
@@ -113,13 +141,33 @@ class AnnouncementsNotifier extends StateNotifier<AnnouncementsState> {
   ) async {
     try {
       await _repo.updateAnnouncement(id, announcement);
-      // Refresh the list
-      await fetchAnnouncements(
-        department: state.currentDepartmentFilter,
-        timeFilter: state.currentTimeFilter,
-      );
+
+      // Update local state immediately
+      if (mounted) {
+        final updatedAnnouncements =
+            state.announcements.map((a) {
+              return a.id == id ? announcement : a;
+            }).toList();
+        state = state.copyWith(announcements: updatedAnnouncements);
+        print('✅ [AnnouncementsProvider] Updated in local state');
+      }
+
+      // Wait a moment then refresh from server
+      await Future.delayed(Duration(milliseconds: 300));
+
+      print('🔄 [AnnouncementsProvider] Refreshing after update...');
+
+      // Fetch all announcements without filters
+      if (mounted) {
+        await fetchAnnouncements(includeScheduledAndExpired: true);
+      }
+
+      print('✅ [AnnouncementsProvider] Refresh complete');
     } catch (e) {
-      state = state.copyWith(error: e.toString());
+      print('❌ [AnnouncementsProvider] Error updating announcement: $e');
+      if (mounted) {
+        state = state.copyWith(error: e.toString());
+      }
     }
   }
 
@@ -201,6 +249,19 @@ class AnnouncementsNotifier extends StateNotifier<AnnouncementsState> {
         department: state.currentDepartmentFilter,
         timeFilter: state.currentTimeFilter,
       );
+    }
+  }
+
+  Future<List<String>> uploadAnnouncementImages(List<String> imagePaths) async {
+    try {
+      final uploadedUrls = await _repo.uploadImages(imagePaths);
+      return uploadedUrls;
+    } catch (e) {
+      print('❌ [AnnouncementsProvider] Error uploading images: $e');
+      if (mounted) {
+        state = state.copyWith(error: e.toString());
+      }
+      rethrow;
     }
   }
 

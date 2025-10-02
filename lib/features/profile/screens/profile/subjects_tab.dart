@@ -13,10 +13,44 @@ class SubjectsTab extends ConsumerStatefulWidget {
 }
 
 class _SubjectsTabState extends ConsumerState<SubjectsTab> {
+  bool _hasInitialized = false;
+
   @override
   void initState() {
     super.initState();
-    // Subjects will auto-load through Riverpod
+    // Load subjects on init
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_hasInitialized) {
+        _initializeSubjects();
+      }
+    });
+  }
+
+  void _initializeSubjects() {
+    final userProfileState = ref.read(userProfileProvider);
+    final targetProfile = _getTargetProfile(
+      userProfileState.userProfile,
+      userProfileState.loggedInUserProfile,
+    );
+
+    if (targetProfile != null) {
+      print(
+        '📖 [SubjectsTab] Initializing with enrolled subjects: ${targetProfile.enrolledSubjects}',
+      );
+      ref.read(subjectsProvider.notifier).fetchAndFilterSubjects(targetProfile);
+      _hasInitialized = true;
+    }
+  }
+
+  @override
+  void didUpdateWidget(SubjectsTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Refresh when widget updates
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _initializeSubjects();
+      }
+    });
   }
 
   @override
@@ -25,6 +59,32 @@ class _SubjectsTabState extends ConsumerState<SubjectsTab> {
     final userProfileState = ref.watch(userProfileProvider);
 
     try {
+      // Get the correct profile to use
+      final userProfile = userProfileState.userProfile;
+      final loggedInUser = userProfileState.loggedInUserProfile;
+      final targetProfile = _getTargetProfile(userProfile, loggedInUser);
+
+      // Reload subjects if profile changes
+      if (targetProfile != null && _hasInitialized) {
+        final enrolledIds = targetProfile.enrolledSubjects;
+        final currentFiltered =
+            subjectsState.filteredSubjects.map((s) => s.id).toSet();
+        final expectedFiltered = enrolledIds.toSet();
+
+        // If the filtered subjects don't match enrolled subjects, refresh
+        if (!currentFiltered.containsAll(expectedFiltered) ||
+            !expectedFiltered.containsAll(currentFiltered)) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              print('📖 [SubjectsTab] Profile changed, refreshing subjects');
+              ref
+                  .read(subjectsProvider.notifier)
+                  .fetchAndFilterSubjects(targetProfile);
+            }
+          });
+        }
+      }
+
       if (subjectsState.isLoading) {
         return const Center(child: CircularProgressIndicator());
       }
@@ -32,18 +92,16 @@ class _SubjectsTabState extends ConsumerState<SubjectsTab> {
         return Center(child: Text('Error: ${subjectsState.error}'));
       }
 
-      // Get the correct profile to use
-      final userProfile = userProfileState.userProfile;
-      final loggedInUser = userProfileState.loggedInUserProfile;
-
-      // Determine which profile to use based on context
-      final targetProfile = _getTargetProfile(userProfile, loggedInUser);
       final enrolledIds = targetProfile?.enrolledSubjects ?? [];
 
       final registeredSubjects =
           subjectsState.filteredSubjects
               .where((s) => enrolledIds.contains(s.id))
               .toList();
+
+      print(
+        '📖 [SubjectsTab] Displaying ${registeredSubjects.length} subjects',
+      );
 
       final subjectSlivers = buildSubjectsSlivers(
         context,
@@ -53,6 +111,7 @@ class _SubjectsTabState extends ConsumerState<SubjectsTab> {
 
       return CustomScrollView(slivers: subjectSlivers);
     } catch (e) {
+      print('❌ [SubjectsTab] Error: $e');
       return const Center(child: Text('لا يمكن تحميل المواد حالياً'));
     }
   }

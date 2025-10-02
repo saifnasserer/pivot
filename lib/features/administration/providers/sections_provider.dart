@@ -65,7 +65,7 @@ class SectionsNotifier extends StateNotifier<SectionsState> {
       final cachedSections = CacheService.instance.getCachedSections();
       final filteredCached =
           cachedSections.where((s) => s.assistantId == assistantId).toList();
-      if (filteredCached.isNotEmpty) {
+      if (filteredCached.isNotEmpty && mounted) {
         state = state.copyWith(sections: filteredCached, isLoading: false);
       }
 
@@ -75,12 +75,16 @@ class SectionsNotifier extends StateNotifier<SectionsState> {
       );
       await CacheService.instance.cacheSections(sections);
 
-      state = state.copyWith(sections: sections, isLoading: false);
+      if (mounted) {
+        state = state.copyWith(sections: sections, isLoading: false);
+      }
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: 'Failed to fetch sections: ${e.toString()}',
-      );
+      if (mounted) {
+        state = state.copyWith(
+          isLoading: false,
+          error: 'Failed to fetch sections: ${e.toString()}',
+        );
+      }
     }
   }
 
@@ -105,7 +109,7 @@ class SectionsNotifier extends StateNotifier<SectionsState> {
             cachedSections
                 .where((s) => subjectIds.contains(s.subjectId))
                 .toList();
-        if (filteredCached.isNotEmpty) {
+        if (filteredCached.isNotEmpty && mounted) {
           state = state.copyWith(sections: filteredCached, isLoading: false);
         }
       } catch (cacheError) {
@@ -117,12 +121,16 @@ class SectionsNotifier extends StateNotifier<SectionsState> {
       final sections = await _sectionService.getSectionsForSubjects(subjectIds);
       await CacheService.instance.cacheSections(sections);
 
-      state = state.copyWith(sections: sections, isLoading: false);
+      if (mounted) {
+        state = state.copyWith(sections: sections, isLoading: false);
+      }
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: 'Failed to fetch sections: ${e.toString()}',
-      );
+      if (mounted) {
+        state = state.copyWith(
+          isLoading: false,
+          error: 'Failed to fetch sections: ${e.toString()}',
+        );
+      }
     }
   }
 
@@ -134,12 +142,16 @@ class SectionsNotifier extends StateNotifier<SectionsState> {
       final sections = await _sectionService.getAllSections();
       await CacheService.instance.cacheSections(sections);
 
-      state = state.copyWith(sections: sections, isLoading: false);
+      if (mounted) {
+        state = state.copyWith(sections: sections, isLoading: false);
+      }
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: 'Failed to fetch sections: ${e.toString()}',
-      );
+      if (mounted) {
+        state = state.copyWith(
+          isLoading: false,
+          error: 'Failed to fetch sections: ${e.toString()}',
+        );
+      }
     }
   }
 
@@ -148,6 +160,8 @@ class SectionsNotifier extends StateNotifier<SectionsState> {
     try {
       final newSection = await _sectionService.addSection(section);
 
+      if (!mounted) return;
+
       // If we're currently fetching sections for an assistant, refresh the list
       if (state.currentAssistantId != null &&
           section.assistantId == state.currentAssistantId) {
@@ -155,10 +169,14 @@ class SectionsNotifier extends StateNotifier<SectionsState> {
       } else {
         // Otherwise just add to the current list
         final updatedSections = [...state.sections, newSection];
-        state = state.copyWith(sections: updatedSections);
+        if (mounted) {
+          state = state.copyWith(sections: updatedSections);
+        }
       }
     } catch (e) {
-      state = state.copyWith(error: 'Failed to add section: ${e.toString()}');
+      if (mounted) {
+        state = state.copyWith(error: 'Failed to add section: ${e.toString()}');
+      }
     }
   }
 
@@ -169,6 +187,8 @@ class SectionsNotifier extends StateNotifier<SectionsState> {
     try {
       await _sectionService.updateSection(section);
 
+      if (!mounted) return;
+
       // Refresh based on current filter
       if (state.currentSubjectIds.isNotEmpty) {
         await fetchSectionsForUserSubjects(state.currentSubjectIds);
@@ -178,10 +198,12 @@ class SectionsNotifier extends StateNotifier<SectionsState> {
         await getAllSections();
       }
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: 'Failed to update section: ${e.toString()}',
-      );
+      if (mounted) {
+        state = state.copyWith(
+          isLoading: false,
+          error: 'Failed to update section: ${e.toString()}',
+        );
+      }
     }
   }
 
@@ -192,6 +214,8 @@ class SectionsNotifier extends StateNotifier<SectionsState> {
     try {
       await _sectionService.deleteSection(sectionId);
 
+      if (!mounted) return;
+
       // Refresh based on current filter
       if (state.currentSubjectIds.isNotEmpty) {
         await fetchSectionsForUserSubjects(state.currentSubjectIds);
@@ -201,10 +225,12 @@ class SectionsNotifier extends StateNotifier<SectionsState> {
         await getAllSections();
       }
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: 'Failed to delete section: ${e.toString()}',
-      );
+      if (mounted) {
+        state = state.copyWith(
+          isLoading: false,
+          error: 'Failed to delete section: ${e.toString()}',
+        );
+      }
     }
   }
 

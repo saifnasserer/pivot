@@ -12,6 +12,9 @@ class EditProfile extends StatelessWidget {
   Widget build(BuildContext context) {
     // The EditProfileScreen is a ConsumerStatefulWidget that directly
     // accesses the editProfileProvider, so no provider wrapping needed
-    return const EditProfileScreen();
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: const EditProfileScreen(),
+    );
   }
 }

@@ -110,11 +110,22 @@ class UserProfileNotifier extends StateNotifier<UserProfileState> {
 
   Future<void> updateEnrolledSubjects(List<String> subjectIds) async {
     try {
+      print('👤 [UserProfile] Updating enrolled subjects: $subjectIds');
       await _repo.updateEnrolledSubjects(subjectIds);
+      print('👤 [UserProfile] Successfully updated in Firestore');
       // Reload profile to get updated data
-      await loadLoggedInUserProfile();
+      if (mounted) {
+        print('👤 [UserProfile] Reloading profile...');
+        await loadLoggedInUserProfile();
+        print('👤 [UserProfile] Profile reloaded');
+      } else {
+        print('⚠️ [UserProfile] Not mounted after update');
+      }
     } catch (e) {
-      state = state.copyWith(error: e.toString());
+      print('❌ [UserProfile] Error updating enrolled subjects: $e');
+      if (mounted) {
+        state = state.copyWith(error: e.toString());
+      }
     }
   }
 
@@ -122,9 +133,13 @@ class UserProfileNotifier extends StateNotifier<UserProfileState> {
     try {
       await _repo.updateTeachingSubjects(subjectIds);
       // Reload profile to get updated data
-      await loadLoggedInUserProfile();
+      if (mounted) {
+        await loadLoggedInUserProfile();
+      }
     } catch (e) {
-      state = state.copyWith(error: e.toString());
+      if (mounted) {
+        state = state.copyWith(error: e.toString());
+      }
     }
   }
 
@@ -135,9 +150,13 @@ class UserProfileNotifier extends StateNotifier<UserProfileState> {
     try {
       await _repo.updateUserEnrolledSubjects(userId, subjectIds);
       // Reload all users to get updated data
-      await fetchAllUsers();
+      if (mounted) {
+        await fetchAllUsers();
+      }
     } catch (e) {
-      state = state.copyWith(error: e.toString());
+      if (mounted) {
+        state = state.copyWith(error: e.toString());
+      }
     }
   }
 
@@ -148,9 +167,13 @@ class UserProfileNotifier extends StateNotifier<UserProfileState> {
     try {
       await _repo.updateUserTeachingSubjects(userId, subjectIds);
       // Reload all users to get updated data
-      await fetchAllUsers();
+      if (mounted) {
+        await fetchAllUsers();
+      }
     } catch (e) {
-      state = state.copyWith(error: e.toString());
+      if (mounted) {
+        state = state.copyWith(error: e.toString());
+      }
     }
   }
 
@@ -158,9 +181,13 @@ class UserProfileNotifier extends StateNotifier<UserProfileState> {
     try {
       await _repo.updateUserRole(userId, newRole);
       // Reload all users to get updated data
-      await fetchAllUsers();
+      if (mounted) {
+        await fetchAllUsers();
+      }
     } catch (e) {
-      state = state.copyWith(error: e.toString());
+      if (mounted) {
+        state = state.copyWith(error: e.toString());
+      }
     }
   }
 

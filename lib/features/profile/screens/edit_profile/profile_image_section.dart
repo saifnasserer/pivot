@@ -11,6 +11,7 @@ import 'package:pivot/services/permission_service.dart';
 import 'package:pivot/features/profile/providers/edit_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:pivot/widgets/unified_dialog.dart';
 
 class ProfileImageSection extends StatefulWidget {
   final EditProfileState state;
@@ -254,47 +255,38 @@ class _ProfileImageSectionState extends State<ProfileImageSection>
   Widget _getProfileImageChild() {
     // Show picked image if available
     if (widget.state.profileImage != null) {
-      return ClipOval(
-        child: Image.file(
-          widget.state.profileImage!,
-          width: Responsive.space(context, size: Space.large) * 10,
-          height: Responsive.space(context, size: Space.large) * 10,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return _buildDefaultIcon();
-          },
-        ),
+      return Image.file(
+        widget.state.profileImage!,
+        width: 132,
+        height: 132,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return _buildDefaultIcon();
+        },
       );
     }
 
     // Show network image if available
     if (widget.state.userProfile?.profileImageUrl != null &&
         widget.state.userProfile!.profileImageUrl!.isNotEmpty) {
-      return ClipOval(
-        child: CachedNetworkImage(
-          imageUrl: widget.state.userProfile!.profileImageUrl!,
-          width: Responsive.space(context, size: Space.large) * 10,
-          height: Responsive.space(context, size: Space.large) * 10,
-          fit: BoxFit.cover,
-          placeholder:
-              (context, url) => Container(
-                width: Responsive.space(context, size: Space.large) * 10,
-                height: Responsive.space(context, size: Space.large) * 10,
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      Colors.grey[600]!,
-                    ),
-                  ),
+      return CachedNetworkImage(
+        imageUrl: widget.state.userProfile!.profileImageUrl!,
+        width: 132,
+        height: 132,
+        fit: BoxFit.cover,
+        placeholder:
+            (context, url) => Container(
+              width: 132,
+              height: 132,
+              color: Colors.grey[100],
+              child: Center(
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.green[600]!),
                 ),
               ),
-          errorWidget: (context, url, error) => _buildDefaultIcon(),
-        ),
+            ),
+        errorWidget: (context, url, error) => _buildDefaultIcon(),
       );
     }
 
@@ -304,18 +296,173 @@ class _ProfileImageSectionState extends State<ProfileImageSection>
 
   Widget _buildDefaultIcon() {
     return Container(
-      width: Responsive.space(context, size: Space.large) * 10,
-      height: Responsive.space(context, size: Space.large) * 10,
-      decoration: BoxDecoration(
-        color: Colors.grey[300],
-        shape: BoxShape.circle,
-      ),
-      child: Icon(
-        Icons.person,
-        color: Colors.grey[600],
-        size: Responsive.space(context, size: Space.large) * 3,
-      ),
+      width: 132,
+      height: 132,
+      color: Colors.grey[100],
+      child: Icon(Icons.person_rounded, color: Colors.grey[400], size: 64),
     );
+  }
+
+  bool _hasImage() {
+    return widget.state.profileImage != null ||
+        (widget.state.userProfile?.profileImageUrl != null &&
+            widget.state.userProfile!.profileImageUrl!.isNotEmpty);
+  }
+
+  Future<void> _removeImage() async {
+    // Show confirmation dialog using UnifiedDialog
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return UnifiedDialog(
+          title: 'حذف صورة الملف الشخصي',
+          subtitle: 'هل أنت متأكد من حذف الصورة؟',
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: EdgeInsets.all(
+                  Responsive.space(context, size: Space.medium),
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.orange[50],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.orange[200]!, width: 1),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.warning_amber_rounded,
+                      color: Colors.orange[700],
+                      size: 24,
+                    ),
+                    SizedBox(
+                      width: Responsive.space(context, size: Space.small),
+                    ),
+                    Expanded(
+                      child: Text(
+                        'سيتم تطبيق الحذف عند حفظ التغييرات',
+                        style: TextStyle(
+                          fontSize: Responsive.text(
+                            context,
+                            size: TextSize.small,
+                          ),
+                          color: Colors.orange[900],
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Cancel button
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.grey[600],
+                    padding: EdgeInsets.symmetric(
+                      horizontal: Responsive.space(context, size: Space.medium),
+                      vertical: Responsive.space(context, size: Space.small),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(
+                        Responsive.space(context, size: Space.large),
+                      ),
+                    ),
+                  ),
+                  child: Text(
+                    'إلغاء',
+                    style: TextStyle(
+                      fontSize: Responsive.text(context, size: TextSize.medium),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                // Delete button with red gradient
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.red[400]!, Colors.red[600]!],
+                    ),
+                    borderRadius: BorderRadius.circular(
+                      Responsive.space(context, size: Space.large),
+                    ),
+                  ),
+                  child: ElevatedButton.icon(
+                    icon: Icon(
+                      Icons.delete_outline,
+                      size: Responsive.space(context, size: Space.medium),
+                    ),
+                    label: Text(
+                      'حذف',
+                      style: TextStyle(
+                        fontSize: Responsive.text(
+                          context,
+                          size: TextSize.medium,
+                        ),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      foregroundColor: Colors.white,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(
+                          Responsive.space(context, size: Space.large),
+                        ),
+                      ),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: Responsive.space(
+                          context,
+                          size: Space.large,
+                        ),
+                        vertical: Responsive.space(context, size: Space.small),
+                      ),
+                      elevation: 0,
+                    ),
+                    onPressed: () => Navigator.of(context).pop(true),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+
+    // If user confirmed, remove the image
+    if (confirmed == true && mounted) {
+      widget.widgetRef.read(editProfileProvider.notifier).removeProfileImage();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'تم إزالة الصورة. احفظ التغييرات لتأكيد الحذف النهائي',
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.orange[700],
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   @override
@@ -331,99 +478,130 @@ class _ProfileImageSectionState extends State<ProfileImageSection>
                 scale: _scaleAnimation.value,
                 child: Opacity(
                   opacity: _fadeAnimation.value,
-                  child: Stack(
-                    alignment: Alignment.bottomRight,
-                    children: [
-                      // Main profile image
-                      Container(
-                        width:
-                            Responsive.space(context, size: Space.large) * 12,
-                        height:
-                            Responsive.space(context, size: Space.large) * 12,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Colors.grey[300]!,
-                            width: 3,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 20,
-                              offset: const Offset(0, 8),
-                              spreadRadius: 2,
-                            ),
-                          ],
-                        ),
-                        child: ClipOval(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.grey[100],
-                              shape: BoxShape.circle,
-                            ),
-                            child: _getProfileImageChild(),
-                          ),
-                        ),
+                  child: Container(
+                    width: 140,
+                    height: 140,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Colors.green[100]!, Colors.green[50]!],
                       ),
-
-                      // Camera button
-                      GestureDetector(
-                        onTap: _isLoading ? null : _pickImage,
-                        child: AnimatedContainer(
-                          duration: Duration(milliseconds: 200),
-                          padding: EdgeInsets.all(
-                            Responsive.space(context, size: Space.small),
-                          ),
-                          decoration: BoxDecoration(
-                            color: _isLoading ? Colors.grey[400] : Colors.white,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: Colors.grey[300]!,
-                              width: 2,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.15),
-                                blurRadius: 8,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child:
-                              _isLoading
-                                  ? SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                        Colors.grey[600]!,
-                                      ),
-                                    ),
-                                  )
-                                  : Icon(
-                                    Icons.photo_library,
-                                    color: Colors.black87,
-                                    size: 20,
-                                  ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.green.withOpacity(0.15),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
                         ),
+                      ],
+                    ),
+                    padding: EdgeInsets.all(4),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
                       ),
-                    ],
+                      child: ClipOval(child: _getProfileImageChild()),
+                    ),
                   ),
                 ),
               );
             },
           ),
 
-          // Helper text
+          // Action buttons below the image
           SizedBox(height: Responsive.space(context, size: Space.medium)),
-          Text(
-            'اضغط على أيقونة المعرض لتغيير الصورة',
-            style: TextStyle(
-              fontSize: Responsive.text(context, size: TextSize.small),
-              color: Colors.grey[600],
-            ),
-            textAlign: TextAlign.center,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Change photo button
+              GestureDetector(
+                onTap: _isLoading ? null : _pickImage,
+                child: AnimatedContainer(
+                  duration: Duration(milliseconds: 200),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: Responsive.space(context, size: Space.medium),
+                    vertical: Responsive.space(context, size: Space.small),
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors:
+                          _isLoading
+                              ? [Colors.grey[300]!, Colors.grey[400]!]
+                              : [Colors.green[400]!, Colors.green[600]!],
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: (_isLoading ? Colors.grey : Colors.green)
+                            .withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _isLoading
+                          ? SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
+                            ),
+                          )
+                          : Icon(
+                            Icons.photo_library_rounded,
+                            color: Colors.white,
+                            size: 16,
+                          ),
+                      SizedBox(width: 6),
+                      Text(
+                        _isLoading ? 'جاري التحميل...' : 'تغيير الصورة',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Remove button (only show if there's an image)
+              if (_hasImage()) ...[
+                SizedBox(width: Responsive.space(context, size: Space.small)),
+                GestureDetector(
+                  onTap: _isLoading ? null : _removeImage,
+                  child: Container(
+                    padding: EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.red[300]!, width: 1.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.red.withOpacity(0.15),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      Icons.delete_outline,
+                      color: Colors.red[600],
+                      size: 18,
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
         ],
       ),

@@ -82,33 +82,13 @@ class SectionsBuilder {
             .where((s) => enrolledSubjectIds.contains(s.id))
             .toList();
 
-    // If we have enrolled subjects but none found in the list, still show them
-    // This handles the case where subjects are enrolled but not yet loaded
+    // If we have enrolled subjects but none found in the list, show loading
+    // This means subjects are still being fetched
     if (registeredSubjects.isEmpty && enrolledSubjectIds.isNotEmpty) {
-      // Create placeholder subjects for enrolled subjects not found in the list
-      final placeholderSubjects =
-          enrolledSubjectIds
-              .map(
-                (subjectId) => Subject(
-                  id: subjectId,
-                  name: 'Subject $subjectId', // Placeholder name
-                  hours: 0,
-                  year: 1,
-                  departments: [],
-                  englishName: 'Subject $subjectId',
-                  description: '',
-                ),
-              )
-              .toList();
-
-      return [
-        _buildSectionsList(
-          context,
-          placeholderSubjects,
-          allSections,
-          enableAnimations,
-        ),
-      ];
+      print(
+        '📂 [SectionsBuilder] Subjects not loaded yet, showing loading state',
+      );
+      return [_buildLoadingState(context)];
     }
 
     return [

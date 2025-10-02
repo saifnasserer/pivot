@@ -1,25 +1,47 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:pivot/features/home/screens/adminstration/models/announcement_data.dart';
 import 'package:pivot/models/comment_data.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:pivot/services/cache_service.dart';
 
 class AnnouncementsService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
   final String _collectionPath = 'announcements';
-  static const String _announcementsBoxName = 'announcementsBox';
 
   Future<List<AnnouncementData>> fetchAnnouncements({
     String? department,
     String? timeFilter,
     bool includeScheduledAndExpired = false,
   }) async {
+    print(
+      '🔍 [AnnouncementsService] Starting fetch with department: $department, timeFilter: $timeFilter',
+    );
     try {
       Query query = _firestore.collection(_collectionPath);
 
       // Apply filters
       if (department != null && department.isNotEmpty) {
-        query = query.where('department', isEqualTo: department);
+        print(
+          '🔍 [AnnouncementsService] Adding department filter: $department',
+        );
+
+        // Handle special case for today's news with mixed department content
+        if (department.startsWith('today_mixed:')) {
+          // For today's news, get the user's department and filter by it
+          final userDepartment = department.replaceFirst('today_mixed:', '');
+          print(
+            '🔍 [AnnouncementsService] Today mixed department: $userDepartment',
+          );
+          query = query.where('tags', arrayContains: userDepartment);
+        } else {
+          // Filter by tags array (original working approach)
+          print(
+            '🔍 [AnnouncementsService] Regular department filter: $department',
+          );
+          query = query.where('tags', arrayContains: department);
+        }
       }
 
       if (timeFilter != null && timeFilter.isNotEmpty) {
@@ -71,6 +93,10 @@ class AnnouncementsService {
         // Full implementation should be added later
       }
 
+      print(
+        '🔍 [AnnouncementsService] Query returned ${announcements.length} announcements',
+      );
+
       // Cache the results
       await _cacheAnnouncements(announcements);
 
@@ -83,6 +109,12 @@ class AnnouncementsService {
 
   Future<void> addAnnouncement(AnnouncementData announcement) async {
     try {
+      print('📝 [AnnouncementsService] Creating announcement with:');
+      print('   - Title: ${announcement.title}');
+      print('   - Department: ${announcement.department}');
+      print('   - Tags: ${announcement.tags}');
+      print('   - Timestamp: ${announcement.timestamp}');
+
       final docRef = await _firestore
           .collection(_collectionPath)
           .add(announcement.toMap());
@@ -90,9 +122,14 @@ class AnnouncementsService {
       // Update with generated ID
       await docRef.update({'id': docRef.id});
 
+      print(
+        '✅ [AnnouncementsService] Announcement created with ID: ${docRef.id}',
+      );
+
       // Trigger notifications
       // TODO: Implement notification trigger
     } catch (e) {
+      print('❌ [AnnouncementsService] Error creating announcement: $e');
       throw Exception('Failed to add announcement: $e');
     }
   }
@@ -113,7 +150,41 @@ class AnnouncementsService {
 
   Future<void> deleteAnnouncement(String id) async {
     try {
+      // First, get the announcement to retrieve image URLs
+      final announcementDoc =
+          await _firestore.collection(_collectionPath).doc(id).get();
+
+      if (announcementDoc.exists) {
+        final data = announcementDoc.data();
+        final imageUrls =
+            (data?['imageUrls'] as List<dynamic>?)?.cast<String>() ?? [];
+
+        // Delete all associated images from Firebase Storage
+        if (imageUrls.isNotEmpty) {
+          print('🗑️ Deleting ${imageUrls.length} images for announcement $id');
+          for (final imageUrl in imageUrls) {
+            try {
+              // Skip placeholder URLs
+              if (imageUrl.startsWith('placeholder_')) {
+                print('⚠️ Skipping placeholder URL: $imageUrl');
+                continue;
+              }
+
+              // Extract the storage path from the URL
+              final ref = _storage.refFromURL(imageUrl);
+              await ref.delete();
+              print('✅ Deleted image: ${ref.fullPath}');
+            } catch (e) {
+              // Continue deleting other images even if one fails
+              print('⚠️ Failed to delete image: $imageUrl - $e');
+            }
+          }
+        }
+      }
+
+      // Delete the Firestore document
       await _firestore.collection(_collectionPath).doc(id).delete();
+      print('✅ Deleted announcement $id from Firestore');
     } catch (e) {
       throw Exception('Failed to delete announcement: $e');
     }
@@ -243,7 +314,8 @@ class AnnouncementsService {
     try {
       final uploadedUrls = <String>[];
 
-      for (final imagePath in imagePaths) {
+      for (int i = 0; i < imagePaths.length; i++) {
+        final imagePath = imagePaths[i];
         final compressedImage = await FlutterImageCompress.compressWithFile(
           imagePath,
           quality: 85,
@@ -252,28 +324,43 @@ class AnnouncementsService {
         );
 
         if (compressedImage != null) {
-          // TODO: Implement image upload
-          // final url = await StorageOptimizationService().uploadImage(
-          //   compressedImage,
-          //   'announcements/${DateTime.now().millisecondsSinceEpoch}_${imagePaths.indexOf(imagePath)}.jpg',
-          // );
-          // uploadedUrls.add(url);
-          uploadedUrls.add('placeholder_url_${imagePaths.indexOf(imagePath)}');
+          // Generate unique announcement ID and filename
+          final announcementId =
+              DateTime.now().millisecondsSinceEpoch.toString();
+          final fileName = 'image_$i.jpg';
+
+          // Upload to Firebase Storage following the rules pattern
+          final storageRef = _storage
+              .ref()
+              .child('announcements')
+              .child(announcementId)
+              .child('attachments')
+              .child(fileName);
+
+          final uploadTask = storageRef.putData(compressedImage);
+          final snapshot = await uploadTask;
+
+          if (snapshot.state == TaskState.success) {
+            final downloadUrl = await snapshot.ref.getDownloadURL();
+            uploadedUrls.add(downloadUrl);
+            print('✅ Announcement image uploaded: $downloadUrl');
+          } else {
+            print('❌ Upload failed for image $i');
+          }
         }
       }
 
       return uploadedUrls;
     } catch (e) {
+      print('❌ Error uploading announcement images: $e');
       throw Exception('Failed to upload images: $e');
     }
   }
 
   Future<void> _cacheAnnouncements(List<AnnouncementData> announcements) async {
     try {
-      final box = await Hive.openBox(_announcementsBoxName);
-      final announcementsMap = announcements.map((a) => a.toMap()).toList();
-      await box.put('announcements', announcementsMap);
-      await box.close();
+      // Use CacheService to ensure consistent box handling
+      await CacheService.instance.cacheAnnouncements(announcements);
     } catch (e) {
       // Cache failure shouldn't break the app
       print('Failed to cache announcements: $e');
@@ -282,20 +369,8 @@ class AnnouncementsService {
 
   Future<List<AnnouncementData>> _loadCachedAnnouncements() async {
     try {
-      final box = await Hive.openBox(_announcementsBoxName);
-      final cachedData = box.get('announcements') as List<dynamic>?;
-      await box.close();
-
-      if (cachedData != null) {
-        return cachedData
-            .map(
-              (data) =>
-                  AnnouncementData.fromMap(data as Map<String, dynamic>, ''),
-            )
-            .toList();
-      }
-
-      return [];
+      // Use CacheService to ensure consistent box handling
+      return CacheService.instance.getCachedAnnouncements();
     } catch (e) {
       print('Failed to load cached announcements: $e');
       return [];

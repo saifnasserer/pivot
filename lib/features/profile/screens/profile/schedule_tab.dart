@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/features/schedule/screens/add_edit_schedule_dialog.dart';
 import 'package:pivot/features/schedule/screens/schadule.dart';
 import 'package:pivot/features/schedule/providers/schedule_provider.dart';
+import 'package:pivot/features/schedule/widgets/share_schedule_dialog.dart';
 import 'package:pivot/screens/models/schedule_item.dart';
 
 class ScheduleTab extends ConsumerStatefulWidget {
@@ -148,6 +149,35 @@ class _ScheduleTabState extends ConsumerState<ScheduleTab>
     );
   }
 
+  void _handleShareSchedule() {
+    final scheduleState = ref.read(scheduleProvider);
+    if (scheduleState.schedule.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('لا يمكن مشاركة جدول فارغ'),
+          backgroundColor: Colors.orange.shade600,
+        ),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return ShareScheduleDialog(schedule: scheduleState.schedule);
+      },
+    );
+  }
+
+  void _showAddScheduleDialog(BuildContext context, String selectedDay) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AddEditScheduleDialog(day: selectedDay);
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
@@ -155,14 +185,7 @@ class _ScheduleTabState extends ConsumerState<ScheduleTab>
     final scheduleState = ref.watch(scheduleProvider);
     final days = scheduleState.days;
     final selectedDayIndex = 0; // Default to first day
-
-    print('📅 === SCHEDULE TAB: Build ===');
-    print('  - Loading: ${scheduleState.isLoading}');
-    print('  - Has error: ${scheduleState.error != null}');
-    print('  - Days count: ${days.length}');
-
     if (scheduleState.isLoading) {
-      print('  - 🔄 Showing loading indicator');
       return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -176,26 +199,6 @@ class _ScheduleTabState extends ConsumerState<ScheduleTab>
     }
 
     if (scheduleState.error != null) {
-      print('  - ❌ ERROR STATE:');
-      print('  - Error message: ${scheduleState.error}');
-      print('  - Error length: ${scheduleState.error!.length} characters');
-
-      // Try to parse if it's a Firestore error
-      final errorStr = scheduleState.error!;
-      if (errorStr.contains('permission')) {
-        print('  - 🔐 PERMISSION ERROR DETECTED');
-        print('  - This is likely a Firestore security rule issue');
-      }
-      if (errorStr.contains('PERMISSION_DENIED')) {
-        print('  - 🔐 FIREBASE PERMISSION_DENIED ERROR');
-      }
-      if (errorStr.contains('users/')) {
-        print('  - 📁 Path contains "users/" - user subcollection issue');
-      }
-      if (errorStr.contains('schedules/')) {
-        print('  - 📁 Path contains "schedules/" - global collection issue');
-      }
-
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -252,22 +255,62 @@ class _ScheduleTabState extends ConsumerState<ScheduleTab>
         .read(scheduleProvider.notifier)
         .getScheduleForDay(currentDay);
 
-    return RefreshIndicator(
-      onRefresh: _refreshSchedule,
-      child: ScheduleCalendarBuilder.buildScheduleWithScaffold(
-        selectedDayIndex: validIndex,
-        context: context,
-        days: days,
-        dayScheduleItems: itemsForSelectedDay,
-        onDaySelected: _handleDaySelected,
-        handleDelete: _handleDelete,
-        onNotificationToggle: _handleNotificationToggle,
-        onEditItem: _handleEditItem,
-        showFloatingActionButton: true,
-        selectedDay: currentDay,
-        enableAnimations: true,
-        onReorder: _handleReorder,
-      ),
+    return Stack(
+      children: [
+        RefreshIndicator(
+          onRefresh: _refreshSchedule,
+          child: CustomScrollView(
+            slivers: ScheduleCalendarBuilder.buildCalendar(
+              selectedDayIndex: validIndex,
+              context: context,
+              days: days,
+              dayScheduleItems: itemsForSelectedDay,
+              onDaySelected: _handleDaySelected,
+              handleDelete: _handleDelete,
+              onNotificationToggle: _handleNotificationToggle,
+              onEditItem: _handleEditItem,
+              showEmptyState: true,
+              enableAnimations: true,
+              onReorder: _handleReorder,
+            ),
+          ),
+        ),
+        // Share button positioned at top right
+        Positioned(
+          top: 8,
+          left: 8,
+          child: Material(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            elevation: 2,
+            child: InkWell(
+              onTap: _handleShareSchedule,
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: EdgeInsets.all(12),
+                child: Icon(
+                  Icons.share_outlined,
+                  color: Colors.black87,
+                  size: 22,
+                ),
+              ),
+            ),
+          ),
+        ),
+        // Add button positioned at bottom right
+        Positioned(
+          bottom: 16,
+          left: 16,
+          child: FloatingActionButton.extended(
+            onPressed: () => _showAddScheduleDialog(context, currentDay),
+            backgroundColor: Colors.green.shade600,
+            foregroundColor: Colors.white,
+            icon: Icon(Icons.add),
+            label: Text('إضافة حصة'),
+            elevation: 4,
+          ),
+        ),
+      ],
     );
   }
 }

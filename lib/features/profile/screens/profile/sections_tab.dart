@@ -36,10 +36,15 @@ class _SectionsTabState extends ConsumerState<SectionsTab> {
     final targetProfile = _getTargetProfile(userProfile, loggedInUser);
 
     if (targetProfile != null) {
+      print(
+        '📂 [SectionsTab] didChangeDependencies - enrolled: ${targetProfile.enrolledSubjects}',
+      );
+
       // Check if we need to reload due to profile changes
       final shouldReload = _shouldReloadDueToProfileChange(targetProfile);
 
       if (shouldReload) {
+        print('📂 [SectionsTab] Profile changed, reloading sections');
         // Reset loading state and reload
         _hasLoadedSections = false;
         _updatePreviousProfile(targetProfile);
@@ -50,16 +55,27 @@ class _SectionsTabState extends ConsumerState<SectionsTab> {
             _refreshDataProviders(targetProfile);
             if (targetProfile.enrolledSubjects.isNotEmpty) {
               _loadSectionsForUser(targetProfile);
+            } else {
+              setState(() {
+                _hasLoadedSections = true;
+              });
             }
           }
         });
-      } else if (!_hasLoadedSections &&
-          targetProfile.enrolledSubjects.isNotEmpty) {
+      } else if (!_hasLoadedSections) {
+        print('📂 [SectionsTab] Initial load');
+        _updatePreviousProfile(targetProfile);
         // Initial load
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
             _refreshDataProviders(targetProfile);
-            _loadSectionsForUser(targetProfile);
+            if (targetProfile.enrolledSubjects.isNotEmpty) {
+              _loadSectionsForUser(targetProfile);
+            } else {
+              setState(() {
+                _hasLoadedSections = true;
+              });
+            }
           }
         });
       }
@@ -133,14 +149,19 @@ class _SectionsTabState extends ConsumerState<SectionsTab> {
 
     // Prevent multiple simultaneous loading calls
     if (sectionsState.isLoading) {
+      print('📂 [SectionsTab] Already loading, skipping');
       return;
     }
 
     if (userProfile.enrolledSubjects.isNotEmpty) {
+      print(
+        '📂 [SectionsTab] Loading sections for subjects: ${userProfile.enrolledSubjects}',
+      );
       ref
           .read(sectionsProvider.notifier)
           .fetchSectionsForUserSubjects(userProfile.enrolledSubjects)
           .then((_) {
+            print('📂 [SectionsTab] Sections loaded successfully');
             // Mark sections as loaded
             if (mounted) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -153,6 +174,7 @@ class _SectionsTabState extends ConsumerState<SectionsTab> {
             }
           })
           .catchError((error) {
+            print('❌ [SectionsTab] Error loading sections: $error');
             if (mounted) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (mounted) {
@@ -165,10 +187,9 @@ class _SectionsTabState extends ConsumerState<SectionsTab> {
             }
           });
     } else {
+      print('📂 [SectionsTab] No enrolled subjects, clearing sections');
       // Only clear sections if user has no enrolled subjects
-      if (userProfile.enrolledSubjects.isEmpty) {
-        ref.read(sectionsProvider.notifier).resetFilter();
-      }
+      ref.read(sectionsProvider.notifier).resetFilter();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           setState(() {

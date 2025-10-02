@@ -336,3 +336,4 @@ Future<void> method() async {
 **Let's fix these systematically! 🚀**
 
 **Start with user_profile_provider.dart - it's the most critical!**
+
