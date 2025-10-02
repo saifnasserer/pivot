@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pivot/features/announcements/services/announcements_service.dart';
 import 'package:pivot/features/home/screens/adminstration/models/announcement_data.dart';
 import 'package:pivot/models/comment_data.dart';
@@ -10,12 +11,20 @@ class AnnouncementsRepository {
   Future<List<AnnouncementData>> fetchAnnouncements({
     String? department,
     String? timeFilter,
+    String? userLevel,
     bool includeScheduledAndExpired = false,
+    int limit = 10,
+    DocumentSnapshot? startAfterDocument,
   }) => _service.fetchAnnouncements(
     department: department,
     timeFilter: timeFilter,
+    userLevel: userLevel,
     includeScheduledAndExpired: includeScheduledAndExpired,
+    limit: limit,
+    startAfterDocument: startAfterDocument,
   );
+
+  DocumentSnapshot? getLastDocument() => _service.lastDocument;
 
   Future<void> addAnnouncement(AnnouncementData announcement) =>
       _service.addAnnouncement(announcement);

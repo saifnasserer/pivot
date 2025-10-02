@@ -52,9 +52,12 @@ class LandingState extends ConsumerState<Landing>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final userProfileState = ref.read(userProfileProvider);
       final userDepartment = userProfileState.loggedInUserProfile?.department;
+      final userLevel = userProfileState.loggedInUserProfile?.level;
 
-      // Initialize home provider with user department
-      ref.read(homeProvider.notifier).initialize(userDepartment);
+      // Initialize home provider with user department and level
+      ref
+          .read(homeProvider.notifier)
+          .initialize(userDepartment, userLevel: userLevel);
     });
   }
 
@@ -95,8 +98,11 @@ class LandingState extends ConsumerState<Landing>
   }
 
   void _handleCategoryChange(String category) async {
-    // Use Riverpod to fetch announcements
     print('🔍 [Landing] Handling category change: $category');
+
+    // Get user's level for filtering
+    final userProfileState = ref.read(userProfileProvider);
+    final userLevel = userProfileState.loggedInUserProfile?.level;
 
     final departmentCode = ref
         .read(homeProvider.notifier)
@@ -105,25 +111,27 @@ class LandingState extends ConsumerState<Landing>
 
     print('🔍 [Landing] Department code: $departmentCode');
     print('🔍 [Landing] Time filter: $timeFilter');
+    print('🔍 [Landing] User level: $userLevel');
 
-    // Only fetch if we have valid values
+    // Fetch announcements with level filtering
     if (departmentCode != null && timeFilter != null) {
       print(
-        '🔍 [Landing] Fetching announcements with department: $departmentCode, timeFilter: $timeFilter',
+        '🔍 [Landing] Fetching announcements with department: $departmentCode, timeFilter: $timeFilter, userLevel: $userLevel',
       );
       ref
           .read(announcementsProvider.notifier)
           .fetchAnnouncements(
             timeFilter: timeFilter,
             department: departmentCode,
+            userLevel: userLevel,
           );
     } else if (departmentCode != null) {
       print(
-        '🔍 [Landing] Fetching announcements with department only: $departmentCode',
+        '🔍 [Landing] Fetching announcements with department only: $departmentCode, userLevel: $userLevel',
       );
       ref
           .read(announcementsProvider.notifier)
-          .fetchAnnouncements(department: departmentCode);
+          .fetchAnnouncements(department: departmentCode, userLevel: userLevel);
     } else {
       print(
         '🔍 [Landing] No valid department code found for category: $category',
@@ -158,30 +166,64 @@ class LandingState extends ConsumerState<Landing>
             }
             return b.pinned ? 1 : -1;
           });
-          return PageView.builder(
-            controller: _pageController,
-            itemCount: sortedAnnouncements.length,
-            scrollDirection: Axis.vertical,
-            physics: const ClampingScrollPhysics(),
-            itemBuilder: (context, index) {
-              final announcement = sortedAnnouncements[index];
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                child: CardModel(
-                  id: announcement.id,
-                  title: announcement.title,
-                  date: announcement.date,
-                  color: announcement.color,
-                  description: announcement.description,
-                  tags: announcement.tags,
-                  imageUrls: announcement.imageUrls,
-                  links: announcement.links,
-                  availableHeight:
-                      Responsive.height(context) *
-                      0.95, // Pass available height
-                ),
-              );
+
+          // Calculate total items (announcements + loading indicator if loading more)
+          final totalItems =
+              sortedAnnouncements.length + (announcementState.hasMore ? 1 : 0);
+
+          return NotificationListener<ScrollNotification>(
+            onNotification: (scrollInfo) {
+              // Trigger load more when scrolling near the end (80% of last item)
+              if (!announcementState.isLoadingMore &&
+                  announcementState.hasMore &&
+                  scrollInfo.metrics.pixels >=
+                      scrollInfo.metrics.maxScrollExtent * 0.8) {
+                print(
+                  '🔍 [Landing] Infinite scroll trigger - loading more announcements',
+                );
+                ref
+                    .read(announcementsProvider.notifier)
+                    .loadMoreAnnouncements();
+              }
+              return false;
             },
+            child: PageView.builder(
+              controller: _pageController,
+              itemCount: totalItems,
+              scrollDirection: Axis.vertical,
+              physics: const ClampingScrollPhysics(),
+              itemBuilder: (context, index) {
+                // Show loading indicator at the end if loading more
+                if (index >= sortedAnnouncements.length) {
+                  return Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(
+                        Responsive.space(context, size: Space.large),
+                      ),
+                      child: CircularProgressIndicator(color: Colors.black87),
+                    ),
+                  );
+                }
+
+                final announcement = sortedAnnouncements[index];
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                  child: CardModel(
+                    id: announcement.id,
+                    title: announcement.title,
+                    date: announcement.date,
+                    color: announcement.color,
+                    description: announcement.description,
+                    tags: announcement.tags,
+                    imageUrls: announcement.imageUrls,
+                    links: announcement.links,
+                    availableHeight:
+                        Responsive.height(context) *
+                        0.95, // Pass available height
+                  ),
+                );
+              },
+            ),
           );
         },
       ),

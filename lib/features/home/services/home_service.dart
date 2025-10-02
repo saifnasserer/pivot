@@ -2,8 +2,8 @@ import 'package:pivot/services/category_service.dart';
 import 'package:pivot/services/update_service.dart';
 
 class HomeService {
-  List<String> getCategories(String? userDepartment) {
-    return CategoryService.getCategories(userDepartment);
+  List<String> getCategories(String? userDepartment, {String? userLevel}) {
+    return CategoryService.getCategories(userDepartment, userLevel: userLevel);
   }
 
   String? getDepartmentCode(String category, String? userDepartment) {

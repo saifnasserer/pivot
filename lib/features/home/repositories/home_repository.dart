@@ -5,8 +5,8 @@ class HomeRepository {
 
   final HomeService _service;
 
-  List<String> getCategories(String? userDepartment) =>
-      _service.getCategories(userDepartment);
+  List<String> getCategories(String? userDepartment, {String? userLevel}) =>
+      _service.getCategories(userDepartment, userLevel: userLevel);
 
   String? getDepartmentCode(String category, String? userDepartment) =>
       _service.getDepartmentCode(category, userDepartment);

@@ -7,6 +7,7 @@ import 'package:pivot/features/home/screens/adminstration/announcement/add_annou
 import 'package:pivot/features/home/screens/adminstration/announcement/steps/basic_info_step.dart';
 import 'package:pivot/features/home/screens/adminstration/announcement/steps/attachments_step.dart';
 import 'package:pivot/features/home/screens/adminstration/announcement/steps/styling_step.dart';
+import 'package:pivot/features/home/screens/adminstration/announcement/steps/advanced_options_step.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:pivot/responsive.dart';
 
@@ -29,7 +30,7 @@ class _AddAnnouncementMainState extends ConsumerState<AddAnnouncementMain>
     with TickerProviderStateMixin {
   int _currentStep = 0;
   final int _totalSteps =
-      3; // Basic Info, Attachments (Images & Links), Styling
+      4; // Basic Info, Attachments (Images & Links), Styling, Advanced Options
 
   // Animation controllers
   late AnimationController _pageController;
@@ -48,6 +49,12 @@ class _AddAnnouncementMainState extends ConsumerState<AddAnnouncementMain>
   List<String> _selectedLevels = [];
   final List<XFile> _pickedImages = [];
   List<Map<String, String>> _links = [];
+
+  // Advanced options
+  bool _isDraft = false;
+  bool _isPinned = false;
+  DateTime? _publishAt;
+  DateTime? _expireAt;
 
   @override
   void initState() {
@@ -104,6 +111,12 @@ class _AddAnnouncementMainState extends ConsumerState<AddAnnouncementMain>
               .toList();
 
       _links = List<Map<String, String>>.from(widget.announcement!.links);
+
+      // Initialize advanced options
+      _isDraft = widget.announcement!.draft;
+      _isPinned = widget.announcement!.pinned;
+      _publishAt = widget.announcement!.publishAt;
+      _expireAt = widget.announcement!.expireAt;
     }
   }
 
@@ -126,6 +139,8 @@ class _AddAnnouncementMainState extends ConsumerState<AddAnnouncementMain>
         return true; // Optional step - images and links only
       case 2: // Styling
         return _selectedTags.isNotEmpty && _selectedLevels.isNotEmpty;
+      case 3: // Advanced Options
+        return true; // Optional step - scheduling and status
       default:
         return false;
     }
@@ -242,10 +257,10 @@ class _AddAnnouncementMainState extends ConsumerState<AddAnnouncementMain>
         imageUrls: imageUrls,
         links: _links,
         timestamp: DateTime.now(),
-        draft: false, // Default to published
-        pinned: false, // Default to not pinned
-        publishAt: DateTime.now(), // Publish immediately
-        expireAt: null, // No expiration
+        draft: _isDraft,
+        pinned: _isPinned,
+        publishAt: _publishAt ?? DateTime.now(), // Use selected date or now
+        expireAt: _expireAt,
         level: _selectedLevels.join(','), // Store as comma-separated string
         department: department, // Store department for filtering
       );
@@ -325,6 +340,19 @@ class _AddAnnouncementMainState extends ConsumerState<AddAnnouncementMain>
           onColorChanged: (color) => setState(() => _selectedColor = color),
           onTagsChanged: (tags) => setState(() => _selectedTags = tags),
           onLevelsChanged: (levels) => setState(() => _selectedLevels = levels),
+          fadeAnimation: _fadeAnimation,
+          slideAnimation: _slideAnimation,
+        );
+      case 3:
+        return AdvancedOptionsStep(
+          isDraft: _isDraft,
+          isPinned: _isPinned,
+          publishAt: _publishAt,
+          expireAt: _expireAt,
+          onDraftChanged: (value) => setState(() => _isDraft = value),
+          onPinnedChanged: (value) => setState(() => _isPinned = value),
+          onPublishAtChanged: (value) => setState(() => _publishAt = value),
+          onExpireAtChanged: (value) => setState(() => _expireAt = value),
           fadeAnimation: _fadeAnimation,
           slideAnimation: _slideAnimation,
         );

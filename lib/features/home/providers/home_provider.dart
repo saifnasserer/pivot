@@ -13,6 +13,7 @@ class HomeState {
   final List<String> categories;
   final int currentCategoryIndex;
   final String? userDepartment;
+  final String? userLevel;
   final bool isInitialized;
   final bool isTeamFormationEnabled;
   final bool hasUpdates;
@@ -24,6 +25,7 @@ class HomeState {
     this.categories = const [],
     this.currentCategoryIndex = 0,
     this.userDepartment,
+    this.userLevel,
     this.isInitialized = false,
     this.isTeamFormationEnabled = false,
     this.hasUpdates = false,
@@ -36,6 +38,7 @@ class HomeState {
     List<String>? categories,
     int? currentCategoryIndex,
     String? userDepartment,
+    String? userLevel,
     bool? isInitialized,
     bool? isTeamFormationEnabled,
     bool? hasUpdates,
@@ -46,6 +49,7 @@ class HomeState {
     categories: categories ?? this.categories,
     currentCategoryIndex: currentCategoryIndex ?? this.currentCategoryIndex,
     userDepartment: userDepartment ?? this.userDepartment,
+    userLevel: userLevel ?? this.userLevel,
     isInitialized: isInitialized ?? this.isInitialized,
     isTeamFormationEnabled:
         isTeamFormationEnabled ?? this.isTeamFormationEnabled,
@@ -66,10 +70,13 @@ class HomeNotifier extends StateNotifier<HomeState> {
   final Ref _ref;
   late final HomeRepository _repo = _ref.read(homeRepositoryProvider);
 
-  Future<void> initialize(String? userDepartment) async {
+  Future<void> initialize(String? userDepartment, {String? userLevel}) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final categories = _repo.getCategories(userDepartment);
+      final categories = _repo.getCategories(
+        userDepartment,
+        userLevel: userLevel,
+      );
       final shouldShowUpdate = await _repo.shouldShowUpdateButton();
       final hasUpdates = await _repo.areUpdatesAvailable();
 
@@ -77,6 +84,7 @@ class HomeNotifier extends StateNotifier<HomeState> {
         isLoading: false,
         categories: categories,
         userDepartment: userDepartment,
+        userLevel: userLevel,
         isTeamFormationEnabled: shouldShowUpdate,
         hasUpdates: hasUpdates,
         isInitialized: true,

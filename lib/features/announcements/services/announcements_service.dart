@@ -4,19 +4,29 @@ import 'package:pivot/features/home/screens/adminstration/models/announcement_da
 import 'package:pivot/models/comment_data.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:pivot/services/cache_service.dart';
+import 'package:pivot/services/notification_trigger_service.dart';
 
 class AnnouncementsService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
   final String _collectionPath = 'announcements';
+  final NotificationTriggerService _notificationService =
+      NotificationTriggerService();
+
+  // Store last document for pagination
+  DocumentSnapshot? _lastDocument;
+  DocumentSnapshot? get lastDocument => _lastDocument;
 
   Future<List<AnnouncementData>> fetchAnnouncements({
     String? department,
     String? timeFilter,
+    String? userLevel,
     bool includeScheduledAndExpired = false,
+    int limit = 10,
+    DocumentSnapshot? startAfterDocument,
   }) async {
     print(
-      '🔍 [AnnouncementsService] Starting fetch with department: $department, timeFilter: $timeFilter',
+      '🔍 [AnnouncementsService] Starting fetch with department: $department, timeFilter: $timeFilter, userLevel: $userLevel, limit: $limit, pagination: ${startAfterDocument != null}',
     );
     try {
       Query query = _firestore.collection(_collectionPath);
@@ -71,7 +81,22 @@ class AnnouncementsService {
       // Order by timestamp descending
       query = query.orderBy('timestamp', descending: true);
 
+      // Apply pagination
+      if (startAfterDocument != null) {
+        query = query.startAfterDocument(startAfterDocument);
+        print(
+          '🔍 [AnnouncementsService] Paginating after document: ${startAfterDocument.id}',
+        );
+      }
+
+      // Limit results
+      query = query.limit(limit);
+
       final snapshot = await query.get();
+
+      // Store last document for pagination (we'll need this in the provider)
+      _lastDocument = snapshot.docs.isNotEmpty ? snapshot.docs.last : null;
+
       var announcements =
           snapshot.docs
               .map(
@@ -82,15 +107,69 @@ class AnnouncementsService {
               )
               .toList();
 
-      // TODO: Implement scheduled and expired announcement filtering
-      // when includeScheduledAndExpired is false
-      // This should filter out:
-      // 1. Announcements with publishAt date in the future
-      // 2. Announcements with expireAt date in the past
-      // 3. Delete expired announcements from Firestore
+      // Filter by user level if provided
+      if (userLevel != null && userLevel.isNotEmpty) {
+        print(
+          '🔍 [AnnouncementsService] Filtering announcements by level: $userLevel',
+        );
+        announcements =
+            announcements.where((announcement) {
+              // If announcement has no level specified, show it to everyone (general announcements)
+              if (announcement.level == null || announcement.level!.isEmpty) {
+                return true;
+              }
+              // If announcement specifies multiple levels (comma-separated), check if user's level is included
+              final announcementLevels =
+                  announcement.level!.split(',').map((l) => l.trim()).toList();
+              final matchesLevel = announcementLevels.contains(userLevel);
+
+              if (!matchesLevel) {
+                print(
+                  '   ⚠️ Filtered out: ${announcement.title} (requires: ${announcement.level}, user has: $userLevel)',
+                );
+              }
+
+              return matchesLevel;
+            }).toList();
+        print(
+          '🔍 [AnnouncementsService] After level filtering: ${announcements.length} announcements',
+        );
+      }
+
+      // Filter scheduled and expired announcements
       if (!includeScheduledAndExpired) {
-        // For now, just return all announcements
-        // Full implementation should be added later
+        final now = DateTime.now();
+        final initialCount = announcements.length;
+
+        announcements =
+            announcements.where((announcement) {
+              // Check if announcement is scheduled for future
+              if (announcement.publishAt != null &&
+                  announcement.publishAt!.isAfter(now)) {
+                print(
+                  '⏰ Filtered out scheduled announcement: ${announcement.title} (publishes at: ${announcement.publishAt})',
+                );
+                return false;
+              }
+
+              // Check if announcement has expired
+              if (announcement.expireAt != null &&
+                  announcement.expireAt!.isBefore(now)) {
+                print(
+                  '⏰ Filtered out expired announcement: ${announcement.title} (expired at: ${announcement.expireAt})',
+                );
+                // Queue for deletion (async, don't block the fetch)
+                _deleteExpiredAnnouncement(announcement.id);
+                return false;
+              }
+
+              return true;
+            }).toList();
+
+        final filteredCount = initialCount - announcements.length;
+        if (filteredCount > 0) {
+          print('⏰ Filtered $filteredCount scheduled/expired announcements');
+        }
       }
 
       print(
@@ -126,11 +205,111 @@ class AnnouncementsService {
         '✅ [AnnouncementsService] Announcement created with ID: ${docRef.id}',
       );
 
-      // Trigger notifications
-      // TODO: Implement notification trigger
+      // Trigger notifications asynchronously (don't block the creation)
+      _triggerAnnouncementNotification(announcement, docRef.id);
     } catch (e) {
       print('❌ [AnnouncementsService] Error creating announcement: $e');
       throw Exception('Failed to add announcement: $e');
+    }
+  }
+
+  /// Triggers push notifications for new announcements
+  /// This runs asynchronously and doesn't block the announcement creation
+  Future<void> _triggerAnnouncementNotification(
+    AnnouncementData announcement,
+    String announcementId,
+  ) async {
+    try {
+      print(
+        '📱 Triggering notification for announcement: ${announcement.title}',
+      );
+
+      // Don't send notifications for draft or scheduled announcements
+      if (announcement.draft == true) {
+        print('   ⏸️ Skipping notification for draft announcement');
+        return;
+      }
+
+      if (announcement.publishAt != null &&
+          announcement.publishAt!.isAfter(DateTime.now())) {
+        print(
+          '   ⏰ Skipping notification for scheduled announcement (publishes at: ${announcement.publishAt})',
+        );
+        return;
+      }
+
+      // Prepare notification data
+      final notificationData = {
+        'type': 'announcement',
+        'announcementId': announcementId,
+        'timestamp': DateTime.now().millisecondsSinceEpoch.toString(),
+      };
+
+      // Determine notification scope based on announcement properties
+      bool notificationSent = false;
+
+      // Extract department from tags (e.g., "اخبار قسم SC" -> "SC")
+      String? targetDepartment;
+      if (announcement.tags.isNotEmpty) {
+        for (final tag in announcement.tags) {
+          if (tag.startsWith('اخبار قسم ')) {
+            targetDepartment = tag.replaceFirst('اخبار قسم ', '');
+            break;
+          }
+        }
+      }
+
+      // 1. Send to specific level if specified
+      if (announcement.level != null && announcement.level!.isNotEmpty) {
+        // Handle comma-separated levels
+        final levels =
+            announcement.level!.split(',').map((l) => l.trim()).toList();
+
+        for (final level in levels) {
+          print('   📤 Sending notification to level: $level');
+          await _notificationService.sendLevelNotification(
+            level,
+            announcement.title,
+            announcement.description.length > 100
+                ? '${announcement.description.substring(0, 100)}...'
+                : announcement.description,
+          );
+        }
+        notificationSent = true;
+      }
+      // 2. Send to specific department if no level specified but department is specified
+      else if (targetDepartment != null) {
+        print('   📤 Sending notification to department: $targetDepartment');
+        notificationSent = await _notificationService
+            .sendDepartmentNotification(
+              targetDepartment,
+              announcement.title,
+              announcement.description.length > 100
+                  ? '${announcement.description.substring(0, 100)}...'
+                  : announcement.description,
+              data: notificationData,
+            );
+      }
+      // 3. Send to all users for general announcements
+      else {
+        print('   📤 Sending global notification');
+        notificationSent = await _notificationService.sendGlobalNotification(
+          announcement.title,
+          announcement.description.length > 100
+              ? '${announcement.description.substring(0, 100)}...'
+              : announcement.description,
+          data: notificationData,
+        );
+      }
+
+      if (notificationSent) {
+        print('   ✅ Notification sent successfully');
+      } else {
+        print('   ⚠️ Notification sending failed or no recipients');
+      }
+    } catch (e) {
+      // Don't throw - notification failure shouldn't break announcement creation
+      print('   ❌ Error sending notification: $e');
     }
   }
 
@@ -374,6 +553,23 @@ class AnnouncementsService {
     } catch (e) {
       print('Failed to load cached announcements: $e');
       return [];
+    }
+  }
+
+  /// Deletes an expired announcement from Firestore
+  /// This is called asynchronously without blocking the main fetch operation
+  Future<void> _deleteExpiredAnnouncement(String? announcementId) async {
+    if (announcementId == null || announcementId.isEmpty) return;
+
+    try {
+      print('🗑️ Auto-deleting expired announcement: $announcementId');
+      await deleteAnnouncement(announcementId);
+      print('✅ Auto-deleted expired announcement: $announcementId');
+    } catch (e) {
+      print(
+        '⚠️ Failed to auto-delete expired announcement $announcementId: $e',
+      );
+      // Don't throw - this is a background cleanup operation
     }
   }
 }

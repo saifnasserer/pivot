@@ -9,34 +9,60 @@ class CategoryService {
     'General',
   ];
 
-  /// Get categories based on user department
-  /// Returns ordered list: Other Departments - User's Department - General - Today's News
-  /// For RTL display (rightmost is Today's News)
-  static List<String> getCategories(String? userDepartment) {
-    // Create ordered list: Other Departments - User's Department - General - Today's News
+  /// Get categories based on user department and level
+  /// Returns ordered list for RTL display: Other Departments - User's Department - General - Today's News
+  /// Priority order (rightmost first): Today's News → General News → Department(s)
+  ///
+  /// Level-based filtering (same as signup):
+  /// - Years 1-2 (الفرقة الأولى, الفرقة الثانية): Only General department
+  /// - Years 3-4 (الفرقة الثالثة, الفرقة الرابعة): All departments EXCEPT General
+  static List<String> getCategories(
+    String? userDepartment, {
+    String? userLevel,
+  }) {
     final orderedCategories = <String>[];
 
-    // 1. Other departments (excluding Today's News and General)
-    for (final category in baseCategories) {
-      if (category != 'اخبار النهاردة' && category != 'اخبار عامة') {
-        orderedCategories.add(category);
+    // Determine which departments to show based on user level
+    final isFirstOrSecondYear =
+        userLevel == 'الفرقة الأولى' || userLevel == 'الفرقة الثانية';
+
+    print(
+      '📱 [CategoryService] User level: $userLevel, isFirstOrSecondYear: $isFirstOrSecondYear',
+    );
+
+    if (isFirstOrSecondYear) {
+      // Years 1-2: Only show General department category
+      orderedCategories.add('General');
+    } else {
+      // Years 3-4 (or null): Show all departments except General
+      // 1. Other departments (excluding Today's News, General News, General, and user's department)
+      for (final category in baseCategories) {
+        if (category != 'اخبار النهاردة' &&
+            category != 'اخبار عامة' &&
+            category != 'General' &&
+            category != userDepartment) {
+          orderedCategories.add(category);
+        }
+      }
+
+      // 2. User's Department (if exists and is a valid specialized department)
+      if (userDepartment != null &&
+          baseCategories.contains(userDepartment) &&
+          userDepartment != 'General') {
+        orderedCategories.add(userDepartment);
       }
     }
 
-    // 2. User's Department (if it exists in the list and not already added)
-    if (userDepartment != null &&
-        baseCategories.contains(userDepartment) &&
-        !orderedCategories.contains(userDepartment)) {
-      orderedCategories.add(userDepartment);
-    }
-
-    // 3. General (always second to last)
+    // 3. General News (always second to last - second from right)
     orderedCategories.add('اخبار عامة');
 
-    // 4. Today's News (always last/rightmost)
+    // 4. Today's News (always last/rightmost - highest priority)
     orderedCategories.add('اخبار النهاردة');
 
-    return orderedCategories; // No need to reverse - already in correct RTL order
+    print(
+      '📱 [CategoryService] Ordered categories for user (dept: $userDepartment, level: $userLevel): $orderedCategories',
+    );
+    return orderedCategories;
   }
 
   /// Normalize department name by removing 'اخبار قسم ' prefix

@@ -18,9 +18,12 @@ final announcementsRepositoryProvider = Provider<AnnouncementsRepository>((
 class AnnouncementsState {
   final List<AnnouncementData> announcements;
   final bool isLoading;
+  final bool isLoadingMore;
+  final bool hasMore;
   final String? error;
   final String? currentDepartmentFilter;
   final String? currentTimeFilter;
+  final String? currentUserLevel;
   final bool isUploading;
   final double uploadProgress;
   final String? uploadError;
@@ -28,9 +31,12 @@ class AnnouncementsState {
   const AnnouncementsState({
     this.announcements = const [],
     this.isLoading = false,
+    this.isLoadingMore = false,
+    this.hasMore = true,
     this.error,
     this.currentDepartmentFilter,
     this.currentTimeFilter,
+    this.currentUserLevel,
     this.isUploading = false,
     this.uploadProgress = 0.0,
     this.uploadError,
@@ -39,19 +45,25 @@ class AnnouncementsState {
   AnnouncementsState copyWith({
     List<AnnouncementData>? announcements,
     bool? isLoading,
+    bool? isLoadingMore,
+    bool? hasMore,
     String? error,
     String? currentDepartmentFilter,
     String? currentTimeFilter,
+    String? currentUserLevel,
     bool? isUploading,
     double? uploadProgress,
     String? uploadError,
   }) => AnnouncementsState(
     announcements: announcements ?? this.announcements,
     isLoading: isLoading ?? this.isLoading,
+    isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+    hasMore: hasMore ?? this.hasMore,
     error: error ?? this.error,
     currentDepartmentFilter:
         currentDepartmentFilter ?? this.currentDepartmentFilter,
     currentTimeFilter: currentTimeFilter ?? this.currentTimeFilter,
+    currentUserLevel: currentUserLevel ?? this.currentUserLevel,
     isUploading: isUploading ?? this.isUploading,
     uploadProgress: uploadProgress ?? this.uploadProgress,
     uploadError: uploadError ?? this.uploadError,
@@ -74,30 +86,93 @@ class AnnouncementsNotifier extends StateNotifier<AnnouncementsState> {
   Future<void> fetchAnnouncements({
     String? department,
     String? timeFilter,
+    String? userLevel,
     bool includeScheduledAndExpired = false,
+    int limit = 10,
   }) async {
     print(
-      '🔍 [AnnouncementsProvider] Fetching announcements with department: $department, timeFilter: $timeFilter',
+      '🔍 [AnnouncementsProvider] Fetching announcements with department: $department, timeFilter: $timeFilter, userLevel: $userLevel, limit: $limit',
     );
-    state = state.copyWith(isLoading: true, error: null);
+    state = state.copyWith(isLoading: true, error: null, hasMore: true);
     try {
       final announcements = await _repo.fetchAnnouncements(
         department: department,
         timeFilter: timeFilter,
+        userLevel: userLevel,
         includeScheduledAndExpired: includeScheduledAndExpired,
+        limit: limit,
+        startAfterDocument: null, // Fresh fetch, no pagination
       );
       print(
         '🔍 [AnnouncementsProvider] Fetched ${announcements.length} announcements',
       );
+
+      // If we got fewer announcements than the limit, there are no more
+      final hasMore = announcements.length >= limit;
+
       state = state.copyWith(
         isLoading: false,
         announcements: announcements,
         currentDepartmentFilter: department,
         currentTimeFilter: timeFilter,
+        currentUserLevel: userLevel,
+        hasMore: hasMore,
       );
     } catch (e) {
       print('🔍 [AnnouncementsProvider] Error fetching announcements: $e');
       state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
+  Future<void> loadMoreAnnouncements() async {
+    // Don't load more if already loading or no more data
+    if (state.isLoadingMore || !state.hasMore || state.isLoading) {
+      print(
+        '🔍 [AnnouncementsProvider] Skipping loadMore (isLoadingMore: ${state.isLoadingMore}, hasMore: ${state.hasMore}, isLoading: ${state.isLoading})',
+      );
+      return;
+    }
+
+    print('🔍 [AnnouncementsProvider] Loading more announcements...');
+    state = state.copyWith(isLoadingMore: true);
+
+    try {
+      final lastDoc = _repo.getLastDocument();
+      if (lastDoc == null) {
+        print(
+          '⚠️ [AnnouncementsProvider] No last document found, cannot paginate',
+        );
+        state = state.copyWith(isLoadingMore: false, hasMore: false);
+        return;
+      }
+
+      final newAnnouncements = await _repo.fetchAnnouncements(
+        department: state.currentDepartmentFilter,
+        timeFilter: state.currentTimeFilter,
+        userLevel: state.currentUserLevel,
+        limit: 10,
+        startAfterDocument: lastDoc,
+      );
+
+      print(
+        '🔍 [AnnouncementsProvider] Loaded ${newAnnouncements.length} more announcements',
+      );
+
+      // If we got fewer announcements than the limit, there are no more
+      final hasMore = newAnnouncements.length >= 10;
+
+      if (mounted) {
+        state = state.copyWith(
+          isLoadingMore: false,
+          announcements: [...state.announcements, ...newAnnouncements],
+          hasMore: hasMore,
+        );
+      }
+    } catch (e) {
+      print('❌ [AnnouncementsProvider] Error loading more: $e');
+      if (mounted) {
+        state = state.copyWith(isLoadingMore: false, error: e.toString());
+      }
     }
   }
 

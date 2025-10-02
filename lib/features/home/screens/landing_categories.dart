@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pivot/features/announcements/providers/announcements_provider.dart';
 import 'package:pivot/services/category_service.dart';
 import 'package:pivot/responsive.dart';
 
@@ -85,16 +84,9 @@ class _LandingCategoriesState extends ConsumerState<LandingCategories>
   }
 
   void _handleCategoryChange(String category) {
-    final departmentCode = CategoryService.getDepartmentCode(
-      category,
-      widget.userDepartment,
-    );
-    final timeFilter = CategoryService.getTimeFilter(category);
-
-    // Fetch announcements with the determined parameters
-    ref
-        .read(announcementsProvider.notifier)
-        .fetchAnnouncements(timeFilter: timeFilter, department: departmentCode);
+    // Note: Announcement fetching is now handled in landing.dart's _handleCategoryChange
+    // to ensure user level filtering is applied correctly.
+    // This method is kept for backwards compatibility but doesn't fetch announcements anymore.
   }
 
   @override
