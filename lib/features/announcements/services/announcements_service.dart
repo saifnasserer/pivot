@@ -31,6 +31,10 @@ class AnnouncementsService {
     try {
       Query query = _firestore.collection(_collectionPath);
 
+      // Store if this is a "today_mixed" filter for special handling
+      bool isTodayMixed = false;
+      String? todayMixedDepartment;
+
       // Apply filters
       if (department != null && department.isNotEmpty) {
         print(
@@ -39,12 +43,13 @@ class AnnouncementsService {
 
         // Handle special case for today's news with mixed department content
         if (department.startsWith('today_mixed:')) {
-          // For today's news, get the user's department and filter by it
-          final userDepartment = department.replaceFirst('today_mixed:', '');
+          isTodayMixed = true;
+          // For today's news, get the user's department
+          todayMixedDepartment = department.replaceFirst('today_mixed:', '');
           print(
-            '🔍 [AnnouncementsService] Today mixed department: $userDepartment',
+            '🔍 [AnnouncementsService] Today mixed department: $todayMixedDepartment (will include general + user dept + pinned)',
           );
-          query = query.where('tags', arrayContains: userDepartment);
+          // Don't apply department filter here - we'll filter client-side for more flexibility
         } else {
           // Filter by tags array (original working approach)
           print(
@@ -54,13 +59,14 @@ class AnnouncementsService {
         }
       }
 
-      if (timeFilter != null && timeFilter.isNotEmpty) {
+      if (timeFilter != null && timeFilter.isNotEmpty && !isTodayMixed) {
         final now = DateTime.now();
         DateTime startDate;
 
         switch (timeFilter) {
           case 'today':
-            startDate = DateTime(now.year, now.month, now.day);
+            // Past 24 hours (rolling window, not since midnight)
+            startDate = now.subtract(const Duration(hours: 24));
             break;
           case 'week':
             startDate = now.subtract(const Duration(days: 7));
@@ -106,6 +112,59 @@ class AnnouncementsService {
                 ),
               )
               .toList();
+
+      // Special filtering for "today_mixed" (Today's News category)
+      if (isTodayMixed && todayMixedDepartment != null) {
+        final now = DateTime.now();
+        final past24Hours = now.subtract(const Duration(hours: 24));
+
+        print(
+          '🔍 [AnnouncementsService] Applying today_mixed filter for: $todayMixedDepartment',
+        );
+
+        announcements =
+            announcements.where((announcement) {
+              // Check if announcement belongs to user's department or is general
+              final hasUserDepartment = announcement.tags.contains(
+                todayMixedDepartment,
+              );
+              final isGeneral = announcement.tags.contains('اخبار عامة');
+
+              // Must be user's department or general
+              if (!hasUserDepartment && !isGeneral) {
+                print(
+                  '   ❌ Filtered out (wrong dept): ${announcement.title} (tags: ${announcement.tags})',
+                );
+                return false;
+              }
+
+              // Pinned announcements from user's dept/general → always show regardless of age
+              if (announcement.pinned == true) {
+                print('   📌 Including pinned: ${announcement.title}');
+                return true;
+              }
+
+              // For non-pinned, must be from past 24 hours
+              if (announcement.timestamp.isBefore(past24Hours)) {
+                print(
+                  '   ⏰ Filtered out (too old): ${announcement.title} (timestamp: ${announcement.timestamp})',
+                );
+                return false;
+              }
+
+              // If we reach here, it's user's dept/general AND within 24 hours
+              if (hasUserDepartment) {
+                print('   ✅ Including (user dept): ${announcement.title}');
+              } else {
+                print('   ✅ Including (general): ${announcement.title}');
+              }
+              return true;
+            }).toList();
+
+        print(
+          '🔍 [AnnouncementsService] After today_mixed filtering: ${announcements.length} announcements',
+        );
+      }
 
       // Filter by user level if provided
       if (userLevel != null && userLevel.isNotEmpty) {
@@ -224,12 +283,7 @@ class AnnouncementsService {
         '📱 Triggering notification for announcement: ${announcement.title}',
       );
 
-      // Don't send notifications for draft or scheduled announcements
-      if (announcement.draft == true) {
-        print('   ⏸️ Skipping notification for draft announcement');
-        return;
-      }
-
+      // Don't send notifications for scheduled announcements
       if (announcement.publishAt != null &&
           announcement.publishAt!.isAfter(DateTime.now())) {
         print(

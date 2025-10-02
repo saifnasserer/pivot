@@ -51,7 +51,6 @@ class _AddAnnouncementMainState extends ConsumerState<AddAnnouncementMain>
   List<Map<String, String>> _links = [];
 
   // Advanced options
-  bool _isDraft = false;
   bool _isPinned = false;
   DateTime? _publishAt;
   DateTime? _expireAt;
@@ -113,7 +112,6 @@ class _AddAnnouncementMainState extends ConsumerState<AddAnnouncementMain>
       _links = List<Map<String, String>>.from(widget.announcement!.links);
 
       // Initialize advanced options
-      _isDraft = widget.announcement!.draft;
       _isPinned = widget.announcement!.pinned;
       _publishAt = widget.announcement!.publishAt;
       _expireAt = widget.announcement!.expireAt;
@@ -257,7 +255,7 @@ class _AddAnnouncementMainState extends ConsumerState<AddAnnouncementMain>
         imageUrls: imageUrls,
         links: _links,
         timestamp: DateTime.now(),
-        draft: _isDraft,
+        draft: false, // Always published (draft option removed)
         pinned: _isPinned,
         publishAt: _publishAt ?? DateTime.now(), // Use selected date or now
         expireAt: _expireAt,
@@ -345,11 +343,9 @@ class _AddAnnouncementMainState extends ConsumerState<AddAnnouncementMain>
         );
       case 3:
         return AdvancedOptionsStep(
-          isDraft: _isDraft,
           isPinned: _isPinned,
           publishAt: _publishAt,
           expireAt: _expireAt,
-          onDraftChanged: (value) => setState(() => _isDraft = value),
           onPinnedChanged: (value) => setState(() => _isPinned = value),
           onPublishAtChanged: (value) => setState(() => _publishAt = value),
           onExpireAtChanged: (value) => setState(() => _expireAt = value),

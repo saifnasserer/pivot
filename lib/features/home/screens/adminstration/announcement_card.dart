@@ -106,6 +106,158 @@ class AnnouncementCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Status badges row
+                      Row(
+                        children: [
+                          if (announcement.pinned)
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: Responsive.space(
+                                  context,
+                                  size: Space.small,
+                                ),
+                                vertical: Responsive.space(
+                                  context,
+                                  size: Space.tiny,
+                                ),
+                              ),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Colors.orange[400]!,
+                                    Colors.deepOrange[400]!,
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.push_pin,
+                                    color: Colors.white,
+                                    size: 14,
+                                  ),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'مثبت',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: Responsive.text(
+                                        context,
+                                        size: TextSize.small,
+                                      ),
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          if (isScheduled) ...[
+                            if (announcement.pinned)
+                              SizedBox(
+                                width: Responsive.space(
+                                  context,
+                                  size: Space.tiny,
+                                ),
+                              ),
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: Responsive.space(
+                                  context,
+                                  size: Space.small,
+                                ),
+                                vertical: Responsive.space(
+                                  context,
+                                  size: Space.tiny,
+                                ),
+                              ),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Colors.blue[400]!,
+                                    Colors.indigo[400]!,
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.schedule,
+                                    color: Colors.white,
+                                    size: 14,
+                                  ),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'مجدول',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: Responsive.text(
+                                        context,
+                                        size: TextSize.small,
+                                      ),
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                          if (isExpired) ...[
+                            if (announcement.pinned || isScheduled)
+                              SizedBox(
+                                width: Responsive.space(
+                                  context,
+                                  size: Space.tiny,
+                                ),
+                              ),
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: Responsive.space(
+                                  context,
+                                  size: Space.small,
+                                ),
+                                vertical: Responsive.space(
+                                  context,
+                                  size: Space.tiny,
+                                ),
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.red[400],
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.event_busy,
+                                    color: Colors.white,
+                                    size: 14,
+                                  ),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'منتهي',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: Responsive.text(
+                                        context,
+                                        size: TextSize.small,
+                                      ),
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      if (announcement.pinned || isScheduled || isExpired)
+                        SizedBox(
+                          height: Responsive.space(context, size: Space.small),
+                        ),
                       // Title
                       Text(
                         announcement.title,
