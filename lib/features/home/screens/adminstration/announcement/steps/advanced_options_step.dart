@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pivot/responsive.dart';
 import 'package:intl/intl.dart';
 
-class AdvancedOptionsStep extends StatefulWidget {
+class AdvancedOptionsStep extends StatelessWidget {
   final bool isPinned;
   final DateTime? publishAt;
   final DateTime? expireAt;
@@ -25,168 +25,228 @@ class AdvancedOptionsStep extends StatefulWidget {
   });
 
   @override
-  State<AdvancedOptionsStep> createState() => _AdvancedOptionsStepState();
-}
-
-class _AdvancedOptionsStepState extends State<AdvancedOptionsStep> {
-  @override
   Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: widget.fadeAnimation,
-      child: SlideTransition(
-        position: widget.slideAnimation,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Title
-            Text(
-              'خيارات متقدمة',
-              style: TextStyle(
-                fontSize: Responsive.text(context, size: TextSize.heading),
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-              textAlign: TextAlign.right,
-            ),
-            SizedBox(height: Responsive.space(context, size: Space.small)),
-            Text(
-              'تحكم في وقت النشر وحالة الإعلان',
-              style: TextStyle(
-                fontSize: Responsive.text(context, size: TextSize.medium),
-                color: Colors.grey[600],
-              ),
-              textAlign: TextAlign.right,
-            ),
-            SizedBox(height: Responsive.space(context, size: Space.large)),
-
-            // Pinned Toggle Section
-            _buildSectionCard(
-              context,
-              title: 'التثبيت',
-              icon: Icons.push_pin,
-              iconColor: Colors.orange,
-              children: [
-                _buildToggleTile(
-                  context,
-                  title: 'تثبيت الإعلان',
-                  subtitle: 'سيظهر الإعلان في أعلى القائمة دائماً',
-                  icon: Icons.push_pin_outlined,
-                  value: widget.isPinned,
-                  onChanged: widget.onPinnedChanged,
-                ),
-              ],
-            ),
-
-            SizedBox(height: Responsive.space(context, size: Space.large)),
-
-            // Scheduling Section
-            _buildSectionCard(
-              context,
-              title: 'جدولة النشر والانتهاء',
-              icon: Icons.schedule,
-              iconColor: Colors.blue,
-              children: [
-                // Publish At
-                _buildDateTimeTile(
-                  context,
-                  title: 'تاريخ النشر',
-                  subtitle:
-                      widget.publishAt == null
-                          ? 'نشر فوري (الآن)'
-                          : DateFormat(
-                            'yyyy-MM-dd - hh:mm a',
-                            'ar',
-                          ).format(widget.publishAt!),
-                  icon: Icons.publish,
-                  dateTime: widget.publishAt,
-                  onClear: () => widget.onPublishAtChanged(null),
-                  onSelect: () => _selectPublishDate(context),
-                ),
-                Divider(height: 1, color: Colors.grey[200]),
-
-                // Expire At
-                _buildDateTimeTile(
-                  context,
-                  title: 'تاريخ الانتهاء',
-                  subtitle:
-                      widget.expireAt == null
-                          ? 'بدون تاريخ انتهاء'
-                          : DateFormat(
-                            'yyyy-MM-dd - hh:mm a',
-                            'ar',
-                          ).format(widget.expireAt!),
-                  icon: Icons.event_busy,
-                  dateTime: widget.expireAt,
-                  onClear: () => widget.onExpireAtChanged(null),
-                  onSelect: () => _selectExpireDate(context),
-                ),
-              ],
-            ),
-
-            // Info box
-            SizedBox(height: Responsive.space(context, size: Space.large)),
-            Container(
-              padding: Responsive.padding(context, size: Space.medium),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.blue[50]!, Colors.green[50]!],
-                  begin: Alignment.topRight,
-                  end: Alignment.bottomLeft,
-                ),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.blue[100]!, width: 1.5),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, color: Colors.blue[700], size: 24),
-                  SizedBox(width: Responsive.space(context, size: Space.small)),
-                  Expanded(
-                    child: Text(
-                      _getInfoMessage(),
-                      style: TextStyle(
-                        fontSize: Responsive.text(
-                          context,
-                          size: TextSize.medium,
+    return AnimatedBuilder(
+      animation: fadeAnimation,
+      builder: (context, child) {
+        return FadeTransition(
+          opacity: fadeAnimation,
+          child: AnimatedBuilder(
+            animation: slideAnimation,
+            builder: (context, child) {
+              return SlideTransition(
+                position: slideAnimation,
+                child: SizedBox(
+                  width: double.infinity,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Header (matching other steps pattern)
+                      Container(
+                        padding: Responsive.padding(context, size: Space.large),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.purple[400]!,
+                              Colors.deepPurple[400]!,
+                            ],
+                            begin: Alignment.topRight,
+                            end: Alignment.bottomLeft,
+                          ),
+                          borderRadius: BorderRadius.circular(
+                            Responsive.space(context, size: Space.large),
+                          ),
                         ),
-                        color: Colors.blue[900],
-                        fontWeight: FontWeight.w500,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    'خيارات متقدمة',
+                                    style: TextStyle(
+                                      fontSize:
+                                          Responsive.text(
+                                            context,
+                                            size: TextSize.heading,
+                                          ) *
+                                          1.2,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                    textAlign: TextAlign.right,
+                                  ),
+                                  Text(
+                                    'تحكم في وقت النشر وحالة الإعلان',
+                                    style: TextStyle(
+                                      fontSize: Responsive.text(
+                                        context,
+                                        size: TextSize.medium,
+                                      ),
+                                      color: Colors.white.withOpacity(0.9),
+                                    ),
+                                    textAlign: TextAlign.right,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            SizedBox(
+                              width: Responsive.space(
+                                context,
+                                size: Space.medium,
+                              ),
+                            ),
+                            Icon(
+                              Icons.tune,
+                              color: Colors.white,
+                              size:
+                                  Responsive.space(context, size: Space.large) *
+                                  1.5,
+                            ),
+                          ],
+                        ),
                       ),
-                      textAlign: TextAlign.right,
-                    ),
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.large),
+                      ),
+
+                      // Pinned Toggle
+                      _buildToggleCard(
+                        context,
+                        title: 'تثبيت الإعلان',
+                        subtitle: 'سيظهر الإعلان في أعلى القائمة دائماً',
+                        icon: Icons.push_pin,
+                        value: isPinned,
+                        onChanged: onPinnedChanged,
+                      ),
+
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.large),
+                      ),
+
+                      // Publish Date
+                      _buildDateCard(
+                        context,
+                        title: 'تاريخ النشر',
+                        subtitle:
+                            publishAt == null
+                                ? 'نشر فوري (الآن)'
+                                : DateFormat(
+                                  'yyyy-MM-dd - hh:mm a',
+                                ).format(publishAt!),
+                        icon: Icons.publish,
+                        iconColor: Colors.blue,
+                        dateTime: publishAt,
+                        onClear: () => onPublishAtChanged(null),
+                        onSelect: () => _selectPublishDate(context),
+                      ),
+
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.medium),
+                      ),
+
+                      // Expire Date
+                      _buildDateCard(
+                        context,
+                        title: 'تاريخ الانتهاء',
+                        subtitle:
+                            expireAt == null
+                                ? 'بدون تاريخ انتهاء'
+                                : DateFormat(
+                                  'yyyy-MM-dd - hh:mm a',
+                                ).format(expireAt!),
+                        icon: Icons.event_busy,
+                        iconColor: Colors.red,
+                        dateTime: expireAt,
+                        onClear: () => onExpireAtChanged(null),
+                        onSelect: () => _selectExpireDate(context),
+                      ),
+
+                      // Info box
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.large),
+                      ),
+                      Container(
+                        padding: Responsive.padding(context, size: Space.large),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [Colors.blue[50]!, Colors.green[50]!],
+                            begin: Alignment.topRight,
+                            end: Alignment.bottomLeft,
+                          ),
+                          borderRadius: BorderRadius.circular(
+                            Responsive.space(context, size: Space.large),
+                          ),
+                          border: Border.all(
+                            color: Colors.blue[200]!,
+                            width: 2,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                _getInfoMessage(),
+                                style: TextStyle(
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.medium,
+                                  ),
+                                  color: Colors.blue[900],
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.5,
+                                ),
+                                textAlign: TextAlign.right,
+                              ),
+                            ),
+                            SizedBox(
+                              width: Responsive.space(
+                                context,
+                                size: Space.medium,
+                              ),
+                            ),
+                            Icon(
+                              Icons.info_outline,
+                              color: Colors.blue[700],
+                              size: 28,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+                ),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 
   String _getInfoMessage() {
     final now = DateTime.now();
-    final isScheduled =
-        widget.publishAt != null && widget.publishAt!.isAfter(now);
-    final hasExpiry = widget.expireAt != null;
-    final isPinned = widget.isPinned;
+    final isScheduled = publishAt != null && publishAt!.isAfter(now);
+    final hasExpiry = expireAt != null;
 
     if (isScheduled && hasExpiry && isPinned) {
-      return '📌 إعلان مثبت مجدول: سيُنشر في ${DateFormat('yyyy-MM-dd HH:mm').format(widget.publishAt!)} وينتهي في ${DateFormat('yyyy-MM-dd HH:mm').format(widget.expireAt!)}';
+      return '📌 إعلان مثبت مجدول: سيُنشر في ${DateFormat('yyyy-MM-dd HH:mm').format(publishAt!)} وينتهي في ${DateFormat('yyyy-MM-dd HH:mm').format(expireAt!)}';
     }
     if (isScheduled && hasExpiry) {
-      return 'إعلان مجدول: سيُنشر في ${DateFormat('yyyy-MM-dd HH:mm').format(widget.publishAt!)} وينتهي في ${DateFormat('yyyy-MM-dd HH:mm').format(widget.expireAt!)}';
+      return 'إعلان مجدول: سيُنشر في ${DateFormat('yyyy-MM-dd HH:mm').format(publishAt!)} وينتهي في ${DateFormat('yyyy-MM-dd HH:mm').format(expireAt!)}';
     }
     if (isScheduled && isPinned) {
-      return '📌 إعلان مثبت مجدول: سيُنشر في ${DateFormat('yyyy-MM-dd HH:mm').format(widget.publishAt!)} ويبقى مثبتاً';
+      return '📌 إعلان مثبت مجدول: سيُنشر في ${DateFormat('yyyy-MM-dd HH:mm').format(publishAt!)} ويبقى مثبتاً';
     }
     if (isScheduled) {
-      return 'الإعلان مجدول: لن يظهر للمستخدمين حتى ${DateFormat('yyyy-MM-dd HH:mm').format(widget.publishAt!)}';
+      return 'الإعلان مجدول: لن يظهر للمستخدمين حتى ${DateFormat('yyyy-MM-dd HH:mm').format(publishAt!)}';
     }
     if (hasExpiry && isPinned) {
-      return '📌 إعلان مثبت: سيُنشر فوراً وينتهي تلقائياً في ${DateFormat('yyyy-MM-dd HH:mm').format(widget.expireAt!)}';
+      return '📌 إعلان مثبت: سيُنشر فوراً وينتهي تلقائياً في ${DateFormat('yyyy-MM-dd HH:mm').format(expireAt!)}';
     }
     if (hasExpiry) {
-      return 'سيُنشر فوراً ويُحذف تلقائياً بعد ${DateFormat('yyyy-MM-dd HH:mm').format(widget.expireAt!)}';
+      return 'سيُنشر فوراً ويُحذف تلقائياً بعد ${DateFormat('yyyy-MM-dd HH:mm').format(expireAt!)}';
     }
     if (isPinned) {
       return '📌 إعلان مثبت: سيُنشر فوراً ويظهر في أعلى القائمة دائماً';
@@ -194,67 +254,7 @@ class _AdvancedOptionsStepState extends State<AdvancedOptionsStep> {
     return 'الإعلان سيُنشر فوراً ويظل مرئياً بدون حد زمني';
   }
 
-  Widget _buildSectionCard(
-    BuildContext context, {
-    required String title,
-    required IconData icon,
-    required Color iconColor,
-    required List<Widget> children,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[200]!, width: 1.5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: Responsive.padding(context, size: Space.medium),
-            child: Row(
-              children: [
-                Container(
-                  padding: EdgeInsets.all(
-                    Responsive.space(context, size: Space.small),
-                  ),
-                  decoration: BoxDecoration(
-                    color: iconColor.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(icon, color: iconColor, size: 22),
-                ),
-                SizedBox(width: Responsive.space(context, size: Space.small)),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: Responsive.text(context, size: TextSize.medium),
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                    textAlign: TextAlign.right,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(16),
-                bottomRight: Radius.circular(16),
-              ),
-            ),
-            child: Column(children: children),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildToggleTile(
+  Widget _buildToggleCard(
     BuildContext context, {
     required String title,
     required String subtitle,
@@ -264,46 +264,77 @@ class _AdvancedOptionsStepState extends State<AdvancedOptionsStep> {
   }) {
     return InkWell(
       onTap: () => onChanged(!value),
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(
+        Responsive.space(context, size: Space.large),
+      ),
       child: Container(
-        padding: Responsive.padding(context, size: Space.medium),
+        padding: Responsive.padding(context, size: Space.large),
         decoration: BoxDecoration(
-          color: value ? Colors.orange[50] : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
+          gradient:
+              value
+                  ? LinearGradient(
+                    colors: [Colors.orange[50]!, Colors.deepOrange[50]!],
+                    begin: Alignment.topRight,
+                    end: Alignment.bottomLeft,
+                  )
+                  : null,
+          color: value ? null : Colors.grey[50],
+          borderRadius: BorderRadius.circular(
+            Responsive.space(context, size: Space.large),
+          ),
           border: Border.all(
             color: value ? Colors.orange[300]! : Colors.grey[200]!,
-            width: value ? 2 : 1,
+            width: value ? 2.5 : 1.5,
           ),
         ),
         child: Row(
           children: [
             // Checkbox indicator on the right (RTL)
             Container(
-              width: 24,
-              height: 24,
+              width: 32,
+              height: 32,
               decoration: BoxDecoration(
-                color: value ? Colors.orange : Colors.white,
+                gradient:
+                    value
+                        ? LinearGradient(
+                          colors: [
+                            Colors.orange[400]!,
+                            Colors.deepOrange[500]!,
+                          ],
+                        )
+                        : null,
+                color: value ? null : Colors.white,
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: value ? Colors.orange : Colors.grey[400]!,
+                  color: value ? Colors.orange[600]! : Colors.grey[300]!,
                   width: 2,
                 ),
+                boxShadow:
+                    value
+                        ? [
+                          BoxShadow(
+                            color: Colors.orange.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: Offset(0, 2),
+                          ),
+                        ]
+                        : null,
               ),
               child:
                   value
-                      ? Icon(Icons.check, color: Colors.white, size: 16)
+                      ? Icon(Icons.check, color: Colors.white, size: 20)
                       : null,
             ),
-            SizedBox(width: Responsive.space(context, size: Space.small)),
+            SizedBox(width: Responsive.space(context, size: Space.medium)),
             Icon(
               icon,
               color: value ? Colors.orange[700] : Colors.grey[400],
-              size: 28,
+              size: 32,
             ),
-            SizedBox(width: Responsive.space(context, size: Space.small)),
+            SizedBox(width: Responsive.space(context, size: Space.medium)),
             Expanded(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
                     title,
@@ -332,17 +363,29 @@ class _AdvancedOptionsStepState extends State<AdvancedOptionsStep> {
     );
   }
 
-  Widget _buildDateTimeTile(
+  Widget _buildDateCard(
     BuildContext context, {
     required String title,
     required String subtitle,
     required IconData icon,
+    required Color iconColor,
     required DateTime? dateTime,
     required VoidCallback onClear,
     required VoidCallback onSelect,
   }) {
-    return Padding(
-      padding: Responsive.padding(context, size: Space.medium),
+    return Container(
+      padding: Responsive.padding(context, size: Space.large),
+      decoration: BoxDecoration(
+        color: dateTime != null ? iconColor.withOpacity(0.05) : Colors.grey[50],
+        borderRadius: BorderRadius.circular(
+          Responsive.space(context, size: Space.large),
+        ),
+        border: Border.all(
+          color:
+              dateTime != null ? iconColor.withOpacity(0.3) : Colors.grey[200]!,
+          width: dateTime != null ? 2 : 1.5,
+        ),
+      ),
       child: Row(
         children: [
           // Action buttons on the right (RTL)
@@ -351,12 +394,12 @@ class _AdvancedOptionsStepState extends State<AdvancedOptionsStep> {
             children: [
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.blue[50],
-                  borderRadius: BorderRadius.circular(8),
+                  color: iconColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: IconButton(
-                  icon: const Icon(Icons.edit_calendar, size: 20),
-                  color: Colors.blue[700],
+                  icon: const Icon(Icons.edit_calendar, size: 22),
+                  color: iconColor,
                   onPressed: onSelect,
                   tooltip: 'تحديد التاريخ',
                 ),
@@ -366,10 +409,10 @@ class _AdvancedOptionsStepState extends State<AdvancedOptionsStep> {
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.red[50],
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   child: IconButton(
-                    icon: const Icon(Icons.clear, size: 20),
+                    icon: const Icon(Icons.clear, size: 22),
                     color: Colors.red[700],
                     onPressed: onClear,
                     tooltip: 'إزالة التاريخ',
@@ -378,17 +421,30 @@ class _AdvancedOptionsStepState extends State<AdvancedOptionsStep> {
               ],
             ],
           ),
-          SizedBox(width: Responsive.space(context, size: Space.small)),
-          // Icon and text on the left (RTL)
-          Icon(
-            icon,
-            color: dateTime != null ? Colors.blue[700] : Colors.grey[400],
-            size: 24,
-          ),
-          SizedBox(width: Responsive.space(context, size: Space.small)),
+          SizedBox(width: Responsive.space(context, size: Space.medium)),
+          // Icon
+          // Container(
+          //   padding: EdgeInsets.all(
+          //     Responsive.space(context, size: Space.small),
+          //   ),
+          //   decoration: BoxDecoration(
+          //     color:
+          //         dateTime != null
+          //             ? iconColor.withOpacity(0.15)
+          //             : Colors.grey[200],
+          //     borderRadius: BorderRadius.circular(12),
+          //   ),
+          //   child: Icon(
+          //     icon,
+          //     color: dateTime != null ? iconColor : Colors.grey[400],
+          //     size: 28,
+          //   ),
+          // ),
+          // SizedBox(width: Responsive.space(context, size: Space.medium)),
+          // Text
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
                   title,
@@ -404,8 +460,7 @@ class _AdvancedOptionsStepState extends State<AdvancedOptionsStep> {
                   subtitle,
                   style: TextStyle(
                     fontSize: Responsive.text(context, size: TextSize.small),
-                    color:
-                        dateTime != null ? Colors.blue[700] : Colors.grey[600],
+                    color: dateTime != null ? iconColor : Colors.grey[600],
                     fontWeight:
                         dateTime != null ? FontWeight.w600 : FontWeight.normal,
                   ),
@@ -421,7 +476,7 @@ class _AdvancedOptionsStepState extends State<AdvancedOptionsStep> {
 
   Future<void> _selectPublishDate(BuildContext context) async {
     final now = DateTime.now();
-    final initialDate = widget.publishAt ?? now;
+    final initialDate = publishAt ?? now;
 
     final selectedDate = await showDatePicker(
       context: context,
@@ -430,14 +485,16 @@ class _AdvancedOptionsStepState extends State<AdvancedOptionsStep> {
       lastDate: DateTime(now.year + 1),
     );
 
-    if (selectedDate == null || !mounted) return;
+    if (selectedDate == null) return;
+
+    if (!context.mounted) return;
 
     final selectedTime = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(initialDate),
     );
 
-    if (selectedTime == null || !mounted) return;
+    if (selectedTime == null) return;
 
     final finalDateTime = DateTime(
       selectedDate.year,
@@ -449,7 +506,7 @@ class _AdvancedOptionsStepState extends State<AdvancedOptionsStep> {
 
     // Validation: publishAt must be after now
     if (finalDateTime.isBefore(DateTime.now())) {
-      if (!mounted) return;
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('يجب أن يكون تاريخ النشر في المستقبل'),
@@ -460,8 +517,8 @@ class _AdvancedOptionsStepState extends State<AdvancedOptionsStep> {
     }
 
     // Validation: publishAt must be before expireAt
-    if (widget.expireAt != null && finalDateTime.isAfter(widget.expireAt!)) {
-      if (!mounted) return;
+    if (expireAt != null && finalDateTime.isAfter(expireAt!)) {
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('يجب أن يكون تاريخ النشر قبل تاريخ الانتهاء'),
@@ -471,12 +528,12 @@ class _AdvancedOptionsStepState extends State<AdvancedOptionsStep> {
       return;
     }
 
-    widget.onPublishAtChanged(finalDateTime);
+    onPublishAtChanged(finalDateTime);
   }
 
   Future<void> _selectExpireDate(BuildContext context) async {
     final now = DateTime.now();
-    final initialDate = widget.expireAt ?? now.add(const Duration(days: 7));
+    final initialDate = expireAt ?? now.add(const Duration(days: 7));
 
     final selectedDate = await showDatePicker(
       context: context,
@@ -485,14 +542,16 @@ class _AdvancedOptionsStepState extends State<AdvancedOptionsStep> {
       lastDate: DateTime(now.year + 1),
     );
 
-    if (selectedDate == null || !mounted) return;
+    if (selectedDate == null) return;
+
+    if (!context.mounted) return;
 
     final selectedTime = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(initialDate),
     );
 
-    if (selectedTime == null || !mounted) return;
+    if (selectedTime == null) return;
 
     final finalDateTime = DateTime(
       selectedDate.year,
@@ -504,7 +563,7 @@ class _AdvancedOptionsStepState extends State<AdvancedOptionsStep> {
 
     // Validation: expireAt must be after now
     if (finalDateTime.isBefore(DateTime.now())) {
-      if (!mounted) return;
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('يجب أن يكون تاريخ الانتهاء في المستقبل'),
@@ -515,9 +574,9 @@ class _AdvancedOptionsStepState extends State<AdvancedOptionsStep> {
     }
 
     // Validation: expireAt must be after publishAt
-    final publishDate = widget.publishAt ?? DateTime.now();
+    final publishDate = publishAt ?? DateTime.now();
     if (finalDateTime.isBefore(publishDate)) {
-      if (!mounted) return;
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('يجب أن يكون تاريخ الانتهاء بعد تاريخ النشر'),
@@ -527,6 +586,6 @@ class _AdvancedOptionsStepState extends State<AdvancedOptionsStep> {
       return;
     }
 
-    widget.onExpireAtChanged(finalDateTime);
+    onExpireAtChanged(finalDateTime);
   }
 }

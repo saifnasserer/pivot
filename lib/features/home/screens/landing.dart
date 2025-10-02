@@ -98,8 +98,6 @@ class LandingState extends ConsumerState<Landing>
   }
 
   void _handleCategoryChange(String category) async {
-    print('🔍 [Landing] Handling category change: $category');
-
     // Get user's level for filtering
     final userProfileState = ref.read(userProfileProvider);
     final userLevel = userProfileState.loggedInUserProfile?.level;
@@ -109,15 +107,8 @@ class LandingState extends ConsumerState<Landing>
         .getDepartmentCode(category);
     final timeFilter = ref.read(homeProvider.notifier).getTimeFilter(category);
 
-    print('🔍 [Landing] Department code: $departmentCode');
-    print('🔍 [Landing] Time filter: $timeFilter');
-    print('🔍 [Landing] User level: $userLevel');
-
     // Fetch announcements with level filtering
     if (departmentCode != null && timeFilter != null) {
-      print(
-        '🔍 [Landing] Fetching announcements with department: $departmentCode, timeFilter: $timeFilter, userLevel: $userLevel',
-      );
       ref
           .read(announcementsProvider.notifier)
           .fetchAnnouncements(
@@ -126,16 +117,9 @@ class LandingState extends ConsumerState<Landing>
             userLevel: userLevel,
           );
     } else if (departmentCode != null) {
-      print(
-        '🔍 [Landing] Fetching announcements with department only: $departmentCode, userLevel: $userLevel',
-      );
       ref
           .read(announcementsProvider.notifier)
           .fetchAnnouncements(department: departmentCode, userLevel: userLevel);
-    } else {
-      print(
-        '🔍 [Landing] No valid department code found for category: $category',
-      );
     }
   }
 
@@ -178,9 +162,6 @@ class LandingState extends ConsumerState<Landing>
                   announcementState.hasMore &&
                   scrollInfo.metrics.pixels >=
                       scrollInfo.metrics.maxScrollExtent * 0.8) {
-                print(
-                  '🔍 [Landing] Infinite scroll trigger - loading more announcements',
-                );
                 ref
                     .read(announcementsProvider.notifier)
                     .loadMoreAnnouncements();

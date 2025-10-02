@@ -134,16 +134,38 @@ class BookmarksNotifier extends StateNotifier<BookmarksState> {
 
   // Toggle bookmark
   Future<bool> toggleBookmark(String itemId) async {
-    state = state.copyWith(isLoading: true, error: null);
+    // Optimistic update - update UI immediately
+    final isCurrentlyBookmarked = state.bookmarks.contains(itemId);
+    final updatedBookmarks = List<String>.from(state.bookmarks);
+
+    if (isCurrentlyBookmarked) {
+      updatedBookmarks.remove(itemId);
+    } else {
+      updatedBookmarks.add(itemId);
+    }
+
+    // Update state immediately for instant UI feedback
+    state = state.copyWith(bookmarks: updatedBookmarks, error: null);
+
+    // Run the actual operation in the background
     try {
       final success = await _repository.toggleBookmark(itemId);
-      if (success) {
-        await getUserBookmarks(); // Refresh bookmarks
+
+      if (!success) {
+        // Rollback on failure
+        if (mounted) {
+          state = state.copyWith(bookmarks: state.bookmarks);
+          await getUserBookmarks(); // Refresh to get correct state
+        }
       }
-      state = state.copyWith(isLoading: false);
+
       return success;
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      // Rollback on error
+      if (mounted) {
+        state = state.copyWith(bookmarks: state.bookmarks, error: e.toString());
+        await getUserBookmarks(); // Refresh to get correct state
+      }
       return false;
     }
   }

@@ -59,9 +59,6 @@ class CategoryService {
     // 4. Today's News (always last/rightmost - highest priority)
     orderedCategories.add('اخبار النهاردة');
 
-    print(
-      '📱 [CategoryService] Ordered categories for user (dept: $userDepartment, level: $userLevel): $orderedCategories',
-    );
     return orderedCategories;
   }
 

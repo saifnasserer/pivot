@@ -90,9 +90,6 @@ class AnnouncementsNotifier extends StateNotifier<AnnouncementsState> {
     bool includeScheduledAndExpired = false,
     int limit = 10,
   }) async {
-    print(
-      '🔍 [AnnouncementsProvider] Fetching announcements with department: $department, timeFilter: $timeFilter, userLevel: $userLevel, limit: $limit',
-    );
     state = state.copyWith(isLoading: true, error: null, hasMore: true);
     try {
       final announcements = await _repo.fetchAnnouncements(
@@ -102,9 +99,6 @@ class AnnouncementsNotifier extends StateNotifier<AnnouncementsState> {
         includeScheduledAndExpired: includeScheduledAndExpired,
         limit: limit,
         startAfterDocument: null, // Fresh fetch, no pagination
-      );
-      print(
-        '🔍 [AnnouncementsProvider] Fetched ${announcements.length} announcements',
       );
 
       // If we got fewer announcements than the limit, there are no more
@@ -119,7 +113,6 @@ class AnnouncementsNotifier extends StateNotifier<AnnouncementsState> {
         hasMore: hasMore,
       );
     } catch (e) {
-      print('🔍 [AnnouncementsProvider] Error fetching announcements: $e');
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
@@ -127,21 +120,14 @@ class AnnouncementsNotifier extends StateNotifier<AnnouncementsState> {
   Future<void> loadMoreAnnouncements() async {
     // Don't load more if already loading or no more data
     if (state.isLoadingMore || !state.hasMore || state.isLoading) {
-      print(
-        '🔍 [AnnouncementsProvider] Skipping loadMore (isLoadingMore: ${state.isLoadingMore}, hasMore: ${state.hasMore}, isLoading: ${state.isLoading})',
-      );
       return;
     }
 
-    print('🔍 [AnnouncementsProvider] Loading more announcements...');
     state = state.copyWith(isLoadingMore: true);
 
     try {
       final lastDoc = _repo.getLastDocument();
       if (lastDoc == null) {
-        print(
-          '⚠️ [AnnouncementsProvider] No last document found, cannot paginate',
-        );
         state = state.copyWith(isLoadingMore: false, hasMore: false);
         return;
       }
@@ -152,10 +138,6 @@ class AnnouncementsNotifier extends StateNotifier<AnnouncementsState> {
         userLevel: state.currentUserLevel,
         limit: 10,
         startAfterDocument: lastDoc,
-      );
-
-      print(
-        '🔍 [AnnouncementsProvider] Loaded ${newAnnouncements.length} more announcements',
       );
 
       // If we got fewer announcements than the limit, there are no more
@@ -169,7 +151,6 @@ class AnnouncementsNotifier extends StateNotifier<AnnouncementsState> {
         );
       }
     } catch (e) {
-      print('❌ [AnnouncementsProvider] Error loading more: $e');
       if (mounted) {
         state = state.copyWith(isLoadingMore: false, error: e.toString());
       }
