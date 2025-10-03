@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/features/guide/providers/guide_provider.dart';
@@ -62,9 +63,52 @@ class _SubjectSelectionScreenState
 
     _selectedSubjectIds = Set<String>.from(widget.previouslySelectedIds);
 
-    // Initialize subjects provider - fetch all subjects and guide content
+    // Initialize subjects provider - local-first approach
+    // Only fetches from Firestore if cache is empty
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(legacySubjectProviderProvider.notifier).fetchAllSubjects();
+      if (kDebugMode) {
+        print(
+          '📚 [SubjectSelection] Initializing with local-first strategy...',
+        );
+      }
+
+      // Get user profile to determine level and role
+      final userProfileState = ref.read(userProfileProvider);
+      final userRole = userProfileState.loggedInUserProfile?.role;
+
+      // Determine which level to use for filtering
+      String? levelToUse;
+      if (widget.targetUserId != null && userRole == 'Super Admin') {
+        // Super Admin editing another user - use target user's level
+        final targetUser = userProfileState.allUsers.firstWhere(
+          (user) => user.id == widget.targetUserId,
+          orElse: () => userProfileState.loggedInUserProfile!,
+        );
+        levelToUse = targetUser.level;
+
+        if (kDebugMode) {
+          print('   👤 Super Admin editing user (Level: ${targetUser.level})');
+        }
+      } else if (userRole != 'Super Admin') {
+        // Regular user - use their own level
+        levelToUse = userProfileState.loggedInUserProfile?.level;
+
+        if (kDebugMode) {
+          print('   👤 User level: $levelToUse');
+        }
+      } else {
+        // Super Admin managing their own subjects - show all
+        if (kDebugMode) {
+          print('   👤 Super Admin (showing all subjects)');
+        }
+      }
+
+      // Fetch subjects - will use cache if available, filtered by level
+      ref
+          .read(legacySubjectProviderProvider.notifier)
+          .fetchAllSubjects(userLevel: levelToUse, userRole: userRole);
+
+      // Fetch guide content
       ref.read(guideProvider.notifier).fetchGuideContent();
     });
   }
@@ -151,6 +195,7 @@ class _SubjectSelectionScreenState
 
   List<Subject> _filterSubjects(List<Subject> subjects) {
     // Check if we can use cached results
+    // No need to check user level anymore since fetching is level-aware
     if (_cachedFilteredSubjects != null &&
         _lastSearchQuery == _searchQuery &&
         _lastSelectedYear == _selectedYear) {
@@ -1011,6 +1056,40 @@ class _SubjectSelectionScreenState
     );
   }
 
+  Future<void> _handleRefresh() async {
+    if (kDebugMode) {
+      print('🔄 [SubjectSelection] Manual refresh triggered');
+    }
+
+    // Get user profile to determine level and role
+    final userProfileState = ref.read(userProfileProvider);
+    final userRole = userProfileState.loggedInUserProfile?.role;
+
+    // Determine which level to use for filtering
+    String? levelToUse;
+    if (widget.targetUserId != null && userRole == 'Super Admin') {
+      final targetUser = userProfileState.allUsers.firstWhere(
+        (user) => user.id == widget.targetUserId,
+        orElse: () => userProfileState.loggedInUserProfile!,
+      );
+      levelToUse = targetUser.level;
+    } else if (userRole != 'Super Admin') {
+      levelToUse = userProfileState.loggedInUserProfile?.level;
+    }
+
+    await ref
+        .read(legacySubjectProviderProvider.notifier)
+        .fetchAllSubjects(
+          forceRefresh: true,
+          userLevel: levelToUse,
+          userRole: userRole,
+        );
+
+    if (kDebugMode) {
+      print('✅ [SubjectSelection] Refresh complete');
+    }
+  }
+
   Widget _buildSubjectsList() {
     return Consumer(
       builder: (context, ref, child) {
@@ -1203,121 +1282,126 @@ class _SubjectSelectionScreenState
         }
         final sortedYears = groupedSubjects.keys.toList()..sort();
 
-        return ListView.builder(
-          padding: Responsive.padding(context, size: Space.large),
-          itemCount: sortedYears.length,
-          itemBuilder: (context, index) {
-            final year = sortedYears[index];
-            final subjectsInYear = groupedSubjects[year]!;
-            subjectsInYear.sort((a, b) => a.name.compareTo(b.name));
+        return RefreshIndicator(
+          onRefresh: _handleRefresh,
+          color: Colors.black,
+          child: ListView.builder(
+            padding: Responsive.padding(context, size: Space.large),
+            itemCount: sortedYears.length,
+            itemBuilder: (context, index) {
+              final year = sortedYears[index];
+              final subjectsInYear = groupedSubjects[year]!;
+              subjectsInYear.sort((a, b) => a.name.compareTo(b.name));
 
-            final isExpanded = _expandedState[year] ?? false;
+              final isExpanded = _expandedState[year] ?? false;
 
-            return Container(
-              margin: EdgeInsets.only(
-                bottom: Responsive.space(context, size: Space.large),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Year Header
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey[200]!),
-                    ),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
+              return Container(
+                margin: EdgeInsets.only(
+                  bottom: Responsive.space(context, size: Space.large),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Year Header
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
                         borderRadius: BorderRadius.circular(12),
-                        onTap: () {
-                          setState(() {
-                            _expandedState[year] = !isExpanded;
-                          });
-                        },
-                        child: Padding(
-                          padding: Responsive.padding(
-                            context,
-                            size: Space.medium,
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: Responsive.padding(
-                                  context,
-                                  size: Space.small,
+                        border: Border.all(color: Colors.grey[200]!),
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () {
+                            setState(() {
+                              _expandedState[year] = !isExpanded;
+                            });
+                          },
+                          child: Padding(
+                            padding: Responsive.padding(
+                              context,
+                              size: Space.medium,
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: Responsive.padding(
+                                    context,
+                                    size: Space.small,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.05),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(
+                                    Icons.grade,
+                                    color: Colors.black87,
+                                    size: 20,
+                                  ),
                                 ),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.05),
-                                  borderRadius: BorderRadius.circular(8),
+                                SizedBox(
+                                  width: Responsive.space(
+                                    context,
+                                    size: Space.medium,
+                                  ),
                                 ),
-                                child: const Icon(
-                                  Icons.grade,
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'الترم $year',
+                                        style: TextStyle(
+                                          fontSize: Responsive.text(
+                                            context,
+                                            size: TextSize.medium,
+                                          ),
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                      Text(
+                                        '${subjectsInYear.length} مادة',
+                                        style: TextStyle(
+                                          fontSize: Responsive.text(
+                                            context,
+                                            size: TextSize.small,
+                                          ),
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Icon(
+                                  isExpanded
+                                      ? Icons.expand_less
+                                      : Icons.expand_more,
                                   color: Colors.black87,
-                                  size: 20,
                                 ),
-                              ),
-                              SizedBox(
-                                width: Responsive.space(
-                                  context,
-                                  size: Space.medium,
-                                ),
-                              ),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'الترم $year',
-                                      style: TextStyle(
-                                        fontSize: Responsive.text(
-                                          context,
-                                          size: TextSize.medium,
-                                        ),
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.black87,
-                                      ),
-                                    ),
-                                    Text(
-                                      '${subjectsInYear.length} مادة',
-                                      style: TextStyle(
-                                        fontSize: Responsive.text(
-                                          context,
-                                          size: TextSize.small,
-                                        ),
-                                        color: Colors.grey[600],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Icon(
-                                isExpanded
-                                    ? Icons.expand_less
-                                    : Icons.expand_more,
-                                color: Colors.black87,
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
 
-                  // Subjects in Year
-                  if (isExpanded) ...[
-                    SizedBox(
-                      height: Responsive.space(context, size: Space.medium),
-                    ),
-                    ...subjectsInYear.map(
-                      (subject) => _buildSubjectCard(subject),
-                    ),
+                    // Subjects in Year
+                    if (isExpanded) ...[
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.medium),
+                      ),
+                      ...subjectsInYear.map(
+                        (subject) => _buildSubjectCard(subject),
+                      ),
+                    ],
                   ],
-                ],
-              ),
-            );
-          },
+                ),
+              );
+            },
+          ),
         );
       },
     );

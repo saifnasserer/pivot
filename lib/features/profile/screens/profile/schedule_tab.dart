@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:pivot/features/schedule/screens/add_edit_schedule_dialog.dart';
 import 'package:pivot/features/schedule/screens/schadule.dart';
 import 'package:pivot/features/schedule/providers/schedule_provider.dart';
 import 'package:pivot/features/schedule/widgets/share_schedule_dialog.dart';
+import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/models/schedule_item.dart';
 
 class ScheduleTab extends ConsumerStatefulWidget {
@@ -264,39 +266,41 @@ class _ScheduleTabState extends ConsumerState<ScheduleTab>
             ),
           ),
         ),
-        // Share button positioned at top right
+        // Speed dial with add and share actions positioned at bottom right
         Positioned(
-          top: 8,
-          left: 8,
-          child: Material(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            elevation: 2,
-            child: InkWell(
-              onTap: _handleShareSchedule,
-              borderRadius: BorderRadius.circular(12),
-              child: Padding(
-                padding: EdgeInsets.all(12),
-                child: Icon(
-                  Icons.share_outlined,
-                  color: Colors.black87,
-                  size: 22,
-                ),
-              ),
-            ),
-          ),
-        ),
-        // Add button positioned at bottom right
-        Positioned(
-          bottom: 16,
-          left: 16,
-          child: FloatingActionButton.extended(
-            onPressed: () => _showAddScheduleDialog(context, currentDay),
-            backgroundColor: Colors.green.shade600,
+          bottom: Responsive.space(context, size: Space.medium),
+          right: Responsive.space(context, size: Space.medium),
+          child: SpeedDial(
+            icon: Icons.add,
+            activeIcon: Icons.close,
+            backgroundColor: Colors.black,
             foregroundColor: Colors.white,
-            icon: Icon(Icons.add),
-            label: Text('إضافة حصة'),
+            activeBackgroundColor: Colors.black,
+            activeForegroundColor: Colors.white,
+            visible: true,
+            closeManually: false,
             elevation: 4,
+            overlayColor: Colors.black,
+            overlayOpacity: 0.5,
+            direction: SpeedDialDirection.up,
+            children: [
+              SpeedDialChild(
+                child: Icon(Icons.share_outlined),
+                backgroundColor: Colors.black,
+                foregroundColor: Colors.white,
+                onTap: _handleShareSchedule,
+                elevation: 4,
+                shape: CircleBorder(),
+              ),
+              SpeedDialChild(
+                child: Icon(Icons.add),
+                backgroundColor: Colors.black,
+                foregroundColor: Colors.white,
+                onTap: () => _showAddScheduleDialog(context, currentDay),
+                elevation: 4,
+                shape: CircleBorder(),
+              ),
+            ],
           ),
         ),
       ],

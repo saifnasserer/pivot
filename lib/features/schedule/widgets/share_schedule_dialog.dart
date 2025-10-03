@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/services/schedule_sharing_service.dart';
@@ -333,13 +334,20 @@ class _ShareScheduleDialogState extends ConsumerState<ShareScheduleDialog> {
     );
   }
 
-  void _copyToClipboard() {
-    // TODO: Implement clipboard functionality
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('تم نسخ الرابط إلى الحافظة'),
-        backgroundColor: Colors.green.shade600,
-      ),
-    );
+  void _copyToClipboard() async {
+    if (_generatedShareId != null) {
+      final link = 'https://your-app-domain.com/schedule/$_generatedShareId';
+      await Clipboard.setData(ClipboardData(text: link));
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('تم نسخ الرابط إلى الحافظة'),
+            backgroundColor: Colors.green.shade600,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
   }
 }

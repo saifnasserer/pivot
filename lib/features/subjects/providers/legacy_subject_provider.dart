@@ -80,19 +80,11 @@ class LegacySubjectNotifier extends StateNotifier<LegacySubjectState> {
     state = state.copyWith(instructorsBySubject: instructorsBySubject);
   }
 
-  Future<void> fetchAllSubjects({bool forceRefresh = false}) async {
-    // Avoid unnecessary Firebase calls if we already have data and not forcing refresh
-    if (!forceRefresh &&
-        state.allSubjects.isNotEmpty &&
-        state.filteredSubjects.isNotEmpty) {
-      if (kDebugMode) {
-        print(
-          '[LegacySubjectProvider] Subjects already loaded, skipping Firebase call',
-        );
-      }
-      return;
-    }
-
+  Future<void> fetchAllSubjects({
+    bool forceRefresh = false,
+    String? userLevel,
+    String? userRole,
+  }) async {
     // Prevent multiple simultaneous calls
     if (state.isLoading) {
       if (kDebugMode) {
@@ -103,48 +95,133 @@ class LegacySubjectNotifier extends StateNotifier<LegacySubjectState> {
       return;
     }
 
+    // Local-First Approach: Check cache first (unless forcing refresh)
+    if (!forceRefresh) {
+      // First check if data already exists in state (Riverpod cache)
+      if (state.allSubjects.isNotEmpty && state.filteredSubjects.isNotEmpty) {
+        if (kDebugMode) {
+          print(
+            '✅ [LegacySubjectProvider] Using subjects from Riverpod state (${state.allSubjects.length} subjects)',
+          );
+          print('   💡 Zero Firestore reads needed!');
+        }
+        return;
+      }
+
+      // Check Hive cache (local-first)
+      try {
+        final cachedSubjects = CacheService.instance.getCachedSubjects();
+        if (cachedSubjects.isNotEmpty) {
+          if (kDebugMode) {
+            print(
+              '📦 [LegacySubjectProvider] Loading subjects from Hive cache (${cachedSubjects.length} subjects)',
+            );
+            print('   ⚡ Instant load - no Firestore read!');
+            print('   💡 Cache will refresh only when subjects are updated');
+          }
+
+          state = LegacySubjectState(
+            allSubjects: cachedSubjects,
+            filteredSubjects: cachedSubjects,
+            isLoading: false,
+          );
+          return;
+        }
+      } catch (cacheError) {
+        if (kDebugMode) {
+          print('[LegacySubjectProvider] Cache read error: $cacheError');
+        }
+        // Continue to fetch from Firestore
+      }
+    }
+
+    // Cache miss or force refresh - fetch from Firestore
+    if (kDebugMode) {
+      print(
+        '🔄 [LegacySubjectProvider] ${forceRefresh ? "Force refreshing" : "First time loading"} subjects from Firestore...',
+      );
+    }
+
     state = state.copyWith(isLoading: true, error: null);
 
     try {
-      // For subject selection, fetch fresh data from server
-      final subjects = await _subjectService.getSubjects();
+      List<Subject> subjects;
 
-      // IMPORTANT: Set filteredSubjects to show all subjects in subject selection
+      // Determine which subjects to fetch based on user level
+      final shouldFilterByLevel =
+          userLevel != null &&
+          userLevel != 'غير محدد' &&
+          userRole != 'Super Admin';
+
+      if (shouldFilterByLevel) {
+        final level = int.tryParse(userLevel);
+        if (level != null) {
+          if (level == 1 || level == 2) {
+            // Fetch only first 4 semesters (years 1-4)
+            subjects = await _subjectService.getSubjectsByYearRange(1, 4);
+            if (kDebugMode) {
+              print(
+                '📚 [LegacySubjectProvider] Fetching subjects for Level $level (Years 1-4 only)',
+              );
+            }
+          } else if (level == 3 || level == 4) {
+            // Fetch only semesters 5 and above
+            subjects = await _subjectService.getSubjectsByYearRange(5, 99);
+            if (kDebugMode) {
+              print(
+                '📚 [LegacySubjectProvider] Fetching subjects for Level $level (Years 5+ only)',
+              );
+            }
+          } else {
+            // Unknown level, fetch all
+            subjects = await _subjectService.getSubjects();
+          }
+        } else {
+          // Invalid level format, fetch all
+          subjects = await _subjectService.getSubjects();
+        }
+      } else {
+        // Super Admin or no level filtering - fetch all
+        subjects = await _subjectService.getSubjects();
+        if (kDebugMode && userRole == 'Super Admin') {
+          print(
+            '📚 [LegacySubjectProvider] Super Admin: Fetching all subjects',
+          );
+        }
+      }
+
+      // Set filteredSubjects to show all fetched subjects
       state = LegacySubjectState(
         allSubjects: subjects,
         filteredSubjects: subjects,
         isLoading: false,
       );
 
-      // Cache the subjects for offline use
+      // Cache the subjects for future instant access
       if (subjects.isNotEmpty) {
         await CacheService.instance.cacheSubjects(subjects);
-      }
-
-      // Debug logging for new users
-      if (kDebugMode) {
-        print(
-          '[LegacySubjectProvider] Fetched ${subjects.length} subjects for selection',
-        );
-        print(
-          '[LegacySubjectProvider] Filtered subjects count: ${state.filteredSubjects.length}',
-        );
+        if (kDebugMode) {
+          print(
+            '✅ [LegacySubjectProvider] Fetched and cached ${subjects.length} subjects',
+          );
+          print('   💾 Stored in Hive for instant future access');
+        }
       }
     } catch (e) {
-      // Try to load from cache as fallback
+      // Error - try to use stale cache as fallback
       try {
         final cachedSubjects = CacheService.instance.getCachedSubjects();
         if (cachedSubjects.isNotEmpty) {
+          if (kDebugMode) {
+            print(
+              '⚠️ [LegacySubjectProvider] Firestore error, using cached subjects (${cachedSubjects.length} subjects)',
+            );
+          }
           state = LegacySubjectState(
             allSubjects: cachedSubjects,
             filteredSubjects: cachedSubjects,
             isLoading: false,
           );
-          if (kDebugMode) {
-            print(
-              '[LegacySubjectProvider] Loaded ${cachedSubjects.length} subjects from cache',
-            );
-          }
         } else {
           state = state.copyWith(
             isLoading: false,

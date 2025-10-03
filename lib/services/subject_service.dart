@@ -47,6 +47,22 @@ class SubjectService {
     }
   }
 
+  /// Fetches subjects within a specific year range (for level-based filtering).
+  /// This reduces Firestore reads by only fetching relevant subjects.
+  Future<List<Subject>> getSubjectsByYearRange(int minYear, int maxYear) async {
+    try {
+      final snapshot =
+          await _subjectsCollection
+              .where('year', isGreaterThanOrEqualTo: minYear)
+              .where('year', isLessThanOrEqualTo: maxYear)
+              .get();
+
+      return snapshot.docs.map((doc) => doc.data()).toList();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   /// Adds a new subject to the Firestore 'subjects' collection.
   Future<Subject> addSubject(Subject subject) async {
     try {

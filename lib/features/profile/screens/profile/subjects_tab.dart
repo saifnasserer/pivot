@@ -14,6 +14,8 @@ class SubjectsTab extends ConsumerStatefulWidget {
 
 class _SubjectsTabState extends ConsumerState<SubjectsTab> {
   bool _hasInitialized = false;
+  String? _lastProfileId; // Track profile changes
+  List<String>? _lastEnrolledSubjects; // Track enrolled subjects changes
 
   @override
   void initState() {
@@ -75,16 +77,19 @@ class _SubjectsTabState extends ConsumerState<SubjectsTab> {
       final loggedInUser = userProfileState.loggedInUserProfile;
       final targetProfile = _getTargetProfile(userProfile, loggedInUser);
 
-      // Reload subjects if profile changes
+      // Check if profile or enrolled subjects changed (without triggering refresh in build)
       if (targetProfile != null && _hasInitialized) {
-        final enrolledIds = targetProfile.enrolledSubjects;
-        final currentFiltered =
-            subjectsState.filteredSubjects.map((s) => s.id).toSet();
-        final expectedFiltered = enrolledIds.toSet();
+        final currentProfileId = targetProfile.id;
+        final currentEnrolledSubjects = targetProfile.enrolledSubjects;
 
-        // If the filtered subjects don't match enrolled subjects, refresh
-        if (!currentFiltered.containsAll(expectedFiltered) ||
-            !expectedFiltered.containsAll(currentFiltered)) {
+        // Only refresh if profile ID or enrolled subjects actually changed
+        if (_lastProfileId != currentProfileId ||
+            !_listsEqual(_lastEnrolledSubjects, currentEnrolledSubjects)) {
+          // Update tracking variables FIRST to prevent infinite loop
+          _lastProfileId = currentProfileId;
+          _lastEnrolledSubjects = List.from(currentEnrolledSubjects);
+
+          // Schedule refresh for next frame
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
               print('🔄 SubjectsTab: Profile changed, refreshing...');
@@ -94,6 +99,10 @@ class _SubjectsTabState extends ConsumerState<SubjectsTab> {
             }
           });
         }
+      } else if (targetProfile != null) {
+        // Initialize tracking on first build
+        _lastProfileId = targetProfile.id;
+        _lastEnrolledSubjects = List.from(targetProfile.enrolledSubjects);
       }
 
       if (subjectsState.isLoading) {
@@ -121,6 +130,17 @@ class _SubjectsTabState extends ConsumerState<SubjectsTab> {
       print('❌ SubjectsTab: Error - $e');
       return const Center(child: Text('لا يمكن تحميل المواد حالياً'));
     }
+  }
+
+  // Helper method to compare lists
+  bool _listsEqual(List<String>? list1, List<String> list2) {
+    if (list1 == null) return false;
+    if (list1.length != list2.length) return false;
+
+    final set1 = list1.toSet();
+    final set2 = list2.toSet();
+
+    return set1.containsAll(set2) && set2.containsAll(set1);
   }
 
   UserProfile? _getTargetProfile(
