@@ -50,6 +50,7 @@ class _CardModelState extends ConsumerState<CardModel> {
   int _currentPage = 0;
   List<Widget> _contentPages = [];
   final PageController _cardPageController = PageController();
+  bool _bookmarksLoadAttempted = false;
 
   @override
   void initState() {
@@ -735,25 +736,159 @@ class _CardModelState extends ConsumerState<CardModel> {
                                       .bookmarks
                                       .contains(widget.id);
 
-                                  return IconButton(
-                                    onPressed: () async {
-                                      // Final mounted check before action
-                                      if (!mounted) return;
+                                  // Debug: Print bookmark state when it changes
+                                  if (widget.id != null &&
+                                      bookmarksState.bookmarks.isNotEmpty) {
+                                    print(
+                                      'Bookmark state for ${widget.id}: $isBookmarked (${bookmarksState.bookmarks.length} total bookmarks)',
+                                    );
+                                  }
 
-                                      try {
-                                        await ref
-                                            .read(bookmarksProvider.notifier)
-                                            .toggleBookmark(widget.id!);
-                                      } catch (e) {
-                                        // Ignore errors silently
+                                  // Bookmarks will automatically update UI through ref.watch
+
+                                  // Load bookmarks if not loaded yet (only once per widget lifecycle)
+                                  if (!_bookmarksLoadAttempted &&
+                                      bookmarksState.bookmarks.isEmpty &&
+                                      !bookmarksState.isLoading &&
+                                      bookmarksState.error == null) {
+                                    _bookmarksLoadAttempted = true;
+                                    // Use a post-frame callback to avoid setState during build
+                                    WidgetsBinding.instance.addPostFrameCallback((
+                                      _,
+                                    ) async {
+                                      if (mounted) {
+                                        try {
+                                          await ref
+                                              .read(bookmarksProvider.notifier)
+                                              .getUserBookmarks();
+                                        } catch (e) {
+                                          // Ignore errors if widget is disposed
+                                          if (mounted) {
+                                            print(
+                                              'Error loading bookmarks: $e',
+                                            );
+                                          }
+                                        }
                                       }
-                                    },
-                                    icon: Icon(
-                                      isBookmarked
-                                          ? Icons.bookmark
-                                          : Icons.bookmark_border,
-                                      color: Colors.black,
-                                    ),
+                                    });
+                                  }
+
+                                  return IconButton(
+                                    onPressed:
+                                        bookmarksState.isLoading
+                                            ? null
+                                            : () async {
+                                              // Final mounted check before action
+                                              if (!mounted) return;
+
+                                              try {
+                                                // Load bookmarks if not loaded yet (only on first button press)
+                                                if (bookmarksState
+                                                    .bookmarks
+                                                    .isEmpty) {
+                                                  await ref
+                                                      .read(
+                                                        bookmarksProvider
+                                                            .notifier,
+                                                      )
+                                                      .getUserBookmarks();
+                                                }
+
+                                                await ref
+                                                    .read(
+                                                      bookmarksProvider
+                                                          .notifier,
+                                                    )
+                                                    .toggleBookmark(widget.id!);
+
+                                                // Show feedback to user
+                                                if (mounted) {
+                                                  final newState = ref.read(
+                                                    bookmarksProvider,
+                                                  );
+                                                  final isNowBookmarked =
+                                                      newState.bookmarks
+                                                          .contains(widget.id);
+                                                  ScaffoldMessenger.of(
+                                                    context,
+                                                  ).showSnackBar(
+                                                    SnackBar(
+                                                      content: Text(
+                                                        isNowBookmarked
+                                                            ? 'تم إضافة المفضلة'
+                                                            : 'تم إزالة المفضلة',
+                                                        style: const TextStyle(
+                                                          fontFamily:
+                                                              'NotoSansArabic',
+                                                        ),
+                                                      ),
+                                                      duration: const Duration(
+                                                        seconds: 2,
+                                                      ),
+                                                      backgroundColor:
+                                                          isNowBookmarked
+                                                              ? Colors.green
+                                                                  .withOpacity(
+                                                                    0.8,
+                                                                  )
+                                                              : Colors.orange
+                                                                  .withOpacity(
+                                                                    0.8,
+                                                                  ),
+                                                    ),
+                                                  );
+                                                }
+                                              } catch (e) {
+                                                // Show error message to user
+                                                if (mounted) {
+                                                  ScaffoldMessenger.of(
+                                                    context,
+                                                  ).showSnackBar(
+                                                    SnackBar(
+                                                      content: Text(
+                                                        'حدث خطأ في تحديث المفضلة',
+                                                        style: const TextStyle(
+                                                          fontFamily:
+                                                              'NotoSansArabic',
+                                                        ),
+                                                      ),
+                                                      duration: const Duration(
+                                                        seconds: 3,
+                                                      ),
+                                                      backgroundColor: Colors
+                                                          .red
+                                                          .withOpacity(0.8),
+                                                    ),
+                                                  );
+                                                }
+                                              }
+                                            },
+                                    icon:
+                                        bookmarksState.isLoading
+                                            ? SizedBox(
+                                              width: 20,
+                                              height: 20,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                valueColor:
+                                                    AlwaysStoppedAnimation<
+                                                      Color
+                                                    >(
+                                                      Colors.black.withOpacity(
+                                                        0.6,
+                                                      ),
+                                                    ),
+                                              ),
+                                            )
+                                            : Icon(
+                                              isBookmarked
+                                                  ? Icons.bookmark
+                                                  : Icons.bookmark_border,
+                                              color:
+                                                  isBookmarked
+                                                      ? Colors.black
+                                                      : Colors.black,
+                                            ),
                                     splashRadius: 24,
                                   );
                                 },

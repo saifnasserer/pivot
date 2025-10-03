@@ -5,10 +5,11 @@ import 'package:pivot/features/announcements/providers/announcements_provider.da
 import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
-import 'package:pivot/models/user_profile.dart';
+import 'package:pivot/widgets/report_content_dialog.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:gradient_borders/gradient_borders.dart';
 import 'package:lottie/lottie.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class CommentTile extends ConsumerStatefulWidget {
   final CommentData comment;
@@ -198,6 +199,24 @@ class _CommentTileState extends ConsumerState<CommentTile>
                       }
                     },
                   ),
+                  // Report option (for non-own comments)
+                  if (!widget.isOwnComment)
+                    ListTile(
+                      leading: Icon(Icons.flag_outlined, color: Colors.orange),
+                      title: Text('إبلاغ عن محتوى غير لائق'),
+                      onTap: () {
+                        Navigator.pop(context);
+                        showDialog(
+                          context: context,
+                          builder:
+                              (context) => ReportContentDialog(
+                                contentId: widget.comment.id,
+                                contentType: 'comment',
+                                contentAuthorId: widget.comment.userId,
+                              ),
+                        );
+                      },
+                    ),
                 ],
               ),
             ),
@@ -208,42 +227,61 @@ class _CommentTileState extends ConsumerState<CommentTile>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    final userProfileState = ref.read(userProfileProvider);
-    // TODO: Implement user profile caching with Riverpod
-    UserProfile? commenterProfile;
-    // Fetch user profile if needed
-    // ref.read(userProfileProvider.notifier).getUserProfileById(widget.comment.userId);
-    Widget avatarWidget;
-    if (commenterProfile != null &&
-        commenterProfile.profileImageUrl != null &&
-        commenterProfile.profileImageUrl!.isNotEmpty) {
-      avatarWidget = CircleAvatar(
-        backgroundImage: NetworkImage(commenterProfile.profileImageUrl!),
-        radius: Responsive.space(context, size: Space.large),
-      );
-    } else {
-      String initials =
-          widget.comment.userName.isNotEmpty
-              ? widget.comment.userName
-                  .trim()
-                  .split(' ')
-                  .map((e) => e.isNotEmpty ? e[0] : '')
-                  .take(2)
-                  .join()
-              : '?';
-      avatarWidget = CircleAvatar(
-        backgroundColor: Colors.grey[400],
-        radius: Responsive.space(context, size: Space.large),
-        child: Text(
-          initials,
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: Responsive.text(context, size: TextSize.medium),
-          ),
-        ),
-      );
-    }
+    // Build avatar - show profile image if available, otherwise show initials
+    String initials =
+        widget.comment.userName.isNotEmpty
+            ? widget.comment.userName
+                .trim()
+                .split(' ')
+                .map((e) => e.isNotEmpty ? e[0] : '')
+                .take(2)
+                .join()
+            : '?';
+
+    Widget avatarWidget = CircleAvatar(
+      backgroundColor: Colors.grey[400],
+      radius: Responsive.space(context, size: Space.large),
+      child:
+          (widget.comment.userProfileImageUrl != null &&
+                  widget.comment.userProfileImageUrl!.isNotEmpty)
+              ? ClipOval(
+                child: CachedNetworkImage(
+                  imageUrl: widget.comment.userProfileImageUrl!,
+                  width: Responsive.space(context, size: Space.large) * 2,
+                  height: Responsive.space(context, size: Space.large) * 2,
+                  fit: BoxFit.cover,
+                  placeholder:
+                      (context, url) => Center(
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
+                        ),
+                      ),
+                  errorWidget:
+                      (context, url, error) => Text(
+                        initials,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: Responsive.text(
+                            context,
+                            size: TextSize.medium,
+                          ),
+                        ),
+                      ),
+                ),
+              )
+              : Text(
+                initials,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: Responsive.text(context, size: TextSize.medium),
+                ),
+              ),
+    );
     final replies =
         widget.allComments
             .where((c) => c.parentId == widget.comment.id)
@@ -788,7 +826,6 @@ class _LikeButton extends StatefulWidget {
 class _LikeButtonState extends State<_LikeButton>
     with SingleTickerProviderStateMixin {
   late bool _isLiked;
-  late int _likeCount;
   late AnimationController _controller;
   late Animation<double> _scaleAnim;
 
@@ -796,7 +833,6 @@ class _LikeButtonState extends State<_LikeButton>
   void initState() {
     super.initState();
     _isLiked = widget.isLiked;
-    _likeCount = widget.likeCount;
     _controller = AnimationController(
       vsync: this,
       duration: Duration(milliseconds: 200),
@@ -810,22 +846,16 @@ class _LikeButtonState extends State<_LikeButton>
   @override
   void didUpdateWidget(covariant _LikeButton oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.isLiked != widget.isLiked ||
-        oldWidget.likeCount != widget.likeCount) {
-      _isLiked = widget.isLiked;
-      _likeCount = widget.likeCount;
+    if (oldWidget.isLiked != widget.isLiked) {
+      setState(() {
+        _isLiked = widget.isLiked;
+      });
     }
   }
 
   void _handleTap() {
     setState(() {
-      if (_isLiked) {
-        _isLiked = false;
-        _likeCount--;
-      } else {
-        _isLiked = true;
-        _likeCount++;
-      }
+      _isLiked = !_isLiked;
     });
     _controller.forward(from: 0);
     widget.onTap();
@@ -1030,12 +1060,6 @@ class _CommentSectionState extends ConsumerState<CommentSection> {
     }
   }
 
-  void _toggleReplies(String commentId) {
-    setState(() {
-      _expandedReplies[commentId] = !(_expandedReplies[commentId] ?? false);
-    });
-  }
-
   void _sendComment(BuildContext context) async {
     final userProfileState = ref.read(userProfileProvider);
     final userProfile = userProfileState.loggedInUserProfile;
@@ -1075,6 +1099,7 @@ class _CommentSectionState extends ConsumerState<CommentSection> {
       timestamp: DateTime.now(),
       likes: [],
       parentId: _replyToCommentId,
+      userProfileImageUrl: userProfile.profileImageUrl,
     );
     try {
       if (_replyToCommentId != null) {
@@ -1132,16 +1157,12 @@ class _CommentSectionState extends ConsumerState<CommentSection> {
     );
   }
 
-  String _exactTimestamp(DateTime timestamp) {
-    return '${timestamp.year}/${timestamp.month.toString().padLeft(2, '0')}/${timestamp.day.toString().padLeft(2, '0')} '
-        '${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}';
-  }
-
   @override
   Widget build(BuildContext context) {
     return Consumer(
       builder: (context, ref, _) {
-        final announcementsState = ref.watch(announcementsProvider);
+        // Watch announcements provider to rebuild on changes
+        ref.watch(announcementsProvider);
         return Directionality(
           textDirection: TextDirection.rtl,
           child: Scaffold(
@@ -1202,219 +1223,370 @@ class _CommentSectionState extends ConsumerState<CommentSection> {
                   Expanded(
                     child: Consumer(
                       builder: (context, ref, child) {
-                        // TODO: Implement comments stream with Riverpod
-                        final snapshot =
-                            AsyncSnapshot<List<CommentData>>.nothing();
-                        // Update cache if new data is available
-                        if (snapshot.hasData && snapshot.data != null) {
-                          _cachedComments = snapshot.data;
-                        }
-                        final comments = snapshot.data ?? _cachedComments ?? [];
-                        final rootComments =
-                            comments.where((c) => c.parentId == null).toList();
-                        if ((!snapshot.hasData &&
-                                (_cachedComments == null ||
-                                    _cachedComments!.isEmpty)) ||
-                            (snapshot.connectionState ==
-                                    ConnectionState.waiting &&
-                                (_cachedComments == null ||
-                                    _cachedComments!.isEmpty))) {
-                          // Skeleton loader (simple shimmer effect)
-                          return ListView.builder(
-                            itemCount: 3,
-                            padding: EdgeInsets.symmetric(
-                              vertical: Responsive.space(
-                                context,
-                                size: Space.large,
-                              ),
-                            ),
-                            itemBuilder:
-                                (context, i) => Padding(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: Responsive.space(
-                                      context,
-                                      size: Space.large,
-                                    ),
-                                    vertical: Responsive.space(
-                                      context,
-                                      size: Space.small,
-                                    ),
-                                  ),
-                                  child: Container(
-                                    height:
-                                        Responsive.space(
-                                          context,
-                                          size: Space.large,
-                                        ) *
-                                        2,
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey[200],
-                                      borderRadius: BorderRadius.circular(
-                                        Responsive.space(
-                                          context,
-                                          size: Space.large,
-                                        ),
+                        // Watch the comments stream
+                        final commentsAsync = ref.watch(
+                          commentsStreamProvider(widget.announcementId),
+                        );
+
+                        return commentsAsync.when(
+                          data: (comments) {
+                            // Update cache with new data
+                            _cachedComments = comments;
+                            final rootComments =
+                                comments
+                                    .where((c) => c.parentId == null)
+                                    .toList();
+
+                            if (rootComments.isEmpty) {
+                              return Center(
+                                child: SizedBox(
+                                  width: Responsive.width(context) * 0.6,
+                                  height: Responsive.height(context) * 0.35,
+                                  child: Stack(
+                                    alignment: Alignment.topCenter,
+                                    children: [
+                                      Lottie.asset(
+                                        'assets/animation/nothing.json',
+                                        repeat: true,
+                                        width: Responsive.width(context) * 0.6,
+                                        height:
+                                            Responsive.height(context) * 0.3,
                                       ),
-                                    ),
-                                  ),
-                                ),
-                          );
-                        }
-                        if (rootComments.isEmpty) {
-                          return Center(
-                            child: SizedBox(
-                              width: Responsive.width(context) * 0.6,
-                              height: Responsive.height(context) * 0.35,
-                              child: Stack(
-                                alignment: Alignment.topCenter,
-                                children: [
-                                  Lottie.asset(
-                                    'assets/animation/nothing.json',
-                                    repeat: true,
-                                    width: Responsive.width(context) * 0.6,
-                                    height: Responsive.height(context) * 0.3,
-                                  ),
-                                  Positioned(
-                                    top: Responsive.height(context) * 0.25 + 5,
-                                    left: 0,
-                                    right: 0,
-                                    child: Center(
-                                      child: Text(
-                                        'لا توجد اي اسألة بعد.',
-                                        style: TextStyle(
-                                          fontSize: Responsive.text(
-                                            context,
-                                            size: TextSize.heading,
+                                      Positioned(
+                                        top:
+                                            Responsive.height(context) * 0.25 +
+                                            5,
+                                        left: 0,
+                                        right: 0,
+                                        child: Center(
+                                          child: Text(
+                                            'لا توجد اي اسألة بعد.',
+                                            style: TextStyle(
+                                              fontSize: Responsive.text(
+                                                context,
+                                                size: TextSize.heading,
+                                              ),
+                                              color: Colors.grey[700],
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                            textAlign: TextAlign.center,
                                           ),
-                                          color: Colors.grey[700],
-                                          fontWeight: FontWeight.w500,
                                         ),
-                                        textAlign: TextAlign.center,
                                       ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        }
-                        final visibleRootComments =
-                            rootComments.take(_rootCommentsLimit).toList();
-                        return ListView.builder(
-                          controller: widget.scrollController,
-                          padding: EdgeInsets.only(
-                            bottom: Responsive.space(
-                              context,
-                              size: Space.large,
-                            ),
-                            top: 0,
-                          ),
-                          itemCount:
-                              visibleRootComments.length +
-                              (rootComments.length > _rootCommentsLimit
-                                  ? 1
-                                  : 0),
-                          itemBuilder: (context, i) {
-                            if (i < visibleRootComments.length) {
-                              return CommentTile(
-                                key: PageStorageKey(
-                                  'comment-${visibleRootComments[i].id}',
-                                ),
-                                comment: visibleRootComments[i],
-                                allComments: comments,
-                                announcementId: widget.announcementId,
-                                userId:
-                                    ref
-                                        .read(userProfileProvider)
-                                        .loggedInUserProfile
-                                        ?.id ??
-                                    '',
-                                canEdit:
-                                    ref
-                                        .read(userProfileProvider)
-                                        .loggedInUserProfile
-                                        ?.id ==
-                                    visibleRootComments[i].userId,
-                                isOwnComment:
-                                    ref
-                                        .read(userProfileProvider)
-                                        .loggedInUserProfile
-                                        ?.id ==
-                                    visibleRootComments[i].userId,
-                                isReply: false,
-                                editController: _editController,
-                                onEditStart: (id, controller) {
-                                  setState(() {
-                                    _editingCommentId = id;
-                                    _editController = controller;
-                                  });
-                                },
-                                isEditing:
-                                    _editingCommentId ==
-                                    visibleRootComments[i].id,
-                                isSavingEdit: _isSavingEdit,
-                                onEditSave: (id, newText) async {
-                                  setState(() => _isSavingEdit = true);
-                                  await ref
-                                      .read(announcementsProvider.notifier)
-                                      .updateComment(
-                                        widget.announcementId,
-                                        id,
-                                        newText,
-                                      );
-                                  setState(() {
-                                    _editingCommentId = null;
-                                    _isSavingEdit = false;
-                                  });
-                                },
-                                onEditCancel:
-                                    () => setState(
-                                      () => _editingCommentId = null,
-                                    ),
-                                isExpanded:
-                                    _expandedReplies[visibleRootComments[i]
-                                        .id] ??
-                                    false,
-                                onToggleExpanded: () {
-                                  setState(() {
-                                    _expandedReplies[visibleRootComments[i]
-                                            .id] =
-                                        !(_expandedReplies[visibleRootComments[i]
-                                                .id] ??
-                                            false);
-                                  });
-                                },
-                                userRole: _userRole ?? '',
-                                onReply: (commentId, userName) {
-                                  setState(() {
-                                    _replyToCommentId = commentId;
-                                    _replyToUserName = userName;
-                                  });
-                                  _inputFocusNode.requestFocus();
-                                },
-                                nestingLevel: 0,
-                              );
-                            } else {
-                              // Load More button
-                              return Padding(
-                                padding: EdgeInsets.symmetric(
-                                  vertical: Responsive.space(
-                                    context,
-                                    size: Space.medium,
-                                  ),
-                                ),
-                                child: Center(
-                                  child: ElevatedButton(
-                                    onPressed: () {
-                                      setState(() {
-                                        _rootCommentsLimit += 30;
-                                      });
-                                    },
-                                    child: Text('تحميل المزيد'),
+                                    ],
                                   ),
                                 ),
                               );
                             }
+
+                            final visibleRootComments =
+                                rootComments.take(_rootCommentsLimit).toList();
+                            return ListView.builder(
+                              controller: widget.scrollController,
+                              padding: EdgeInsets.only(
+                                bottom: Responsive.space(
+                                  context,
+                                  size: Space.large,
+                                ),
+                                top: 0,
+                              ),
+                              itemCount:
+                                  visibleRootComments.length +
+                                  (rootComments.length > _rootCommentsLimit
+                                      ? 1
+                                      : 0),
+                              itemBuilder: (context, i) {
+                                if (i < visibleRootComments.length) {
+                                  return CommentTile(
+                                    key: PageStorageKey(
+                                      'comment-${visibleRootComments[i].id}',
+                                    ),
+                                    comment: visibleRootComments[i],
+                                    allComments: comments,
+                                    announcementId: widget.announcementId,
+                                    userId:
+                                        ref
+                                            .read(userProfileProvider)
+                                            .loggedInUserProfile
+                                            ?.id ??
+                                        '',
+                                    canEdit:
+                                        ref
+                                            .read(userProfileProvider)
+                                            .loggedInUserProfile
+                                            ?.id ==
+                                        visibleRootComments[i].userId,
+                                    isOwnComment:
+                                        ref
+                                            .read(userProfileProvider)
+                                            .loggedInUserProfile
+                                            ?.id ==
+                                        visibleRootComments[i].userId,
+                                    isReply: false,
+                                    editController: _editController,
+                                    onEditStart: (id, controller) {
+                                      setState(() {
+                                        _editingCommentId = id;
+                                        _editController = controller;
+                                      });
+                                    },
+                                    isEditing:
+                                        _editingCommentId ==
+                                        visibleRootComments[i].id,
+                                    isSavingEdit: _isSavingEdit,
+                                    onEditSave: (id, newText) async {
+                                      setState(() => _isSavingEdit = true);
+                                      await ref
+                                          .read(announcementsProvider.notifier)
+                                          .updateComment(
+                                            widget.announcementId,
+                                            id,
+                                            newText,
+                                          );
+                                      setState(() {
+                                        _editingCommentId = null;
+                                        _isSavingEdit = false;
+                                      });
+                                    },
+                                    onEditCancel:
+                                        () => setState(
+                                          () => _editingCommentId = null,
+                                        ),
+                                    isExpanded:
+                                        _expandedReplies[visibleRootComments[i]
+                                            .id] ??
+                                        false,
+                                    onToggleExpanded: () {
+                                      setState(() {
+                                        _expandedReplies[visibleRootComments[i]
+                                                .id] =
+                                            !(_expandedReplies[visibleRootComments[i]
+                                                    .id] ??
+                                                false);
+                                      });
+                                    },
+                                    userRole: _userRole ?? '',
+                                    onReply: (commentId, userName) {
+                                      setState(() {
+                                        _replyToCommentId = commentId;
+                                        _replyToUserName = userName;
+                                      });
+                                      _inputFocusNode.requestFocus();
+                                    },
+                                    nestingLevel: 0,
+                                  );
+                                } else {
+                                  // Load More button
+                                  return Padding(
+                                    padding: EdgeInsets.symmetric(
+                                      vertical: Responsive.space(
+                                        context,
+                                        size: Space.medium,
+                                      ),
+                                    ),
+                                    child: Center(
+                                      child: ElevatedButton(
+                                        onPressed: () {
+                                          setState(() {
+                                            _rootCommentsLimit += 30;
+                                          });
+                                        },
+                                        child: Text('تحميل المزيد'),
+                                      ),
+                                    ),
+                                  );
+                                }
+                              },
+                            );
+                          },
+                          loading: () {
+                            // Show cached data if available, otherwise show loading
+                            if (_cachedComments != null &&
+                                _cachedComments!.isNotEmpty) {
+                              final rootComments =
+                                  _cachedComments!
+                                      .where((c) => c.parentId == null)
+                                      .toList();
+                              final visibleRootComments =
+                                  rootComments
+                                      .take(_rootCommentsLimit)
+                                      .toList();
+
+                              return ListView.builder(
+                                controller: widget.scrollController,
+                                padding: EdgeInsets.only(
+                                  bottom: Responsive.space(
+                                    context,
+                                    size: Space.large,
+                                  ),
+                                  top: 0,
+                                ),
+                                itemCount: visibleRootComments.length,
+                                itemBuilder: (context, i) {
+                                  return CommentTile(
+                                    key: PageStorageKey(
+                                      'comment-${visibleRootComments[i].id}',
+                                    ),
+                                    comment: visibleRootComments[i],
+                                    allComments: _cachedComments!,
+                                    announcementId: widget.announcementId,
+                                    userId:
+                                        ref
+                                            .read(userProfileProvider)
+                                            .loggedInUserProfile
+                                            ?.id ??
+                                        '',
+                                    canEdit:
+                                        ref
+                                            .read(userProfileProvider)
+                                            .loggedInUserProfile
+                                            ?.id ==
+                                        visibleRootComments[i].userId,
+                                    isOwnComment:
+                                        ref
+                                            .read(userProfileProvider)
+                                            .loggedInUserProfile
+                                            ?.id ==
+                                        visibleRootComments[i].userId,
+                                    isReply: false,
+                                    editController: _editController,
+                                    onEditStart: (id, controller) {
+                                      setState(() {
+                                        _editingCommentId = id;
+                                        _editController = controller;
+                                      });
+                                    },
+                                    isEditing:
+                                        _editingCommentId ==
+                                        visibleRootComments[i].id,
+                                    isSavingEdit: _isSavingEdit,
+                                    onEditSave: (id, newText) async {
+                                      setState(() => _isSavingEdit = true);
+                                      await ref
+                                          .read(announcementsProvider.notifier)
+                                          .updateComment(
+                                            widget.announcementId,
+                                            id,
+                                            newText,
+                                          );
+                                      setState(() {
+                                        _editingCommentId = null;
+                                        _isSavingEdit = false;
+                                      });
+                                    },
+                                    onEditCancel:
+                                        () => setState(
+                                          () => _editingCommentId = null,
+                                        ),
+                                    isExpanded:
+                                        _expandedReplies[visibleRootComments[i]
+                                            .id] ??
+                                        false,
+                                    onToggleExpanded: () {
+                                      setState(() {
+                                        _expandedReplies[visibleRootComments[i]
+                                                .id] =
+                                            !(_expandedReplies[visibleRootComments[i]
+                                                    .id] ??
+                                                false);
+                                      });
+                                    },
+                                    userRole: _userRole ?? '',
+                                    onReply: (commentId, userName) {
+                                      setState(() {
+                                        _replyToCommentId = commentId;
+                                        _replyToUserName = userName;
+                                      });
+                                      _inputFocusNode.requestFocus();
+                                    },
+                                    nestingLevel: 0,
+                                  );
+                                },
+                              );
+                            }
+
+                            // Skeleton loader (simple shimmer effect)
+                            return ListView.builder(
+                              itemCount: 3,
+                              padding: EdgeInsets.symmetric(
+                                vertical: Responsive.space(
+                                  context,
+                                  size: Space.large,
+                                ),
+                              ),
+                              itemBuilder:
+                                  (context, i) => Padding(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: Responsive.space(
+                                        context,
+                                        size: Space.large,
+                                      ),
+                                      vertical: Responsive.space(
+                                        context,
+                                        size: Space.small,
+                                      ),
+                                    ),
+                                    child: Container(
+                                      height:
+                                          Responsive.space(
+                                            context,
+                                            size: Space.large,
+                                          ) *
+                                          2,
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey[200],
+                                        borderRadius: BorderRadius.circular(
+                                          Responsive.space(
+                                            context,
+                                            size: Space.large,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                            );
+                          },
+                          error: (error, stack) {
+                            // Skeleton loader (simple shimmer effect)
+                            return ListView.builder(
+                              itemCount: 3,
+                              padding: EdgeInsets.symmetric(
+                                vertical: Responsive.space(
+                                  context,
+                                  size: Space.large,
+                                ),
+                              ),
+                              itemBuilder:
+                                  (context, i) => Padding(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: Responsive.space(
+                                        context,
+                                        size: Space.large,
+                                      ),
+                                      vertical: Responsive.space(
+                                        context,
+                                        size: Space.small,
+                                      ),
+                                    ),
+                                    child: Container(
+                                      height:
+                                          Responsive.space(
+                                            context,
+                                            size: Space.large,
+                                          ) *
+                                          2,
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey[200],
+                                        borderRadius: BorderRadius.circular(
+                                          Responsive.space(
+                                            context,
+                                            size: Space.large,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                            );
                           },
                         );
                       },

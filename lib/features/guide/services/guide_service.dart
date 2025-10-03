@@ -4,6 +4,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:pivot/models/guide_content.dart';
 import 'package:pivot/models/guidebook_model.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:pivot/services/storage_optimization_service.dart';
 
 class GuideService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -115,9 +116,22 @@ class GuideService {
 
   Future<String> uploadImage(String imagePath) async {
     try {
-      // TODO: Implement image upload using StorageOptimizationService
-      // For now, return a placeholder
-      return 'placeholder_image_url';
+      // Convert image path to XFile
+      final imageFile = XFile(imagePath);
+
+      // Upload image using StorageOptimizationService
+      final imageUrl = await StorageOptimizationService().uploadFileOptimized(
+        imageFile,
+        usage: 'general',
+        folder: 'guide',
+        checkDuplicate: false,
+      );
+
+      if (imageUrl == null) {
+        throw Exception('Failed to upload image to storage');
+      }
+
+      return imageUrl;
     } catch (e) {
       throw Exception('Failed to upload image: $e');
     }

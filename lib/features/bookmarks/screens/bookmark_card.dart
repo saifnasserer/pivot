@@ -5,7 +5,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:pivot/responsive.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
-
 /// Enhanced BookmarkCard with animations and improved design
 class BookmarkCard extends StatefulWidget {
   final AnnouncementData bookmark;
@@ -66,7 +65,7 @@ class _BookmarkCardState extends State<BookmarkCard>
     try {
       return widget.bookmark.color;
     } catch (e) {
-      return Colors.blue; // Fallback color
+      return Colors.black; // Fallback color
     }
   }
 
@@ -163,7 +162,7 @@ class _BookmarkCardState extends State<BookmarkCard>
                             ),
                             _buildActionButton(
                               icon: Icons.share,
-                              color: Colors.blue.shade400,
+                              color: Colors.black,
                               tooltip: 'مشاركة',
                               onPressed: widget.onShare!,
                             ),

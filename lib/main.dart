@@ -16,6 +16,8 @@ import 'package:pivot/features/onboarding/screens/introduction_wrapper.dart';
 
 import 'package:pivot/features/onboarding/screens/signup/signup_page1.dart';
 import 'package:pivot/features/onboarding/screens/signup/signup_page2.dart';
+import 'package:pivot/features/onboarding/screens/terms_of_service_screen.dart';
+import 'package:pivot/features/onboarding/screens/community_guidelines_screen.dart';
 import 'package:pivot/features/home/screens/admin_control.dart';
 import 'package:pivot/features/home/screens/adminstration/user_management_page.dart'
     deferred as user_management_page;
@@ -56,7 +58,6 @@ import 'package:pivot/features/settings/screens/screens.dart';
 // Legacy provider imports removed - now using Riverpod
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:pivot/services/fcm_token_manager.dart';
-import 'package:pivot/services/remote_config_bridge_service.dart';
 import 'web_service_worker.dart';
 import 'firebase_options.dart';
 import 'widgets/platform_service.dart';
@@ -190,10 +191,9 @@ void _initializeAppBackgroundServices() async {
     await RemoteConfigService.instance.initialize();
   } catch (e) {}
 
-  // TODO: Initialize user profile using Riverpod
-  // if (FirebaseAuth.instance.currentUser != null) {
-  //   // Initialize user profile using Riverpod
-  // }
+  // User profile initialization is handled by AuthWrapper using Riverpod
+  // The AuthWrapper checks for authenticated users and loads profiles automatically
+  // via ref.read(userProfileProvider.notifier).loadLoggedInUserProfile()
 
   try {
     // Initialize local notifications on mobile platforms
@@ -292,6 +292,9 @@ class Pivot extends StatelessWidget {
               );
             },
             '/login': (context) => const LoginPage(),
+            '/terms-of-service': (context) => const TermsOfServiceScreen(),
+            '/community-guidelines':
+                (context) => const CommunityGuidelinesScreen(),
             '/landing': (context) => const Landing(),
             '/profile': (context) {
               final args = ModalRoute.of(context)?.settings.arguments;

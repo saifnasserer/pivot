@@ -375,6 +375,26 @@ class AnnouncementsService {
     }
   }
 
+  // Stream comments for real-time updates
+  Stream<List<CommentData>> streamComments(String announcementId) {
+    try {
+      return _firestore
+          .collection(_collectionPath)
+          .doc(announcementId)
+          .collection('comments')
+          .orderBy('timestamp', descending: true)
+          .snapshots()
+          .map(
+            (snapshot) =>
+                snapshot.docs
+                    .map((doc) => CommentData.fromMap(doc.data(), doc.id))
+                    .toList(),
+          );
+    } catch (e) {
+      throw Exception('Failed to stream comments: $e');
+    }
+  }
+
   // Like a comment
   Future<void> likeComment(
     String announcementId,

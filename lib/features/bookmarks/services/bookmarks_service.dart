@@ -12,7 +12,10 @@ class BookmarksService {
       if (user == null) throw Exception('User not logged in');
 
       final doc = await _firestore.collection('users').doc(user.uid).get();
-      if (!doc.exists) return [];
+      if (!doc.exists) {
+        // User document doesn't exist yet, return empty list
+        return [];
+      }
 
       final data = doc.data()!;
       final bookmarks = data['bookmarks'] as List<dynamic>? ?? [];
@@ -38,10 +41,22 @@ class BookmarksService {
       final user = _auth.currentUser;
       if (user == null) throw Exception('User not logged in');
 
-      await _firestore.collection('users').doc(user.uid).update({
-        'bookmarks': FieldValue.arrayUnion([itemId]),
-        'lastUpdated': FieldValue.serverTimestamp(),
-      });
+      // Check if user document exists
+      final userDoc = await _firestore.collection('users').doc(user.uid).get();
+
+      if (!userDoc.exists) {
+        // Create user document with bookmarks array
+        await _firestore.collection('users').doc(user.uid).set({
+          'bookmarks': [itemId],
+          'lastUpdated': FieldValue.serverTimestamp(),
+        });
+      } else {
+        // Update existing document
+        await _firestore.collection('users').doc(user.uid).update({
+          'bookmarks': FieldValue.arrayUnion([itemId]),
+          'lastUpdated': FieldValue.serverTimestamp(),
+        });
+      }
 
       return true;
     } catch (e) {

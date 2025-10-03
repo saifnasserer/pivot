@@ -303,6 +303,18 @@ class UserProfileNotifier extends StateNotifier<UserProfileState> {
     state = state.copyWith(userProfile: null);
   }
 
+  void clearLoggedInUserProfile() {
+    state = state.copyWith(
+      loggedInUserProfile: null,
+      userProfile: null,
+      error: null,
+    );
+  }
+
+  void clearAllProfiles() {
+    state = const UserProfileState();
+  }
+
   UserProfile? getUserById(String userId) {
     return state.allUsers.firstWhere(
       (user) => user.id == userId,

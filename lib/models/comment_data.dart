@@ -10,6 +10,7 @@ class CommentData {
   final String? parentId;
   final bool edited;
   final DateTime? editedAt;
+  final String? userProfileImageUrl;
 
   CommentData({
     required this.id,
@@ -21,6 +22,7 @@ class CommentData {
     this.parentId,
     this.edited = false,
     this.editedAt,
+    this.userProfileImageUrl,
   });
 
   factory CommentData.fromFirestore(DocumentSnapshot doc) {
@@ -43,6 +45,7 @@ class CommentData {
                   ? (data['editedAt'] as Timestamp).toDate()
                   : DateTime.fromMillisecondsSinceEpoch(data['editedAt']))
               : null,
+      userProfileImageUrl: data['userProfileImageUrl'] as String?,
     );
   }
 
@@ -70,6 +73,7 @@ class CommentData {
       parentId: map['parentId'] as String?,
       edited: map['edited'] as bool? ?? false,
       editedAt: map['editedAt'] != null ? parseDate(map['editedAt']) : null,
+      userProfileImageUrl: map['userProfileImageUrl'] as String?,
     );
   }
 
@@ -86,6 +90,7 @@ class CommentData {
       'parentId': parentId,
       'edited': edited,
       'editedAt': editedAt?.millisecondsSinceEpoch,
+      'userProfileImageUrl': userProfileImageUrl,
     };
   }
 }

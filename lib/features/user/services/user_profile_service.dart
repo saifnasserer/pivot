@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:pivot/models/user_profile.dart';
+import 'package:pivot/services/storage_optimization_service.dart';
 
 class UserProfileService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -170,13 +171,30 @@ class UserProfileService {
 
   Future<String> uploadProfileImage(String imagePath) async {
     try {
-      // TODO: Implement image upload
-      // final imageUrl = await StorageOptimizationService().uploadImage(
-      //   await _getImageBytes(imagePath),
-      //   'profile_images/${DateTime.now().millisecondsSinceEpoch}.jpg',
-      // );
-      // return imageUrl;
-      return 'placeholder_profile_image_url';
+      // Convert image path to XFile
+      final imageFile = XFile(imagePath);
+
+      // Upload image using StorageOptimizationService with profile optimization
+      final imageUrl = await StorageOptimizationService().uploadFileOptimized(
+        imageFile,
+        usage: 'profile',
+        folder: 'profile',
+        checkDuplicate: false, // Don't check for duplicates for profile images
+      );
+
+      if (imageUrl == null) {
+        throw Exception('Failed to upload image to storage');
+      }
+
+      // Update user profile with new image URL
+      final currentUser = _auth.currentUser;
+      if (currentUser != null) {
+        await _firestore.collection('users').doc(currentUser.uid).update({
+          'profileImageUrl': imageUrl,
+        });
+      }
+
+      return imageUrl;
     } catch (e) {
       throw Exception('Failed to upload profile image: $e');
     }
@@ -312,6 +330,19 @@ class UserProfileService {
   Future<String> _uploadProfileImage(XFile imageFile, String userId) async {
     try {
       final File file = File(imageFile.path);
+
+      // Create optimized metadata for faster upload
+      final metadata = SettableMetadata(
+        contentType: 'image/jpeg',
+        cacheControl: 'public, max-age=31536000', // Public cache for 1 year
+        customMetadata: {
+          'userId': userId,
+          'uploadedAt': DateTime.now().toIso8601String(),
+          'type': 'profile_image',
+          'compressed': 'true', // Indicate this is a compressed image
+        },
+      );
+
       // Update path to match storage rules: users/{userId}/profile/{fileName}
       final Reference storageRef = FirebaseStorage.instance
           .ref()
@@ -320,13 +351,26 @@ class UserProfileService {
           .child('profile')
           .child('profile_image.jpg');
 
-      final UploadTask uploadTask = storageRef.putFile(file);
+      // Upload with optimized settings
+      final UploadTask uploadTask = storageRef.putFile(file, metadata);
+
+      // Wait for upload completion
       final TaskSnapshot snapshot = await uploadTask;
       final String downloadUrl = await snapshot.ref.getDownloadURL();
 
       return downloadUrl;
     } catch (e) {
-      throw Exception('Failed to upload profile image: $e');
+      // Provide more specific error messages
+      String errorMessage = 'Failed to upload profile image';
+      if (e.toString().contains('unauthorized')) {
+        errorMessage = 'Upload failed: Unauthorized access';
+      } else if (e.toString().contains('network')) {
+        errorMessage =
+            'Upload failed: Network error. Please check your connection';
+      } else if (e.toString().contains('quota')) {
+        errorMessage = 'Upload failed: Storage quota exceeded';
+      }
+      throw Exception('$errorMessage: $e');
     }
   }
 

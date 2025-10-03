@@ -20,6 +20,7 @@ class _BookmarksScreenState extends ConsumerState<BookmarksScreen> {
   final FocusNode _searchFocusNode = FocusNode();
   String _searchQuery = '';
   bool _isSearchActive = false;
+  bool _bookmarksLoaded = false;
 
   // Local-first: Cache fetched announcements
   List<AnnouncementData>? _cachedAnnouncements;
@@ -33,6 +34,13 @@ class _BookmarksScreenState extends ConsumerState<BookmarksScreen> {
 
     // Listen for focus changes
     _searchFocusNode.addListener(_onSearchFocusChanged);
+
+    // Load bookmarks when screen is initialized
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_bookmarksLoaded) {
+        _loadBookmarks();
+      }
+    });
   }
 
   void _onSearchFocusChanged() {
@@ -81,6 +89,25 @@ class _BookmarksScreenState extends ConsumerState<BookmarksScreen> {
       setState(() {
         _isSearchActive = false;
       });
+    }
+  }
+
+  Future<void> _loadBookmarks() async {
+    if (!mounted || _bookmarksLoaded) return;
+
+    try {
+      setState(() {
+        _bookmarksLoaded = true;
+      });
+
+      await ref.read(bookmarksProvider.notifier).getUserBookmarks();
+    } catch (e) {
+      // Reset the flag on error so we can retry
+      if (mounted) {
+        setState(() {
+          _bookmarksLoaded = false;
+        });
+      }
     }
   }
 
@@ -333,9 +360,46 @@ class _BookmarksScreenState extends ConsumerState<BookmarksScreen> {
 
         return BookmarkCard(
           bookmark: bookmark,
-          onRemove: () {
+          onRemove: () async {
             if (bookmark.id != null && bookmark.id!.isNotEmpty) {
-              ref.read(bookmarksProvider.notifier).toggleBookmark(bookmark.id!);
+              try {
+                await ref
+                    .read(bookmarksProvider.notifier)
+                    .toggleBookmark(bookmark.id!);
+
+                // Clear cache to force refresh
+                setState(() {
+                  _cachedAnnouncements = null;
+                  _cachedBookmarkIds = null;
+                });
+
+                // Show feedback
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'تم إزالة من المفضلة',
+                        style: const TextStyle(fontFamily: 'NotoSansArabic'),
+                      ),
+                      duration: const Duration(seconds: 2),
+                      backgroundColor: Colors.orange.withOpacity(0.8),
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'حدث خطأ في إزالة المفضلة',
+                        style: const TextStyle(fontFamily: 'NotoSansArabic'),
+                      ),
+                      duration: const Duration(seconds: 3),
+                      backgroundColor: Colors.red.withOpacity(0.8),
+                    ),
+                  );
+                }
+              }
             }
           },
           onCardTap: () {
@@ -378,6 +442,17 @@ class _BookmarksScreenState extends ConsumerState<BookmarksScreen> {
             child: Consumer(
               builder: (context, ref, child) {
                 final bookmarksState = ref.watch(bookmarksProvider);
+
+                // Listen for bookmark changes and refresh cache
+                ref.listen(bookmarksProvider, (previous, next) {
+                  if (previous?.bookmarks != next.bookmarks) {
+                    // Bookmarks changed, clear cache to force refresh
+                    setState(() {
+                      _cachedAnnouncements = null;
+                      _cachedBookmarkIds = null;
+                    });
+                  }
+                });
 
                 // Show loading state
                 if (bookmarksState.isLoading) {

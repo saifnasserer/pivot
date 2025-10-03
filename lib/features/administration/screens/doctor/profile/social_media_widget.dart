@@ -4,6 +4,7 @@ import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SocialMediaWidget extends ConsumerWidget {
   final UserProfile userProfile;
@@ -16,6 +17,45 @@ class SocialMediaWidget extends ConsumerWidget {
     required this.isOwnProfile,
     this.onProfileUpdated,
   });
+
+  Future<void> _launchURL(BuildContext context, String url) async {
+    try {
+      final Uri uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('لا يمكن فتح الرابط: $url'),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(
+                  Responsive.space(context, size: Space.large),
+                ),
+              ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('خطأ في فتح الرابط: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(
+                Responsive.space(context, size: Space.large),
+              ),
+            ),
+          ),
+        );
+      }
+    }
+  }
 
   void _showSocialMediaDialog(BuildContext context, WidgetRef ref) {
     final TextEditingController platformController = TextEditingController();
@@ -214,7 +254,7 @@ class SocialMediaWidget extends ConsumerWidget {
           IconButton(
             icon: Icon(Icons.open_in_new, size: 20),
             onPressed: () {
-              // TODO: Open URL in browser
+              _launchURL(context, link.url);
             },
             color: Colors.black54,
           ),

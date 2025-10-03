@@ -9,6 +9,8 @@ import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pivot/services/notification_service.dart';
 import 'package:pivot/widgets/biometric_settings_widget.dart';
+import 'package:pivot/features/onboarding/screens/privacy_policy_screen.dart';
+import 'package:pivot/features/onboarding/screens/community_guidelines_screen.dart';
 
 Future<void> profile_options(BuildContext context, WidgetRef ref) async {
   final userProfileState = ref.read(userProfileProvider);
@@ -67,6 +69,34 @@ Future<void> profile_options(BuildContext context, WidgetRef ref) async {
             Icon(Icons.mic, color: Colors.white),
             SizedBox(width: Responsive.space(context, size: Space.small)),
             Text('إرسال ملاحظات', style: TextStyle(color: Colors.white)),
+          ],
+        ),
+      ),
+    ),
+
+    PopupMenuItem<String>(
+      value: 'community_guidelines',
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Row(
+          children: [
+            Icon(Icons.people_outline, color: Colors.white),
+            SizedBox(width: Responsive.space(context, size: Space.small)),
+            Text('قواعد المجتمع', style: TextStyle(color: Colors.white)),
+          ],
+        ),
+      ),
+    ),
+
+    PopupMenuItem<String>(
+      value: 'privacy_policy',
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Row(
+          children: [
+            Icon(Icons.privacy_tip_outlined, color: Colors.white),
+            SizedBox(width: Responsive.space(context, size: Space.small)),
+            Text('سياسة الخصوصية', style: TextStyle(color: Colors.white)),
           ],
         ),
       ),
@@ -202,6 +232,20 @@ Future<void> profile_options(BuildContext context, WidgetRef ref) async {
       break;
     case 'feedback':
       Navigator.pushNamed(context, '/feedback');
+      break;
+    case 'community_guidelines':
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const CommunityGuidelinesScreen(),
+        ),
+      );
+      break;
+    case 'privacy_policy':
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const PrivacyPolicyScreen()),
+      );
       break;
     case 'select_subjects':
       await Navigator.push(

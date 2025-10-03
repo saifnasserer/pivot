@@ -5,6 +5,7 @@ import 'package:pivot/responsive.dart';
 import 'package:pivot/features/onboarding/screens/introduction_wrapper.dart';
 import 'package:pivot/features/home/screens/landing.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pivot/features/bookmarks/providers/bookmarks_provider.dart';
 
 class AuthWrapper extends ConsumerStatefulWidget {
   // = 'auth_wrapper';
@@ -39,8 +40,7 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> {
       } catch (e) {
         // Token is invalid, sign out and show login
         await FirebaseAuth.instance.signOut();
-        // TODO: Clear profile using Riverpod
-        // ref.read(userProfileProvider.notifier).clearProfile();
+        ref.read(userProfileProvider.notifier).clearLoggedInUserProfile();
       }
     }
   }
@@ -80,8 +80,7 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> {
       if (currentProfileState.loggedInUserProfile == null) {
         // If profile fails to load, sign out and go to FirstLandingScreen
         await FirebaseAuth.instance.signOut();
-        // TODO: Clear profile using Riverpod
-        // ref.read(userProfileProvider.notifier).clearProfile();
+        ref.read(userProfileProvider.notifier).clearLoggedInUserProfile();
       }
     } catch (e) {
       // Handle any errors during profile loading
@@ -89,8 +88,7 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> {
         setState(() => _loadingProfile = false);
         // Sign out on error and let user re-authenticate
         await FirebaseAuth.instance.signOut();
-        // TODO: Clear profile using Riverpod
-        // ref.read(userProfileProvider.notifier).clearProfile();
+        ref.read(userProfileProvider.notifier).clearLoggedInUserProfile();
       }
     }
   }
@@ -164,7 +162,9 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> {
           final isProfileLoaded = profile != null && profile.id == user.uid;
 
           if (isProfileLoaded) {
-            // Profile is loaded and matches current user - navigate to landing
+            // Profile is loaded and matches current user - initialize bookmarks and navigate to landing
+            // Initialize bookmarks when user is authenticated
+            ref.watch(bookmarksInitializerProvider);
             return const Landing();
           } else {
             // Profile not loaded or doesn't match - load profile

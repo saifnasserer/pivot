@@ -66,15 +66,21 @@ class BookmarksNotifier extends StateNotifier<BookmarksState> {
 
   // Get user bookmarks
   Future<void> getUserBookmarks() async {
+    if (!mounted) return;
+
     state = state.copyWith(isLoading: true, error: null);
     try {
       final bookmarks = await _repository.getUserBookmarks();
+
+      if (!mounted) return;
+
       state = state.copyWith(
         isLoading: false,
         bookmarks: bookmarks,
         hasBookmarks: bookmarks.isNotEmpty,
       );
     } catch (e) {
+      if (!mounted) return;
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
@@ -102,15 +108,23 @@ class BookmarksNotifier extends StateNotifier<BookmarksState> {
 
   // Add bookmark
   Future<bool> addBookmark(String itemId) async {
+    if (!mounted) return false;
+
     state = state.copyWith(isLoading: true, error: null);
     try {
       final success = await _repository.addBookmark(itemId);
+
+      if (!mounted) return success;
+
       if (success) {
         await getUserBookmarks(); // Refresh bookmarks
       }
+
+      if (!mounted) return success;
       state = state.copyWith(isLoading: false);
       return success;
     } catch (e) {
+      if (!mounted) return false;
       state = state.copyWith(isLoading: false, error: e.toString());
       return false;
     }
@@ -118,15 +132,23 @@ class BookmarksNotifier extends StateNotifier<BookmarksState> {
 
   // Remove bookmark
   Future<bool> removeBookmark(String itemId) async {
+    if (!mounted) return false;
+
     state = state.copyWith(isLoading: true, error: null);
     try {
       final success = await _repository.removeBookmark(itemId);
+
+      if (!mounted) return success;
+
       if (success) {
         await getUserBookmarks(); // Refresh bookmarks
       }
+
+      if (!mounted) return success;
       state = state.copyWith(isLoading: false);
       return success;
     } catch (e) {
+      if (!mounted) return false;
       state = state.copyWith(isLoading: false, error: e.toString());
       return false;
     }
@@ -134,6 +156,8 @@ class BookmarksNotifier extends StateNotifier<BookmarksState> {
 
   // Toggle bookmark
   Future<bool> toggleBookmark(String itemId) async {
+    if (!mounted) return false;
+
     // Optimistic update - update UI immediately
     final isCurrentlyBookmarked = state.bookmarks.contains(itemId);
     final updatedBookmarks = List<String>.from(state.bookmarks);
@@ -145,27 +169,27 @@ class BookmarksNotifier extends StateNotifier<BookmarksState> {
     }
 
     // Update state immediately for instant UI feedback
+    if (!mounted) return false;
     state = state.copyWith(bookmarks: updatedBookmarks, error: null);
 
     // Run the actual operation in the background
     try {
       final success = await _repository.toggleBookmark(itemId);
 
+      if (!mounted) return success;
+
       if (!success) {
         // Rollback on failure
-        if (mounted) {
-          state = state.copyWith(bookmarks: state.bookmarks);
-          await getUserBookmarks(); // Refresh to get correct state
-        }
+        state = state.copyWith(bookmarks: state.bookmarks);
+        await getUserBookmarks(); // Refresh to get correct state
       }
 
       return success;
     } catch (e) {
       // Rollback on error
-      if (mounted) {
-        state = state.copyWith(bookmarks: state.bookmarks, error: e.toString());
-        await getUserBookmarks(); // Refresh to get correct state
-      }
+      if (!mounted) return false;
+      state = state.copyWith(bookmarks: state.bookmarks, error: e.toString());
+      await getUserBookmarks(); // Refresh to get correct state
       return false;
     }
   }
@@ -331,6 +355,12 @@ final bookmarksProvider =
       final repository = ref.watch(bookmarksRepositoryProvider);
       return BookmarksNotifier(repository);
     });
+
+// Simple initialization provider - just watches auth state without auto-loading
+final bookmarksInitializerProvider = AutoDisposeProvider<void>((ref) {
+  // This provider is watched in AuthWrapper but doesn't trigger automatic loading
+  // to prevent infinite loops. Bookmarks will be loaded on first button press.
+});
 
 // Convenience providers for specific data
 final bookmarksListProvider = AutoDisposeProvider<List<String>>((ref) {

@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pivot/screens/models/task.dart';
 import 'package:pivot/services/smart_refresh_service.dart';
+import 'package:pivot/services/sound_service.dart';
 
 class TaskService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -42,8 +43,10 @@ class TaskService {
     try {
       await _tasksCollection.add(task.toMap());
 
-      // TODO: Implement sound and notification services
-      // await SoundService().playTaskAddedSound();
+      // Play notification sound for task added
+      await SoundService().playNotificationSound();
+
+      // TODO: Implement notification services
       // if (task.reminderTime != null) {
       //   await NotificationTriggerService().scheduleTaskReminder(task);
       // }
@@ -97,10 +100,10 @@ class TaskService {
 
       await _tasksCollection.doc(id).update(updatedTask.toMap());
 
-      // TODO: Implement sound service
-      // if (updatedTask.completedBy.isNotEmpty) {
-      //   await SoundService().playTaskCompletedSound();
-      // }
+      // Play completion sound when task is marked as complete
+      if (updatedCompletedBy.isNotEmpty && task.completedBy.isEmpty) {
+        await SoundService().playCorrectSound();
+      }
     } catch (e) {
       throw Exception('Failed to toggle task completion: $e');
     }

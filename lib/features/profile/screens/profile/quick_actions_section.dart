@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/features/subjects/screens/subject_selection_screen.dart';
 import 'package:pivot/responsive.dart';
+import 'package:pivot/features/onboarding/screens/privacy_policy_screen.dart';
+import 'package:pivot/features/onboarding/screens/community_guidelines_screen.dart';
 
 class QuickActionsSection extends ConsumerStatefulWidget {
   final UserProfile userProfile;
@@ -40,8 +42,8 @@ class _QuickActionsSectionState extends ConsumerState<QuickActionsSection>
       CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
     );
 
-    // Create staggered animations for items
-    _itemAnimations = List.generate(6, (index) {
+    // Create staggered animations for items (increased to 8 for new items)
+    _itemAnimations = List.generate(8, (index) {
       return Tween<double>(begin: 0.0, end: 1.0).animate(
         CurvedAnimation(
           parent: _animationController,
@@ -155,7 +157,41 @@ class _QuickActionsSectionState extends ConsumerState<QuickActionsSection>
                     height: Responsive.space(context, size: Space.small),
                   ),
 
-                  _buildRoleSpecificActionItem(context, 3),
+                  _buildActionItem(
+                    context,
+                    3,
+                    'قواعد المجتمع',
+                    Icons.people_outline,
+                    () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const CommunityGuidelinesScreen(),
+                      ),
+                    ),
+                  ),
+
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.small),
+                  ),
+
+                  _buildActionItem(
+                    context,
+                    4,
+                    'سياسة الخصوصية',
+                    Icons.privacy_tip_outlined,
+                    () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const PrivacyPolicyScreen(),
+                      ),
+                    ),
+                  ),
+
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.small),
+                  ),
+
+                  _buildRoleSpecificActionItem(context, 5),
 
                   // Super Admin specific items
                   if (widget.userProfile.role == 'Super Admin') ...[
@@ -164,7 +200,7 @@ class _QuickActionsSectionState extends ConsumerState<QuickActionsSection>
                     ),
                     _buildActionItem(
                       context,
-                      4,
+                      6,
                       'ادارة المستخدمين',
                       Icons.admin_panel_settings_outlined,
                       () => Navigator.pushNamed(context, '/user-management'),
@@ -176,7 +212,7 @@ class _QuickActionsSectionState extends ConsumerState<QuickActionsSection>
 
                     _buildActionItem(
                       context,
-                      5,
+                      7,
                       'ادارة المواد',
                       Icons.class_outlined,
                       () => Navigator.pushNamed(

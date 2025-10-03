@@ -48,6 +48,9 @@ class AnnouncementsRepository {
   Future<List<CommentData>> getCommentsForAnnouncement(String announcementId) =>
       _service.getComments(announcementId);
 
+  Stream<List<CommentData>> streamComments(String announcementId) =>
+      _service.streamComments(announcementId);
+
   Future<void> likeComment(
     String announcementId,
     String commentId,

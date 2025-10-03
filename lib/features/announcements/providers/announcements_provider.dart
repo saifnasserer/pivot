@@ -75,6 +75,13 @@ final announcementsProvider = StateNotifierProvider.autoDispose<
   AnnouncementsState
 >((ref) => AnnouncementsNotifier(ref));
 
+// StreamProvider for comments
+final commentsStreamProvider = StreamProvider.family
+    .autoDispose<List<CommentData>, String>((ref, announcementId) {
+      final repo = ref.watch(announcementsRepositoryProvider);
+      return repo.streamComments(announcementId);
+    });
+
 class AnnouncementsNotifier extends StateNotifier<AnnouncementsState> {
   AnnouncementsNotifier(this._ref) : super(const AnnouncementsState());
 

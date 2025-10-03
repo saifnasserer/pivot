@@ -93,18 +93,19 @@ class _ProfileImageSectionState extends State<ProfileImageSection>
         return;
       }
 
-      // Pick image from gallery only
+      // Pick image from gallery only with highly optimized settings
       final ImagePicker picker = ImagePicker();
       final XFile? pickedFile = await picker.pickImage(
         source: ImageSource.gallery,
-        maxWidth: 1024,
-        maxHeight: 1024,
-        imageQuality: 80,
+        maxWidth: 600, // Further reduced for faster processing
+        maxHeight: 600, // Further reduced for faster processing
+        imageQuality: 70, // Reduced for smaller initial file size
+        requestFullMetadata: false, // Skip metadata for faster processing
       );
 
       if (pickedFile == null) return;
 
-      // Show loading indicator
+      // Show loading indicator with better messaging
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -119,7 +120,12 @@ class _ProfileImageSectionState extends State<ProfileImageSection>
                   ),
                 ),
                 SizedBox(width: 12),
-                Text('جاري معالجة الصورة...'),
+                Expanded(
+                  child: Text(
+                    'جاري معالجة وتحسين الصورة...',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                ),
               ],
             ),
             backgroundColor: Colors.blue,
@@ -127,7 +133,41 @@ class _ProfileImageSectionState extends State<ProfileImageSection>
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
-            duration: Duration(seconds: 2),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+
+      // Update loading message for compression
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'جاري ضغط الصورة للرفع السريع...',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.orange,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            duration: Duration(seconds: 10), // Longer duration for compression
           ),
         );
       }
@@ -141,6 +181,7 @@ class _ProfileImageSectionState extends State<ProfileImageSection>
             .updateProfileImage(File(compressedFile.path));
 
         if (context.mounted) {
+          ScaffoldMessenger.of(context).clearSnackBars();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Row(
@@ -233,21 +274,51 @@ class _ProfileImageSectionState extends State<ProfileImageSection>
       final targetPath =
           '${tempDir.path}/profile_${DateTime.now().millisecondsSinceEpoch}.jpg';
 
+      // More aggressive compression for faster uploads
       final result = await FlutterImageCompress.compressAndGetFile(
         imagePath,
         targetPath,
-        quality: 70, // Higher quality for profile images
-        minWidth: 400,
-        minHeight: 400,
+        quality: 50, // Further reduced for faster uploads
+        minWidth: 256, // Optimized size for profile images
+        minHeight: 256, // Optimized size for profile images
         format: CompressFormat.jpeg,
+        keepExif: false, // Remove EXIF data to reduce file size
+        autoCorrectionAngle:
+            false, // Skip auto-correction for faster processing
+        rotate: 0, // No rotation for faster processing
+        inSampleSize: 2, // Downsample by 2 for faster processing
       );
 
       if (result != null) {
+        // Verify the compressed file size
+        final file = File(result.path);
+        final fileSize = await file.length();
+
+        // If file is still too large (> 500KB), compress again with lower quality
+        if (fileSize > 500 * 1024) {
+          final result2 = await FlutterImageCompress.compressAndGetFile(
+            result.path,
+            targetPath.replaceAll('.jpg', '_2.jpg'),
+            quality: 35, // Very aggressive compression
+            minWidth: 200,
+            minHeight: 200,
+            format: CompressFormat.jpeg,
+            keepExif: false,
+          );
+
+          if (result2 != null) {
+            // Delete the first compressed file
+            await file.delete();
+            return result2;
+          }
+        }
+
         return result;
       } else {
         return null;
       }
     } catch (e) {
+      print('Image compression error: $e');
       return null;
     }
   }
@@ -266,7 +337,7 @@ class _ProfileImageSectionState extends State<ProfileImageSection>
       );
     }
 
-    // Show network image if available
+    // Show network image if available with optimized caching
     if (widget.state.userProfile?.profileImageUrl != null &&
         widget.state.userProfile!.profileImageUrl!.isNotEmpty) {
       return CachedNetworkImage(
@@ -274,19 +345,42 @@ class _ProfileImageSectionState extends State<ProfileImageSection>
         width: 132,
         height: 132,
         fit: BoxFit.cover,
+        // Optimized caching settings
+        memCacheWidth: 132, // Cache at display size
+        memCacheHeight: 132, // Cache at display size
+        fadeInDuration: Duration(milliseconds: 200), // Smooth fade-in
         placeholder:
             (context, url) => Container(
               width: 132,
               height: 132,
-              color: Colors.grey[100],
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                shape: BoxShape.circle,
+              ),
               child: Center(
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.green[600]!),
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      Colors.green[600]!,
+                    ),
+                  ),
                 ),
               ),
             ),
         errorWidget: (context, url, error) => _buildDefaultIcon(),
+        // Use placeholder while loading
+        imageBuilder:
+            (context, imageProvider) => Container(
+              width: 132,
+              height: 132,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                image: DecorationImage(image: imageProvider, fit: BoxFit.cover),
+              ),
+            ),
       );
     }
 

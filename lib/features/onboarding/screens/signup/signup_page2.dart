@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:pivot/data/form_options.dart';
 import 'package:pivot/screens/models/circular_button.dart';
 import 'package:pivot/widgets/custom_dropdown.dart';
@@ -9,6 +10,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import '../../../../services/permission_service.dart';
 import '../../../../services/notification_service.dart';
 import 'package:pivot/features/onboarding/screens/privacy_policy_screen.dart';
+import 'package:pivot/features/onboarding/screens/terms_of_service_screen.dart';
 import 'package:pivot/features/auth/providers/auth_provider.dart';
 import 'package:pivot/features/settings/providers/settings_provider.dart';
 
@@ -43,6 +45,7 @@ class _SignupPage2State extends ConsumerState<SignupPage2> {
   String _selectedLevel = '';
   String _selectedSection = '';
   bool _isLoading = false;
+  bool _acceptedTerms = false;
   String? _errorMessage;
   Map<String, int> _sectionCounts = {};
 
@@ -93,6 +96,13 @@ class _SignupPage2State extends ConsumerState<SignupPage2> {
 
   Future<void> _handleSignup() async {
     if (!_formKey.currentState!.validate()) return;
+
+    if (!_acceptedTerms) {
+      setState(() {
+        _errorMessage = 'يجب الموافقة على شروط الخدمة وسياسة الخصوصية للمتابعة';
+      });
+      return;
+    }
 
     setState(() {
       _isLoading = true;
@@ -395,32 +405,119 @@ class _SignupPage2State extends ConsumerState<SignupPage2> {
                                 ),
                               ),
 
-                            // Privacy Policy Link
-                            TextButton(
-                              onPressed: () {
-                                Navigator.push(
+                            // Terms of Service & Privacy Policy Acceptance
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: Responsive.space(
                                   context,
-                                  MaterialPageRoute(
-                                    builder: (context) => PrivacyPolicyScreen(),
-                                  ),
-                                );
-                              },
-                              child: Text(
-                                'بالمتابعة، أنت توافق على سياسة الخصوصية',
-                                style: TextStyle(
-                                  color: Colors.blue[600],
-                                  fontSize: Responsive.text(
-                                    context,
-                                    size: TextSize.small,
-                                  ),
+                                  size: Space.small,
                                 ),
-                                textAlign: TextAlign.center,
+                                vertical: Responsive.space(
+                                  context,
+                                  size: Space.medium,
+                                ),
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[50],
+                                borderRadius: BorderRadius.circular(
+                                  Responsive.space(context, size: Space.medium),
+                                ),
+                                border: Border.all(
+                                  color:
+                                      _acceptedTerms
+                                          ? Colors.green.shade300
+                                          : Colors.grey.shade300,
+                                  width: 1,
+                                ),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Checkbox(
+                                    value: _acceptedTerms,
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _acceptedTerms = value ?? false;
+                                      });
+                                    },
+                                    activeColor: Colors.green,
+                                  ),
+                                  Expanded(
+                                    child: Padding(
+                                      padding: EdgeInsets.only(
+                                        top: Responsive.space(
+                                          context,
+                                          size: Space.small,
+                                        ),
+                                      ),
+                                      child: RichText(
+                                        textDirection: TextDirection.rtl,
+                                        text: TextSpan(
+                                          style: TextStyle(
+                                            fontSize: Responsive.text(
+                                              context,
+                                              size: TextSize.small,
+                                            ),
+                                            color: Colors.grey[700],
+                                            height: 1.5,
+                                          ),
+                                          children: [
+                                            const TextSpan(text: 'أوافق على '),
+                                            TextSpan(
+                                              text: 'شروط الخدمة',
+                                              style: TextStyle(
+                                                color: Colors.blue[700],
+                                                fontWeight: FontWeight.bold,
+                                                decoration:
+                                                    TextDecoration.underline,
+                                              ),
+                                              recognizer:
+                                                  TapGestureRecognizer()
+                                                    ..onTap = () {
+                                                      Navigator.push(
+                                                        context,
+                                                        MaterialPageRoute(
+                                                          builder:
+                                                              (context) =>
+                                                                  const TermsOfServiceScreen(),
+                                                        ),
+                                                      );
+                                                    },
+                                            ),
+                                            const TextSpan(text: ' و'),
+                                            TextSpan(
+                                              text: 'سياسة الخصوصية',
+                                              style: TextStyle(
+                                                color: Colors.blue[700],
+                                                fontWeight: FontWeight.bold,
+                                                decoration:
+                                                    TextDecoration.underline,
+                                              ),
+                                              recognizer:
+                                                  TapGestureRecognizer()
+                                                    ..onTap = () {
+                                                      Navigator.push(
+                                                        context,
+                                                        MaterialPageRoute(
+                                                          builder:
+                                                              (context) =>
+                                                                  const PrivacyPolicyScreen(),
+                                                        ),
+                                                      );
+                                                    },
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                             SizedBox(
                               height: Responsive.space(
                                 context,
-                                size: Space.medium,
+                                size: Space.large,
                               ),
                             ),
 
@@ -450,14 +547,20 @@ class _SignupPage2State extends ConsumerState<SignupPage2> {
                                     ),
                                   ),
                                 )
-                                : CircularButton(
-                                  onPressed: _handleSignup,
-                                  icon: Icons.check,
-                                  backgroundColor: Colors.black87,
-                                  iconColor: Colors.white,
-                                  elevation: 0,
-                                  iconSizeMultiplier: 1.5,
-                                  sizeMultiplier: 4,
+                                : Opacity(
+                                  opacity: _acceptedTerms ? 1.0 : 0.5,
+                                  child: CircularButton(
+                                    onPressed:
+                                        _acceptedTerms
+                                            ? () => _handleSignup()
+                                            : () {},
+                                    icon: Icons.check,
+                                    backgroundColor: Colors.black87,
+                                    iconColor: Colors.white,
+                                    elevation: 0,
+                                    iconSizeMultiplier: 1.5,
+                                    sizeMultiplier: 4,
+                                  ),
                                 ),
                           ],
                         ),
