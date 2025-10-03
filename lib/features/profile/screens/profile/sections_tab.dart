@@ -36,15 +36,11 @@ class _SectionsTabState extends ConsumerState<SectionsTab> {
     final targetProfile = _getTargetProfile(userProfile, loggedInUser);
 
     if (targetProfile != null) {
-      print(
-        '📂 [SectionsTab] didChangeDependencies - enrolled: ${targetProfile.enrolledSubjects}',
-      );
-
       // Check if we need to reload due to profile changes
       final shouldReload = _shouldReloadDueToProfileChange(targetProfile);
 
       if (shouldReload) {
-        print('📂 [SectionsTab] Profile changed, reloading sections');
+        print('🔄 SectionsTab: Profile changed, reloading...');
         // Reset loading state and reload
         _hasLoadedSections = false;
         _updatePreviousProfile(targetProfile);
@@ -63,7 +59,6 @@ class _SectionsTabState extends ConsumerState<SectionsTab> {
           }
         });
       } else if (!_hasLoadedSections) {
-        print('📂 [SectionsTab] Initial load');
         _updatePreviousProfile(targetProfile);
         // Initial load
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -146,49 +141,52 @@ class _SectionsTabState extends ConsumerState<SectionsTab> {
 
   void _loadSectionsForUser(UserProfile userProfile) {
     final sectionsState = ref.read(sectionsProvider);
+    final hasData = sectionsState.sections.isNotEmpty;
 
     // Prevent multiple simultaneous loading calls
     if (sectionsState.isLoading) {
-      print('📂 [SectionsTab] Already loading, skipping');
       return;
     }
 
     if (userProfile.enrolledSubjects.isNotEmpty) {
-      print(
-        '📂 [SectionsTab] Loading sections for subjects: ${userProfile.enrolledSubjects}',
-      );
-      ref
-          .read(sectionsProvider.notifier)
-          .fetchSectionsForUserSubjects(userProfile.enrolledSubjects)
-          .then((_) {
-            print('📂 [SectionsTab] Sections loaded successfully');
-            // Mark sections as loaded
-            if (mounted) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) {
-                  setState(() {
-                    _hasLoadedSections = true;
-                  });
-                }
-              });
-            }
-          })
-          .catchError((error) {
-            print('❌ [SectionsTab] Error loading sections: $error');
-            if (mounted) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) {
-                  setState(() {
-                    _hasLoadedSections =
-                        true; // Mark as loaded even on error to prevent infinite retries
-                  });
-                }
-              });
-            }
-          });
+      // Only fetch if data is not already loaded
+      if (!hasData && !sectionsState.isLoading) {
+        print('🔄 SectionsTab: Fetching sections...');
+        ref
+            .read(sectionsProvider.notifier)
+            .fetchSectionsForUserSubjects(userProfile.enrolledSubjects)
+            .then((_) {
+              if (mounted) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    setState(() {
+                      _hasLoadedSections = true;
+                    });
+                  }
+                });
+              }
+            })
+            .catchError((error) {
+              print('❌ SectionsTab: Fetch error - $error');
+              if (mounted) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    setState(() {
+                      _hasLoadedSections = true;
+                    });
+                  }
+                });
+              }
+            });
+      } else if (hasData) {
+        print(
+          '✅ SectionsTab: Reusing data from WeekTasks (${sectionsState.sections.length} sections) - Zero reads',
+        );
+        setState(() {
+          _hasLoadedSections = true;
+        });
+      }
     } else {
-      print('📂 [SectionsTab] No enrolled subjects, clearing sections');
-      // Only clear sections if user has no enrolled subjects
       ref.read(sectionsProvider.notifier).resetFilter();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {

@@ -28,16 +28,27 @@ class _SubjectsTabState extends ConsumerState<SubjectsTab> {
 
   void _initializeSubjects() {
     final userProfileState = ref.read(userProfileProvider);
+    final subjectsState = ref.read(subjectsProvider);
     final targetProfile = _getTargetProfile(
       userProfileState.userProfile,
       userProfileState.loggedInUserProfile,
     );
 
     if (targetProfile != null) {
-      print(
-        '📖 [SubjectsTab] Initializing with enrolled subjects: ${targetProfile.enrolledSubjects}',
-      );
-      ref.read(subjectsProvider.notifier).fetchAndFilterSubjects(targetProfile);
+      final hasData = subjectsState.filteredSubjects.isNotEmpty;
+
+      // Only fetch if data is not already loaded
+      if (!hasData && !subjectsState.isLoading) {
+        print('🔄 SubjectsTab: Fetching subjects...');
+        ref
+            .read(subjectsProvider.notifier)
+            .fetchAndFilterSubjects(targetProfile);
+      } else if (hasData) {
+        print(
+          '✅ SubjectsTab: Reusing data from WeekTasks (${subjectsState.filteredSubjects.length} subjects) - Zero reads',
+        );
+      }
+
       _hasInitialized = true;
     }
   }
@@ -76,7 +87,7 @@ class _SubjectsTabState extends ConsumerState<SubjectsTab> {
             !expectedFiltered.containsAll(currentFiltered)) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
-              print('📖 [SubjectsTab] Profile changed, refreshing subjects');
+              print('🔄 SubjectsTab: Profile changed, refreshing...');
               ref
                   .read(subjectsProvider.notifier)
                   .fetchAndFilterSubjects(targetProfile);
@@ -99,10 +110,6 @@ class _SubjectsTabState extends ConsumerState<SubjectsTab> {
               .where((s) => enrolledIds.contains(s.id))
               .toList();
 
-      print(
-        '📖 [SubjectsTab] Displaying ${registeredSubjects.length} subjects',
-      );
-
       final subjectSlivers = buildSubjectsSlivers(
         context,
         registeredSubjects,
@@ -111,7 +118,7 @@ class _SubjectsTabState extends ConsumerState<SubjectsTab> {
 
       return CustomScrollView(slivers: subjectSlivers);
     } catch (e) {
-      print('❌ [SubjectsTab] Error: $e');
+      print('❌ SubjectsTab: Error - $e');
       return const Center(child: Text('لا يمكن تحميل المواد حالياً'));
     }
   }

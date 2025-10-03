@@ -32,31 +32,26 @@ class _ScheduleTabState extends ConsumerState<ScheduleTab>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Refresh data when dependencies change (e.g., when returning to this tab)
+    // Local-first: Only refresh if no data exists
+    // This prevents unnecessary fetches when switching tabs
     _refreshScheduleData();
   }
 
   void _refreshScheduleData() {
-    print('📅 === SCHEDULE TAB: Refreshing Data ===');
     final scheduleState = ref.read(scheduleProvider);
 
-    print('  - Schedule empty: ${scheduleState.schedule.isEmpty}');
-    print('  - Is loading: ${scheduleState.isLoading}');
-    print('  - Has error: ${scheduleState.error != null}');
-    if (scheduleState.error != null) {
-      print('  - Error: ${scheduleState.error}');
-    }
-
+    // Local-first strategy: Only fetch if no data exists (first time load)
     if (scheduleState.schedule.isEmpty && !scheduleState.isLoading) {
-      print('  - 🔄 Fetching schedule...');
+      print('🔄 ScheduleTab: Fetching schedule (first load)...');
       try {
         ref.read(scheduleProvider.notifier).fetchSchedule();
       } catch (e) {
-        print('  - ❌ Error fetching schedule: $e');
-        print('  - Error type: ${e.runtimeType}');
+        print('❌ ScheduleTab: Fetch error - $e');
       }
     } else if (scheduleState.schedule.isNotEmpty) {
-      print('  - ✅ Schedule has ${scheduleState.schedule.length} days');
+      print(
+        '✅ ScheduleTab: Using local schedule (${scheduleState.schedule.length} days) - Zero reads',
+      );
       // Auto-select today if available
       _autoSelectTodayIfAvailable();
     }
@@ -81,25 +76,19 @@ class _ScheduleTabState extends ConsumerState<ScheduleTab>
   }
 
   Future<void> _refreshSchedule() async {
-    print('📅 === SCHEDULE TAB: Manual Refresh ===');
+    print('🔄 ScheduleTab: Manual refresh...');
     try {
+      // Manual refresh: Force fetch from remote
       await ref.read(scheduleProvider.notifier).fetchSchedule();
-      print('  - ✅ Refresh completed successfully');
 
       // Auto-select today after refreshing schedule data
       final scheduleState = ref.read(scheduleProvider);
       if (scheduleState.days.isNotEmpty) {
-        print(
-          '  - 📆 Auto-selecting today from ${scheduleState.days.length} days',
-        );
         _autoSelectTodayIfAvailable();
-      } else {
-        print('  - ⚠️ No days found after refresh');
+        print('✅ ScheduleTab: Refreshed ${scheduleState.days.length} days');
       }
     } catch (e) {
-      print('  - ❌ Refresh failed: $e');
-      print('  - Error type: ${e.runtimeType}');
-      print('  - Stack trace: ${StackTrace.current}');
+      print('❌ ScheduleTab: Refresh error - $e');
     }
   }
 

@@ -21,6 +21,10 @@ class _BookmarksScreenState extends ConsumerState<BookmarksScreen> {
   String _searchQuery = '';
   bool _isSearchActive = false;
 
+  // Local-first: Cache fetched announcements
+  List<AnnouncementData>? _cachedAnnouncements;
+  List<String>? _cachedBookmarkIds;
+
   @override
   void initState() {
     super.initState();
@@ -80,13 +84,29 @@ class _BookmarksScreenState extends ConsumerState<BookmarksScreen> {
     }
   }
 
-  // Fetches announcements and re-orders them to match the bookmarking order.
-  Future<List<AnnouncementData>> _fetchBookmarkedAnnouncements(
+  // Local-first: Smart fetch that uses cache when possible
+  Future<List<AnnouncementData>> _fetchBookmarkedAnnouncementsSmart(
     List<String> ids,
   ) async {
     if (ids.isEmpty) {
       return [];
     }
+
+    // Check if we can use cached data
+    final bool cacheValid =
+        _cachedAnnouncements != null &&
+        _cachedBookmarkIds != null &&
+        _listEquals(ids, _cachedBookmarkIds!);
+
+    if (cacheValid) {
+      print(
+        '✅ BookmarksTab: Using cached announcements (${_cachedAnnouncements!.length} items) - Zero reads',
+      );
+      return _cachedAnnouncements!;
+    }
+
+    // Cache miss or bookmark IDs changed - fetch from Firestore
+    print('🔄 BookmarksTab: Fetching ${ids.length} bookmarked items...');
 
     final announcementsRef = FirebaseFirestore.instance.collection(
       'announcements',
@@ -122,7 +142,24 @@ class _BookmarksScreenState extends ConsumerState<BookmarksScreen> {
             .cast<AnnouncementData>()
             .toList();
 
+    // Update cache
+    setState(() {
+      _cachedAnnouncements = sortedAnnouncements;
+      _cachedBookmarkIds = List.from(ids);
+    });
+
+    print('✅ BookmarksTab: Cached ${sortedAnnouncements.length} items');
+
     return sortedAnnouncements;
+  }
+
+  // Helper to compare lists
+  bool _listEquals(List<String> list1, List<String> list2) {
+    if (list1.length != list2.length) return false;
+    for (int i = 0; i < list1.length; i++) {
+      if (list1[i] != list2[i]) return false;
+    }
+    return true;
   }
 
   List<AnnouncementData> _filterBookmarks(List<AnnouncementData> bookmarks) {
@@ -410,13 +447,20 @@ class _BookmarksScreenState extends ConsumerState<BookmarksScreen> {
                     // Search bar
                     _buildSearchBar(),
 
-                    // Bookmarks list
+                    // Bookmarks list with local-first caching
                     Expanded(
                       child: FutureBuilder<List<AnnouncementData>>(
-                        future: _fetchBookmarkedAnnouncements(bookmarkIds),
+                        future: _fetchBookmarkedAnnouncementsSmart(bookmarkIds),
                         builder: (context, snapshot) {
+                          // Show cached data immediately while loading fresh data
                           if (snapshot.connectionState ==
                               ConnectionState.waiting) {
+                            // If we have cached data, show it immediately
+                            if (_cachedAnnouncements != null &&
+                                _cachedAnnouncements!.isNotEmpty) {
+                              return _buildBookmarksList(_cachedAnnouncements!);
+                            }
+                            // Otherwise show loading spinner (first time load)
                             return const Center(
                               child: CircularProgressIndicator(),
                             );

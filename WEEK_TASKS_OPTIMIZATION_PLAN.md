@@ -12,6 +12,7 @@
 ### 1. Smart Data Initialization (Check Before Fetch)
 
 **Current Code**:
+
 ```dart
 // Always fetches, even if data already exists
 ref.read(subjectsProvider.notifier).fetchAndFilterSubjects(loggedInUser);
@@ -20,21 +21,22 @@ ref.read(tasksProvider.notifier).getAllTasks();
 ```
 
 **Optimized Code**:
+
 ```dart
 void _initializeDataSmart(UserProfile user) {
   final subjectsState = ref.read(subjectsProvider);
   final sectionsState = ref.read(sectionsProvider);
   final tasksState = ref.read(tasksProvider);
-  
+
   // Only fetch if not already loaded or loading
   if (subjectsState.filteredSubjects.isEmpty && !subjectsState.isLoading) {
     ref.read(subjectsProvider.notifier).fetchAndFilterSubjects(user);
   }
-  
+
   if (sectionsState.sections.isEmpty && !sectionsState.isLoading) {
     ref.read(sectionsProvider.notifier).fetchSectionsForUserSubjects(user.enrolledSubjects);
   }
-  
+
   if (tasksState.tasks.isEmpty && !tasksState.isLoading) {
     ref.read(tasksProvider.notifier).getAllTasks();
   }
@@ -44,6 +46,7 @@ void _initializeDataSmart(UserProfile user) {
 ### 2. Remove Redundant Fetches
 
 **ProfileScreen (profile_screen.dart:52-63)**:
+
 ```dart
 // ❌ REMOVE THIS - WeekTasks will handle it
 WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -64,14 +67,16 @@ WidgetsBinding.instance.addPostFrameCallback((_) {
 ### 3. Parallel Data Loading
 
 **Current (Sequential)**:
+
 ```dart
 await fetchSubjects();      // Wait 500ms
-await fetchSections();       // Wait 300ms  
+await fetchSections();       // Wait 300ms
 await fetchTasks();          // Wait 400ms
 // Total: 1200ms
 ```
 
 **Optimized (Parallel)**:
+
 ```dart
 void _initializeDataParallel(UserProfile user) async {
   // All fetch simultaneously
@@ -87,12 +92,14 @@ void _initializeDataParallel(UserProfile user) async {
 ### 4. Stale-While-Revalidate Pattern
 
 The providers already implement this! ✅
+
 - Load from Hive cache immediately (1-5ms)
 - Show UI with cached data
 - Fetch from Firestore in background
 - Update UI when fresh data arrives
 
 **Current Implementation (sections_provider.dart:64-89)**:
+
 ```dart
 // Step 1: Load from cache first (INSTANT)
 final cachedSections = CacheService.instance.getCachedSections();
@@ -113,7 +120,7 @@ state = state.copyWith(sections: sections);  // UI updates with fresh data
 
 ```dart
 // Modified loading check
-final isInitialLoad = subjectsState.filteredSubjects.isEmpty && 
+final isInitialLoad = subjectsState.filteredSubjects.isEmpty &&
                      sectionsState.sections.isEmpty &&
                      tasksState.tasks.isEmpty;
 
@@ -128,15 +135,17 @@ if (isLoadingData && isInitialLoad) {
 ### 6. Cache Expiry Optimization
 
 **Current Cache Expiry Times** (cache_service.dart:23-28):
+
 ```dart
 users: 30 minutes
-sections: 60 minutes  
+sections: 60 minutes
 subjects: 120 minutes
 schedule: 15 minutes
 tasks: ??? (not cached yet)
 ```
 
 **Recommended for Tasks**:
+
 ```dart
 tasks: 5 minutes  // Tasks change frequently
 ```
@@ -151,37 +160,37 @@ void _initializeDataSmart(UserProfile user) {
   final subjectsState = ref.read(subjectsProvider);
   final sectionsState = ref.read(sectionsProvider);
   final tasksState = ref.read(tasksProvider);
-  
+
   print('WeekTasks: Smart initialization - checking existing data...');
   print('  - Subjects loaded: ${subjectsState.filteredSubjects.length}');
   print('  - Sections loaded: ${sectionsState.sections.length}');
   print('  - Tasks loaded: ${tasksState.tasks.length}');
-  
+
   // Parallel fetch only what's needed
   final fetchFutures = <Future>[];
-  
+
   if (subjectsState.filteredSubjects.isEmpty && !subjectsState.isLoading) {
     print('  - 🔄 Fetching subjects...');
     fetchFutures.add(
       ref.read(subjectsProvider.notifier).fetchAndFilterSubjects(user)
     );
   }
-  
-  if (sectionsState.sections.isEmpty && !sectionsState.isLoading && 
+
+  if (sectionsState.sections.isEmpty && !sectionsState.isLoading &&
       user.enrolledSubjects.isNotEmpty) {
     print('  - 🔄 Fetching sections...');
     fetchFutures.add(
       ref.read(sectionsProvider.notifier).fetchSectionsForUserSubjects(user.enrolledSubjects)
     );
   }
-  
+
   if (tasksState.tasks.isEmpty && !tasksState.isLoading) {
     print('  - 🔄 Fetching tasks...');
     fetchFutures.add(
       ref.read(tasksProvider.notifier).getAllTasks()
     );
   }
-  
+
   if (fetchFutures.isEmpty) {
     print('  - ✅ All data already loaded!');
   } else {
@@ -228,11 +237,12 @@ if (isLoadingData && !hasAnyData) {
 ### Step 4: Add Task Caching
 
 **Create tasks_cache_service.dart**:
+
 ```dart
 class TasksCacheService {
   static const String _tasksBoxName = 'tasksBox';
   static const int _tasksCacheExpiry = 5; // 5 minutes
-  
+
   Future<void> cacheTasks(List<Task> tasks) async {
     final box = Hive.box<Task>(_tasksBoxName);
     await box.clear();
@@ -241,7 +251,7 @@ class TasksCacheService {
     }
     await _updateCacheTimestamp();
   }
-  
+
   List<Task> getCachedTasks() {
     if (!CacheService.instance.isCacheValid(_tasksBoxName, customExpiryMinutes: _tasksCacheExpiry)) {
       return [];
@@ -255,12 +265,14 @@ class TasksCacheService {
 ## Expected Performance Improvements
 
 ### Before Optimization:
+
 - **Initial Load**: ~1500ms (3 sequential fetches)
 - **Firestore Reads per profile open**: 3-4 reads (even if data exists)
 - **User Experience**: Spinner → Spinner → Content
 - **Offline**: ❌ Doesn't work without internet
 
 ### After Optimization:
+
 - **Initial Load**: ~50ms (from Hive cache)
 - **Background Refresh**: ~500ms (parallel fetches)
 - **Firestore Reads per profile open**: 0-3 reads (only if cache expired)
@@ -270,11 +282,13 @@ class TasksCacheService {
 ## Estimated Reduction in Firestore Reads
 
 **Current Usage** (per user per day):
+
 - Profile opens: 20 times
 - Reads per open: 4
 - **Total daily reads**: 80 reads
 
 **After Optimization**:
+
 - Profile opens: 20 times
 - Reads per open (cached): 0
 - Reads per open (expired): 3 (parallel, no redundancy)
@@ -310,4 +324,3 @@ class TasksCacheService {
 **Priority**: HIGH
 **Effort**: 2-3 hours
 **Impact**: Major UX improvement + 75% cost reduction
-

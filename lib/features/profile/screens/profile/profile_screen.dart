@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/features/administration/screens/assistants/profile/assistant_profile_main.dart';
 import 'package:pivot/features/administration/screens/doctor/profile/doctor_profile.dart';
-import 'package:pivot/features/administration/providers/sections_provider.dart';
 
 import 'package:pivot/features/bookmarks/screens/bookmarks_screen.dart';
 import 'package:pivot/features/tasks/screens/week_tasks.dart';
@@ -49,18 +48,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     _tabController.addListener(_onTabChanged);
     WidgetsBinding.instance.addObserver(this);
 
-    // Load initial data
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        final userProfileState = ref.read(userProfileProvider);
-        final userProfile = userProfileState.loggedInUserProfile;
-        if (userProfile != null && userProfile.enrolledSubjects.isNotEmpty) {
-          ref
-              .read(sectionsProvider.notifier)
-              .fetchSectionsForUserSubjects(userProfile.enrolledSubjects);
-        }
-      }
-    });
+    // Note: Data loading is now handled by individual tabs (WeekTasks, SectionsTab, etc.)
+    // This eliminates redundant fetches and improves performance
   }
 
   @override
