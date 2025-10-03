@@ -32,6 +32,9 @@ class _DoctorProfileState extends ConsumerState<DoctorProfile>
   Subject?
   _targetSubject; // Subject to navigate to when coming from subject details
 
+  // Callback to refresh lectures in SubjectsSection
+  VoidCallback? _refreshLecturesCallback;
+
   @override
   void initState() {
     super.initState();
@@ -254,6 +257,9 @@ class _DoctorProfileState extends ConsumerState<DoctorProfile>
         final service = DoctorSubjectService();
         await service.addLecture(newLecture);
 
+        // Refresh lectures in UI
+        _refreshLecturesCallback?.call();
+
         // Show success message with subject name
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -307,6 +313,9 @@ class _DoctorProfileState extends ConsumerState<DoctorProfile>
               userProfile: userProfile,
               loggedInUser: loggedInUser,
               targetSubject: _targetSubject,
+              onRefreshCallbackSet: (callback) {
+                _refreshLecturesCallback = callback;
+              },
               onCurrentSubjectChanged: (subject) {
                 setState(() {
                   _currentSubject = subject;

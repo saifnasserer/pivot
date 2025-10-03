@@ -14,12 +14,14 @@ class SubjectModel extends ConsumerStatefulWidget {
   final Lecture lecture;
   final IconData? icon;
   final bool canEdit;
+  final VoidCallback? onLectureDeleted;
 
   const SubjectModel({
     super.key,
     required this.lecture,
     this.icon,
     this.canEdit = false,
+    this.onLectureDeleted,
   });
 
   @override
@@ -195,9 +197,43 @@ class _SubjectModelState extends ConsumerState<SubjectModel>
                                       style: TextStyle(color: Colors.grey),
                                     ),
                                     onCancel: () => Navigator.of(context).pop(),
-                                    onConfirm: () {
-                                      service.deleteLecture(widget.lecture.id);
-                                      Navigator.of(context).pop();
+                                    onConfirm: () async {
+                                      try {
+                                        await service.deleteLecture(
+                                          widget.lecture.id,
+                                        );
+                                        Navigator.of(context).pop();
+
+                                        // Notify parent to refresh
+                                        widget.onLectureDeleted?.call();
+
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'تم حذف المحاضرة بنجاح',
+                                              ),
+                                              backgroundColor: Colors.green,
+                                            ),
+                                          );
+                                        }
+                                      } catch (e) {
+                                        Navigator.of(context).pop();
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                'فشل حذف المحاضرة: $e',
+                                              ),
+                                              backgroundColor: Colors.red,
+                                            ),
+                                          );
+                                        }
+                                      }
                                     },
                                     confirmText: 'حذف',
                                     confirmIcon: Icons.delete,

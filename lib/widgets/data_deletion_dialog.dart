@@ -87,6 +87,35 @@ class _DataDeletionDialogState extends ConsumerState<DataDeletionDialog> {
           ),
         );
       }
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        String errorMessage = 'خطأ في حذف الحساب';
+
+        if (e.code == 'requires-recent-login') {
+          errorMessage = 'يجب تسجيل الدخول مرة أخرى لإتمام عملية الحذف';
+          // Show re-authentication dialog
+          final reAuthSuccess = await _showReAuthenticationDialog();
+          if (reAuthSuccess) {
+            // Retry deletion after re-authentication
+            await _deleteUserData();
+            return;
+          } else {
+            errorMessage = 'تم إلغاء عملية الحذف';
+          }
+        } else if (e.code == 'too-many-requests') {
+          errorMessage = 'تم تجاوز عدد المحاولات. الرجاء المحاولة لاحقاً';
+        } else if (e.code == 'network-request-failed') {
+          errorMessage = 'خطأ في الاتصال بالإنترنت';
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -101,6 +130,72 @@ class _DataDeletionDialogState extends ConsumerState<DataDeletionDialog> {
         setState(() => _isDeleting = false);
       }
     }
+  }
+
+  Future<bool> _showReAuthenticationDialog() async {
+    final passwordController = TextEditingController();
+    bool? result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('تأكيد الهوية'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'لإتمام عملية حذف الحساب، يرجى إدخال كلمة المرور الخاصة بك:',
+                  style: TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: passwordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'كلمة المرور',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.lock),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('إلغاء'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  try {
+                    final user = FirebaseAuth.instance.currentUser;
+                    if (user != null && user.email != null) {
+                      final credential = EmailAuthProvider.credential(
+                        email: user.email!,
+                        password: passwordController.text,
+                      );
+                      await user.reauthenticateWithCredential(credential);
+                      if (context.mounted) {
+                        Navigator.of(context).pop(true);
+                      }
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('كلمة المرور غير صحيحة'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                },
+                child: const Text('تأكيد'),
+              ),
+            ],
+          ),
+    );
+    passwordController.dispose();
+    return result ?? false;
   }
 
   @override
@@ -199,11 +294,6 @@ class _DataDeletionDialogState extends ConsumerState<DataDeletionDialog> {
             'المهام',
             _dataSummary['tasks'] ?? 0,
             Icons.assignment,
-          ),
-          _buildDataItem(
-            'الإعلانات',
-            _dataSummary['announcements'] ?? 0,
-            Icons.campaign,
           ),
           _buildDataItem(
             'التقارير',

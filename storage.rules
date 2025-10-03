@@ -82,6 +82,18 @@ service firebase.storage {
       allow delete: if isOwnerOrAdmin(userId);
     }
     
+    // Profile images in root (legacy support)
+    match /profile_images/{userId} {
+      allow read: if isSignedIn();
+      allow write, delete: if isOwnerOrAdmin(userId);
+    }
+    
+    // Allow recursive deletion of all user files (for account deletion)
+    match /users/{userId}/{allPaths=**} {
+      allow read: if isSignedIn();
+      allow write, delete: if isOwnerOrAdmin(userId);
+    }
+    
     // ===== PHASE 4: PROFILE - User Files and Images =====
     match /users/{userId}/files/{fileName} {
       allow read, write, delete: if isUser(userId) && 

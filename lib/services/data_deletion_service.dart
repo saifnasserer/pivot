@@ -134,24 +134,43 @@ class DataDeletionService {
     }
   }
 
-  /// Delete all user posts
+  /// Delete all user posts with pagination to handle large datasets
   static Future<bool> _deleteUserPosts(String userId) async {
     try {
-      // Delete posts where user is the author
-      final postsQuery =
-          await FirebaseFirestore.instance
-              .collection('posts')
-              .where('authorId', isEqualTo: userId)
-              .get();
+      int totalDeleted = 0;
+      const int batchSize = 500; // Firestore batch limit
+      bool hasMore = true;
 
-      final batch = FirebaseFirestore.instance.batch();
-      for (var doc in postsQuery.docs) {
-        batch.delete(doc.reference);
+      while (hasMore) {
+        // Delete posts where user is the author
+        final postsQuery =
+            await FirebaseFirestore.instance
+                .collection('posts')
+                .where('authorId', isEqualTo: userId)
+                .limit(batchSize)
+                .get();
+
+        if (postsQuery.docs.isEmpty) {
+          hasMore = false;
+          break;
+        }
+
+        final batch = FirebaseFirestore.instance.batch();
+        for (var doc in postsQuery.docs) {
+          batch.delete(doc.reference);
+        }
+        await batch.commit();
+
+        totalDeleted += postsQuery.docs.length;
+
+        // If we got less than batch size, we're done
+        if (postsQuery.docs.length < batchSize) {
+          hasMore = false;
+        }
       }
-      await batch.commit();
 
       if (kDebugMode) {
-        print('[DataDeletion] User posts deleted: ${postsQuery.docs.length}');
+        print('[DataDeletion] User posts deleted: $totalDeleted');
       }
       return true;
     } catch (e) {
@@ -162,26 +181,41 @@ class DataDeletionService {
     }
   }
 
-  /// Delete all user comments
+  /// Delete all user comments with pagination to handle large datasets
   static Future<bool> _deleteUserComments(String userId) async {
     try {
-      // Delete comments where user is the author
-      final commentsQuery =
-          await FirebaseFirestore.instance
-              .collection('comments')
-              .where('authorId', isEqualTo: userId)
-              .get();
+      int totalDeleted = 0;
+      const int batchSize = 500;
+      bool hasMore = true;
 
-      final batch = FirebaseFirestore.instance.batch();
-      for (var doc in commentsQuery.docs) {
-        batch.delete(doc.reference);
+      while (hasMore) {
+        final commentsQuery =
+            await FirebaseFirestore.instance
+                .collection('comments')
+                .where('authorId', isEqualTo: userId)
+                .limit(batchSize)
+                .get();
+
+        if (commentsQuery.docs.isEmpty) {
+          hasMore = false;
+          break;
+        }
+
+        final batch = FirebaseFirestore.instance.batch();
+        for (var doc in commentsQuery.docs) {
+          batch.delete(doc.reference);
+        }
+        await batch.commit();
+
+        totalDeleted += commentsQuery.docs.length;
+
+        if (commentsQuery.docs.length < batchSize) {
+          hasMore = false;
+        }
       }
-      await batch.commit();
 
       if (kDebugMode) {
-        print(
-          '[DataDeletion] User comments deleted: ${commentsQuery.docs.length}',
-        );
+        print('[DataDeletion] User comments deleted: $totalDeleted');
       }
       return true;
     } catch (e) {
@@ -192,26 +226,41 @@ class DataDeletionService {
     }
   }
 
-  /// Delete all user notifications
+  /// Delete all user notifications with pagination
   static Future<bool> _deleteUserNotifications(String userId) async {
     try {
-      // Delete notifications for this user
-      final notificationsQuery =
-          await FirebaseFirestore.instance
-              .collection('notifications')
-              .where('userId', isEqualTo: userId)
-              .get();
+      int totalDeleted = 0;
+      const int batchSize = 500;
+      bool hasMore = true;
 
-      final batch = FirebaseFirestore.instance.batch();
-      for (var doc in notificationsQuery.docs) {
-        batch.delete(doc.reference);
+      while (hasMore) {
+        final notificationsQuery =
+            await FirebaseFirestore.instance
+                .collection('notifications')
+                .where('userId', isEqualTo: userId)
+                .limit(batchSize)
+                .get();
+
+        if (notificationsQuery.docs.isEmpty) {
+          hasMore = false;
+          break;
+        }
+
+        final batch = FirebaseFirestore.instance.batch();
+        for (var doc in notificationsQuery.docs) {
+          batch.delete(doc.reference);
+        }
+        await batch.commit();
+
+        totalDeleted += notificationsQuery.docs.length;
+
+        if (notificationsQuery.docs.length < batchSize) {
+          hasMore = false;
+        }
       }
-      await batch.commit();
 
       if (kDebugMode) {
-        print(
-          '[DataDeletion] User notifications deleted: ${notificationsQuery.docs.length}',
-        );
+        print('[DataDeletion] User notifications deleted: $totalDeleted');
       }
       return true;
     } catch (e) {
@@ -225,24 +274,24 @@ class DataDeletionService {
   /// Delete user schedule data
   static Future<bool> _deleteUserSchedule(String userId) async {
     try {
-      // Delete user schedule
-      final scheduleQuery =
-          await FirebaseFirestore.instance
-              .collection('schedules')
-              .where('userId', isEqualTo: userId)
-              .get();
+      // Delete user schedule (schedules collection uses userId as document ID)
+      final scheduleRef = FirebaseFirestore.instance
+          .collection('schedules')
+          .doc(userId);
 
-      final batch = FirebaseFirestore.instance.batch();
-      for (var doc in scheduleQuery.docs) {
-        batch.delete(doc.reference);
+      // Check if document exists before deleting
+      final scheduleDoc = await scheduleRef.get();
+      if (scheduleDoc.exists) {
+        await scheduleRef.delete();
+        if (kDebugMode) {
+          print('[DataDeletion] User schedule deleted: 1');
+        }
+      } else {
+        if (kDebugMode) {
+          print('[DataDeletion] No schedule found for user: $userId');
+        }
       }
-      await batch.commit();
 
-      if (kDebugMode) {
-        print(
-          '[DataDeletion] User schedule deleted: ${scheduleQuery.docs.length}',
-        );
-      }
       return true;
     } catch (e) {
       if (kDebugMode) {
@@ -280,34 +329,56 @@ class DataDeletionService {
     }
   }
 
-  /// Delete user files from Firebase Storage
+  /// Recursively delete a folder and all its contents from Firebase Storage
+  static Future<void> _deleteStorageFolderRecursive(Reference folderRef) async {
+    try {
+      final listResult = await folderRef.listAll();
+
+      // Delete all files in this folder
+      final deleteFilesFutures = listResult.items.map((item) => item.delete());
+      await Future.wait(deleteFilesFutures);
+
+      // Recursively delete all subfolders
+      final deleteFoldersFutures = listResult.prefixes.map(
+        (folder) => _deleteStorageFolderRecursive(folder),
+      );
+      await Future.wait(deleteFoldersFutures);
+
+      if (kDebugMode) {
+        print(
+          '[DataDeletion] Deleted folder: ${folderRef.fullPath} (${listResult.items.length} files, ${listResult.prefixes.length} subfolders)',
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('[DataDeletion] Error deleting folder ${folderRef.fullPath}: $e');
+      }
+      rethrow;
+    }
+  }
+
+  /// Delete user files from Firebase Storage recursively
   static Future<bool> _deleteUserFiles(String userId) async {
     try {
       // Delete user files from storage
       final storageRef = FirebaseStorage.instance.ref().child('users/$userId');
 
       try {
-        final listResult = await storageRef.listAll();
-
-        // Delete all files
-        for (var item in listResult.items) {
-          await item.delete();
-        }
-
-        // Delete all folders
-        for (var folder in listResult.prefixes) {
-          await folder.delete();
-        }
-      } catch (e) {
-        // Folder might not exist, which is fine
+        await _deleteStorageFolderRecursive(storageRef);
         if (kDebugMode) {
-          print('[DataDeletion] No files to delete for user: $userId');
+          print('[DataDeletion] All user files deleted from storage');
+        }
+      } on FirebaseException catch (e) {
+        // Folder might not exist (object-not-found), which is fine
+        if (e.code == 'object-not-found') {
+          if (kDebugMode) {
+            print('[DataDeletion] No files to delete for user: $userId');
+          }
+        } else {
+          rethrow;
         }
       }
 
-      if (kDebugMode) {
-        print('[DataDeletion] User files deleted from storage');
-      }
       return true;
     } catch (e) {
       if (kDebugMode) {
@@ -496,32 +567,60 @@ class DataDeletionService {
             );
           }
           return true;
-        } catch (authError) {
-          // Handle specific Firebase Auth errors
-          if (authError.toString().contains('requires-recent-login')) {
-            if (kDebugMode) {
-              print(
-                '[DataDeletion] Account deletion requires recent login. User must re-authenticate.',
-              );
-            }
-            throw Exception(
-              'Account deletion requires recent authentication. Please sign in again and try deleting your account.',
+        } on FirebaseAuthException catch (authError) {
+          // Handle specific Firebase Auth errors with proper error codes
+          if (kDebugMode) {
+            print(
+              '[DataDeletion] FirebaseAuthException: ${authError.code} - ${authError.message}',
             );
-          } else if (authError.toString().contains('too-many-requests')) {
-            if (kDebugMode) {
-              print(
-                '[DataDeletion] Too many requests. Please try again later.',
-              );
-            }
-            throw Exception(
-              'Too many deletion attempts. Please try again later.',
-            );
-          } else {
-            if (kDebugMode) {
-              print('[DataDeletion] Firebase Auth error: $authError');
-            }
-            rethrow;
           }
+
+          switch (authError.code) {
+            case 'requires-recent-login':
+              if (kDebugMode) {
+                print(
+                  '[DataDeletion] Account deletion requires recent login. User must re-authenticate.',
+                );
+              }
+              // Re-throw as FirebaseAuthException to be caught by dialog
+              rethrow;
+
+            case 'too-many-requests':
+              if (kDebugMode) {
+                print(
+                  '[DataDeletion] Too many requests. Please try again later.',
+                );
+              }
+              rethrow;
+
+            case 'network-request-failed':
+              if (kDebugMode) {
+                print('[DataDeletion] Network error during auth deletion');
+              }
+              rethrow;
+
+            case 'user-token-expired':
+              if (kDebugMode) {
+                print(
+                  '[DataDeletion] User token expired, re-authentication needed',
+                );
+              }
+              rethrow;
+
+            default:
+              if (kDebugMode) {
+                print(
+                  '[DataDeletion] Unhandled Firebase Auth error: ${authError.code}',
+                );
+              }
+              rethrow;
+          }
+        } catch (e) {
+          // Catch any other errors
+          if (kDebugMode) {
+            print('[DataDeletion] Unexpected error during auth deletion: $e');
+          }
+          rethrow;
         }
       }
 
@@ -666,16 +765,47 @@ class DataDeletionService {
         }
       }
 
-      // Note: Firebase Auth account deletion requires Firebase Functions with Admin SDK
-      // For now, we'll mark this as successful since the data deletion is complete
-      // The auth account deletion should be handled by deploying the Firebase Function
+      // Delete Firebase Auth account via Firebase Function (Admin SDK)
       if (kDebugMode) {
         print(
-          '[DataDeletion] Firebase Auth account deletion skipped - requires Firebase Function deployment',
+          '[DataDeletion] Attempting to delete Firebase Auth account via Function...',
         );
-        print(
-          '[DataDeletion] To enable auth deletion, deploy the delete_user_auth Firebase Function',
+      }
+
+      try {
+        final authDeleted = await _deleteUserAuthViaFunction(
+          userId,
+          currentUser.uid,
         );
+
+        if (authDeleted) {
+          if (kDebugMode) {
+            print(
+              '[DataDeletion] Firebase Auth account deleted successfully via Function',
+            );
+          }
+        } else {
+          if (kDebugMode) {
+            print(
+              '[DataDeletion] Warning: Firebase Auth account deletion failed',
+            );
+            print(
+              '[DataDeletion] Please ensure the delete_user_auth Firebase Function is deployed',
+            );
+          }
+          // Don't fail the entire operation if only auth deletion fails
+          // The data has been deleted successfully
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print(
+            '[DataDeletion] Error calling Firebase Function for auth deletion: $e',
+          );
+          print(
+            '[DataDeletion] User data deleted but auth account may still exist',
+          );
+        }
+        // Continue - data deletion was successful
       }
 
       // User profile provider will be cleared automatically on logout

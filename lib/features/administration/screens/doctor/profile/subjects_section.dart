@@ -12,6 +12,7 @@ class SubjectsSection extends ConsumerStatefulWidget {
   final UserProfile? loggedInUser;
   final Subject? targetSubject;
   final Function(Subject?)? onCurrentSubjectChanged;
+  final Function(VoidCallback)? onRefreshCallbackSet;
 
   const SubjectsSection({
     super.key,
@@ -19,6 +20,7 @@ class SubjectsSection extends ConsumerStatefulWidget {
     this.loggedInUser,
     this.targetSubject,
     this.onCurrentSubjectChanged,
+    this.onRefreshCallbackSet,
   });
 
   @override
@@ -32,11 +34,19 @@ class _SubjectsSectionState extends ConsumerState<SubjectsSection>
   String? _previousDoctorId;
   Subject? _preservedTargetSubject;
 
+  // State for lectures
+  Map<String, List<dynamic>> _lecturesBySubject = {};
+  Map<String, bool> _loadingBySubject = {};
+  Map<String, String?> _errorBySubject = {};
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 0, vsync: this);
     _previousDoctorId = widget.userProfile.id;
+
+    // Provide refresh callback to parent
+    widget.onRefreshCallbackSet?.call(refreshCurrentSubjectLectures);
   }
 
   @override
@@ -210,19 +220,51 @@ class _SubjectsSectionState extends ConsumerState<SubjectsSection>
       final subjectId = subject.id;
       final doctorId = widget.userProfile.id;
 
-      // Fetch lectures using service directly
-      final service = DoctorSubjectService();
-      // Lectures are now loaded on demand in the widget
-      // TODO: Implement proper state management for lectures
+      // Set loading state
+      setState(() {
+        _loadingBySubject[subjectId] = true;
+        _errorBySubject[subjectId] = null;
+      });
+
+      try {
+        // Fetch lectures using service
+        final service = DoctorSubjectService();
+        final lectures = await service.getLecturesForDoctorSubject(
+          doctorId,
+          subjectId,
+        );
+
+        if (mounted) {
+          setState(() {
+            _lecturesBySubject[subjectId] = lectures;
+            _loadingBySubject[subjectId] = false;
+          });
+        }
+      } catch (e) {
+        print('Error loading lectures for subject $subjectId: $e');
+        if (mounted) {
+          setState(() {
+            _errorBySubject[subjectId] = e.toString();
+            _loadingBySubject[subjectId] = false;
+          });
+        }
+      }
+    }
+  }
+
+  // Public method to refresh current subject's lectures
+  Future<void> refreshCurrentSubjectLectures() async {
+    if (_tabController.index >= 0) {
+      await _loadLecturesForSubject(_tabController.index);
     }
   }
 
   Widget _buildSubjectContent(Subject subject) {
     final subjectId = subject.id;
-    // TODO: Implement proper state management for lectures
-    final lectures = <dynamic>[]; // Temporary empty list
-    final isLoading = false;
-    final error = null;
+    // Get lectures from state
+    final lectures = _lecturesBySubject[subjectId] ?? [];
+    final isLoading = _loadingBySubject[subjectId] ?? false;
+    final error = _errorBySubject[subjectId];
 
     if (isLoading) {
       return const Center(
@@ -288,17 +330,7 @@ class _SubjectsSectionState extends ConsumerState<SubjectsSection>
 
     return RefreshIndicator(
       onRefresh: () async {
-        final subjectProvider = ref.read(legacySubjectProviderProvider);
-        final subjects = subjectProvider.filteredSubjects;
-        if (subjects.isNotEmpty && _tabController.index < subjects.length) {
-          final subject = subjects[_tabController.index];
-          // TODO: Implement proper lecture refresh
-          // final service = DoctorSubjectService();
-          // await service.getLecturesForDoctorSubject(
-          //   widget.userProfile.id,
-          //   subject.id,
-          // );
-        }
+        await _loadLecturesForSubject(_tabController.index);
       },
       child: ListView.builder(
         // padding: EdgeInsets.all(Responsive.space(context, size: Space.medium)),
@@ -309,6 +341,10 @@ class _SubjectsSectionState extends ConsumerState<SubjectsSection>
               canEdit:
                   widget.loggedInUser?.role != 'Student' &&
                   widget.loggedInUser?.role != 'miniProfessor',
+              onLectureDeleted: () {
+                // Refresh the current subject's lectures after deletion
+                _loadLecturesForSubject(_tabController.index);
+              },
             ),
       ),
     );

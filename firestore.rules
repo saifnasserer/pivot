@@ -64,8 +64,8 @@ service cloud.firestore {
       // Allow update for user's own profile or admin operations
       allow update: if isOwnerOrAdmin(userId);
       
-      // Allow delete only for admins
-      allow delete: if isAdmin();
+      // Allow delete for user's own profile or admins (account deletion)
+      allow delete: if isOwnerOrAdmin(userId);
       
       // Allow list for admin operations
       allow list: if canPerformAdminOperations();
@@ -157,8 +157,12 @@ service cloud.firestore {
         request.auth.uid == request.resource.data.userId ||
         isAdmin()
       );
-      allow delete: if isAdmin();
-      allow list: if canPerformAdminOperations();
+      // Allow users to delete their own tasks and list them (for account deletion)
+      allow delete: if isSignedIn() && (
+        request.auth.uid == resource.data.userId ||
+        isAdmin()
+      );
+      allow list: if isSignedIn() || canPerformAdminOperations();
     }
 
     // ===== PHASE 11: SETTINGS, BOOKMARKS, SCHEDULE, NOTIFICATIONS =====
@@ -168,7 +172,12 @@ service cloud.firestore {
         request.auth.uid == request.resource.data.userId ||
         isAdmin()
       );
-      allow list: if canPerformAdminOperations();
+      // Allow users to delete their own settings (for account deletion)
+      allow delete: if isSignedIn() && (
+        request.auth.uid == resource.data.userId ||
+        isAdmin()
+      );
+      allow list: if isSignedIn() || canPerformAdminOperations();
     }
 
     // Global schedules collection (one document per user)
@@ -226,7 +235,8 @@ service cloud.firestore {
         request.auth.uid == resource.data.reporterId ||
         isAdmin()
       );
-      allow list: if canPerformAdminOperations();
+      // Allow users to list their own reports (for account deletion)
+      allow list: if isSignedIn() || canPerformAdminOperations();
     }
 
     // ===== BLOCKED USERS =====
@@ -249,7 +259,8 @@ service cloud.firestore {
         request.auth.uid == resource.data.authorId ||
         isAdmin()
       );
-      allow list: if canPerformAdminOperations();
+      // Allow users to list their own posts (for account deletion)
+      allow list: if isSignedIn() || canPerformAdminOperations();
 
       match /comments/{commentId} {
         allow read, create: if isSignedIn();
@@ -275,7 +286,8 @@ service cloud.firestore {
         request.auth.uid == resource.data.authorId ||
         isAdmin()
       );
-      allow list: if canPerformAdminOperations();
+      // Allow users to list their own comments (for account deletion)
+      allow list: if isSignedIn() || canPerformAdminOperations();
     }
 
     // ===== NOTIFICATIONS =====
@@ -289,7 +301,8 @@ service cloud.firestore {
         request.auth.uid == resource.data.userId ||
         isAdmin()
       );
-      allow list: if canPerformAdminOperations();
+      // Allow users to list their own notifications (for account deletion)
+      allow list: if isSignedIn() || canPerformAdminOperations();
     }
 
     // ===== USER FILES =====
