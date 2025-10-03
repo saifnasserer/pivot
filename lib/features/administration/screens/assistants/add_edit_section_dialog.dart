@@ -169,7 +169,7 @@ class _AddEditSectionDialogState extends ConsumerState<AddEditSectionDialog> {
 
     // Get the current user and determine the assistant ID
     final userProfileState = ref.read(userProfileProvider);
-    final currentUser = userProfileState.userProfile;
+    final currentUser = userProfileState.loggedInUserProfile;
 
     if (currentUser == null) {
       _showValidationError('لا يمكن تحديد المستخدم الحالي');

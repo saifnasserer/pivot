@@ -50,6 +50,34 @@ class _WeekTasksState extends ConsumerState<WeekTasks>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _progressAnimationController.forward();
       _listAnimationController.forward();
+
+      // Initialize providers with user profile
+      final userProfileState = ref.read(userProfileProvider);
+      final loggedInUser = userProfileState.loggedInUserProfile;
+      if (loggedInUser != null) {
+        print(
+          'WeekTasks: Initializing providers for user: ${loggedInUser.name}',
+        );
+
+        // Fetch subjects with instructors
+        ref
+            .read(subjectsProvider.notifier)
+            .fetchAndFilterSubjects(loggedInUser);
+
+        // Fetch sections for enrolled subjects
+        if (loggedInUser.enrolledSubjects.isNotEmpty) {
+          print(
+            'WeekTasks: Fetching sections for ${loggedInUser.enrolledSubjects.length} subjects',
+          );
+          ref
+              .read(sectionsProvider.notifier)
+              .fetchSectionsForUserSubjects(loggedInUser.enrolledSubjects);
+        }
+
+        // Fetch all tasks
+        print('WeekTasks: Fetching all tasks');
+        ref.read(tasksProvider.notifier).getAllTasks();
+      }
     });
   }
 
@@ -111,6 +139,18 @@ class _WeekTasksState extends ConsumerState<WeekTasks>
       bool hasChanges = false;
 
       for (final subjectId in userEnrolledSubjectIds) {
+        // Debug: Check what instructors are available for this subject
+        final allInstructorsForSubject =
+            subjectsState.instructorsBySubject[subjectId] ?? [];
+        print(
+          'WeekTasks: Subject $subjectId has ${allInstructorsForSubject.length} total instructors',
+        );
+        for (final instructor in allInstructorsForSubject) {
+          print(
+            'WeekTasks: Instructor ${instructor.name} (${instructor.id}) has role: ${instructor.role}',
+          );
+        }
+
         final instructors =
             subjectsState.instructorsBySubject[subjectId]
                 ?.where((prof) => prof.role == 'miniProfessor')
@@ -120,6 +160,25 @@ class _WeekTasksState extends ConsumerState<WeekTasks>
         print(
           'WeekTasks: Subject $subjectId has ${instructors.length} miniProfessor instructors',
         );
+
+        // Debug: Check if the preferred assistant exists
+        final preferredAssistantId = assistantPreferences[subjectId];
+        if (preferredAssistantId != null) {
+          final preferredAssistant = allInstructorsForSubject.firstWhere(
+            (instructor) => instructor.id == preferredAssistantId,
+            orElse:
+                () => UserProfile(
+                  id: 'not_found',
+                  name: 'Not Found',
+                  department: '',
+                  level: '',
+                  section: '',
+                ),
+          );
+          print(
+            'WeekTasks: Preferred assistant $preferredAssistantId (${preferredAssistant.name}) exists: ${preferredAssistant.id != 'not_found'}',
+          );
+        }
 
         if (instructors.length == 1 &&
             !assistantPreferences.containsKey(subjectId)) {
@@ -257,13 +316,31 @@ class _WeekTasksState extends ConsumerState<WeekTasks>
     final sectionsState = ref.watch(sectionsProvider);
     final subjectsState = ref.watch(subjectsProvider);
 
-    // Listen for when user profile loads and trigger assistant preferences update
+    // Listen for when user profile loads and trigger data fetching
     ref.listen<UserProfileState>(userProfileProvider, (previous, next) {
       // When profile becomes available (was null, now has value)
       if (previous?.loggedInUserProfile == null &&
           next.loggedInUserProfile != null) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
+            final loggedInUser = next.loggedInUserProfile!;
+
+            // Fetch subjects with instructors
+            ref
+                .read(subjectsProvider.notifier)
+                .fetchAndFilterSubjects(loggedInUser);
+
+            // Fetch sections for enrolled subjects
+            if (loggedInUser.enrolledSubjects.isNotEmpty) {
+              ref
+                  .read(sectionsProvider.notifier)
+                  .fetchSectionsForUserSubjects(loggedInUser.enrolledSubjects);
+            }
+
+            // Fetch all tasks
+            ref.read(tasksProvider.notifier).getAllTasks();
+
+            // Update assistant preferences
             _updateAssistantPreferencesIfNeeded();
           }
         });
@@ -300,6 +377,43 @@ class _WeekTasksState extends ConsumerState<WeekTasks>
     final userSection = loggedInUser.section;
     final assistantPreferences = loggedInUser.assistantPreferences;
 
+    // Show loading state while data is being fetched
+    final isLoadingData =
+        subjectsState.isLoading ||
+        sectionsState.isLoading ||
+        tasksState.isLoading;
+
+    // Check if instructors data is ready for enrolled subjects
+    final hasInstructorsData =
+        userEnrolledSubjectIds.isEmpty ||
+        userEnrolledSubjectIds.any(
+          (subjectId) =>
+              subjectsState.instructorsBySubject[subjectId]?.isNotEmpty ??
+              false,
+        );
+
+    // Check if sections data has been fetched (at least once)
+    final hasSectionsData =
+        userEnrolledSubjectIds.isEmpty || sectionsState.sections.isNotEmpty;
+
+    if (isLoadingData || !hasInstructorsData || !hasSectionsData) {
+      print(
+        'WeekTasks: Still loading - isLoadingData=$isLoadingData, hasInstructorsData=$hasInstructorsData, hasSectionsData=$hasSectionsData',
+      );
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(color: Colors.black),
+              SizedBox(height: 16),
+              Text('جاري تحميل المهام...'),
+            ],
+          ),
+        ),
+      );
+    }
+
     // Check for subjects that need assistant selection
     final subjectsNeedingSelection = _getSubjectsNeedingAssistantSelection(
       userEnrolledSubjectIds,
@@ -310,7 +424,15 @@ class _WeekTasksState extends ConsumerState<WeekTasks>
     // Step 1: Check default instructors for each registered subject
     final relevantSections = <Section>[];
 
+    print('WeekTasks: Starting section filtering...');
+    print(
+      'WeekTasks: Total sections available: ${sectionsState.sections.length}',
+    );
+    print('WeekTasks: User section number: $userSection');
+
     for (final subjectId in userEnrolledSubjectIds) {
+      print('WeekTasks: Processing subject: $subjectId');
+
       // Get all instructors for this subject
       final instructors =
           subjectsState.instructorsBySubject[subjectId]
@@ -320,6 +442,7 @@ class _WeekTasksState extends ConsumerState<WeekTasks>
 
       if (instructors.isEmpty) {
         // No instructors available for this subject - skip
+        print('WeekTasks: No instructors for subject $subjectId, skipping');
         continue;
       }
 
@@ -328,27 +451,58 @@ class _WeekTasksState extends ConsumerState<WeekTasks>
       if (defaultAssistantId == null && instructors.length == 1) {
         // Auto-select if only one instructor
         defaultAssistantId = instructors.first.id;
+        print('WeekTasks: Auto-selected assistant: $defaultAssistantId');
         // Note: We'll handle preference updates separately to avoid async issues in build
       } else if (defaultAssistantId == null) {
         // Multiple instructors but none selected - skip this subject
+        print(
+          'WeekTasks: Multiple instructors but none selected for subject $subjectId, skipping',
+        );
         continue;
+      } else {
+        print('WeekTasks: Using preferred assistant: $defaultAssistantId');
       }
 
       // Step 2: Find the user's specific section for this subject and default instructor
-      final userSubjectSection =
+      print(
+        'WeekTasks: Looking for sections with subjectId=$subjectId, assistantId=$defaultAssistantId, userSection=$userSection',
+      );
+
+      final matchingSections =
           sectionsState.sections.where((section) {
-            return section.subjectId == subjectId &&
-                section.assistantId == defaultAssistantId &&
-                _matchesUserSectionNumber(section.name, userSection);
-          }).firstOrNull;
+            final subjectMatches = section.subjectId == subjectId;
+            final assistantMatches = section.assistantId == defaultAssistantId;
+            final sectionMatches = _matchesUserSectionNumber(
+              section.name,
+              userSection,
+            );
+
+            print(
+              'WeekTasks: Section "${section.name}" (${section.id}): subject=$subjectMatches, assistant=$assistantMatches, sectionNumber=$sectionMatches',
+            );
+
+            return subjectMatches && assistantMatches && sectionMatches;
+          }).toList();
+
+      final userSubjectSection = matchingSections.firstOrNull;
 
       // Add the user's specific section if found
       if (userSubjectSection != null) {
+        print(
+          'WeekTasks: ✓ Found matching section: ${userSubjectSection.name} (${userSubjectSection.id})',
+        );
         relevantSections.add(userSubjectSection);
+      } else {
+        print('WeekTasks: ✗ No matching section found for subject $subjectId');
       }
     }
 
+    print(
+      'WeekTasks: Total relevant sections found: ${relevantSections.length}',
+    );
+
     // Filter tasks based on the relevant sections
+    print('WeekTasks: Total tasks from provider: ${allTasks.length}');
     final filteredTasks =
         allTasks.where((task) {
           // Personal tasks are always included
@@ -364,6 +518,8 @@ class _WeekTasksState extends ConsumerState<WeekTasks>
           return taskSection != null;
         }).toList();
 
+    print('WeekTasks: Filtered tasks: ${filteredTasks.length}');
+
     // Note: New task notifications are now handled in task_provider.dart when tasks are actually created
     // This prevents notifications from being sent every time the screen is opened
 
@@ -372,6 +528,10 @@ class _WeekTasksState extends ConsumerState<WeekTasks>
         filteredTasks.where((t) => !t.isCompletedFor(userId)).toList();
     final completedTasks =
         filteredTasks.where((t) => t.isCompletedFor(userId)).toList();
+
+    print(
+      'WeekTasks: Pending tasks: ${pendingTasks.length}, Completed tasks: ${completedTasks.length}',
+    );
 
     final groupedTasks = _groupTasks(pendingTasks);
 
@@ -640,7 +800,7 @@ class _WeekTasksState extends ConsumerState<WeekTasks>
   void _handleTaskStatusChange(Task task) async {
     if (task.isPersonal) {
       final userProfileState = ref.read(userProfileProvider);
-      final user = userProfileState.userProfile;
+      final user = userProfileState.loggedInUserProfile;
       if (user == null) return;
 
       final wasCompleted = task.isCompletedFor(user.id);

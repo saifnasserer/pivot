@@ -23,7 +23,7 @@ class DoctorProfile extends ConsumerStatefulWidget {
 }
 
 class _DoctorProfileState extends ConsumerState<DoctorProfile>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   UserProfile? _displayedProfile;
   String? _previousProfileId;
   late ScrollController _scrollController;
@@ -36,12 +36,23 @@ class _DoctorProfileState extends ConsumerState<DoctorProfile>
   void initState() {
     super.initState();
     _scrollController = ScrollController();
+    WidgetsBinding.instance.addObserver(this);
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed && _displayedProfile != null) {
+      // Refresh profile data when app becomes active
+      _refreshProfileData();
+    }
   }
 
   @override
@@ -61,19 +72,25 @@ class _DoctorProfileState extends ConsumerState<DoctorProfile>
       profileToShow = ref.watch(userProfileProvider).userProfile;
     }
 
-    if (profileToShow != null && profileToShow.id != _previousProfileId) {
-      _displayedProfile = profileToShow;
-      _previousProfileId = profileToShow.id;
+    if (profileToShow != null) {
+      // Always refresh data when profile is opened
+      bool isNewProfile = profileToShow.id != _previousProfileId;
+
+      if (isNewProfile) {
+        _displayedProfile = profileToShow;
+        _previousProfileId = profileToShow.id;
+      }
 
       // Store target subject for later use
       if (targetSubject != null) {
         _targetSubject = targetSubject;
       }
 
-      // Ensure we have the correct profile data before fetching
+      // Always fetch fresh data when profile is opened
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && profileToShow != null) {
-          _fetchInitialData(profileToShow);
+          // Always refresh profile data when opening
+          _refreshProfileData();
         }
       });
     }
@@ -131,6 +148,63 @@ class _DoctorProfileState extends ConsumerState<DoctorProfile>
         print('Provider access error: $e');
       }
     });
+  }
+
+  Future<void> _refreshProfileData() async {
+    if (!mounted) return;
+
+    // If we don't have a displayed profile yet, get it from the arguments
+    String? profileIdToRefresh;
+    if (_displayedProfile != null) {
+      profileIdToRefresh = _displayedProfile!.id;
+    } else {
+      // Get profile from arguments for initial load
+      final argument = ModalRoute.of(context)?.settings.arguments;
+      UserProfile? profileFromArgs;
+
+      if (argument is UserProfile) {
+        profileFromArgs = argument;
+      } else if (argument is Map<String, dynamic>) {
+        profileFromArgs = argument['instructor'] as UserProfile?;
+      } else {
+        profileFromArgs = ref.read(userProfileProvider).userProfile;
+      }
+
+      if (profileFromArgs != null) {
+        profileIdToRefresh = profileFromArgs.id;
+        // Set the displayed profile first
+        setState(() {
+          _displayedProfile = profileFromArgs;
+        });
+      }
+    }
+
+    if (profileIdToRefresh == null) return;
+
+    try {
+      print(
+        '🔄 [DoctorProfile] Refreshing profile data for ID: $profileIdToRefresh',
+      );
+
+      // Fetch fresh profile data from Firestore
+      final freshProfile = await ref
+          .read(userProfileProvider.notifier)
+          .getUserProfileById(profileIdToRefresh);
+
+      if (freshProfile != null && mounted) {
+        setState(() {
+          _displayedProfile = freshProfile;
+        });
+        print(
+          '🔄 [DoctorProfile] Profile data refreshed successfully for: ${freshProfile.name}',
+        );
+
+        // Also refresh the subjects data
+        _fetchInitialData(freshProfile);
+      }
+    } catch (e) {
+      print('🔄 [DoctorProfile] Error refreshing profile data: $e');
+    }
   }
 
   void _onMainCategoryChanged(String category) {
@@ -279,13 +353,16 @@ class _DoctorProfileState extends ConsumerState<DoctorProfile>
 
   bool _shouldShowEditIcon() {
     final loggedInUser = ref.watch(userProfileProvider).loggedInUserProfile;
-    final isSuperAdmin = loggedInUser?.role == 'Super Admin';
+    final isAdminOrSuperAdmin =
+        loggedInUser?.role == 'Admin' || loggedInUser?.role == 'Super Admin';
     final isViewingOtherUser = loggedInUser?.id != _displayedProfile?.id;
     final isProfessorOrMiniProfessor =
         _displayedProfile?.role == 'Professor' ||
         _displayedProfile?.role == 'miniProfessor';
 
-    return isSuperAdmin && isViewingOtherUser && isProfessorOrMiniProfessor;
+    return isAdminOrSuperAdmin &&
+        isViewingOtherUser &&
+        isProfessorOrMiniProfessor;
   }
 
   bool _shouldShowAddLectureButton() {

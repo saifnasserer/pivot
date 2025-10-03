@@ -1,20 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:pivot/screens/models/card_model.dart';
 import 'package:pivot/responsive.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
 
-
-class DoctorDetails extends StatefulWidget {
+class DoctorDetails extends ConsumerStatefulWidget {
   const DoctorDetails({super.key, required this.userProfile});
   final UserProfile userProfile;
 
   @override
-  State<DoctorDetails> createState() => _DoctorDetailsState();
+  ConsumerState<DoctorDetails> createState() => _DoctorDetailsState();
 }
 
-class _DoctorDetailsState extends State<DoctorDetails>
+class _DoctorDetailsState extends ConsumerState<DoctorDetails>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;

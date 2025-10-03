@@ -310,7 +310,7 @@ class _EnhancedSectionListItemState
     List<UserProfile> assistants,
   ) async {
     final userProfileState = ref.read(userProfileProvider);
-    final currentUser = userProfileState.userProfile;
+    final currentUser = userProfileState.loggedInUserProfile;
     final currentAssistantId = currentUser?.assistantPreferences[subject.id];
 
     // Auto-select if only one assistant

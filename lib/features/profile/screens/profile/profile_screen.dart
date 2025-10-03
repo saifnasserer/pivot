@@ -53,7 +53,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         final userProfileState = ref.read(userProfileProvider);
-        final userProfile = userProfileState.userProfile;
+        final userProfile = userProfileState.loggedInUserProfile;
         if (userProfile != null && userProfile.enrolledSubjects.isNotEmpty) {
           ref
               .read(sectionsProvider.notifier)
@@ -93,7 +93,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
   @override
   Widget build(BuildContext context) {
     final userProfileState = ref.watch(userProfileProvider);
-    final userProfile = userProfileState.userProfile;
+    final userProfile = userProfileState.loggedInUserProfile;
 
     // Check for special user roles first
     if (userProfile != null) {

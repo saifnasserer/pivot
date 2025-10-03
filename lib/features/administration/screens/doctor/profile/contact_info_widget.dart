@@ -166,6 +166,10 @@ class ContactInfoWidget extends ConsumerWidget {
     UserProfile? loggedInUser,
     WidgetRef ref,
   ) {
+    // Only show empty state (add button) for:
+    // 1. Users viewing their own profile
+    // 2. Admins and Super Admins viewing any profile
+    // Regular users viewing other profiles will see nothing (SizedBox.shrink())
     final canEditSocial =
         isOwnProfile ||
         loggedInUser?.role == 'Admin' ||
@@ -216,7 +220,8 @@ class ContactInfoWidget extends ConsumerWidget {
           ),
         );
       }
-      return const SizedBox.shrink();
+      // empty state
+      return const Text('لم يتم اضافة وسائل التواصل بعد');
     }
 
     return Container(

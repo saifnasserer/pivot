@@ -81,47 +81,6 @@ This document outlines a comprehensive beta testing plan for the Pivot academic 
 
 ## 🔐 Phase 1: Authentication & Profile (Days 1-2)
 
-#### Profile Viewing
-
-- [ ] **TC-PROFILE-004**: All profile sections accessible
-  - Details, Schedule, Sections, Subjects tabs
-  - **Expected**: All tabs work, data loads
-
-#### Profile Editing
-
-- [ ] **TC-PROFILE-005**: Edit basic info (name, gender)
-  - Change name and gender
-  - Save
-  - **Expected**: Changes saved, success message shown
-- [ ] **TC-PROFILE-006**: Edit educational info (year, dept, section)
-  - Change educational details
-  - Save
-  - **Expected**: Changes saved successfully
-- [ ] **TC-PROFILE-007**: Update profile image
-  - Select new image from gallery
-  - Save
-  - **Expected**: Image uploads and updates
-- [ ] **TC-PROFILE-008**: Profile image compression works
-  - Upload large image (> 5MB)
-  - **Expected**: Image compressed before upload
-- [ ] **TC-PROFILE-009**: Cancel edit without saving
-  - Make changes, click cancel
-  - **Expected**: Unsaved changes dialog, changes discarded
-- [ ] **TC-PROFILE-010**: Unsaved changes warning
-  - Make changes, navigate back
-  - **Expected**: Warning dialog appears
-
-#### Profile Validation
-
-- [ ] **TC-PROFILE-011**: Required fields validated
-  - Try to save with empty name
-  - **Expected**: Validation error shown
-- [ ] **TC-PROFILE-012**: Name minimum length enforced
-  - Enter 1 character name
-  - **Expected**: Error "الاسم يجب أن يكون حرفين على الأقل"
-- [ ] **TC-PROFILE-013**: Department/section dropdowns populated
-  - **Expected**: Correct options for selected year
-
 #### Profile Quick Actions
 
 - [ ] **TC-PROFILE-014**: Social media links work
