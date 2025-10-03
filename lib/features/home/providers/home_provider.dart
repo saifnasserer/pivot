@@ -77,16 +77,12 @@ class HomeNotifier extends StateNotifier<HomeState> {
         userDepartment,
         userLevel: userLevel,
       );
-      final shouldShowUpdate = await _repo.shouldShowUpdateButton();
-      final hasUpdates = await _repo.areUpdatesAvailable();
 
       state = state.copyWith(
         isLoading: false,
         categories: categories,
         userDepartment: userDepartment,
         userLevel: userLevel,
-        isTeamFormationEnabled: shouldShowUpdate,
-        hasUpdates: hasUpdates,
         isInitialized: true,
         currentCategoryIndex:
             categories.isNotEmpty
@@ -110,14 +106,5 @@ class HomeNotifier extends StateNotifier<HomeState> {
 
   String? getTimeFilter(String category) {
     return _repo.getTimeFilter(category);
-  }
-
-  Future<void> refreshUpdates() async {
-    try {
-      final hasUpdates = await _repo.areUpdatesAvailable();
-      state = state.copyWith(hasUpdates: hasUpdates);
-    } catch (e) {
-      state = state.copyWith(error: e.toString());
-    }
   }
 }

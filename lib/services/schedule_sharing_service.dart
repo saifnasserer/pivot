@@ -128,18 +128,24 @@ class ScheduleSharingService {
             );
           }).toList();
 
-      // Add items to user's schedule
-      final batch = _firestore.batch();
-      for (final item in itemsToImport) {
-        final docRef = _firestore
-            .collection('users')
-            .doc(user.uid)
-            .collection('schedule')
-            .doc(item.id);
-        batch.set(docRef, item.toJson());
-      }
+      // Get current schedule to merge with imported items
+      final scheduleRef = _firestore.collection('schedules').doc(user.uid);
 
-      await batch.commit();
+      await _firestore.runTransaction((transaction) async {
+        final snapshot = await transaction.get(scheduleRef);
+        final data = snapshot.data() ?? <String, dynamic>{};
+
+        // Group imported items by day and merge with existing schedule
+        for (final item in itemsToImport) {
+          final dayItems = List<Map<String, dynamic>>.from(
+            data[item.day] ?? [],
+          );
+          dayItems.add(item.toMap());
+          data[item.day] = dayItems;
+        }
+
+        transaction.set(scheduleRef, data);
+      });
 
       print('✅ Successfully imported ${itemsToImport.length} schedule items');
       return true;
@@ -149,14 +155,21 @@ class ScheduleSharingService {
     }
   }
 
-  /// Share the link via system share dialog
+  /// Share the link via system share dialog (for Firestore-saved schedules)
+  /// Note: This requires deep linking setup to work properly
   Future<void> shareScheduleLink(String shareId) async {
     try {
-      final link = 'https://your-app-domain.com/schedule/$shareId';
-      await Share.share(
-        'تحقق من هذا الجدول الدراسي!\n\n$link',
-        subject: 'مشاركة جدول دراسي',
-      );
+      // For now, share the schedule ID with instructions
+      final shareText = '''
+🔗 معرف الجدول المشترك:
+$shareId
+
+📝 ملاحظة: لاستيراد هذا الجدول، استخدم خاصية "استيراد جدول" في التطبيق وأدخل المعرف أعلاه.
+
+مشارك عبر تطبيق Pivot 🎓
+''';
+
+      await Share.share(shareText, subject: 'مشاركة جدول دراسي');
     } catch (e) {
       print('❌ Error sharing link: $e');
     }

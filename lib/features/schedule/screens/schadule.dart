@@ -153,18 +153,7 @@ class ScheduleCalendarBuilder {
             borderRadius: BorderRadius.circular(
               Responsive.space(context, size: Space.medium),
             ),
-            gradient: LinearGradient(
-              colors: [Colors.black, Colors.grey.shade800],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.2),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
+            color: Colors.black,
           ),
           indicatorSize: TabBarIndicatorSize.tab,
           indicatorPadding: EdgeInsets.symmetric(
@@ -201,12 +190,7 @@ class ScheduleCalendarBuilder {
                             width: 6,
                             height: 6,
                             decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  Colors.orange.shade600,
-                                  Colors.orange.shade400,
-                                ],
-                              ),
+                              color: Colors.orange.shade600,
                               shape: BoxShape.circle,
                             ),
                           ),
@@ -467,19 +451,8 @@ class ScheduleCalendarBuilder {
                 Responsive.space(context, size: Space.xlarge),
               ),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.grey.shade50, Colors.grey.shade100],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+                color: Colors.grey.shade50,
                 shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.1),
-                    blurRadius: 20,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
               ),
               child: Icon(
                 Icons.schedule_outlined,
@@ -548,8 +521,6 @@ class ScheduleCalendarBuilder {
 
   /// Gets the index of today in the days list, returns -1 if not found
   static int getTodayIndex(List<String> days) {
-    final todayName = getTodayName();
-
     for (int i = 0; i < days.length; i++) {
       if (_isToday(days[i])) {
         return i;

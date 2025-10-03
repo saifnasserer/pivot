@@ -10,7 +10,6 @@ import 'package:pivot/features/home/providers/home_provider.dart';
 import 'package:pivot/screens/models/card_model.dart';
 import 'package:pivot/screens/models/search_card.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
-import 'package:pivot/services/update_service.dart';
 import 'package:pivot/features/settings/providers/settings_provider.dart';
 
 class Landing extends ConsumerStatefulWidget {
@@ -536,62 +535,6 @@ class LandingState extends ConsumerState<Landing>
                     Navigator.pushNamed(context, '/teams');
                   },
                 ),
-                // Update button - only shown when Firestore allows it
-                if (UpdateService().shouldShowUpdateButtonSync()) ...[
-                  SpeedDialChild(
-                    child: Icon(
-                      Icons.system_update,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                    backgroundColor: Colors.red,
-                    shape: const CircleBorder(),
-                    labelWidget: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.circular(
-                          Responsive.space(context, size: Space.large),
-                        ),
-                      ),
-                      alignment: Alignment.center,
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(
-                          vertical: Responsive.space(
-                            context,
-                            size: Space.small,
-                          ),
-                          horizontal: Responsive.space(
-                            context,
-                            size: Space.medium,
-                          ),
-                        ),
-                        child: Text(
-                          'تحديث جديد',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ),
-                    onTap: () async {
-                      // Check if updates are available before showing bottom sheet
-                      final hasUpdates =
-                          await UpdateService().areUpdatesAvailable();
-                      if (hasUpdates) {
-                        UpdateService().showUpdateBottomSheet(context);
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('لا توجد تحديثات متاحة حالياً'),
-                            backgroundColor: Colors.blue,
-                          ),
-                        );
-                      }
-                    },
-                  ),
-                ],
               ],
             ),
           ),

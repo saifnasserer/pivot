@@ -1,5 +1,4 @@
 import 'package:pivot/services/category_service.dart';
-import 'package:pivot/services/update_service.dart';
 
 class HomeService {
   List<String> getCategories(String? userDepartment, {String? userLevel}) {
@@ -16,15 +15,5 @@ class HomeService {
 
   String? normalizeDepartment(String? department) {
     return CategoryService.normalizeDepartment(department);
-  }
-
-  Future<bool> shouldShowUpdateButton() async {
-    final updateService = UpdateService();
-    return await updateService.shouldShowUpdateButton();
-  }
-
-  Future<bool> areUpdatesAvailable() async {
-    final updateService = UpdateService();
-    return await updateService.areUpdatesAvailable();
   }
 }

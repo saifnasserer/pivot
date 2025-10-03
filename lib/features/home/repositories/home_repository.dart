@@ -15,8 +15,4 @@ class HomeRepository {
 
   String? normalizeDepartment(String? department) =>
       _service.normalizeDepartment(department);
-
-  Future<bool> shouldShowUpdateButton() => _service.shouldShowUpdateButton();
-
-  Future<bool> areUpdatesAvailable() => _service.areUpdatesAvailable();
 }

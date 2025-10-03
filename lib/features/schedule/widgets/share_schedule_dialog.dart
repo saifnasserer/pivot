@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/services/schedule_sharing_service.dart';
 import 'package:pivot/screens/models/schedule_item.dart';
+import 'package:pivot/widgets/unified_dialog.dart';
+import 'dart:ui' as ui;
 
 class ShareScheduleDialog extends ConsumerStatefulWidget {
   final Map<String, List<ScheduleItem>> schedule;
@@ -89,261 +91,327 @@ class _ShareScheduleDialogState extends ConsumerState<ShareScheduleDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(
-          Responsive.space(context, size: Space.large),
+    return Directionality(
+      textDirection: ui.TextDirection.rtl,
+      child: Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(
+            Responsive.space(context, size: Space.large),
+          ),
         ),
-      ),
-      child: Container(
-        constraints: BoxConstraints(
-          maxWidth: 500,
-          maxHeight: MediaQuery.of(context).size.height * 0.8,
+        child: Container(
+          constraints: BoxConstraints(
+            maxWidth: 500,
+            maxHeight: MediaQuery.of(context).size.height * 0.8,
+          ),
+          padding: EdgeInsets.all(Responsive.space(context, size: Space.large)),
+          child:
+              _generatedShareId == null
+                  ? _buildCreateForm()
+                  : _buildShareResult(),
         ),
-        padding: EdgeInsets.all(Responsive.space(context, size: Space.large)),
-        child:
-            _generatedShareId == null
-                ? _buildCreateForm()
-                : _buildShareResult(),
       ),
     );
   }
 
   Widget _buildCreateForm() {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(
-              Icons.share,
-              color: Colors.green.shade600,
-              size: Responsive.text(context, size: TextSize.heading),
-            ),
-            SizedBox(width: Responsive.space(context, size: Space.small)),
-            Text(
-              'مشاركة الجدول',
-              style: TextStyle(
-                fontSize: Responsive.text(context, size: TextSize.heading),
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            children: [
+              Icon(
+                Icons.share,
+                color: Colors.black,
+                size: Responsive.text(context, size: TextSize.heading),
               ),
-            ),
-            const Spacer(),
-            IconButton(
-              onPressed: () => Navigator.pop(context),
-              icon: Icon(Icons.close),
-              iconSize: Responsive.text(context, size: TextSize.medium),
-            ),
-          ],
-        ),
-        SizedBox(height: Responsive.space(context, size: Space.large)),
-
-        // Title field
-        TextField(
-          controller: _titleController,
-          decoration: InputDecoration(
-            labelText: 'عنوان الجدول',
-            hintText: 'مثال: جدول الفصل الأول 2024',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(
-                Responsive.space(context, size: Space.small),
-              ),
-            ),
-            prefixIcon: Icon(Icons.title),
-          ),
-          maxLines: 1,
-        ),
-        SizedBox(height: Responsive.space(context, size: Space.medium)),
-
-        // Description field
-        TextField(
-          controller: _descriptionController,
-          decoration: InputDecoration(
-            labelText: 'وصف الجدول (اختياري)',
-            hintText: 'وصف مختصر عن الجدول...',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(
-                Responsive.space(context, size: Space.small),
-              ),
-            ),
-            prefixIcon: Icon(Icons.description),
-          ),
-          maxLines: 3,
-        ),
-        SizedBox(height: Responsive.space(context, size: Space.medium)),
-
-        // Expiry options
-        Text(
-          'مدة صلاحية الرابط:',
-          style: TextStyle(
-            fontSize: Responsive.text(context, size: TextSize.medium),
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        SizedBox(height: Responsive.space(context, size: Space.small)),
-
-        Row(
-          children: [
-            Radio<bool>(
-              value: true,
-              groupValue: _neverExpires,
-              onChanged: (value) {
-                setState(() {
-                  _neverExpires = value!;
-                });
-              },
-            ),
-            Text('لا ينتهي'),
-            SizedBox(width: Responsive.space(context, size: Space.large)),
-            Radio<bool>(
-              value: false,
-              groupValue: _neverExpires,
-              onChanged: (value) {
-                setState(() {
-                  _neverExpires = value!;
-                  _expiryDate = DateTime.now().add(const Duration(days: 7));
-                });
-              },
-            ),
-            Text('ينتهي خلال أسبوع'),
-          ],
-        ),
-
-        SizedBox(height: Responsive.space(context, size: Space.large)),
-
-        // Action buttons
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text('إلغاء'),
-              ),
-            ),
-            SizedBox(width: Responsive.space(context, size: Space.small)),
-            Expanded(
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _createShareLink,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green.shade600,
-                  foregroundColor: Colors.white,
+              SizedBox(width: Responsive.space(context, size: Space.small)),
+              Text(
+                'مشاركة الجدول',
+                style: TextStyle(
+                  fontSize: Responsive.text(context, size: TextSize.heading),
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
                 ),
-                child:
-                    _isLoading
-                        ? SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
-                            ),
-                          ),
-                        )
-                        : Text('إنشاء رابط'),
               ),
+              const Spacer(),
+              IconButton(
+                onPressed: () => Navigator.pop(context),
+                icon: Icon(Icons.close, color: Colors.black),
+                iconSize: Responsive.text(context, size: TextSize.medium),
+              ),
+            ],
+          ),
+          SizedBox(height: Responsive.space(context, size: Space.large)),
+
+          // Description
+          Text(
+            'ارفع الجدول علي الكلاود وشيرة مع صحابك',
+            style: TextStyle(
+              fontSize: Responsive.text(context, size: TextSize.small),
+              color: Colors.grey.shade600,
             ),
-          ],
-        ),
-      ],
+          ),
+          SizedBox(height: Responsive.space(context, size: Space.large)),
+
+          // Title field
+          UnifiedFormField(
+            controller: _titleController,
+            label: 'عنوان الجدول',
+            hint: 'مثال: جدول الفصل الأول 2024',
+            prefixIcon: Icon(Icons.title),
+            maxLines: 1,
+          ),
+          SizedBox(height: Responsive.space(context, size: Space.medium)),
+
+          // Description field
+          UnifiedFormField(
+            controller: _descriptionController,
+            label: 'وصف الجدول (اختياري)',
+            hint: 'وصف مختصر عن الجدول...',
+            prefixIcon: Icon(Icons.description),
+            maxLines: 3,
+          ),
+          SizedBox(height: Responsive.space(context, size: Space.medium)),
+
+          // Expiry options
+          UnifiedSectionHeader(
+            title: 'مدة صلاحية الرابط',
+            icon: Icons.timer_outlined,
+          ),
+
+          Row(
+            children: [
+              Radio<bool>(
+                value: true,
+                groupValue: _neverExpires,
+                activeColor: Colors.black,
+                onChanged: (value) {
+                  setState(() {
+                    _neverExpires = value!;
+                  });
+                },
+              ),
+              Text(
+                'لا ينتهي',
+                style: TextStyle(
+                  fontSize: Responsive.text(context, size: TextSize.small),
+                ),
+              ),
+              SizedBox(width: Responsive.space(context, size: Space.large)),
+              Radio<bool>(
+                value: false,
+                groupValue: _neverExpires,
+                activeColor: Colors.black,
+                onChanged: (value) {
+                  setState(() {
+                    _neverExpires = value!;
+                    _expiryDate = DateTime.now().add(const Duration(days: 7));
+                  });
+                },
+              ),
+              Text(
+                'ينتهي خلال أسبوع',
+                style: TextStyle(
+                  fontSize: Responsive.text(context, size: TextSize.small),
+                ),
+              ),
+            ],
+          ),
+
+          SizedBox(height: Responsive.space(context, size: Space.large)),
+
+          // Action buttons
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: OutlinedButton.styleFrom(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: Text('إلغاء'),
+                ),
+              ),
+              SizedBox(width: Responsive.space(context, size: Space.small)),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _createShareLink,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child:
+                      _isLoading
+                          ? SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
+                            ),
+                          )
+                          : Text('إنشاء معرف'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildShareResult() {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          Icons.check_circle,
-          color: Colors.green.shade600,
-          size: Responsive.text(context, size: TextSize.heading),
-        ),
-        SizedBox(height: Responsive.space(context, size: Space.medium)),
-        Text(
-          'تم إنشاء رابط المشاركة بنجاح!',
-          style: TextStyle(
-            fontSize: Responsive.text(context, size: TextSize.heading),
-            fontWeight: FontWeight.bold,
-            color: Colors.green.shade600,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        SizedBox(height: Responsive.space(context, size: Space.medium)),
-
-        // Share link display
-        Container(
-          padding: EdgeInsets.all(
-            Responsive.space(context, size: Space.medium),
-          ),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade100,
-            borderRadius: BorderRadius.circular(
-              Responsive.space(context, size: Space.small),
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Success icon
+          Container(
+            padding: EdgeInsets.all(
+              Responsive.space(context, size: Space.large),
             ),
-            border: Border.all(color: Colors.grey.shade300),
+            decoration: BoxDecoration(
+              color: Colors.green.shade50,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.check_circle,
+              color: Colors.green.shade600,
+              size: 48,
+            ),
           ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'https://your-app-domain.com/schedule/$_generatedShareId',
+          SizedBox(height: Responsive.space(context, size: Space.large)),
+
+          Text(
+            'تم حفظ الجدول بنجاح!',
+            style: TextStyle(
+              fontSize: Responsive.text(context, size: TextSize.heading),
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: Responsive.space(context, size: Space.small)),
+          Text(
+            'يمكن للآخرين استيراد هذا الجدول باستخدام المعرف التالي',
+            style: TextStyle(
+              fontSize: Responsive.text(context, size: TextSize.small),
+              color: Colors.grey.shade600,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: Responsive.space(context, size: Space.large)),
+
+          // Share ID display
+          Container(
+            padding: EdgeInsets.all(
+              Responsive.space(context, size: Space.medium),
+            ),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(
+                Responsive.space(context, size: Space.medium),
+              ),
+              border: Border.all(color: Colors.grey.shade300, width: 1),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.key, size: 16, color: Colors.grey.shade700),
+                    SizedBox(
+                      width: Responsive.space(context, size: Space.small),
+                    ),
+                    Text(
+                      'معرف الجدول',
+                      style: TextStyle(
+                        fontSize: Responsive.text(
+                          context,
+                          size: TextSize.small,
+                        ),
+                        color: Colors.grey.shade700,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: Responsive.space(context, size: Space.medium)),
+                SelectableText(
+                  _generatedShareId ?? '',
                   style: TextStyle(
                     fontSize: Responsive.text(context, size: TextSize.small),
                     fontFamily: 'monospace',
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
                   ),
-                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: Responsive.space(context, size: Space.medium)),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _copyToClipboard,
+                    icon: Icon(Icons.copy, size: 18),
+                    label: Text('نسخ المعرف'),
+                    style: OutlinedButton.styleFrom(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          SizedBox(height: Responsive.space(context, size: Space.large)),
+
+          // Action buttons
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: OutlinedButton.styleFrom(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: Text('إغلاق'),
                 ),
               ),
-              IconButton(
-                onPressed: _copyToClipboard,
-                icon: Icon(Icons.copy),
-                tooltip: 'نسخ الرابط',
+              SizedBox(width: Responsive.space(context, size: Space.small)),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _shareLink,
+                  icon: Icon(Icons.share, size: 18),
+                  label: Text('مشاركة'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
               ),
             ],
           ),
-        ),
-
-        SizedBox(height: Responsive.space(context, size: Space.large)),
-
-        // Action buttons
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text('إغلاق'),
-              ),
-            ),
-            SizedBox(width: Responsive.space(context, size: Space.small)),
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: _shareLink,
-                icon: Icon(Icons.share),
-                label: Text('مشاركة'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green.shade600,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   void _copyToClipboard() async {
     if (_generatedShareId != null) {
-      final link = 'https://your-app-domain.com/schedule/$_generatedShareId';
-      await Clipboard.setData(ClipboardData(text: link));
+      await Clipboard.setData(ClipboardData(text: _generatedShareId!));
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('تم نسخ الرابط إلى الحافظة'),
-            backgroundColor: Colors.green.shade600,
+            content: Text('تم نسخ المعرف إلى الحافظة'),
+            backgroundColor: Colors.black,
             duration: Duration(seconds: 2),
           ),
         );

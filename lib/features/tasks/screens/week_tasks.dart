@@ -919,17 +919,8 @@ class _WeekTasksState extends ConsumerState<WeekTasks>
       onPressed: () => _showAddEditTaskDialog(context),
       backgroundColor: Colors.black,
       elevation: 4,
-
-      label: Row(
-        children: [
-          const Text(
-            'تاسك',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-          ),
-          SizedBox(width: Responsive.space(context, size: Space.small)),
-          const Icon(Icons.add, color: Colors.white, size: 20),
-        ],
-      ),
+      shape: CircleBorder(),
+      label: const Icon(Icons.add, color: Colors.white, size: 20),
     );
   }
 

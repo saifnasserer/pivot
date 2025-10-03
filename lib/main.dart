@@ -188,9 +188,6 @@ void _initializeAppBackgroundServices() async {
   // Add error handling for Google Play Services
   try {
     await RemoteConfigService.instance.initialize();
-
-    // Initialize Remote Config Bridge Service
-    await RemoteConfigBridgeService().initialize();
   } catch (e) {}
 
   // TODO: Initialize user profile using Riverpod

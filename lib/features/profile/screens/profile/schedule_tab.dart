@@ -5,6 +5,7 @@ import 'package:pivot/features/schedule/screens/add_edit_schedule_dialog.dart';
 import 'package:pivot/features/schedule/screens/schadule.dart';
 import 'package:pivot/features/schedule/providers/schedule_provider.dart';
 import 'package:pivot/features/schedule/widgets/share_schedule_dialog.dart';
+import 'package:pivot/features/schedule/widgets/import_schedule_dialog.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/models/schedule_item.dart';
 
@@ -22,6 +23,9 @@ class _ScheduleTabState extends ConsumerState<ScheduleTab>
   @override
   bool get wantKeepAlive => true; // Keep the tab alive when switching
 
+  // Track selected day index
+  int _selectedDayIndex = 0;
+
   @override
   void initState() {
     super.initState();
@@ -37,6 +41,17 @@ class _ScheduleTabState extends ConsumerState<ScheduleTab>
     // Local-first: Only refresh if no data exists
     // This prevents unnecessary fetches when switching tabs
     _refreshScheduleData();
+  }
+
+  @override
+  void didUpdateWidget(ScheduleTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Refresh when widget updates (e.g., after importing schedule)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _refreshScheduleData();
+      }
+    });
   }
 
   void _refreshScheduleData() {
@@ -66,11 +81,14 @@ class _ScheduleTabState extends ConsumerState<ScheduleTab>
     if (days.isNotEmpty) {
       final todayIndex = ScheduleCalendarBuilder.getTodayIndex(days);
 
-      // For now, just call onDaySelected with today's index or 0
+      // Set the selected day index to today or first day
       final targetIndex = todayIndex != -1 ? todayIndex : 0;
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
+          setState(() {
+            _selectedDayIndex = targetIndex;
+          });
           widget.onDaySelected(targetIndex);
         }
       });
@@ -100,6 +118,10 @@ class _ScheduleTabState extends ConsumerState<ScheduleTab>
     if (index < 0 || index >= scheduleState.days.length) {
       return;
     }
+
+    setState(() {
+      _selectedDayIndex = index;
+    });
 
     widget.onDaySelected(index);
   }
@@ -169,13 +191,27 @@ class _ScheduleTabState extends ConsumerState<ScheduleTab>
     );
   }
 
+  void _showImportScheduleDialog() async {
+    await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return const ImportScheduleDialog();
+      },
+    );
+
+    // Force refresh after dialog closes
+    if (mounted) {
+      print('🔄 ScheduleTab: Refreshing after import dialog closed');
+      await _refreshSchedule();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
 
     final scheduleState = ref.watch(scheduleProvider);
     final days = scheduleState.days;
-    final selectedDayIndex = 0; // Default to first day
     if (scheduleState.isLoading) {
       return const Center(
         child: Column(
@@ -240,7 +276,7 @@ class _ScheduleTabState extends ConsumerState<ScheduleTab>
       );
     }
 
-    final validIndex = selectedDayIndex.clamp(0, days.length - 1);
+    final validIndex = _selectedDayIndex.clamp(0, days.length - 1);
     final currentDay = days[validIndex];
     final itemsForSelectedDay = ref
         .read(scheduleProvider.notifier)
@@ -284,6 +320,14 @@ class _ScheduleTabState extends ConsumerState<ScheduleTab>
             overlayOpacity: 0.5,
             direction: SpeedDialDirection.up,
             children: [
+              SpeedDialChild(
+                child: Icon(Icons.download_outlined),
+                backgroundColor: Colors.black,
+                foregroundColor: Colors.white,
+                onTap: _showImportScheduleDialog,
+                elevation: 4,
+                shape: CircleBorder(),
+              ),
               SpeedDialChild(
                 child: Icon(Icons.share_outlined),
                 backgroundColor: Colors.black,

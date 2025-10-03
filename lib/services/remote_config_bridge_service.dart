@@ -14,13 +14,7 @@ class RemoteConfigBridgeService {
 
   // Remote Config parameter names
   static const Map<String, String> _parameterMapping = {
-    'app_update_force': 'app_update_force',
-    'app_update_message': 'app_update_message',
-    'app_update_title': 'app_update_title',
-    'app_update_download_url': 'app_update_download_url',
-    'app_update_version': 'app_update_version',
-    'app_update_changelog': 'app_update_changelog',
-    'show_update_button': 'show_update_button',
+    'show_team_formation_button': 'show_team_formation_button',
   };
 
   // Initialize the bridge service
@@ -225,11 +219,13 @@ class RemoteConfigBridgeService {
   // Convert Remote Config value to appropriate type
   dynamic _convertValue(RemoteConfigValue value) {
     try {
-      return value.asBool();
-      if (value.asString().isNotEmpty) return value.asString();
-      return value.asInt();
-      return value.asDouble();
-      return value.asString();
+      // Try to parse as bool first
+      final stringValue = value.asString();
+      if (stringValue == 'true' || stringValue == 'false') {
+        return value.asBool();
+      }
+      // Otherwise return as string
+      return stringValue;
     } catch (e) {
       return value.asString();
     }
