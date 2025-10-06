@@ -107,11 +107,6 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
             onPressed: () => _openInBrowser(),
             tooltip: 'فتح في المتصفح',
           ),
-          IconButton(
-            icon: const Icon(Icons.fullscreen, color: Colors.white),
-            onPressed: () => _toggleFullscreen(),
-            tooltip: 'ملء الشاشة',
-          ),
         ],
       ),
       body: _buildBody(),
@@ -230,15 +225,5 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
         SnackBar(content: Text('تعذر فتح الرابط: ${widget.materialLink.url}')),
       );
     }
-  }
-
-  void _toggleFullscreen() {
-    // TODO: Implement fullscreen functionality
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('سيتم إضافة ميزة ملء الشاشة قريباً'),
-        duration: Duration(seconds: 2),
-      ),
-    );
   }
 }

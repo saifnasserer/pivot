@@ -96,7 +96,7 @@ class ScheduleSharingService {
     }
   }
 
-  /// Import a shared schedule to current user's schedule
+  /// Import a shared schedule to current user's schedule (replaces existing schedule)
   Future<bool> importSharedSchedule(String shareId) async {
     try {
       final user = _auth.currentUser;
@@ -110,7 +110,10 @@ class ScheduleSharingService {
         throw Exception('الرابط غير صحيح أو منتهي الصلاحية');
       }
 
-      // Note: We don't need to check current schedule for import conflicts
+      print('🔄 ScheduleSharingService: Starting import (replace mode)');
+      print('  - User ID: ${user.uid}');
+      print('  - Share ID: $shareId');
+      print('  - Items to import: ${sharedSchedule.items.length}');
 
       // Import items with new IDs to avoid conflicts
       final List<ScheduleItem> itemsToImport =
@@ -128,30 +131,94 @@ class ScheduleSharingService {
             );
           }).toList();
 
-      // Get current schedule to merge with imported items
+      // Step 1: Clear all existing schedule items completely
+      await _clearAllScheduleItems();
+
+      // Step 2: Verify old schedule is completely removed
+      await _verifyScheduleCleared();
+
+      // Step 3: Add all imported items (only after old schedule is confirmed removed)
       final scheduleRef = _firestore.collection('schedules').doc(user.uid);
 
-      await _firestore.runTransaction((transaction) async {
-        final snapshot = await transaction.get(scheduleRef);
-        final data = snapshot.data() ?? <String, dynamic>{};
+      // Group imported items by day
+      final Map<String, List<Map<String, dynamic>>> groupedItems = {};
+      for (final item in itemsToImport) {
+        groupedItems.putIfAbsent(item.day, () => []).add(item.toMap());
+      }
 
-        // Group imported items by day and merge with existing schedule
-        for (final item in itemsToImport) {
-          final dayItems = List<Map<String, dynamic>>.from(
-            data[item.day] ?? [],
-          );
-          dayItems.add(item.toMap());
-          data[item.day] = dayItems;
-        }
+      // Set the new schedule data
+      await scheduleRef.set(groupedItems);
 
-        transaction.set(scheduleRef, data);
-      });
-
-      print('✅ Successfully imported ${itemsToImport.length} schedule items');
+      print(
+        '✅ Successfully replaced schedule with ${itemsToImport.length} imported items',
+      );
       return true;
     } catch (e) {
       print('❌ Error importing shared schedule: $e');
       return false;
+    }
+  }
+
+  /// Clear all schedule items for the current user
+  Future<void> _clearAllScheduleItems() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        throw Exception('User not logged in');
+      }
+
+      print('🗑️ ScheduleSharingService: Clearing existing schedule items');
+
+      final scheduleRef = _firestore.collection('schedules').doc(user.uid);
+
+      // Delete the entire schedule document
+      await scheduleRef.delete();
+
+      print('  - ✅ Cleared existing schedule document');
+    } catch (e) {
+      print('  - ❌ Error clearing schedule items: $e');
+      rethrow;
+    }
+  }
+
+  /// Verify that all schedule items have been completely removed
+  Future<void> _verifyScheduleCleared() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        throw Exception('User not logged in');
+      }
+
+      print(
+        '🔍 ScheduleSharingService: Verifying schedule is completely cleared',
+      );
+
+      final scheduleRef = _firestore.collection('schedules').doc(user.uid);
+
+      // Wait a moment for Firestore to process the deletion
+      await Future.delayed(Duration(milliseconds: 500));
+
+      final snapshot = await scheduleRef.get();
+
+      if (snapshot.exists) {
+        print('  - ❌ Warning: Schedule document still exists after clearing');
+        // Force delete the document again
+        await scheduleRef.delete();
+
+        // Verify again
+        await Future.delayed(Duration(milliseconds: 300));
+        final finalSnapshot = await scheduleRef.get();
+        if (finalSnapshot.exists) {
+          throw Exception(
+            'Failed to completely clear existing schedule document',
+          );
+        }
+      }
+
+      print('  - ✅ Verified: Schedule document is completely cleared');
+    } catch (e) {
+      print('  - ❌ Error verifying schedule cleared: $e');
+      rethrow;
     }
   }
 

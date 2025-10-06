@@ -2,7 +2,7 @@ import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/features/guide/providers/guide_provider.dart';
-import 'package:pivot/features/subjects/providers/legacy_subject_provider.dart';
+import 'package:pivot/features/subjects/providers/subject_provider.dart';
 import 'package:pivot/features/home/screens/adminstration/add_edit_subject_dialog.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:pivot/responsive.dart';
@@ -28,10 +28,10 @@ class _GlobalSubjectManagementScreenState
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(legacySubjectProviderProvider.notifier).fetchAllSubjects();
+      ref.read(SubjectProviderProvider.notifier).fetchAllSubjects();
       ref.read(guideProvider.notifier).fetchGuideContent();
     });
-    for (var subject in ref.read(legacySubjectProviderProvider).allSubjects) {
+    for (var subject in ref.read(SubjectProviderProvider).allSubjects) {
       _expandedState[subject.year] = false;
     }
   }
@@ -183,7 +183,7 @@ class _GlobalSubjectManagementScreenState
     if (updatedSubject != null) {
       try {
         await ref
-            .read(legacySubjectProviderProvider.notifier)
+            .read(SubjectProviderProvider.notifier)
             .updateSubject(updatedSubject);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -258,7 +258,7 @@ class _GlobalSubjectManagementScreenState
     if (confirm == true) {
       try {
         await ref
-            .read(legacySubjectProviderProvider.notifier)
+            .read(SubjectProviderProvider.notifier)
             .deleteSubject(subject.id);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -293,9 +293,7 @@ class _GlobalSubjectManagementScreenState
     final newSubject = await showAddEditSubjectDialog(context);
     if (newSubject != null) {
       try {
-        await ref
-            .read(legacySubjectProviderProvider.notifier)
-            .addSubject(newSubject);
+        await ref.read(SubjectProviderProvider.notifier).addSubject(newSubject);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -326,7 +324,7 @@ class _GlobalSubjectManagementScreenState
   }
 
   Widget _buildSubjectsManagementTab() {
-    final subjectProvider = ref.watch(legacySubjectProviderProvider);
+    final subjectProvider = ref.watch(SubjectProviderProvider);
 
     return Scaffold(
       backgroundColor: Colors.white,

@@ -323,3 +323,101 @@ def delete_user_auth(req: https_fn.Request) -> https_fn.Response:
             status=500,
             headers=headers
         )
+
+@https_fn.on_request()
+def get_profile_image_urls(req: https_fn.Request) -> https_fn.Response:
+    """
+    Get all profile image URLs for storage cleanup
+    Admin-only function for security
+    """
+    # Handle CORS
+    if req.method == 'OPTIONS':
+        headers = {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST',
+            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Max-Age': '3600'
+        }
+        return https_fn.Response('', status=204, headers=headers)
+    
+    # Set CORS headers for the main request
+    headers = {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST',
+        'Access-Control-Allow-Headers': 'Content-Type'
+    }
+    
+    try:
+        # Only allow POST requests
+        if req.method != 'POST':
+            return https_fn.Response(
+                json.dumps({'error': 'Method not allowed'}),
+                status=405,
+                headers=headers
+            )
+        
+        data = req.get_json()
+        if not data:
+            return https_fn.Response(
+                json.dumps({'error': 'No data provided'}),
+                status=400,
+                headers=headers
+            )
+        
+        # Get the admin user ID
+        admin_user_id = data.get('adminUserId')
+        if not admin_user_id:
+            return https_fn.Response(
+                json.dumps({'error': 'adminUserId is required'}),
+                status=400,
+                headers=headers
+            )
+        
+        # Verify admin permissions
+        db = firestore.client()
+        admin_doc = db.collection('users').document(admin_user_id).get()
+        
+        if not admin_doc.exists:
+            return https_fn.Response(
+                json.dumps({'error': 'Admin user not found'}),
+                status=404,
+                headers=headers
+            )
+        
+        admin_data = admin_doc.to_dict()
+        admin_role = admin_data.get('role', '')
+        
+        if admin_role not in ['Admin', 'Super Admin']:
+            return https_fn.Response(
+                json.dumps({'error': 'Insufficient permissions. Admin role required.'}),
+                status=403,
+                headers=headers
+            )
+        
+        # Fetch profile image URLs from all users
+        profile_image_urls = []
+        users_ref = db.collection('users')
+        users = users_ref.stream()
+        
+        for user_doc in users:
+            user_data = user_doc.to_dict()
+            profile_image_url = user_data.get('profileImageUrl')
+            if profile_image_url and isinstance(profile_image_url, str):
+                profile_image_urls.append(profile_image_url)
+        
+        return https_fn.Response(
+            json.dumps({
+                'success': True,
+                'profileImageUrls': profile_image_urls,
+                'count': len(profile_image_urls)
+            }),
+            status=200,
+            headers=headers
+        )
+        
+    except Exception as e:
+        return https_fn.Response(
+            json.dumps({'error': f'Internal server error: {str(e)}'}),
+            status=500,
+            headers=headers
+        )

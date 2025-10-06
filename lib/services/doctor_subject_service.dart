@@ -53,6 +53,15 @@ class DoctorSubjectService {
     }
   }
 
+  Future<void> updateLecture(String lectureId, String newTitle) async {
+    try {
+      await _lecturesCollection.doc(lectureId).update({'title': newTitle});
+    } catch (e) {
+      print('Error updating lecture: $e');
+      rethrow;
+    }
+  }
+
   Future<void> deleteLecture(String lectureId) async {
     try {
       await _lecturesCollection.doc(lectureId).delete();

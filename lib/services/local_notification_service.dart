@@ -280,8 +280,10 @@ class LocalNotificationService {
 
     // Determine if it's a section or lecture for Arabic text
     final isSection = classType == 'section';
-    final title = isSection ? 'سكشن قريب' : 'محاضرة قريبة';
-    final body =
+
+    // NOTIFICATION 1: 15 minutes before class
+    final title15Min = isSection ? 'سكشن قريب' : 'محاضرة قريبة';
+    final body15Min =
         isSection
             ? 'سكشن $subjectName يبدأ خلال 15 دقيقة'
             : 'محاضرة $subjectName تبدأ خلال 15 دقيقة';
@@ -290,8 +292,8 @@ class LocalNotificationService {
       content: NotificationContent(
         id: id,
         channelKey: _channelKey,
-        title: title,
-        body: body,
+        title: title15Min,
+        body: body15Min,
         category: NotificationCategory.Reminder,
         wakeUpScreen: true,
         groupKey: _groupClass,
@@ -302,6 +304,7 @@ class LocalNotificationService {
           'subjectName': subjectName,
           'isRecurring': 'true',
           'classType': classType ?? 'unknown',
+          'reminderType': '15_minutes_before',
         },
       ),
       schedule: NotificationCalendar(
@@ -314,6 +317,46 @@ class LocalNotificationService {
         preciseAlarm: Platform.isAndroid,
       ),
     );
+
+    // NOTIFICATION 2: At exact class start time
+    final titleNow = isSection ? 'السكشن بدأ !' : 'المحاضرة بدأت!';
+    final bodyNow =
+        isSection ? 'سكشن $subjectName بدأ' : 'محاضرة $subjectName بدأت الآن';
+
+    // Use different ID for the "starting now" notification
+    final idNow = _stableIdFrom('class_now:$scheduleItemId');
+
+    await AwesomeNotifications().createNotification(
+      content: NotificationContent(
+        id: idNow,
+        channelKey: _channelKey,
+        title: titleNow,
+        body: bodyNow,
+        category: NotificationCategory.Reminder,
+        wakeUpScreen: true,
+        groupKey: _groupClass,
+        icon: 'resource://drawable/ic_notification',
+        payload: {
+          'type': 'class_starting_now',
+          'scheduleItemId': scheduleItemId,
+          'subjectName': subjectName,
+          'isRecurring': 'true',
+          'classType': classType ?? 'unknown',
+          'reminderType': 'starting_now',
+        },
+      ),
+      schedule: NotificationCalendar(
+        weekday: weekday,
+        hour: classHour,
+        minute: classMinute,
+        second: 0,
+        millisecond: 0,
+        repeats: true,
+        preciseAlarm: Platform.isAndroid,
+      ),
+    );
+
+    print('✅ Scheduled 2 notifications: 15-min before & at class time');
   }
 
   // Schedule one-time class reminder
@@ -440,8 +483,12 @@ class LocalNotificationService {
 
   Future<void> cancelClassReminder(String scheduleItemId) async {
     if (kIsWeb) return;
-    final id = _stableIdFrom('class:$scheduleItemId');
-    await AwesomeNotifications().cancel(id);
+    // Cancel both notifications: 15-min before and "starting now"
+    final id15Min = _stableIdFrom('class:$scheduleItemId');
+    final idNow = _stableIdFrom('class_now:$scheduleItemId');
+    await AwesomeNotifications().cancel(id15Min);
+    await AwesomeNotifications().cancel(idNow);
+    print('🗑️ Cancelled 2 notifications for schedule item: $scheduleItemId');
   }
 
   // ===== Task Reminders =====
@@ -589,8 +636,11 @@ class LocalNotificationService {
 
   Future<void> cancelTaskReminders(String taskId) async {
     if (kIsWeb) return;
+    // Cancel all 5 types of task reminders that can be scheduled
     await AwesomeNotifications().cancel(_stableIdFrom('task:$taskId:early'));
+    await AwesomeNotifications().cancel(_stableIdFrom('task:$taskId:tomorrow'));
     await AwesomeNotifications().cancel(_stableIdFrom('task:$taskId:due'));
+    await AwesomeNotifications().cancel(_stableIdFrom('task:$taskId:evening'));
     await AwesomeNotifications().cancel(_stableIdFrom('task:$taskId:overdue'));
   }
 

@@ -6,7 +6,6 @@ import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:pivot/widgets/report_content_dialog.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:gradient_borders/gradient_borders.dart';
 import 'package:lottie/lottie.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -76,14 +75,37 @@ class _CommentTileState extends ConsumerState<CommentTile>
   }
 
   void handleLike() async {
+    // Store original values for rollback if needed
+    final originalIsLiked = isLiked;
+    final originalLikeCount = likeCount;
+
+    // Update UI immediately for better responsiveness
     setState(() {
-      final wasLiked = isLiked;
-      isLiked = !wasLiked;
-      likeCount += wasLiked ? -1 : 1;
+      isLiked = !isLiked;
+      likeCount += isLiked ? 1 : -1;
     });
-    await ref
-        .read(announcementsProvider.notifier)
-        .likeComment(widget.announcementId, widget.comment.id, widget.userId);
+
+    try {
+      // Call the provider to update the server
+      await ref
+          .read(announcementsProvider.notifier)
+          .likeComment(widget.announcementId, widget.comment.id, widget.userId);
+    } catch (e) {
+      // Rollback on error
+      if (mounted) {
+        setState(() {
+          isLiked = originalIsLiked;
+          likeCount = originalLikeCount;
+        });
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('فشل في تحديث الإعجاب. حاول مرة أخرى.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void handleToggleReplies() {
@@ -109,97 +131,104 @@ class _CommentTileState extends ConsumerState<CommentTile>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  ListTile(
-                    leading: Icon(Icons.edit, color: Colors.blue),
-                    title: Text('تعديل'),
-                    onTap: () {
-                      Navigator.pop(context);
-                      setState(() {
-                        widget.onEditStart(
-                          widget.comment.id,
-                          TextEditingController(text: widget.comment.content),
-                        );
-                      });
-                    },
-                  ),
-                  ListTile(
-                    leading: Icon(Icons.delete, color: Colors.red),
-                    title: Text('حذف'),
-                    onTap: () async {
-                      Navigator.pop(context);
-                      final confirm = await showDialog<bool>(
-                        context: context,
-                        builder:
-                            (ctx) => UnifiedDialog(
-                              title: 'حذف التعليق',
-                              subtitle:
-                                  'هل أنت متأكد من رغبتك في حذف هذا التعليق؟',
-                              content: Container(
-                                padding: EdgeInsets.all(
-                                  Responsive.space(context, size: Space.medium),
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.red.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(
+                  // Edit option (only for own comments)
+                  if (widget.canEdit && widget.isOwnComment)
+                    ListTile(
+                      leading: Icon(Icons.edit, color: Colors.blue),
+                      title: Text('تعديل'),
+                      onTap: () {
+                        Navigator.pop(context);
+                        setState(() {
+                          widget.onEditStart(
+                            widget.comment.id,
+                            TextEditingController(text: widget.comment.content),
+                          );
+                        });
+                      },
+                    ),
+                  // Delete option (only for own comments)
+                  if (widget.canEdit && widget.isOwnComment)
+                    ListTile(
+                      leading: Icon(Icons.delete, color: Colors.red),
+                      title: Text('حذف'),
+                      onTap: () async {
+                        Navigator.pop(context);
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder:
+                              (ctx) => UnifiedDialog(
+                                title: 'حذف التعليق',
+                                subtitle:
+                                    'هل أنت متأكد من رغبتك في حذف هذا التعليق؟',
+                                content: Container(
+                                  padding: EdgeInsets.all(
                                     Responsive.space(
                                       context,
-                                      size: Space.large,
+                                      size: Space.medium,
                                     ),
                                   ),
-                                  border: Border.all(
-                                    color: Colors.red.withOpacity(0.3),
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
-                                  children: [
-                                    Icon(
-                                      Icons.warning_amber_rounded,
-                                      color: Colors.red,
-                                      size: Responsive.space(
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(
+                                      Responsive.space(
                                         context,
                                         size: Space.large,
                                       ),
                                     ),
-                                    SizedBox(
-                                      width: Responsive.space(
-                                        context,
-                                        size: Space.medium,
-                                      ),
+                                    border: Border.all(
+                                      color: Colors.red.withOpacity(0.3),
                                     ),
-                                    Expanded(
-                                      child: Text(
-                                        'لا يمكن التراجع عن هذا الإجراء بعد الحذف',
-                                        style: TextStyle(
-                                          fontSize: Responsive.text(
-                                            context,
-                                            size: TextSize.medium,
-                                          ),
-                                          color: Colors.black87,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    children: [
+                                      Icon(
+                                        Icons.warning_amber_rounded,
+                                        color: Colors.red,
+                                        size: Responsive.space(
+                                          context,
+                                          size: Space.large,
                                         ),
-                                        textAlign: TextAlign.right,
                                       ),
-                                    ),
-                                  ],
+                                      SizedBox(
+                                        width: Responsive.space(
+                                          context,
+                                          size: Space.medium,
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: Text(
+                                          'لا يمكن التراجع عن هذا الإجراء بعد الحذف',
+                                          style: TextStyle(
+                                            fontSize: Responsive.text(
+                                              context,
+                                              size: TextSize.medium,
+                                            ),
+                                            color: Colors.black87,
+                                          ),
+                                          textAlign: TextAlign.right,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
+                                confirmText: 'حذف',
+                                confirmIcon: Icons.delete,
+                                onConfirm: () => Navigator.pop(ctx, true),
+                                onCancel: () => Navigator.pop(ctx, false),
                               ),
-                              confirmText: 'حذف',
-                              confirmIcon: Icons.delete,
-                              onConfirm: () => Navigator.pop(ctx, true),
-                              onCancel: () => Navigator.pop(ctx, false),
-                            ),
-                      );
-                      if (confirm == true) {
-                        await FirebaseFirestore.instance
-                            .collection('announcements')
-                            .doc(widget.announcementId)
-                            .collection('comments')
-                            .doc(widget.comment.id)
-                            .delete();
-                      }
-                    },
-                  ),
-                  // Report option (for non-own comments)
+                        );
+                        if (confirm == true) {
+                          await ref
+                              .read(announcementsProvider.notifier)
+                              .deleteComment(
+                                widget.announcementId,
+                                widget.comment.id,
+                              );
+                        }
+                      },
+                    ),
+                  // Report option (only for other users' comments)
                   if (!widget.isOwnComment)
                     ListTile(
                       leading: Icon(Icons.flag_outlined, color: Colors.orange),
@@ -288,7 +317,7 @@ class _CommentTileState extends ConsumerState<CommentTile>
             .toList();
     // Main comment bubble
     Widget bubble = GestureDetector(
-      onLongPress: () => widget.canEdit ? _showOptions(context) : null,
+      onLongPress: () => _showOptions(context),
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 200),
         child:
@@ -854,6 +883,7 @@ class _LikeButtonState extends State<_LikeButton>
   }
 
   void _handleTap() {
+    // Update UI immediately for better responsiveness
     setState(() {
       _isLiked = !_isLiked;
     });

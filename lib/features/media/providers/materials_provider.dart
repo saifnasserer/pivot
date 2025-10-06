@@ -331,6 +331,28 @@ class MaterialsNotifier extends StateNotifier<MaterialsState> {
       selectedType: null,
     );
   }
+
+  // Rate a material
+  Future<void> rateMaterial(
+    String lectureId,
+    MaterialLink material,
+    String userId,
+    double rating,
+  ) async {
+    try {
+      await _repository.rateMaterial(lectureId, material, userId, rating);
+
+      // Refresh materials if this is the current lecture
+      if (lectureId == state.selectedLectureId && mounted) {
+        await getMaterialsByLectureId(lectureId);
+      }
+    } catch (e) {
+      if (mounted) {
+        state = state.copyWith(error: e.toString());
+      }
+      rethrow;
+    }
+  }
 }
 
 // Providers

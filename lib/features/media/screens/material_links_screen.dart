@@ -656,19 +656,21 @@ class _MaterialLinksScreenState extends ConsumerState<MaterialLinksScreen> {
     }
 
     try {
-      // TODO: Implement rating functionality in MaterialsProvider
-      // await ref.read(materialsProvider.notifier).rateMaterial(
-      //   widget.lecture.id,
-      //   materialLink,
-      //   widget.loggedInUser!.id,
-      //   rating,
-      // );
+      await ref
+          .read(materialsProvider.notifier)
+          .rateMaterial(
+            widget.lecture.id,
+            materialLink,
+            widget.loggedInUser!.id,
+            rating,
+          );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('تم تقييم المحتوى: ${rating.toInt()} نجوم'),
             backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }

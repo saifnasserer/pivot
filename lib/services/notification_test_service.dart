@@ -195,7 +195,10 @@ class NotificationTestService {
   Future<Map<String, dynamic>> _testNotificationTriggers() async {
     try {
       // Test running auto notifications
-      await _triggerService.sendTaskReminders();
+      await _triggerService.sendAnnouncement(
+        'Test Notification',
+        'This is a test notification from the app',
+      );
 
       return {
         'success': true,
@@ -209,7 +212,6 @@ class NotificationTestService {
   // Send a test notification to current user only
   Future<bool> sendTestNotification() async {
     try {
-
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
         return false;
@@ -218,7 +220,6 @@ class NotificationTestService {
       // Get current user's FCM token directly
       final token = await _notificationService.getToken();
       if (token == null || token.isEmpty) {
-
         return false;
       }
 
@@ -237,8 +238,7 @@ class NotificationTestService {
       );
 
       if (result) {
-      } else {
-      }
+      } else {}
 
       return result;
     } catch (e) {

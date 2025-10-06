@@ -5,7 +5,7 @@ import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/screens/models/instructors_gate.dart';
 import 'package:pivot/features/administration/providers/sections_provider.dart';
-import 'package:pivot/features/subjects/providers/legacy_subject_provider.dart';
+import 'package:pivot/features/subjects/providers/subject_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/models/subject_model.dart';
 
@@ -19,7 +19,7 @@ class SectionsBuilder {
   }) {
     final userProfileState = ref.watch(userProfileProvider);
     final sectionsState = ref.watch(sectionsProvider);
-    final subjectState = ref.watch(legacySubjectProviderProvider);
+    final subjectState = ref.watch(SubjectProviderProvider);
 
     if (userProfileState.isLoading || sectionsState.isLoading) {
       return [_buildLoadingState(context)];
@@ -277,7 +277,7 @@ class _EnhancedSectionListItemState
 
   void _onTap() {
     final instructors =
-        ref.read(legacySubjectProviderProvider).instructorsBySubject[widget
+        ref.read(SubjectProviderProvider).instructorsBySubject[widget
             .subject
             .id];
     final assistants =

@@ -25,6 +25,9 @@ class TaskRepository {
   Future<void> setTaskDueDate(String id, DateTime? dueDate) =>
       _service.setTaskDueDate(id, dueDate);
 
+  Future<List<TaskNote>> getTaskNotes(String taskId) =>
+      _service.getTaskNotes(taskId);
+
   Future<void> addTaskNote(String id, String note) =>
       _service.addTaskNote(id, note);
 

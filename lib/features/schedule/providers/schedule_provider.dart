@@ -136,6 +136,53 @@ class ScheduleNotifier extends StateNotifier<ScheduleState> {
     }
   }
 
+  Future<void> toggleNotification(String itemId) async {
+    try {
+      // Find the item in the schedule
+      ScheduleItem? targetItem;
+      String? targetDay;
+
+      for (final day in state.schedule.keys) {
+        final items = state.schedule[day] ?? [];
+        final item = items.firstWhere(
+          (item) => item.id == itemId,
+          orElse: () => ScheduleItem.empty(),
+        );
+        if (item.id.isNotEmpty) {
+          targetItem = item;
+          targetDay = day;
+          break;
+        }
+      }
+
+      if (targetItem != null && targetDay != null) {
+        // Create updated item with toggled notification
+        final updatedItem = targetItem.copyWith(
+          notificationEnabled: !targetItem.notificationEnabled,
+        );
+
+        // Update the item in the repository
+        await _repo.updateScheduleItem(itemId, updatedItem);
+
+        // Update local state
+        final updatedSchedule = Map<String, List<ScheduleItem>>.from(
+          state.schedule,
+        );
+        final dayItems = List<ScheduleItem>.from(
+          updatedSchedule[targetDay] ?? [],
+        );
+        final itemIndex = dayItems.indexWhere((item) => item.id == itemId);
+        if (itemIndex != -1) {
+          dayItems[itemIndex] = updatedItem;
+          updatedSchedule[targetDay] = dayItems;
+          state = state.copyWith(schedule: updatedSchedule);
+        }
+      }
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+    }
+  }
+
   void clearError() {
     state = state.copyWith(error: null);
   }

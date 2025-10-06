@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/features/guide/providers/guide_provider.dart';
 import 'package:pivot/features/user/providers/user_profile_provider.dart';
-import 'package:pivot/features/subjects/providers/legacy_subject_provider.dart';
+import 'package:pivot/features/subjects/providers/subject_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:pivot/widgets/no_internet_message.dart';
 import 'dart:async';
@@ -72,41 +72,29 @@ class _SubjectSelectionScreenState
         );
       }
 
-      // Get user profile to determine level and role
+      // Get user profile to determine role
       final userProfileState = ref.read(userProfileProvider);
       final userRole = userProfileState.loggedInUserProfile?.role;
 
-      // Determine which level to use for filtering
-      String? levelToUse;
-      if (widget.targetUserId != null && userRole == 'Super Admin') {
-        // Super Admin editing another user - use target user's level
-        final targetUser = userProfileState.allUsers.firstWhere(
-          (user) => user.id == widget.targetUserId,
-          orElse: () => userProfileState.loggedInUserProfile!,
-        );
-        levelToUse = targetUser.level;
+      // For Super Admin editing other users, force fresh data to ensure all subjects are available
+      final isSuperAdminEditingOthers =
+          widget.targetUserId != null && userRole == 'Super Admin';
 
-        if (kDebugMode) {
-          print('   👤 Super Admin editing user (Level: ${targetUser.level})');
-        }
-      } else if (userRole != 'Super Admin') {
-        // Regular user - use their own level
-        levelToUse = userProfileState.loggedInUserProfile?.level;
-
-        if (kDebugMode) {
-          print('   👤 User level: $levelToUse');
-        }
-      } else {
-        // Super Admin managing their own subjects - show all
-        if (kDebugMode) {
-          print('   👤 Super Admin (showing all subjects)');
+      if (kDebugMode) {
+        print('   👤 User role: $userRole');
+        print('   📚 Loading all subjects (level filtering removed)');
+        if (isSuperAdminEditingOthers) {
+          print('   🔧 Super Admin editing other user - forcing fresh data');
+          print('   👥 Target user ID: ${widget.targetUserId}');
+          print('   👤 Target user role: ${widget.targetUserRole}');
         }
       }
-
-      // Fetch subjects - will use cache if available, filtered by level
       ref
-          .read(legacySubjectProviderProvider.notifier)
-          .fetchAllSubjects(userLevel: levelToUse, userRole: userRole);
+          .read(SubjectProviderProvider.notifier)
+          .fetchAllSubjects(
+            userRole: userRole,
+            forceAllSubjects: isSuperAdminEditingOthers,
+          );
 
       // Fetch guide content
       ref.read(guideProvider.notifier).fetchGuideContent();
@@ -235,7 +223,7 @@ class _SubjectSelectionScreenState
   }
 
   int _calculateTotalHours() {
-    final subjectState = ref.read(legacySubjectProviderProvider);
+    final subjectState = ref.read(SubjectProviderProvider);
     int totalHours = 0;
 
     for (final subjectId in _selectedSubjectIds) {
@@ -707,9 +695,7 @@ class _SubjectSelectionScreenState
         }
 
         await ref.read(userProfileProvider.notifier).fetchAllUsers();
-        await ref
-            .read(legacySubjectProviderProvider.notifier)
-            .fetchAllSubjects();
+        await ref.read(SubjectProviderProvider.notifier).fetchAllSubjects();
         success = true;
       } else {
         // Normal flow - user editing their own subjects
@@ -1061,28 +1047,19 @@ class _SubjectSelectionScreenState
       print('🔄 [SubjectSelection] Manual refresh triggered');
     }
 
-    // Get user profile to determine level and role
+    // Get user profile to determine role
     final userProfileState = ref.read(userProfileProvider);
     final userRole = userProfileState.loggedInUserProfile?.role;
 
-    // Determine which level to use for filtering
-    String? levelToUse;
-    if (widget.targetUserId != null && userRole == 'Super Admin') {
-      final targetUser = userProfileState.allUsers.firstWhere(
-        (user) => user.id == widget.targetUserId,
-        orElse: () => userProfileState.loggedInUserProfile!,
-      );
-      levelToUse = targetUser.level;
-    } else if (userRole != 'Super Admin') {
-      levelToUse = userProfileState.loggedInUserProfile?.level;
-    }
-
+    // For Super Admin editing other users, force fresh data to ensure all subjects are available
+    final isSuperAdminEditingOthers =
+        widget.targetUserId != null && userRole == 'Super Admin';
     await ref
-        .read(legacySubjectProviderProvider.notifier)
+        .read(SubjectProviderProvider.notifier)
         .fetchAllSubjects(
           forceRefresh: true,
-          userLevel: levelToUse,
           userRole: userRole,
+          forceAllSubjects: isSuperAdminEditingOthers,
         );
 
     if (kDebugMode) {
@@ -1093,7 +1070,7 @@ class _SubjectSelectionScreenState
   Widget _buildSubjectsList() {
     return Consumer(
       builder: (context, ref, child) {
-        final subjectState = ref.watch(legacySubjectProviderProvider);
+        final subjectState = ref.watch(SubjectProviderProvider);
         if (subjectState.isLoading) {
           return Center(
             child: Column(
@@ -1131,7 +1108,7 @@ class _SubjectSelectionScreenState
                 ElevatedButton.icon(
                   onPressed: () {
                     ref
-                        .read(legacySubjectProviderProvider.notifier)
+                        .read(SubjectProviderProvider.notifier)
                         .fetchAllSubjects(forceRefresh: true);
                   },
                   icon: const Icon(Icons.refresh),
@@ -1189,7 +1166,7 @@ class _SubjectSelectionScreenState
                 ElevatedButton.icon(
                   onPressed: () {
                     ref
-                        .read(legacySubjectProviderProvider.notifier)
+                        .read(SubjectProviderProvider.notifier)
                         .fetchAllSubjects(forceRefresh: true);
                   },
                   icon: const Icon(Icons.refresh),
@@ -1668,7 +1645,7 @@ class _SubjectSelectionScreenState
                                   .read(userProfileProvider.notifier)
                                   .fetchAllUsers();
                               await ref
-                                  .read(legacySubjectProviderProvider.notifier)
+                                  .read(SubjectProviderProvider.notifier)
                                   .fetchAllSubjects();
                               success = true;
                               print(

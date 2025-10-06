@@ -82,24 +82,58 @@ class SchaduleCard extends StatelessWidget {
                   ],
                 ),
                 SizedBox(width: Responsive.space(context, size: Space.medium)),
-                // Title (right side)
+                // Title and instructor (right side)
                 Expanded(
-                  child: AutoSizeText(
-                    item.title,
-                    textAlign: TextAlign.right,
-                    style: TextStyle(
-                      color: Colors.black87,
-                      fontSize: Responsive.text(context, size: TextSize.medium),
-                      fontWeight: FontWeight.bold,
-                      height: 1.2,
-                    ),
-                    maxLines: 2,
-                    minFontSize:
-                        Responsive.text(
-                          context,
-                          size: TextSize.small,
-                        ).floorToDouble(),
-                    overflow: TextOverflow.ellipsis,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      AutoSizeText(
+                        item.title,
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                          color: Colors.black87,
+                          fontSize: Responsive.text(
+                            context,
+                            size: TextSize.medium,
+                          ),
+                          fontWeight: FontWeight.bold,
+                          height: 1.2,
+                        ),
+                        maxLines: 2,
+                        minFontSize:
+                            Responsive.text(
+                              context,
+                              size: TextSize.small,
+                            ).floorToDouble(),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (item.instructor.isNotEmpty) ...[
+                        SizedBox(
+                          height:
+                              Responsive.space(context, size: Space.small) *
+                              0.5,
+                        ),
+                        AutoSizeText(
+                          item.instructor,
+                          textAlign: TextAlign.right,
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.small,
+                            ),
+                            fontWeight: FontWeight.w500,
+                            height: 1.2,
+                          ),
+                          maxLines: 1,
+                          minFontSize:
+                              (Responsive.text(context, size: TextSize.small) *
+                                      0.8)
+                                  .floorToDouble(),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
                   ),
                 ),
               ],
@@ -264,7 +298,9 @@ class SchaduleCard extends StatelessWidget {
                                   0.5,
                             ),
                             Text(
-                              '${item.time} • ${item.location}',
+                              item.instructor.isNotEmpty
+                                  ? '${item.instructor} • ${item.time} • ${item.location}'
+                                  : '${item.time} • ${item.location}',
                               style: TextStyle(
                                 fontSize: Responsive.text(
                                   context,

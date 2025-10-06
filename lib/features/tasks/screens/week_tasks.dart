@@ -12,6 +12,7 @@ import 'package:pivot/models/user_profile.dart';
 import 'add_personal_task_dialog.dart';
 
 import 'package:pivot/services/sound_service.dart';
+import 'package:pivot/services/data_preloader_service.dart';
 
 /// Enhanced WeekTasks with analytics, smart organization, and modern UI
 class WeekTasks extends ConsumerStatefulWidget {
@@ -24,7 +25,6 @@ class WeekTasks extends ConsumerStatefulWidget {
 class _WeekTasksState extends ConsumerState<WeekTasks>
     with TickerProviderStateMixin {
   bool _isCompletedTasksExpanded = false;
-  final List<Task> _personalTasks = [];
   late AnimationController _progressAnimationController;
   late AnimationController _listAnimationController;
   late Animation<double> _listAnimation;
@@ -56,17 +56,31 @@ class _WeekTasksState extends ConsumerState<WeekTasks>
       final loggedInUser = userProfileState.loggedInUserProfile;
       if (loggedInUser != null) {
         _initializeDataSmart(loggedInUser);
+
+        // Trigger background refresh to keep data fresh
+        DataPreloaderService.backgroundRefresh(ref);
       }
     });
   }
 
-  /// Smart data initialization - only fetches what's not already loaded
-  /// Reduces redundant Firestore reads and improves performance
+  /// Smart data initialization - leverages preloaded data for instant UI
+  /// Eliminates loading time by using persistent providers and preloading
   void _initializeDataSmart(UserProfile user) {
     final subjectsState = ref.read(subjectsProvider);
     final sectionsState = ref.read(sectionsProvider);
     final tasksState = ref.read(tasksProvider);
 
+    // Check if data is already available from preloading
+    final isDataReady = DataPreloaderService.isWeekTasksDataReady(ref, user);
+
+    if (isDataReady) {
+      print(
+        '⚡ WeekTasks: Using preloaded data - Instant UI (S:${subjectsState.filteredSubjects.length}, Sec:${sectionsState.sections.length}, T:${tasksState.tasks.length})',
+      );
+      return;
+    }
+
+    // Only fetch what's missing (fallback for edge cases)
     final fetchFutures = <Future>[];
 
     // Only fetch subjects if not already loaded or loading
@@ -98,7 +112,7 @@ class _WeekTasksState extends ConsumerState<WeekTasks>
       );
     } else {
       print(
-        '🔄 WeekTasks: Fetching ${fetchFutures.length} data sources in parallel...',
+        '🔄 WeekTasks: Fallback fetch for ${fetchFutures.length} missing data sources...',
       );
       // Fetch all in parallel for better performance
       Future.wait(fetchFutures).catchError((error) {
@@ -202,16 +216,25 @@ class _WeekTasksState extends ConsumerState<WeekTasks>
     await showAddPersonalTaskDialog(
       context: context,
       task: task,
-      onSave: (task) {
-        // Handle the saved personal task
-        setState(() {
-          final index = _personalTasks.indexWhere((t) => t.id == task.id);
-          if (index != -1) {
-            _personalTasks[index] = task;
+      onSave: (savedTask) async {
+        // ✅ Personal tasks are saved to Firebase at: users/{userId}/tasks/{taskId}
+        // This ensures tasks are tied to the logged-in user's account
+        // When logging out and switching accounts, old tasks are cleared
+        // and only the new user's tasks are fetched
+        try {
+          final success = await ref
+              .read(tasksProvider.notifier)
+              .addTask(savedTask);
+          if (success) {
+            print('✅ WeekTasks: Personal task saved to cloud successfully');
+            // Refresh tasks to get updated list from cloud
+            await ref.read(tasksProvider.notifier).getAllTasks();
           } else {
-            _personalTasks.add(task);
+            print('❌ WeekTasks: Failed to save personal task to cloud');
           }
-        });
+        } catch (e) {
+          print('❌ WeekTasks: Error saving personal task - $e');
+        }
       },
     );
   }
@@ -332,7 +355,9 @@ class _WeekTasksState extends ConsumerState<WeekTasks>
     });
 
     final loggedInUser = userProfileState.loggedInUserProfile;
-    final allTasks = [...tasksState.tasks, ..._personalTasks];
+    final allTasks =
+        tasksState
+            .tasks; // All tasks now come from cloud (including personal tasks)
 
     // Check and update assistant preferences when build is called
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -361,50 +386,42 @@ class _WeekTasksState extends ConsumerState<WeekTasks>
     final userSection = loggedInUser.section;
     final assistantPreferences = loggedInUser.assistantPreferences;
 
-    // Optimized loading logic: Show cached data immediately
-    final isLoadingData =
-        subjectsState.isLoading ||
-        sectionsState.isLoading ||
-        tasksState.isLoading;
+    // Check if data is ready using preloader service
+    final isDataReady = DataPreloaderService.isWeekTasksDataReady(
+      ref,
+      loggedInUser,
+    );
 
-    // Check if we have ANY data (from cache or fresh)
-    final hasAnyData =
-        subjectsState.filteredSubjects.isNotEmpty ||
-        sectionsState.sections.isNotEmpty ||
-        tasksState.tasks.isNotEmpty;
+    // Only show loading if data is not ready and no cached data available
+    if (!isDataReady) {
+      // Check if we have ANY cached data to show immediately
+      final hasAnyData =
+          subjectsState.filteredSubjects.isNotEmpty ||
+          sectionsState.sections.isNotEmpty ||
+          tasksState.tasks.isNotEmpty;
 
-    // Check if instructors data is ready for enrolled subjects
-    final hasInstructorsData =
-        userEnrolledSubjectIds.isEmpty ||
-        userEnrolledSubjectIds.any(
-          (subjectId) =>
-              subjectsState.instructorsBySubject[subjectId]?.isNotEmpty ??
-              false,
-        );
-
-    // Check if sections data has been fetched (at least once)
-    final hasSectionsData =
-        userEnrolledSubjectIds.isEmpty || sectionsState.sections.isNotEmpty;
-
-    // Only show loading spinner if:
-    // 1. Currently loading AND 2. No cached data available (first time load)
-    final shouldShowLoading = isLoadingData && !hasAnyData;
-
-    if (shouldShowLoading ||
-        (!hasInstructorsData && !hasAnyData) ||
-        (!hasSectionsData && !hasAnyData)) {
-      return Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(color: Colors.black),
-              SizedBox(height: 16),
-              Text('جاري تحميل المهام...'),
-            ],
+      // Only show loading spinner if no cached data is available
+      if (!hasAnyData) {
+        return Scaffold(
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(color: Colors.black),
+                SizedBox(height: 16),
+                Text('جاري تحميل المهام...'),
+              ],
+            ),
           ),
-        ),
-      );
+        );
+      } else {
+        // Show cached data immediately while fresh data loads in background
+        print(
+          '📱 WeekTasks: Showing cached data while fresh data loads in background',
+        );
+      }
+    } else {
+      print('⚡ WeekTasks: Data is ready - showing instant UI');
     }
 
     // If we have cached data, show it immediately even if fetching fresh data
@@ -669,123 +686,51 @@ class _WeekTasksState extends ConsumerState<WeekTasks>
     );
   }
 
-  /// Build enhanced task item with swipe actions (only for personal tasks)
+  /// Build enhanced task item
   Widget _buildEnhancedTaskItem(Task task) {
-    // Only allow dismissible delete for personal tasks
-    if (task.isPersonal) {
-      return Dismissible(
-        key: Key(task.id),
-        direction: DismissDirection.endToStart,
-        background: Container(
-          margin: EdgeInsets.only(
-            bottom: Responsive.space(context, size: Space.small),
-          ),
-          decoration: BoxDecoration(
-            color: Colors.red,
-            borderRadius: BorderRadius.circular(
-              Responsive.space(context, size: Space.large),
-            ),
-          ),
-          alignment: Alignment.centerRight,
-          padding: EdgeInsets.only(
-            right: Responsive.space(context, size: Space.large),
-          ),
-          child: const Icon(Icons.delete, color: Colors.white, size: 24),
-        ),
-        confirmDismiss: (direction) async {
-          return await showDialog<bool>(
-            context: context,
-            builder:
-                (context) => AlertDialog(
-                  title: const Text('حذف المهمة الشخصية'),
-                  content: const Text(
-                    'هل أنت متأكد من حذف هذه المهمة الشخصية؟',
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(false),
-                      child: const Text('إلغاء'),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(true),
-                      style: TextButton.styleFrom(foregroundColor: Colors.red),
-                      child: const Text('حذف'),
-                    ),
-                  ],
-                ),
-          );
-        },
-        onDismissed: (direction) {
-          setState(() {
-            _personalTasks.removeWhere((t) => t.id == task.id);
-          });
-        },
-        child: TaskModel(
-          task: task,
-          admin: false,
-          onStatusChanged: () => _handleTaskStatusChange(task),
-          onEdit: () => _showAddEditTaskDialog(context, task: task),
-          onDelete: () => _handleTaskDelete(task),
-        ),
-      );
-    } else {
-      // For system tasks, return without dismissible wrapper
-      return Container(
-        margin: EdgeInsets.only(
-          bottom: Responsive.space(context, size: Space.small),
-        ),
-        child: TaskModel(
-          task: task,
-          admin: false,
-          onStatusChanged: () => _handleTaskStatusChange(task),
-          onEdit: () {}, // Disable editing for system tasks
-          onDelete: () {}, // Disable deletion for system tasks
-        ),
-      );
-    }
+    return Container(
+      margin: EdgeInsets.only(
+        bottom: Responsive.space(context, size: Space.small),
+      ),
+      child: TaskModel(
+        task: task,
+        admin: false,
+        onStatusChanged: () => _handleTaskStatusChange(task),
+        onEdit:
+            task.isPersonal
+                ? () => _showAddEditTaskDialog(context, task: task)
+                : () {}, // Disable editing for system tasks
+        onDelete:
+            task.isPersonal
+                ? () => _handleTaskDelete(task)
+                : () {}, // Disable deletion for system tasks
+      ),
+    );
   }
 
   void _handleTaskStatusChange(Task task) async {
-    if (task.isPersonal) {
+    // Use the tasks provider for all task status changes (both personal and system tasks)
+    try {
+      await ref.read(tasksProvider.notifier).toggleTaskCompletion(task.id);
+
+      // Play sound when task is completed
       final userProfileState = ref.read(userProfileProvider);
       final user = userProfileState.loggedInUserProfile;
-      if (user == null) return;
-
-      final wasCompleted = task.isCompletedFor(user.id);
-      final newCompletedBy = List<String>.from(task.completedBy);
-      if (wasCompleted) {
-        newCompletedBy.remove(user.id);
-      } else {
-        newCompletedBy.add(user.id);
-      }
-
-      final updatedTask = task.copyWith(completedBy: newCompletedBy);
-
-      setState(() {
-        final taskIndex = _personalTasks.indexWhere(
-          (t) => t.id == updatedTask.id,
-        );
-        if (taskIndex != -1) {
-          _personalTasks[taskIndex] = updatedTask;
-        }
-      });
-
-      // Play sound when personal task is completed
-      if (!wasCompleted) {
+      if (user != null && task.isCompletedFor(user.id)) {
         await SoundService().playCorrectSound();
       }
-    } else {
-      ref.read(tasksProvider.notifier).toggleTaskCompletion(task.id);
+    } catch (e) {
+      print('❌ WeekTasks: Error toggling task completion - $e');
     }
   }
 
   void _handleTaskDelete(Task task) {
-    if (task.isPersonal) {
-      setState(() {
-        _personalTasks.removeWhere((t) => t.id == task.id);
-      });
-    } else {
+    // Use the tasks provider for all task deletions (both personal and system tasks)
+    try {
       ref.read(tasksProvider.notifier).deleteTask(task.id);
+      print('✅ WeekTasks: Task deleted from cloud');
+    } catch (e) {
+      print('❌ WeekTasks: Error deleting task - $e');
     }
   }
 

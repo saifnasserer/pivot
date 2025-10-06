@@ -4,8 +4,9 @@ import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/services/auth_service.dart';
 import 'package:pivot/data/form_options.dart';
 import 'package:pivot/widgets/custom_dropdown.dart';
-import 'package:pivot/features/subjects/providers/legacy_subject_provider.dart';
+import 'package:pivot/features/subjects/providers/subject_provider.dart';
 import 'package:pivot/features/settings/providers/settings_provider.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/widgets/custom_text_field.dart';
@@ -46,7 +47,7 @@ class _AddUserScreenState extends ConsumerState<AddUserScreen> {
     super.initState();
     _availableDepartments = FormOptions.getDepartmentsForYear(null);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(legacySubjectProviderProvider.notifier).fetchAllSubjects();
+      ref.read(SubjectProviderProvider.notifier).fetchAllSubjects();
       ref.read(settingsProvider.notifier).fetchSectionCounts();
     });
   }
@@ -114,7 +115,7 @@ class _AddUserScreenState extends ConsumerState<AddUserScreen> {
   }
 
   List<Subject> _getFilteredSubjects() {
-    final subjectState = ref.read(legacySubjectProviderProvider);
+    final subjectState = ref.read(SubjectProviderProvider);
     if (_subjectSearchQuery.isEmpty) {
       return subjectState.allSubjects;
     }
@@ -261,7 +262,7 @@ class _AddUserScreenState extends ConsumerState<AddUserScreen> {
   }
 
   Widget _buildSubjectsList() {
-    final subjectState = ref.watch(legacySubjectProviderProvider);
+    final subjectState = ref.watch(SubjectProviderProvider);
 
     if (subjectState.isLoading) {
       return Center(
@@ -371,10 +372,16 @@ class _AddUserScreenState extends ConsumerState<AddUserScreen> {
     setState(() => _isLoading = true);
     try {
       final authService = AuthService();
+
+      // Store current user profile before creating new user
+      final currentUserProfile =
+          ref.read(userProfileProvider).loggedInUserProfile;
+
       final userCredential = await authService.createUserWithEmailAndPassword(
         _emailController.text.trim(),
         _passwordController.text,
       );
+
       if (userCredential.user != null) {
         final userProfile = UserProfile(
           id: userCredential.user!.uid,
@@ -389,6 +396,15 @@ class _AddUserScreenState extends ConsumerState<AddUserScreen> {
           teachingSubjects: _selectedSubjectIds.toList(),
         );
         await authService.createUserProfile(userProfile);
+
+        // IMPORTANT: Restore the original admin profile after creating the new user
+        // This prevents the profile from changing to the newly created user
+        if (currentUserProfile != null) {
+          await ref
+              .read(userProfileProvider.notifier)
+              .setLoggedInUserProfile(currentUserProfile, isOffline: false);
+        }
+
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -702,7 +718,7 @@ class _AddUserScreenState extends ConsumerState<AddUserScreen> {
                       Builder(
                         builder: (context) {
                           final subjectState = ref.watch(
-                            legacySubjectProviderProvider,
+                            SubjectProviderProvider,
                           );
                           final filteredSubjects = _getFilteredSubjects();
                           return Container(

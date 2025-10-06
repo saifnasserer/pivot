@@ -44,11 +44,6 @@ class _PdfViewerScreenState extends ConsumerState<PdfViewerScreen> {
             onPressed: () => _openInBrowser(),
             tooltip: 'فتح في المتصفح',
           ),
-          IconButton(
-            icon: const Icon(Icons.download, color: Colors.black),
-            onPressed: () => _downloadPdf(),
-            tooltip: 'تحميل PDF',
-          ),
         ],
       ),
       body: _buildBody(),
@@ -142,15 +137,5 @@ class _PdfViewerScreenState extends ConsumerState<PdfViewerScreen> {
         SnackBar(content: Text('تعذر فتح الرابط: ${widget.materialLink.url}')),
       );
     }
-  }
-
-  void _downloadPdf() {
-    // TODO: Implement PDF download functionality
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('سيتم إضافة ميزة التحميل قريباً'),
-        duration: Duration(seconds: 2),
-      ),
-    );
   }
 }

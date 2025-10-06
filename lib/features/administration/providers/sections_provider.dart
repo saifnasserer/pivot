@@ -245,25 +245,26 @@ class SectionsNotifier extends StateNotifier<SectionsState> {
   }
 }
 
-// Provider
-final sectionsProvider =
-    StateNotifierProvider.autoDispose<SectionsNotifier, SectionsState>((ref) {
-      final service = ref.watch(sectionServiceProvider);
-      return SectionsNotifier(service);
-    });
+// Provider - Using persistent provider for better caching
+final sectionsProvider = StateNotifierProvider<SectionsNotifier, SectionsState>(
+  (ref) {
+    final service = ref.watch(sectionServiceProvider);
+    return SectionsNotifier(service);
+  },
+);
 
 // Convenience providers
-final sectionsListProvider = Provider.autoDispose<List<Section>>((ref) {
+final sectionsListProvider = Provider<List<Section>>((ref) {
   final state = ref.watch(sectionsProvider);
   return state.sections;
 });
 
-final sectionsLoadingProvider = Provider.autoDispose<bool>((ref) {
+final sectionsLoadingProvider = Provider<bool>((ref) {
   final state = ref.watch(sectionsProvider);
   return state.isLoading;
 });
 
-final sectionsErrorProvider = Provider.autoDispose<String?>((ref) {
+final sectionsErrorProvider = Provider<String?>((ref) {
   final state = ref.watch(sectionsProvider);
   return state.error;
 });

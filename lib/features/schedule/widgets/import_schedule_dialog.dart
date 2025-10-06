@@ -420,6 +420,43 @@ class _ImportScheduleDialogState extends ConsumerState<ImportScheduleDialog> {
 
           SizedBox(height: Responsive.space(context, size: Space.large)),
 
+          // Warning notice
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.all(
+              Responsive.space(context, size: Space.medium),
+            ),
+            decoration: BoxDecoration(
+              color: Colors.orange.shade50,
+              borderRadius: BorderRadius.circular(
+                Responsive.space(context, size: Space.medium),
+              ),
+              border: Border.all(color: Colors.orange.shade200),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.warning_amber_rounded,
+                  color: Colors.orange.shade700,
+                  size: Responsive.text(context, size: TextSize.medium),
+                ),
+                SizedBox(width: Responsive.space(context, size: Space.small)),
+                Expanded(
+                  child: Text(
+                    'تحذير: سيتم استبدال جميع عناصر الجدول الحالي بالعناصر المستوردة',
+                    style: TextStyle(
+                      fontSize: Responsive.text(context, size: TextSize.small),
+                      color: Colors.orange.shade800,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          SizedBox(height: Responsive.space(context, size: Space.large)),
+
           // Action buttons
           Row(
             children: [
@@ -453,9 +490,9 @@ class _ImportScheduleDialogState extends ConsumerState<ImportScheduleDialog> {
                             ),
                           )
                           : Icon(Icons.download, size: 18),
-                  label: Text(_isLoading ? 'جاري...' : 'استيراد'),
+                  label: Text(_isLoading ? 'جاري...' : 'استيراد واستبدال'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black,
+                    backgroundColor: Colors.orange.shade600,
                     foregroundColor: Colors.white,
                     padding: EdgeInsets.symmetric(vertical: 12),
                   ),

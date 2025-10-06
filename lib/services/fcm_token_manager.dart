@@ -19,7 +19,6 @@ class FCMTokenManager {
 
   // Initialize token management
   Future<void> initialize() async {
-
     // Set up token refresh listener
     _messaging.onTokenRefresh.listen((newToken) async {
       await _updateUserToken(newToken);
@@ -39,7 +38,6 @@ class FCMTokenManager {
   Future<void> _updateUserToken(String token) async {
     final user = _auth.currentUser;
     if (user == null) {
-
       return;
     }
 
@@ -50,9 +48,7 @@ class FCMTokenManager {
         'tokenStatus': 'active',
         'tokenErrorReason': FieldValue.delete(), // Clear any previous errors
       }, SetOptions(merge: true));
-
-    } catch (e) {
-    }
+    } catch (e) {}
   }
 
   // Get user's FCM token
@@ -73,7 +69,6 @@ class FCMTokenManager {
       }
       return null;
     } catch (e) {
-
       return null;
     }
   }
@@ -123,7 +118,6 @@ class FCMTokenManager {
   // Mark token as invalid
   Future<void> markTokenAsInvalid(String token, String? userId) async {
     try {
-
       // Handle special case for "all_users" - find the actual user by token
       if (userId == 'all_users' || userId == null) {
         // Find user by token
@@ -171,12 +165,10 @@ class FCMTokenManager {
                 'tokenErrorReason': 'Invalid or unregistered token',
               });
             }
-          } else {
-          }
+          } else {}
         }
       }
-    } catch (e) {
-    }
+    } catch (e) {}
   }
 
   // Validate token format
@@ -324,6 +316,18 @@ class FCMTokenManager {
         'error': e.toString(),
         'timestamp': DateTime.now().toIso8601String(),
       };
+    }
+  }
+
+  /// Delete the local FCM token (called during logout)
+  /// This prevents the device from receiving notifications after logout
+  Future<void> deleteLocalToken() async {
+    try {
+      await _messaging.deleteToken();
+      print('✅ Local FCM token deleted successfully');
+    } catch (e) {
+      print('❌ Error deleting local FCM token: $e');
+      rethrow;
     }
   }
 }

@@ -137,12 +137,17 @@ class _ReportContentDialogState extends State<ReportContentDialog> {
                         size: Responsive.text(context, size: TextSize.heading),
                       ),
                     ),
-                    SizedBox(width: Responsive.space(context, size: Space.small)),
+                    SizedBox(
+                      width: Responsive.space(context, size: Space.small),
+                    ),
                     Expanded(
                       child: Text(
                         'الإبلاغ عن محتوى',
                         style: TextStyle(
-                          fontSize: Responsive.text(context, size: TextSize.heading),
+                          fontSize: Responsive.text(
+                            context,
+                            size: TextSize.heading,
+                          ),
                           fontWeight: FontWeight.bold,
                           color: Colors.black87,
                         ),
@@ -182,7 +187,10 @@ class _ReportContentDialogState extends State<ReportContentDialog> {
                     title: Text(
                       reason['label'],
                       style: TextStyle(
-                        fontSize: Responsive.text(context, size: TextSize.small),
+                        fontSize: Responsive.text(
+                          context,
+                          size: TextSize.small,
+                        ),
                       ),
                     ),
                     value: reason['value'],
@@ -195,7 +203,7 @@ class _ReportContentDialogState extends State<ReportContentDialog> {
                     activeColor: Colors.red.shade700,
                     contentPadding: EdgeInsets.zero,
                   );
-                }).toList(),
+                }),
 
                 SizedBox(height: Responsive.space(context, size: Space.medium)),
 
@@ -231,14 +239,17 @@ class _ReportContentDialogState extends State<ReportContentDialog> {
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: _isSubmitting ? null : () => Navigator.pop(context),
+                        onPressed:
+                            _isSubmitting ? null : () => Navigator.pop(context),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                         child: const Text('إلغاء'),
                       ),
                     ),
-                    SizedBox(width: Responsive.space(context, size: Space.small)),
+                    SizedBox(
+                      width: Responsive.space(context, size: Space.small),
+                    ),
                     Expanded(
                       child: ElevatedButton(
                         onPressed: _isSubmitting ? null : _submitReport,
@@ -247,18 +258,19 @@ class _ReportContentDialogState extends State<ReportContentDialog> {
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
-                        child: _isSubmitting
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.white,
+                        child:
+                            _isSubmitting
+                                ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
                                   ),
-                                ),
-                              )
-                            : const Text('إرسال البلاغ'),
+                                )
+                                : const Text('إرسال البلاغ'),
                       ),
                     ),
                   ],
@@ -271,4 +283,3 @@ class _ReportContentDialogState extends State<ReportContentDialog> {
     );
   }
 }
-

@@ -35,17 +35,13 @@ class ScheduleService {
 
     // Sort each day's items by order
     for (var entry in scheduleMap.entries) {
-      final day = entry.key;
       final dayItems = entry.value;
-      for (int i = 0; i < dayItems.length; i++) {}
 
       dayItems.sort((a, b) {
         final aOrder = a.order ?? 0;
         final bOrder = b.order ?? 0;
         return aOrder.compareTo(bOrder);
       });
-
-      for (int i = 0; i < dayItems.length; i++) {}
     }
 
     return scheduleMap;
@@ -89,5 +85,31 @@ class ScheduleService {
     }
 
     await batch.commit();
+  }
+
+  // Clear all schedule items for the current user
+  Future<void> clearAllScheduleItems() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        throw Exception('User not logged in');
+      }
+
+      print('🗑️ Schedule Service: Clearing all schedule items');
+      print('  - User ID: ${user.uid}');
+
+      final snapshot = await _getScheduleCollection().get();
+      final batch = _firestore.batch();
+
+      for (var doc in snapshot.docs) {
+        batch.delete(doc.reference);
+      }
+
+      await batch.commit();
+      print('  - ✅ Cleared ${snapshot.docs.length} schedule items');
+    } catch (e) {
+      print('  - ❌ Error clearing schedule items: $e');
+      rethrow;
+    }
   }
 }

@@ -82,6 +82,7 @@ class UnifiedDialog extends StatelessWidget {
         ),
         content: ConstrainedBox(
           constraints: BoxConstraints(
+            minWidth: Responsive.width(context) * 0.9,
             maxWidth: maxWidth ?? Responsive.width(context) * 0.9,
             maxHeight: maxHeight ?? Responsive.height(context) * 0.8,
           ),

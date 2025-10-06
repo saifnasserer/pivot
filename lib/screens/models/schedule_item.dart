@@ -27,6 +27,8 @@ class ScheduleItem extends HiveObject {
   final bool notificationEnabled;
   @HiveField(7)
   final int? order;
+  @HiveField(8)
+  final String instructor;
 
   ScheduleItem({
     required this.id,
@@ -37,6 +39,7 @@ class ScheduleItem extends HiveObject {
     required this.type,
     this.notificationEnabled = true, // Default to enabled
     this.order, // Can be null for legacy items
+    this.instructor = '', // Default to empty string
   });
 
   factory ScheduleItem.fromJson(Map<String, dynamic> json) {
@@ -52,6 +55,7 @@ class ScheduleItem extends HiveObject {
               : ScheduleItemType.section,
       notificationEnabled: json['notificationEnabled'] as bool? ?? true,
       order: json['order'] as int? ?? 0,
+      instructor: json['instructor'] as String? ?? '',
     );
   }
 
@@ -65,6 +69,7 @@ class ScheduleItem extends HiveObject {
       'type': type.toString().split('.').last, // e.g., 'lecture' or 'section'
       'notificationEnabled': notificationEnabled,
       'order': order,
+      'instructor': instructor,
     };
   }
 
@@ -84,6 +89,7 @@ class ScheduleItem extends HiveObject {
     ScheduleItemType? type,
     bool? notificationEnabled,
     int? order,
+    String? instructor,
   }) {
     return ScheduleItem(
       id: id ?? this.id,
@@ -94,6 +100,22 @@ class ScheduleItem extends HiveObject {
       type: type ?? this.type,
       notificationEnabled: notificationEnabled ?? this.notificationEnabled,
       order: order ?? this.order,
+      instructor: instructor ?? this.instructor,
+    );
+  }
+
+  // Factory method for empty ScheduleItem
+  factory ScheduleItem.empty() {
+    return ScheduleItem(
+      id: '',
+      title: '',
+      time: '',
+      location: '',
+      day: '',
+      type: ScheduleItemType.lecture,
+      notificationEnabled: false,
+      order: 0,
+      instructor: '',
     );
   }
 }
@@ -118,13 +140,14 @@ class ScheduleItemCustomAdapter extends TypeAdapter<ScheduleItem> {
       type: fields[5] as ScheduleItemType,
       notificationEnabled: fields[6] as bool? ?? true, // Handle null values
       order: fields[7] as int? ?? 0, // Handle null values
+      instructor: fields[8] as String? ?? '', // Handle null values
     );
   }
 
   @override
   void write(BinaryWriter writer, ScheduleItem obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(9)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -140,7 +163,9 @@ class ScheduleItemCustomAdapter extends TypeAdapter<ScheduleItem> {
       ..writeByte(6)
       ..write(obj.notificationEnabled)
       ..writeByte(7)
-      ..write(obj.order);
+      ..write(obj.order)
+      ..writeByte(8)
+      ..write(obj.instructor);
   }
 
   @override

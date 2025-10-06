@@ -60,15 +60,6 @@ class _SignupPage2State extends ConsumerState<SignupPage2> {
     });
   }
 
-  void _initializeForm() {
-    // Initialize with default values or load from previous step
-    _selectedLevel = FormOptions.academicYears.first;
-    _selectedDepartment =
-        FormOptions.getDepartmentsForYear(_selectedLevel).first;
-    _selectedSection =
-        _getAvailableSections(_selectedLevel, _selectedDepartment).first;
-  }
-
   List<String> _getAvailableSections(String level, String department) {
     // For first and second year (General department), use section count from settings
     if (level == 'الفرقة الأولى' || level == 'الفرقة الثانية') {
@@ -96,6 +87,28 @@ class _SignupPage2State extends ConsumerState<SignupPage2> {
 
   Future<void> _handleSignup() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // Validate all fields are selected
+    if (_selectedLevel.isEmpty) {
+      setState(() {
+        _errorMessage = 'الرجاء اختيار الفرقة';
+      });
+      return;
+    }
+
+    if (_selectedDepartment.isEmpty) {
+      setState(() {
+        _errorMessage = 'الرجاء اختيار القسم';
+      });
+      return;
+    }
+
+    if (_selectedSection.isEmpty) {
+      setState(() {
+        _errorMessage = 'الرجاء اختيار السكشن';
+      });
+      return;
+    }
 
     if (!_acceptedTerms) {
       setState(() {
@@ -188,7 +201,6 @@ class _SignupPage2State extends ConsumerState<SignupPage2> {
           setState(() {
             _sectionCounts = settingsState.sectionCounts;
           });
-          _initializeForm();
         }
       });
     }
@@ -243,7 +255,7 @@ class _SignupPage2State extends ConsumerState<SignupPage2> {
                           children: [
                             // Header
                             Text(
-                              'أكمل بياناتك الشخصية',
+                              'كمل بياناتك الشخصية',
                               style: TextStyle(
                                 fontSize: Responsive.text(
                                   context,
@@ -262,7 +274,7 @@ class _SignupPage2State extends ConsumerState<SignupPage2> {
                             ),
 
                             Text(
-                              'هذه المعلومات ستساعدنا في تخصيص تجربتك',
+                              'المعلومات دي هتساعدنا نخلي تجربتك افضل',
                               style: TextStyle(
                                 fontSize: Responsive.text(
                                   context,
@@ -279,40 +291,20 @@ class _SignupPage2State extends ConsumerState<SignupPage2> {
                               ),
                             ),
 
-                            // Level Dropdown
+                            // Level Dropdown (Always enabled - first step)
                             CustomDropdown(
                               value: _selectedLevel,
                               items: FormOptions.academicYears,
                               onChanged: (value) {
                                 setState(() {
                                   _selectedLevel = value!;
-                                  // Update department based on selected level
-                                  final availableDepartments =
-                                      FormOptions.getDepartmentsForYear(
-                                        _selectedLevel,
-                                      );
-                                  // Reset department if current selection is not available
-                                  if (!availableDepartments.contains(
-                                    _selectedDepartment,
-                                  )) {
-                                    _selectedDepartment =
-                                        availableDepartments.first;
-                                  }
-                                  // Update section based on new level and department
-                                  final availableSections =
-                                      _getAvailableSections(
-                                        _selectedLevel,
-                                        _selectedDepartment,
-                                      );
-                                  if (availableSections.isNotEmpty &&
-                                      !availableSections.contains(
-                                        _selectedSection,
-                                      )) {
-                                    _selectedSection = availableSections.first;
-                                  }
+                                  // Reset department and section when level changes
+                                  // Don't auto-populate - let user choose
+                                  _selectedDepartment = '';
+                                  _selectedSection = '';
                                 });
                               },
-                              hint: 'اختر المستوى',
+                              hint: 'اختار الفرقة',
                             ),
                             SizedBox(
                               height: Responsive.space(
@@ -321,30 +313,31 @@ class _SignupPage2State extends ConsumerState<SignupPage2> {
                               ),
                             ),
 
-                            // Department Dropdown
-                            CustomDropdown(
-                              value: _selectedDepartment,
-                              items: FormOptions.getDepartmentsForYear(
-                                _selectedLevel,
+                            // Department Dropdown (Enabled only if level is selected)
+                            Opacity(
+                              opacity: _selectedLevel.isEmpty ? 0.5 : 1.0,
+                              child: IgnorePointer(
+                                ignoring: _selectedLevel.isEmpty,
+                                child: CustomDropdown(
+                                  value: _selectedDepartment,
+                                  items:
+                                      _selectedLevel.isEmpty
+                                          ? ['']
+                                          : FormOptions.getDepartmentsForYear(
+                                            _selectedLevel,
+                                          ),
+                                  onChanged: (value) {
+                                    if (_selectedLevel.isEmpty) return;
+                                    setState(() {
+                                      _selectedDepartment = value!;
+                                      // Reset section when department changes
+                                      // Don't auto-populate - let user choose
+                                      _selectedSection = '';
+                                    });
+                                  },
+                                  hint: 'اختار القسم',
+                                ),
                               ),
-                              onChanged: (value) {
-                                setState(() {
-                                  _selectedDepartment = value!;
-                                  // Update section based on new department
-                                  final availableSections =
-                                      _getAvailableSections(
-                                        _selectedLevel,
-                                        _selectedDepartment,
-                                      );
-                                  if (availableSections.isNotEmpty &&
-                                      !availableSections.contains(
-                                        _selectedSection,
-                                      )) {
-                                    _selectedSection = availableSections.first;
-                                  }
-                                });
-                              },
-                              hint: 'اختر القسم',
                             ),
                             SizedBox(
                               height: Responsive.space(
@@ -353,19 +346,38 @@ class _SignupPage2State extends ConsumerState<SignupPage2> {
                               ),
                             ),
 
-                            // Section Dropdown
-                            CustomDropdown(
-                              value: _selectedSection,
-                              items: _getAvailableSections(
-                                _selectedLevel,
-                                _selectedDepartment,
+                            // Section Dropdown (Enabled only if department is selected)
+                            Opacity(
+                              opacity:
+                                  _selectedLevel.isEmpty ||
+                                          _selectedDepartment.isEmpty
+                                      ? 0.5
+                                      : 1.0,
+                              child: IgnorePointer(
+                                ignoring:
+                                    _selectedLevel.isEmpty ||
+                                    _selectedDepartment.isEmpty,
+                                child: CustomDropdown(
+                                  value: _selectedSection,
+                                  items:
+                                      _selectedLevel.isEmpty ||
+                                              _selectedDepartment.isEmpty
+                                          ? ['']
+                                          : _getAvailableSections(
+                                            _selectedLevel,
+                                            _selectedDepartment,
+                                          ),
+                                  onChanged: (value) {
+                                    if (_selectedLevel.isEmpty ||
+                                        _selectedDepartment.isEmpty)
+                                      return;
+                                    setState(() {
+                                      _selectedSection = value!;
+                                    });
+                                  },
+                                  hint: 'اختار السكشن',
+                                ),
                               ),
-                              onChanged: (value) {
-                                setState(() {
-                                  _selectedSection = value!;
-                                });
-                              },
-                              hint: 'اختر الشعبة',
                             ),
                             SizedBox(
                               height: Responsive.space(

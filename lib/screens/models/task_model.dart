@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/features/tasks/screens/screens.dart';
 import 'package:intl/intl.dart'; // For date formatting
 import 'package:pivot/features/user/providers/user_profile_provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import 'task.dart'; // Import the Task data model
 import 'package:pivot/responsive.dart';
@@ -35,6 +37,8 @@ class _TaskModelState extends ConsumerState<TaskModel>
   late Animation<double> _scaleAnimation;
   late Animation<double> _opacityAnimation;
   bool _isHovered = false;
+  bool _hasNotes = false;
+  bool _isCheckingNotes = true;
 
   @override
   void initState() {
@@ -54,12 +58,55 @@ class _TaskModelState extends ConsumerState<TaskModel>
 
     // Start entrance animation
     _animationController.forward();
+
+    // Check for existing notes
+    _checkForNotes();
   }
 
   @override
   void dispose() {
     _animationController.dispose();
     super.dispose();
+  }
+
+  /// Check if the task has existing notes
+  Future<void> _checkForNotes() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        if (mounted) {
+          setState(() {
+            _isCheckingNotes = false;
+          });
+        }
+        return;
+      }
+
+      final notesDoc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .collection('task_notes')
+              .doc(widget.task.id)
+              .get();
+
+      if (mounted) {
+        setState(() {
+          _hasNotes =
+              notesDoc.exists &&
+              notesDoc.data()?['notes'] != null &&
+              (notesDoc.data()!['notes'] as List).isNotEmpty;
+          _isCheckingNotes = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _hasNotes = false;
+          _isCheckingNotes = false;
+        });
+      }
+    }
   }
 
   // Helper to get subtle color based on importance
@@ -152,11 +199,13 @@ class _TaskModelState extends ConsumerState<TaskModel>
                   borderRadius: BorderRadius.circular(
                     Responsive.space(context, size: Space.large),
                   ),
-                  onTap: () {
-                    showDialog(
+                  onTap: () async {
+                    await showDialog(
                       context: context,
                       builder: (_) => TaskDetailsDialog(task: widget.task),
                     );
+                    // Refresh notes status after dialog closes
+                    _checkForNotes();
                   },
                   onHover: (hovered) {
                     setState(() {
@@ -341,6 +390,22 @@ class _TaskModelState extends ConsumerState<TaskModel>
                                               'متأخرة',
                                               Colors.red.shade400,
                                               Icons.warning,
+                                            ),
+
+                                          // Notes indicator
+                                          if (_hasNotes && !_isCheckingNotes)
+                                            _buildInfoChip(
+                                              'ملاحظات',
+                                              Colors.purple.shade400,
+                                              Icons.notes,
+                                            ),
+
+                                          // Notes loading indicator
+                                          if (_isCheckingNotes)
+                                            _buildInfoChip(
+                                              'جاري التحقق...',
+                                              Colors.grey.shade400,
+                                              Icons.hourglass_empty,
                                             ),
                                         ],
                                       ),

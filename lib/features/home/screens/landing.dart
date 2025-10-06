@@ -11,6 +11,9 @@ import 'package:pivot/screens/models/card_model.dart';
 import 'package:pivot/screens/models/search_card.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:pivot/features/settings/providers/settings_provider.dart';
+import 'package:pivot/services/data_preloader_service.dart';
+import 'package:pivot/widgets/offline_banner.dart';
+import 'package:pivot/widgets/sync_indicator.dart';
 
 class Landing extends ConsumerStatefulWidget {
   const Landing({super.key});
@@ -128,17 +131,39 @@ class LandingState extends ConsumerState<Landing>
       child: Consumer(
         builder: (context, ref, child) {
           final announcementState = ref.watch(announcementsProvider);
-          if (announcementState.isLoading) {
+          if (announcementState.isLoading && !announcementState.isFromCache) {
             return const Center(child: CircularProgressIndicator());
           }
           if (announcementState.announcements.isEmpty) {
             return Center(
-              child: Text(
-                'لا توجد أخبار لعرضها حاليًا',
-                style: TextStyle(
-                  fontSize: Responsive.text(context, size: TextSize.medium),
-                ),
-                textAlign: TextAlign.center,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'لا توجد أخبار لعرضها حاليًا',
+                    style: TextStyle(
+                      fontSize: Responsive.text(context, size: TextSize.medium),
+                      color: Colors.grey[600],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  if (announcementState.isFromCache)
+                    Padding(
+                      padding: EdgeInsets.only(top: 8),
+                      child: Text(
+                        'يتم عرض البيانات المحفوظة',
+                        style: TextStyle(
+                          fontSize: Responsive.text(
+                            context,
+                            size: TextSize.small,
+                          ),
+                          color: Colors.orange[600],
+                          fontStyle: FontStyle.italic,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                ],
               ),
             );
           }
@@ -154,56 +179,108 @@ class LandingState extends ConsumerState<Landing>
           final totalItems =
               sortedAnnouncements.length + (announcementState.hasMore ? 1 : 0);
 
-          return NotificationListener<ScrollNotification>(
-            onNotification: (scrollInfo) {
-              // Trigger load more when scrolling near the end (80% of last item)
-              if (!announcementState.isLoadingMore &&
-                  announcementState.hasMore &&
-                  scrollInfo.metrics.pixels >=
-                      scrollInfo.metrics.maxScrollExtent * 0.8) {
-                ref
-                    .read(announcementsProvider.notifier)
-                    .loadMoreAnnouncements();
-              }
-              return false;
-            },
-            child: PageView.builder(
-              controller: _pageController,
-              itemCount: totalItems,
-              scrollDirection: Axis.vertical,
-              physics: const ClampingScrollPhysics(),
-              itemBuilder: (context, index) {
-                // Show loading indicator at the end if loading more
-                if (index >= sortedAnnouncements.length) {
-                  return Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(
-                        Responsive.space(context, size: Space.large),
-                      ),
-                      child: CircularProgressIndicator(color: Colors.black87),
+          return Column(
+            children: [
+              // Cache indicator
+              if (announcementState.isFromCache)
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                  margin: EdgeInsets.only(bottom: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.orange[50],
+                    border: Border(
+                      bottom: BorderSide(color: Colors.orange[200]!, width: 1),
                     ),
-                  );
-                }
-
-                final announcement = sortedAnnouncements[index];
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                  child: CardModel(
-                    id: announcement.id,
-                    title: announcement.title,
-                    date: announcement.date,
-                    color: announcement.color,
-                    description: announcement.description,
-                    tags: announcement.tags,
-                    imageUrls: announcement.imageUrls,
-                    links: announcement.links,
-                    availableHeight:
-                        Responsive.height(context) *
-                        0.95, // Pass available height
                   ),
-                );
-              },
-            ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.offline_bolt,
+                        size: 16,
+                        color: Colors.orange[600],
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        'اسحب للتحديث',
+                        style: TextStyle(
+                          fontSize: Responsive.text(
+                            context,
+                            size: TextSize.small,
+                          ),
+                          color: Colors.orange[700],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              // Main content with pull-to-refresh
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: () async {
+                    // Force refresh announcements for current category
+                    await ref
+                        .read(announcementsProvider.notifier)
+                        .forceRefresh();
+                  },
+                  child: NotificationListener<ScrollNotification>(
+                    onNotification: (scrollInfo) {
+                      // Trigger load more when scrolling near the end (80% of last item)
+                      if (!announcementState.isLoadingMore &&
+                          announcementState.hasMore &&
+                          scrollInfo.metrics.pixels >=
+                              scrollInfo.metrics.maxScrollExtent * 0.8) {
+                        ref
+                            .read(announcementsProvider.notifier)
+                            .loadMoreAnnouncements();
+                      }
+                      return false;
+                    },
+                    child: PageView.builder(
+                      controller: _pageController,
+                      itemCount: totalItems,
+                      scrollDirection: Axis.vertical,
+                      physics: const ClampingScrollPhysics(),
+                      itemBuilder: (context, index) {
+                        // Show loading indicator at the end if loading more
+                        if (index >= sortedAnnouncements.length) {
+                          return Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(
+                                Responsive.space(context, size: Space.large),
+                              ),
+                              child: CircularProgressIndicator(
+                                color: Colors.black87,
+                              ),
+                            ),
+                          );
+                        }
+
+                        final announcement = sortedAnnouncements[index];
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                          child: CardModel(
+                            id: announcement.id,
+                            title: announcement.title,
+                            date: announcement.date,
+                            color: announcement.color,
+                            description: announcement.description,
+                            tags: announcement.tags,
+                            imageUrls: announcement.imageUrls,
+                            links: announcement.links,
+                            availableHeight:
+                                Responsive.height(context) *
+                                0.95, // Pass available height
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            ],
           );
         },
       ),
@@ -274,62 +351,78 @@ class LandingState extends ConsumerState<Landing>
           ),
           child: Scaffold(
             backgroundColor: Colors.white,
-            body: SafeArea(
-              child: Column(
-                children: [
-                  LandingCategories(
-                    userDepartment: normalizedDepartment,
-                    tabController: _tabController,
-                    categories:
-                        homeState
-                            .categories, // Use categories from Riverpod state
-                    onCategoryChanged: (category) {
-                      // Category change is now handled by TabController listener
-                      // This callback can be used for additional UI updates if needed
-                    },
-                  ),
-                  // Main content with horizontal swipe navigation
-                  Expanded(
-                    child: PageView(
-                      controller: _categoryPageController,
-                      scrollDirection: Axis.horizontal,
+            body: Column(
+              children: [
+                // Offline banner (shown when no connection)
+                const OfflineBanner(),
 
-                      onPageChanged: (index) {
-                        if (!_isUpdatingFromTab) {
-                          _isUpdatingFromPage = true;
+                // Sync banner (shown when online with pending operations)
+                const SyncStatusBanner(),
 
-                          // PageView index now directly corresponds to TabController index
-                          final tabIndex = index;
+                Expanded(
+                  child: SafeArea(
+                    child: Column(
+                      children: [
+                        LandingCategories(
+                          userDepartment: normalizedDepartment,
+                          tabController: _tabController,
+                          categories:
+                              homeState
+                                  .categories, // Use categories from Riverpod state
+                          onCategoryChanged: (category) {
+                            // Category change is now handled by TabController listener
+                            // This callback can be used for additional UI updates if needed
+                          },
+                        ),
+                        // Main content with horizontal swipe navigation
+                        Expanded(
+                          child: PageView(
+                            controller: _categoryPageController,
+                            scrollDirection: Axis.horizontal,
 
-                          // Update category via Riverpod provider
-                          ref
-                              .read(homeProvider.notifier)
-                              .changeCategory(tabIndex);
-                          // Sync with TabController
-                          if (_tabController.index != tabIndex) {
-                            _tabController.animateTo(tabIndex);
-                          }
-                          // Trigger category change when swiping
-                          if (tabIndex < homeState.categories.length) {
-                            final category = homeState.categories[tabIndex];
+                            onPageChanged: (index) {
+                              if (!_isUpdatingFromTab) {
+                                _isUpdatingFromPage = true;
 
-                            _handleCategoryChange(category);
-                          }
+                                // PageView index now directly corresponds to TabController index
+                                final tabIndex = index;
 
-                          // Reset flag after a short delay
-                          Future.delayed(const Duration(milliseconds: 350), () {
-                            _isUpdatingFromPage = false;
-                          });
-                        }
-                      },
-                      children:
-                          homeState.categories.map((category) {
-                            return _buildCategoryContent(category);
-                          }).toList(),
+                                // Update category via Riverpod provider
+                                ref
+                                    .read(homeProvider.notifier)
+                                    .changeCategory(tabIndex);
+                                // Sync with TabController
+                                if (_tabController.index != tabIndex) {
+                                  _tabController.animateTo(tabIndex);
+                                }
+                                // Trigger category change when swiping
+                                if (tabIndex < homeState.categories.length) {
+                                  final category =
+                                      homeState.categories[tabIndex];
+
+                                  _handleCategoryChange(category);
+                                }
+
+                                // Reset flag after a short delay
+                                Future.delayed(
+                                  const Duration(milliseconds: 350),
+                                  () {
+                                    _isUpdatingFromPage = false;
+                                  },
+                                );
+                              }
+                            },
+                            children:
+                                homeState.categories.map((category) {
+                                  return _buildCategoryContent(category);
+                                }).toList(),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
             floatingActionButton: SpeedDial(
               icon: Icons.menu,
@@ -372,7 +465,19 @@ class LandingState extends ConsumerState<Landing>
                       ),
                     ),
                   ),
-                  onTap: () {
+                  onTap: () async {
+                    // Preload data for week_tasks to eliminate loading time
+                    final userProfileState = ref.read(userProfileProvider);
+                    final loggedInUser = userProfileState.loggedInUserProfile;
+
+                    if (loggedInUser != null) {
+                      // Start preloading in background - don't wait for it
+                      DataPreloaderService.preloadWeekTasksData(
+                        ref,
+                        loggedInUser,
+                      );
+                    }
+
                     Navigator.pushNamed(context, '/profile');
                   },
                 ),

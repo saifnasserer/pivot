@@ -1,6 +1,14 @@
 import 'package:flutter/material.dart';
 import 'dart:html' as html;
 import 'package:flutter/foundation.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+
+/// Web background message handler (not used on web, but exported for consistency)
+@pragma('vm:entry-point')
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // Web platform - background messages handled by service worker
+  print('Web background message (handled by SW): ${message.messageId}');
+}
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -26,8 +34,7 @@ class NotificationService {
               ),
             );
           }
-        } else {
-        }
+        } else {}
       } else if (_isIOS()) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -50,6 +57,7 @@ class NotificationService {
         }
       }
     } catch (e) {
+      print('Error requesting web notification permission: $e');
     }
   }
 
@@ -87,8 +95,6 @@ class NotificationService {
     'errors': <String>[],
     'timestamp': DateTime.now().toIso8601String(),
   };
-
-  Future<bool> _validateToken(String token) async => false;
 
   Future<Map<String, dynamic>> getTokenStatistics() async => {
     'totalUsers': 0,

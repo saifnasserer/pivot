@@ -1,9 +1,12 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:crypto/crypto.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
 
 class StorageOptimizationService {
   static final StorageOptimizationService _instance =
@@ -13,6 +16,36 @@ class StorageOptimizationService {
 
   final FirebaseStorage _storage = FirebaseStorage.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  static const String _cloudFunctionUrl =
+      'https://us-central1-pivot-28563.cloudfunctions.net/get_profile_image_urls';
+
+  /// Get profile image URLs via secure backend function
+  Future<List<String>> _getProfileImageUrls() async {
+    try {
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) return [];
+
+      final response = await http.post(
+        Uri.parse(_cloudFunctionUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'adminUserId': currentUser.uid}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return List<String>.from(data['profileImageUrls'] ?? []);
+      } else {
+        // If function fails, return empty list (don't crash cleanup)
+        print('⚠️ Failed to get profile image URLs: ${response.body}');
+        return [];
+      }
+    } catch (e) {
+      print('⚠️ Error calling get_profile_image_urls function: $e');
+      return [];
+    }
+  }
 
   // Storage analytics
   final Map<String, int> _storageUsage = {};
@@ -130,11 +163,9 @@ class StorageOptimizationService {
 
     while (retryCount < maxRetries) {
       try {
-
         final fileName =
             '${DateTime.now().millisecondsSinceEpoch}_${file.path.split('/').last}';
         final storagePath = '${folder ?? 'general'}/$fileName';
-
 
         // Check file size
         final fileSize = await File(file.path).length();
@@ -170,8 +201,7 @@ class StorageOptimizationService {
           if (compressed != null) {
             fileToUpload = compressed;
             final compressedSize = await File(compressed.path).length();
-          } else {
-          }
+          } else {}
         }
 
         // Upload to Firebase Storage with timeout
@@ -252,7 +282,6 @@ class StorageOptimizationService {
     String? folder = 'general',
   }) async {
     try {
-
       final fileName =
           '${DateTime.now().millisecondsSinceEpoch}_${file.path.split('/').last}';
       final storagePath = '${folder ?? 'general'}/$fileName';
@@ -272,7 +301,6 @@ class StorageOptimizationService {
   /// Local storage fallback when Firebase upload fails
   Future<String?> saveImageLocally(XFile file) async {
     try {
-
       final appDir = await getApplicationDocumentsDirectory();
       final imagesDir = Directory('${appDir.path}/profile_images');
 
@@ -308,16 +336,9 @@ class StorageOptimizationService {
         referencedFiles.addAll(imageUrls);
       }
 
-      // Check user profiles
-      // TODO: The following code fetches the entire users collection and should be moved to a backend/admin function for security and privacy reasons.
-      final users = await _firestore.collection('users').get();
-      for (var doc in users.docs) {
-        final data = doc.data();
-        final profileImageUrl = data['profileImageUrl'] as String?;
-        if (profileImageUrl != null) {
-          referencedFiles.add(profileImageUrl);
-        }
-      }
+      // Check user profiles via backend function (secure)
+      final profileImageUrls = await _getProfileImageUrls();
+      referencedFiles.addAll(profileImageUrls);
 
       // Check tasks
       final tasks = await _firestore.collection('tasks').get();

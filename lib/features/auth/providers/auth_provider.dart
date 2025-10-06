@@ -2,6 +2,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/features/auth/repositories/auth_repository.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/services/auth_service.dart';
+import 'package:pivot/features/tasks/providers/tasks_provider.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
+import 'package:pivot/features/subjects/providers/subjects_provider.dart';
+import 'package:pivot/features/administration/providers/sections_provider.dart';
 
 final authServiceProvider = Provider<AuthService>((ref) => AuthService());
 
@@ -90,6 +94,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> logout() async {
     _checkDisposed();
+
+    // Clear all provider states before logout
+    print('🗑️ AuthProvider: Clearing all provider states...');
+    try {
+      // Reset tasks provider
+      _ref.read(tasksProvider.notifier).resetState();
+
+      print('✅ AuthProvider: All provider states cleared');
+    } catch (e) {
+      print('⚠️ AuthProvider: Error clearing providers: $e');
+      // Continue with logout even if clearing fails
+    }
+
+    // Perform logout
     await _repo.signOut();
     if (!_disposed) {
       state = const AuthState();

@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/models/lecture_model.dart';
 import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/models/user_profile.dart';
-import 'package:pivot/features/subjects/providers/legacy_subject_provider.dart';
+import 'package:pivot/features/subjects/providers/subject_provider.dart';
 import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/services/doctor_subject_service.dart';
 import 'package:pivot/responsive.dart';
@@ -125,16 +125,15 @@ class _DoctorProfileState extends ConsumerState<DoctorProfile>
       if (!mounted) return;
 
       try {
-        // TODO: Migrate SubjectProvider to Riverpod
         // For now, using legacy provider access
-        final subjectProvider = ref.read(legacySubjectProviderProvider);
+        final subjectProvider = ref.read(SubjectProviderProvider);
 
         print(
           'Calling fetchAndFilterSubjects for profile: ${profileToUse.name}',
         );
         // Just fetch and filter subjects - no lecture loading here
         ref
-            .read(legacySubjectProviderProvider.notifier)
+            .read(SubjectProviderProvider.notifier)
             .fetchAndFilterSubjects(profileToUse)
             .then((_) {
               print(
@@ -375,7 +374,7 @@ class _DoctorProfileState extends ConsumerState<DoctorProfile>
   }
 
   bool _shouldShowAddLectureButton() {
-    final loggedInUser = ref.read(userProfileProvider).userProfile;
+    final loggedInUser = ref.watch(userProfileProvider).userProfile;
 
     if (loggedInUser == null) return false;
 
@@ -458,9 +457,9 @@ class _DoctorProfileState extends ConsumerState<DoctorProfile>
         floatingActionButton:
             _shouldShowAddLectureButton()
                 ? FloatingActionButton(
-                  heroTag: 'doctor_profile_fab',
                   onPressed: _showAddLectureDialog,
-                  backgroundColor: Colors.black,
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
                   child: const Icon(Icons.add),
                 )
                 : null,

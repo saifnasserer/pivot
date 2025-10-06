@@ -206,7 +206,7 @@ void initState() {
     }
 
     // Fetch with level context
-    ref.read(legacySubjectProviderProvider.notifier).fetchAllSubjects(
+    ref.read(SubjectProviderProvider.notifier).fetchAllSubjects(
       userLevel: levelToUse,
       userRole: userRole,
     );

@@ -242,47 +242,6 @@ class _ProfileDetailsState extends State<ProfileDetails>
                     stepGranularity: 1,
                     textAlign: TextAlign.center,
                   ),
-
-                  // User number badge
-                  if (widget.userProfile.userNumber != null) ...[
-                    SizedBox(
-                      height: Responsive.space(context, size: Space.small),
-                    ),
-                    Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: Responsive.space(
-                          context,
-                          size: Space.medium,
-                        ),
-                        vertical: Responsive.space(context, size: Space.small),
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.05),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.grey[300]!),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.person, size: 16, color: Colors.grey[600]),
-                          SizedBox(
-                            width: Responsive.space(context, size: Space.small),
-                          ),
-                          Text(
-                            '#${widget.userProfile.userNumber}',
-                            style: TextStyle(
-                              fontSize: Responsive.text(
-                                context,
-                                size: TextSize.small,
-                              ),
-                              fontWeight: FontWeight.w600,
-                              color: Colors.grey[700],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
                 ],
               ),
 
@@ -311,7 +270,7 @@ class _ProfileDetailsState extends State<ProfileDetails>
                       width: Responsive.space(context, size: Space.small),
                     ),
                     Text(
-                      'الفرقة ${widget.userProfile.level}',
+                      widget.userProfile.level,
                       style: TextStyle(
                         fontSize: Responsive.text(
                           context,
@@ -351,7 +310,7 @@ class _ProfileDetailsState extends State<ProfileDetails>
                       width: Responsive.space(context, size: Space.small),
                     ),
                     AutoSizeText(
-                      'قسم ${widget.userProfile.department} - سكشن ${widget.userProfile.section}',
+                      '${widget.userProfile.department} سكشن ${widget.userProfile.section}- قسم',
                       style: TextStyle(
                         fontSize: Responsive.text(
                           context,

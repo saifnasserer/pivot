@@ -4,6 +4,57 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 // Define TaskImportance enum here
 enum TaskImportance { high, mid, low }
 
+// TaskNote class for task notes
+class TaskNote {
+  final String id;
+  final String content;
+  final DateTime createdAt;
+  final DateTime? updatedAt;
+
+  TaskNote({
+    String? id,
+    required this.content,
+    DateTime? createdAt,
+    this.updatedAt,
+  }) : id = id ?? const Uuid().v4(),
+       createdAt = createdAt ?? DateTime.now();
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'content': content,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'updatedAt': updatedAt != null ? Timestamp.fromDate(updatedAt!) : null,
+    };
+  }
+
+  factory TaskNote.fromMap(Map<String, dynamic> map) {
+    return TaskNote(
+      id: map['id'],
+      content: map['content'],
+      createdAt: (map['createdAt'] as Timestamp).toDate(),
+      updatedAt:
+          map['updatedAt'] != null
+              ? (map['updatedAt'] as Timestamp).toDate()
+              : null,
+    );
+  }
+
+  TaskNote copyWith({
+    String? id,
+    String? content,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return TaskNote(
+      id: id ?? this.id,
+      content: content ?? this.content,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+}
+
 class Task {
   final String id;
   String title;
@@ -16,6 +67,7 @@ class Task {
   List<String> completedBy; // List of user IDs who completed the task
   bool isPersonal;
   List<Map<String, String>>? attachments;
+  final List<TaskNote> notes; // List of notes for the task
 
   Task({
     String? id, // Make ID optional
@@ -29,7 +81,9 @@ class Task {
     this.completedBy = const [],
     this.isPersonal = false,
     this.attachments,
-  }) : id = id ?? const Uuid().v4(); // Generate ID if null
+    List<TaskNote>? notes,
+  }) : notes = notes ?? [],
+       id = id ?? const Uuid().v4(); // Generate ID if null
 
   // Helper method to check if the task is completed by a specific user
   bool isCompletedFor(String userId) {
@@ -51,6 +105,7 @@ class Task {
       'completedBy': completedBy,
       'isPersonal': isPersonal,
       'attachments': attachments,
+      // Notes are stored separately in user-specific task_notes collection
     };
   }
 
@@ -78,6 +133,8 @@ class Task {
                 ),
               )
               : null,
+      // Notes are not stored in task document, fetched separately from task_notes collection
+      notes: [],
     );
   }
 
@@ -94,6 +151,7 @@ class Task {
     List<String>? completedBy,
     bool? isPersonal,
     List<Map<String, String>>? attachments,
+    List<TaskNote>? notes,
   }) {
     return Task(
       id: id ?? this.id,
@@ -107,6 +165,7 @@ class Task {
       completedBy: completedBy ?? this.completedBy,
       isPersonal: isPersonal ?? this.isPersonal,
       attachments: attachments ?? this.attachments,
+      notes: notes ?? this.notes,
     );
   }
 }

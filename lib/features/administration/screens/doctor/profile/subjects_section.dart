@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/services/doctor_subject_service.dart';
-import 'package:pivot/features/subjects/providers/legacy_subject_provider.dart';
+import 'package:pivot/features/subjects/providers/subject_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/models/material_links_widget.dart';
 
@@ -35,9 +35,9 @@ class _SubjectsSectionState extends ConsumerState<SubjectsSection>
   Subject? _preservedTargetSubject;
 
   // State for lectures
-  Map<String, List<dynamic>> _lecturesBySubject = {};
-  Map<String, bool> _loadingBySubject = {};
-  Map<String, String?> _errorBySubject = {};
+  final Map<String, List<dynamic>> _lecturesBySubject = {};
+  final Map<String, bool> _loadingBySubject = {};
+  final Map<String, String?> _errorBySubject = {};
 
   @override
   void initState() {
@@ -68,7 +68,7 @@ class _SubjectsSectionState extends ConsumerState<SubjectsSection>
   }
 
   void _checkForUpdates() {
-    final subjectProvider = ref.watch(legacySubjectProviderProvider);
+    final subjectProvider = ref.watch(SubjectProviderProvider);
     final subjects = subjectProvider.filteredSubjects;
     final currentDoctorId = widget.userProfile.id;
 
@@ -118,7 +118,7 @@ class _SubjectsSectionState extends ConsumerState<SubjectsSection>
   }
 
   void _updateTabController() {
-    final subjectProvider = ref.read(legacySubjectProviderProvider);
+    final subjectProvider = ref.read(SubjectProviderProvider);
     final subjects = subjectProvider.filteredSubjects;
 
     // Only update if the number of subjects actually changed
@@ -190,7 +190,7 @@ class _SubjectsSectionState extends ConsumerState<SubjectsSection>
   }
 
   void _notifyCurrentSubjectChanged() {
-    final subjectProvider = ref.read(legacySubjectProviderProvider);
+    final subjectProvider = ref.read(SubjectProviderProvider);
     final subjects = subjectProvider.filteredSubjects;
 
     if (subjects.isNotEmpty && _tabController.index < subjects.length) {
@@ -202,7 +202,7 @@ class _SubjectsSectionState extends ConsumerState<SubjectsSection>
   }
 
   Subject? getCurrentSubject() {
-    final subjectProvider = ref.read(legacySubjectProviderProvider);
+    final subjectProvider = ref.read(SubjectProviderProvider);
     final subjects = subjectProvider.filteredSubjects;
 
     if (subjects.isNotEmpty && _tabController.index < subjects.length) {
@@ -212,7 +212,7 @@ class _SubjectsSectionState extends ConsumerState<SubjectsSection>
   }
 
   Future<void> _loadLecturesForSubject(int index) async {
-    final subjectProvider = ref.read(legacySubjectProviderProvider);
+    final subjectProvider = ref.read(SubjectProviderProvider);
     final subjects = subjectProvider.filteredSubjects;
 
     if (subjects.isNotEmpty && index < subjects.length) {
@@ -338,6 +338,7 @@ class _SubjectsSectionState extends ConsumerState<SubjectsSection>
         itemBuilder:
             (context, index) => SubjectModel(
               lecture: lectures[index],
+              subjectName: subject.name,
               canEdit:
                   widget.loggedInUser?.role != 'Student' &&
                   widget.loggedInUser?.role != 'miniProfessor',
@@ -352,7 +353,7 @@ class _SubjectsSectionState extends ConsumerState<SubjectsSection>
 
   @override
   Widget build(BuildContext context) {
-    final subjectProvider = ref.watch(legacySubjectProviderProvider);
+    final subjectProvider = ref.watch(SubjectProviderProvider);
     final subjects = subjectProvider.filteredSubjects;
 
     // Safety check: ensure TabController length matches subjects length

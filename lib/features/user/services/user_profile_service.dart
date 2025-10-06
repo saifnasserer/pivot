@@ -55,16 +55,53 @@ class UserProfileService {
   Future<List<UserProfile>> getAllUsers() async {
     try {
       final snapshot = await _firestore.collection('users').get();
-      final users =
-          snapshot.docs.map((doc) => UserProfile.fromMap(doc.data())).toList();
+      final users = <UserProfile>[];
+      int skippedCount = 0;
 
-      // Update cache
-      for (final user in users) {
-        _userProfilesCache[user.id] = user;
+      print(
+        '📊 UserProfileService: Processing ${snapshot.docs.length} users from Firestore',
+      );
+
+      for (final doc in snapshot.docs) {
+        try {
+          final data = doc.data();
+
+          // Validate required fields before parsing
+          final id = data['id'];
+          final name = data['name'];
+
+          if (id == null || id.toString().isEmpty) {
+            print(
+              '⚠️ UserProfileService: Skipping user with null/empty id: ${doc.id}',
+            );
+            skippedCount++;
+            continue;
+          }
+
+          if (name == null || name.toString().isEmpty) {
+            print(
+              '⚠️ UserProfileService: Skipping user with null/empty name: $id',
+            );
+            skippedCount++;
+            continue;
+          }
+
+          final user = UserProfile.fromMap(data);
+          users.add(user);
+          _userProfilesCache[user.id] = user;
+        } catch (e) {
+          print('❌ UserProfileService: Failed to parse user ${doc.id}: $e');
+          skippedCount++;
+        }
       }
+
+      print(
+        '✅ UserProfileService: Successfully parsed ${users.length} users, skipped $skippedCount invalid users',
+      );
 
       return users;
     } catch (e) {
+      print('❌ UserProfileService: Failed to get all users: $e');
       throw Exception('Failed to get all users: $e');
     }
   }
@@ -218,9 +255,19 @@ class UserProfileService {
               .where('name', isLessThan: '${query}z')
               .get();
 
-      return snapshot.docs
-          .map((doc) => UserProfile.fromMap(doc.data()))
-          .toList();
+      final users = <UserProfile>[];
+      for (final doc in snapshot.docs) {
+        try {
+          final user = UserProfile.fromMap(doc.data());
+          users.add(user);
+        } catch (e) {
+          print(
+            '⚠️ UserProfileService: Skipping invalid user in search: ${doc.id}',
+          );
+        }
+      }
+
+      return users;
     } catch (e) {
       throw Exception('Failed to search users: $e');
     }
@@ -234,9 +281,19 @@ class UserProfileService {
               .where('role', isEqualTo: role)
               .get();
 
-      return snapshot.docs
-          .map((doc) => UserProfile.fromMap(doc.data()))
-          .toList();
+      final users = <UserProfile>[];
+      for (final doc in snapshot.docs) {
+        try {
+          final user = UserProfile.fromMap(doc.data());
+          users.add(user);
+        } catch (e) {
+          print(
+            '⚠️ UserProfileService: Skipping invalid user in role query: ${doc.id}',
+          );
+        }
+      }
+
+      return users;
     } catch (e) {
       throw Exception('Failed to get users by role: $e');
     }
@@ -250,9 +307,19 @@ class UserProfileService {
               .where('department', isEqualTo: department)
               .get();
 
-      return snapshot.docs
-          .map((doc) => UserProfile.fromMap(doc.data()))
-          .toList();
+      final users = <UserProfile>[];
+      for (final doc in snapshot.docs) {
+        try {
+          final user = UserProfile.fromMap(doc.data());
+          users.add(user);
+        } catch (e) {
+          print(
+            '⚠️ UserProfileService: Skipping invalid user in department query: ${doc.id}',
+          );
+        }
+      }
+
+      return users;
     } catch (e) {
       throw Exception('Failed to get users by department: $e');
     }

@@ -492,12 +492,23 @@ class _InstructorsGateState extends ConsumerState<InstructorsGate> {
                                 _selectedInstructorId!,
                               );
                             }
+
+                            // Reset saving state and close dialog on success
+                            if (mounted) {
+                              setState(() {
+                                _isSaving = false;
+                              });
+                              // Close the dialog after successful save
+                              Navigator.of(context).pop();
+                            }
                           } catch (e) {
+                            // Reset saving state on error
                             if (mounted) {
                               setState(() {
                                 _isSaving = false;
                               });
                             }
+                            // Error will be shown by the callback's ScaffoldMessenger
                           }
                         },
                 style: ElevatedButton.styleFrom(

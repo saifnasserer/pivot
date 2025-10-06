@@ -6,14 +6,14 @@ import 'package:pivot/services/subject_service.dart';
 import 'package:pivot/services/cache_service.dart';
 
 // State class for subjects
-class LegacySubjectState {
+class SubjectState {
   final List<Subject> allSubjects;
   final List<Subject> filteredSubjects;
   final bool isLoading;
   final String? error;
   final Map<String, List<UserProfile>> instructorsBySubject;
 
-  LegacySubjectState({
+  SubjectState({
     this.allSubjects = const [],
     this.filteredSubjects = const [],
     this.isLoading = false,
@@ -21,14 +21,14 @@ class LegacySubjectState {
     this.instructorsBySubject = const {},
   });
 
-  LegacySubjectState copyWith({
+  SubjectState copyWith({
     List<Subject>? allSubjects,
     List<Subject>? filteredSubjects,
     bool? isLoading,
     String? error,
     Map<String, List<UserProfile>>? instructorsBySubject,
   }) {
-    return LegacySubjectState(
+    return SubjectState(
       allSubjects: allSubjects ?? this.allSubjects,
       filteredSubjects: filteredSubjects ?? this.filteredSubjects,
       isLoading: isLoading ?? this.isLoading,
@@ -39,10 +39,10 @@ class LegacySubjectState {
 }
 
 // StateNotifier
-class LegacySubjectNotifier extends StateNotifier<LegacySubjectState> {
+class SubjectNotifier extends StateNotifier<SubjectState> {
   final SubjectService _subjectService = SubjectService();
 
-  LegacySubjectNotifier() : super(LegacySubjectState());
+  SubjectNotifier() : super(SubjectState());
 
   /// Helper method to check if a user is an instructor
   bool _isInstructor(String role) {
@@ -82,26 +82,21 @@ class LegacySubjectNotifier extends StateNotifier<LegacySubjectState> {
 
   Future<void> fetchAllSubjects({
     bool forceRefresh = false,
-    String? userLevel,
     String? userRole,
+    bool forceAllSubjects = false, // New parameter for Super Admin operations
   }) async {
     // Prevent multiple simultaneous calls
     if (state.isLoading) {
-      if (kDebugMode) {
-        print(
-          '[LegacySubjectProvider] Already loading, skipping duplicate call',
-        );
-      }
       return;
     }
 
-    // Local-First Approach: Check cache first (unless forcing refresh)
-    if (!forceRefresh) {
+    // Local-First Approach: Check cache first (unless forcing refresh or all subjects)
+    if (!forceRefresh && !forceAllSubjects) {
       // First check if data already exists in state (Riverpod cache)
       if (state.allSubjects.isNotEmpty && state.filteredSubjects.isNotEmpty) {
         if (kDebugMode) {
           print(
-            '✅ [LegacySubjectProvider] Using subjects from Riverpod state (${state.allSubjects.length} subjects)',
+            '✅ [SubjectProvider] Using subjects from Riverpod state (${state.allSubjects.length} subjects)',
           );
           print('   💡 Zero Firestore reads needed!');
         }
@@ -114,13 +109,13 @@ class LegacySubjectNotifier extends StateNotifier<LegacySubjectState> {
         if (cachedSubjects.isNotEmpty) {
           if (kDebugMode) {
             print(
-              '📦 [LegacySubjectProvider] Loading subjects from Hive cache (${cachedSubjects.length} subjects)',
+              '📦 [SubjectProvider] Loading subjects from Hive cache (${cachedSubjects.length} subjects)',
             );
             print('   ⚡ Instant load - no Firestore read!');
             print('   💡 Cache will refresh only when subjects are updated');
           }
 
-          state = LegacySubjectState(
+          state = SubjectState(
             allSubjects: cachedSubjects,
             filteredSubjects: cachedSubjects,
             isLoading: false,
@@ -129,7 +124,7 @@ class LegacySubjectNotifier extends StateNotifier<LegacySubjectState> {
         }
       } catch (cacheError) {
         if (kDebugMode) {
-          print('[LegacySubjectProvider] Cache read error: $cacheError');
+          print('[SubjectProvider] Cache read error: $cacheError');
         }
         // Continue to fetch from Firestore
       }
@@ -138,8 +133,13 @@ class LegacySubjectNotifier extends StateNotifier<LegacySubjectState> {
     // Cache miss or force refresh - fetch from Firestore
     if (kDebugMode) {
       print(
-        '🔄 [LegacySubjectProvider] ${forceRefresh ? "Force refreshing" : "First time loading"} subjects from Firestore...',
+        '🔄 [SubjectProvider] ${forceRefresh ? "Force refreshing" : "First time loading"} subjects from Firestore...',
       );
+      if (forceAllSubjects) {
+        print(
+          '   🔧 ForceAllSubjects=true - ensuring complete subject list for Super Admin',
+        );
+      }
     }
 
     state = state.copyWith(isLoading: true, error: null);
@@ -147,51 +147,22 @@ class LegacySubjectNotifier extends StateNotifier<LegacySubjectState> {
     try {
       List<Subject> subjects;
 
-      // Determine which subjects to fetch based on user level
-      final shouldFilterByLevel =
-          userLevel != null &&
-          userLevel != 'غير محدد' &&
-          userRole != 'Super Admin';
-
-      if (shouldFilterByLevel) {
-        final level = int.tryParse(userLevel);
-        if (level != null) {
-          if (level == 1 || level == 2) {
-            // Fetch only first 4 semesters (years 1-4)
-            subjects = await _subjectService.getSubjectsByYearRange(1, 4);
-            if (kDebugMode) {
-              print(
-                '📚 [LegacySubjectProvider] Fetching subjects for Level $level (Years 1-4 only)',
-              );
-            }
-          } else if (level == 3 || level == 4) {
-            // Fetch only semesters 5 and above
-            subjects = await _subjectService.getSubjectsByYearRange(5, 99);
-            if (kDebugMode) {
-              print(
-                '📚 [LegacySubjectProvider] Fetching subjects for Level $level (Years 5+ only)',
-              );
-            }
-          } else {
-            // Unknown level, fetch all
-            subjects = await _subjectService.getSubjects();
-          }
-        } else {
-          // Invalid level format, fetch all
-          subjects = await _subjectService.getSubjects();
-        }
-      } else {
-        // Super Admin or no level filtering - fetch all
-        subjects = await _subjectService.getSubjects();
-        if (kDebugMode && userRole == 'Super Admin') {
+      // Fetch all subjects regardless of user level
+      subjects = await _subjectService.getSubjects();
+      if (kDebugMode) {
+        print(
+          '📚 [SubjectProvider] Fetching all subjects (level filtering removed)',
+        );
+        print('   📊 Fetched ${subjects.length} subjects from Firestore');
+        if (forceAllSubjects) {
           print(
-            '📚 [LegacySubjectProvider] Super Admin: Fetching all subjects',
+            '   🔧 ForceAllSubjects was true - ensuring complete dataset for Super Admin',
           );
         }
       }
 
       // Set filteredSubjects to show all fetched subjects
-      state = LegacySubjectState(
+      state = SubjectState(
         allSubjects: subjects,
         filteredSubjects: subjects,
         isLoading: false,
@@ -202,7 +173,7 @@ class LegacySubjectNotifier extends StateNotifier<LegacySubjectState> {
         await CacheService.instance.cacheSubjects(subjects);
         if (kDebugMode) {
           print(
-            '✅ [LegacySubjectProvider] Fetched and cached ${subjects.length} subjects',
+            '✅ [SubjectProvider] Fetched and cached ${subjects.length} subjects',
           );
           print('   💾 Stored in Hive for instant future access');
         }
@@ -214,10 +185,10 @@ class LegacySubjectNotifier extends StateNotifier<LegacySubjectState> {
         if (cachedSubjects.isNotEmpty) {
           if (kDebugMode) {
             print(
-              '⚠️ [LegacySubjectProvider] Firestore error, using cached subjects (${cachedSubjects.length} subjects)',
+              '⚠️ [SubjectProvider] Firestore error, using cached subjects (${cachedSubjects.length} subjects)',
             );
           }
-          state = LegacySubjectState(
+          state = SubjectState(
             allSubjects: cachedSubjects,
             filteredSubjects: cachedSubjects,
             isLoading: false,
@@ -234,9 +205,7 @@ class LegacySubjectNotifier extends StateNotifier<LegacySubjectState> {
           error: 'Failed to fetch all subjects: ${e.toString()}',
         );
         if (kDebugMode) {
-          print(
-            '[LegacySubjectProvider] Cache fallback also failed: $cacheError',
-          );
+          print('[SubjectProvider] Cache fallback also failed: $cacheError');
         }
       }
     }
@@ -292,7 +261,7 @@ class LegacySubjectNotifier extends StateNotifier<LegacySubjectState> {
       // For admin users, fetch all subjects
       if (userProfile.role == 'Admin' || userProfile.role == 'Super Admin') {
         final subjects = await _subjectService.getSubjects();
-        state = LegacySubjectState(
+        state = SubjectState(
           allSubjects: subjects,
           filteredSubjects: subjects,
           isLoading: false,
@@ -310,13 +279,13 @@ class LegacySubjectNotifier extends StateNotifier<LegacySubjectState> {
           final subjects = await _subjectService.getSubjectsByIds(
             userSubjectIds,
           );
-          state = LegacySubjectState(
+          state = SubjectState(
             allSubjects: subjects,
             filteredSubjects: subjects,
             isLoading: false,
           );
         } else {
-          state = LegacySubjectState(isLoading: false);
+          state = SubjectState(isLoading: false);
         }
       }
     } catch (e) {
@@ -354,7 +323,7 @@ class LegacySubjectNotifier extends StateNotifier<LegacySubjectState> {
 
   Future<void> fetchSpecificSubjects(List<String> subjectIds) async {
     if (subjectIds.isEmpty) {
-      state = LegacySubjectState(isLoading: false);
+      state = SubjectState(isLoading: false);
       return;
     }
 
@@ -362,7 +331,7 @@ class LegacySubjectNotifier extends StateNotifier<LegacySubjectState> {
 
     try {
       final subjects = await _subjectService.getSubjectsByIds(subjectIds);
-      state = LegacySubjectState(
+      state = SubjectState(
         allSubjects: subjects,
         filteredSubjects: subjects,
         isLoading: false,
@@ -380,7 +349,7 @@ class LegacySubjectNotifier extends StateNotifier<LegacySubjectState> {
 
     try {
       final subjects = await _subjectService.getSubjects();
-      state = LegacySubjectState(
+      state = SubjectState(
         allSubjects: subjects,
         filteredSubjects: subjects,
         isLoading: false,
@@ -398,7 +367,7 @@ class LegacySubjectNotifier extends StateNotifier<LegacySubjectState> {
   }
 
   void setCachedSubjects(List<Subject> subjects) {
-    state = LegacySubjectState(
+    state = SubjectState(
       allSubjects: subjects,
       filteredSubjects: subjects,
       isLoading: false,
@@ -406,14 +375,22 @@ class LegacySubjectNotifier extends StateNotifier<LegacySubjectState> {
 
     if (kDebugMode) {
       print(
-        '[LegacySubjectProvider] Set ${subjects.length} cached subjects immediately',
+        '[SubjectProvider] Set ${subjects.length} cached subjects immediately',
       );
+    }
+  }
+
+  /// Clear the current state to force fresh data fetch
+  void clearCache() {
+    state = SubjectState();
+    if (kDebugMode) {
+      print('[SubjectProvider] Cache cleared - next fetch will be fresh');
     }
   }
 }
 
 // Riverpod Provider
-final legacySubjectProviderProvider =
-    StateNotifierProvider<LegacySubjectNotifier, LegacySubjectState>((ref) {
-      return LegacySubjectNotifier();
+final SubjectProviderProvider =
+    StateNotifierProvider<SubjectNotifier, SubjectState>((ref) {
+      return SubjectNotifier();
     });

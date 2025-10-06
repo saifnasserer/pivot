@@ -250,7 +250,7 @@ class _ProfileDetailsTabState extends ConsumerState<ProfileDetailsTab>
             await ref.read(profileProvider.notifier).logout();
             if (!context.mounted) return;
             Navigator.of(context).pushNamedAndRemoveUntil(
-              '/auth-wrapper',
+              '/login',
               (Route<dynamic> route) => false,
             );
           },

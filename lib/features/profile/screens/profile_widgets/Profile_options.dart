@@ -8,6 +8,7 @@ import 'package:pivot/responsive.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pivot/services/notification_service.dart';
+import 'package:pivot/services/logout_service.dart';
 import 'package:pivot/widgets/biometric_settings_widget.dart';
 import 'package:pivot/features/onboarding/screens/privacy_policy_screen.dart';
 import 'package:pivot/features/onboarding/screens/community_guidelines_screen.dart';
@@ -305,12 +306,46 @@ Future<void> _showLogoutConfirmationDialog(BuildContext context) async {
         confirmText: 'تأكيد',
         confirmIcon: Icons.logout,
         onConfirm: () async {
-          await FirebaseAuth.instance.signOut();
-          if (!context.mounted) return;
-          Navigator.of(context).pushNamedAndRemoveUntil(
-            '/auth-wrapper',
-            (Route<dynamic> route) => false,
+          // Show loading indicator
+          Navigator.of(context).pop(); // Close the dialog first
+
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder:
+                (context) => const Center(
+                  child: CircularProgressIndicator(color: Colors.white),
+                ),
           );
+
+          try {
+            // Perform complete logout with notification cleanup
+            await LogoutService().logout();
+
+            if (!context.mounted) return;
+
+            // Close loading indicator
+            Navigator.of(context).pop();
+
+            // Navigate to login screen
+            Navigator.of(context).pushNamedAndRemoveUntil(
+              '/login',
+              (Route<dynamic> route) => false,
+            );
+          } catch (e) {
+            if (!context.mounted) return;
+
+            // Close loading indicator
+            Navigator.of(context).pop();
+
+            // Show error message
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('خطأ في تسجيل الخروج: $e'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
         },
         onCancel: () {
           Navigator.of(context).pop();

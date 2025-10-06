@@ -502,51 +502,74 @@ class TasksNotifier extends StateNotifier<TasksState> {
       state = state.copyWith(error: e.toString());
     }
   }
+
+  // Background refresh - updates data without blocking UI
+  Future<void> backgroundRefresh() async {
+    try {
+      // Only refresh if not currently loading to avoid conflicts
+      if (!state.isLoading) {
+        print('🔄 TasksProvider: Background refresh started');
+        await getAllTasks();
+        print('✅ TasksProvider: Background refresh completed');
+      }
+    } catch (e) {
+      print('❌ TasksProvider: Background refresh failed - $e');
+      // Don't update error state for background refresh failures
+    }
+  }
+
+  // Check if data is stale and needs refresh
+  bool get isDataStale {
+    // Consider data stale if it's older than 5 minutes
+    // This is a simple implementation - you could add timestamp tracking
+    return state.tasks.isEmpty;
+  }
+
+  // Reset provider state (called on logout/account switch)
+  void resetState() {
+    print('🗑️ TasksProvider: Resetting state');
+    state = const TasksState();
+  }
 }
 
-// Providers
-final tasksProvider =
-    AutoDisposeStateNotifierProvider<TasksNotifier, TasksState>((ref) {
-      final repository = ref.watch(tasksRepositoryProvider);
-      return TasksNotifier(repository);
-    });
+// Providers - Using persistent providers for better caching and reduced reads
+final tasksProvider = StateNotifierProvider<TasksNotifier, TasksState>((ref) {
+  final repository = ref.watch(tasksRepositoryProvider);
+  return TasksNotifier(repository);
+});
 
 // Convenience providers for specific data
-final tasksListProvider = AutoDisposeProvider<List<Task>>((ref) {
+final tasksListProvider = Provider<List<Task>>((ref) {
   final state = ref.watch(tasksProvider);
   return state.tasks;
 });
 
-final filteredTasksProvider = AutoDisposeProvider<List<Task>>((ref) {
+final filteredTasksProvider = Provider<List<Task>>((ref) {
   final state = ref.watch(tasksProvider);
   return state.filteredTasks;
 });
 
-final taskStatisticsProvider = AutoDisposeProvider<Map<String, dynamic>?>((
-  ref,
-) {
+final taskStatisticsProvider = Provider<Map<String, dynamic>?>((ref) {
   final state = ref.watch(tasksProvider);
   return state.statistics;
 });
 
-final tasksSearchQueryProvider = AutoDisposeProvider<String>((ref) {
+final tasksSearchQueryProvider = Provider<String>((ref) {
   final state = ref.watch(tasksProvider);
   return state.searchQuery;
 });
 
-final tasksSelectedSectionProvider = AutoDisposeProvider<String?>((ref) {
+final tasksSelectedSectionProvider = Provider<String?>((ref) {
   final state = ref.watch(tasksProvider);
   return state.selectedSectionId;
 });
 
-final tasksSelectedSubjectProvider = AutoDisposeProvider<String?>((ref) {
+final tasksSelectedSubjectProvider = Provider<String?>((ref) {
   final state = ref.watch(tasksProvider);
   return state.selectedSubjectId;
 });
 
-final tasksSelectedImportanceProvider = AutoDisposeProvider<TaskImportance?>((
-  ref,
-) {
+final tasksSelectedImportanceProvider = Provider<TaskImportance?>((ref) {
   final state = ref.watch(tasksProvider);
   return state.selectedImportance;
 });

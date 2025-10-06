@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/models/subject_model.dart';
-import 'package:pivot/features/subjects/providers/legacy_subject_provider.dart';
+import 'package:pivot/features/subjects/providers/subject_provider.dart';
 import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/features/profile/screens/profile_widgets/Profile_options.dart';
@@ -105,13 +105,13 @@ class _AssistantProfileMainState extends ConsumerState<AssistantProfileMain>
       try {
         // TODO: Migrate SubjectProvider to Riverpod
         // For now, using legacy provider access
-        final subjectProvider = ref.read(legacySubjectProviderProvider);
+        final subjectProvider = ref.read(SubjectProviderProvider);
 
         print(
           'Calling fetchAndFilterSubjects for assistant: ${profileToUse.name}',
         );
         ref
-            .read(legacySubjectProviderProvider.notifier)
+            .read(SubjectProviderProvider.notifier)
             .fetchAndFilterSubjects(profileToUse)
             .then((_) {
               print(
@@ -273,7 +273,7 @@ class _AssistantProfileMainState extends ConsumerState<AssistantProfileMain>
     }
 
     // TODO: Migrate SubjectProvider to Riverpod
-    final subjectProvider = ref.read(legacySubjectProviderProvider);
+    final subjectProvider = ref.read(SubjectProviderProvider);
     final subjects = subjectProvider.filteredSubjects;
 
     final result = await showDialog<Map<String, dynamic>>(

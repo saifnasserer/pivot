@@ -38,16 +38,26 @@ class _SubjectsTabState extends ConsumerState<SubjectsTab> {
 
     if (targetProfile != null) {
       final hasData = subjectsState.filteredSubjects.isNotEmpty;
+      final hasInstructors = subjectsState.instructorsBySubject.isNotEmpty;
 
-      // Only fetch if data is not already loaded
-      if (!hasData && !subjectsState.isLoading) {
-        print('🔄 SubjectsTab: Fetching subjects...');
+      print(
+        '📊 SubjectsTab: hasData=$hasData, hasInstructors=$hasInstructors, isLoading=${subjectsState.isLoading}',
+      );
+      print(
+        '📊 SubjectsTab: ${subjectsState.filteredSubjects.length} subjects, ${subjectsState.instructorsBySubject.length} instructor mappings',
+      );
+
+      // Fetch if no data OR if instructors map is empty (even if subjects are cached)
+      if ((!hasData || !hasInstructors) && !subjectsState.isLoading) {
+        print(
+          '🔄 SubjectsTab: Fetching subjects (hasData=$hasData, hasInstructors=$hasInstructors)...',
+        );
         ref
             .read(subjectsProvider.notifier)
             .fetchAndFilterSubjects(targetProfile);
-      } else if (hasData) {
+      } else if (hasData && hasInstructors) {
         print(
-          '✅ SubjectsTab: Reusing data from WeekTasks (${subjectsState.filteredSubjects.length} subjects) - Zero reads',
+          '✅ SubjectsTab: Reusing data (${subjectsState.filteredSubjects.length} subjects, ${subjectsState.instructorsBySubject.length} instructor mappings) - Zero reads',
         );
       }
 
@@ -118,6 +128,17 @@ class _SubjectsTabState extends ConsumerState<SubjectsTab> {
           subjectsState.filteredSubjects
               .where((s) => enrolledIds.contains(s.id))
               .toList();
+
+      // Debug logging for instructors
+      print(
+        '📚 SubjectsTab: Building UI with ${registeredSubjects.length} subjects and ${subjectsState.instructorsBySubject.length} instructor mappings',
+      );
+      if (subjectsState.instructorsBySubject.isEmpty &&
+          registeredSubjects.isNotEmpty) {
+        print(
+          '⚠️ SubjectsTab: WARNING - No instructors mapped but subjects exist!',
+        );
+      }
 
       final subjectSlivers = buildSubjectsSlivers(
         context,

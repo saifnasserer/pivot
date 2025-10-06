@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pivot/features/user/providers/user_profile_provider.dart';
+import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/features/onboarding/screens/introduction_wrapper.dart';
 import 'package:pivot/features/home/screens/landing.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/features/bookmarks/providers/bookmarks_provider.dart';
+import 'package:pivot/services/offline_service.dart';
+import 'package:pivot/services/session_persistence_service.dart';
+import 'package:pivot/services/cache_service.dart';
 
 class AuthWrapper extends ConsumerStatefulWidget {
   // = 'auth_wrapper';
@@ -29,18 +33,102 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> {
   }
 
   Future<void> _checkActiveSession() async {
-    // Check if there's already an active session
+    print('🔐 Checking active session...');
+
+    // Check for offline cached session first
+    final hasCachedSession =
+        await SessionPersistenceService().hasCachedSession();
+    final isOnline = OfflineService().hasConnection;
+
+    print('📡 Connection: ${isOnline ? "Online" : "Offline"}');
+    print('💾 Cached session: ${hasCachedSession ? "Available" : "None"}');
+
+    // If offline and has cached session, load cached profile
+    if (!isOnline && hasCachedSession) {
+      print('🔌 Offline mode with cached session - loading cached profile');
+      final cachedUserId = await SessionPersistenceService().getCachedUserId();
+      if (cachedUserId != null) {
+        await _loadOfflineProfile(cachedUserId);
+        return;
+      }
+    }
+
+    // Check if there's an active Firebase session (online mode)
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser != null) {
+      print('🔥 Firebase session found: ${currentUser.email}');
       // Validate the session token to ensure it's still valid
       try {
         await currentUser.reload();
         // Token is valid, load profile immediately
         await _loadProfileAndNavigate(currentUser);
       } catch (e) {
-        // Token is invalid, sign out and show login
+        print('❌ Firebase session validation failed: $e');
+        // Token is invalid - check if we can fall back to offline mode
+        if (!isOnline && hasCachedSession) {
+          print('🔌 Falling back to offline cached profile');
+          final cachedUserId =
+              await SessionPersistenceService().getCachedUserId();
+          if (cachedUserId != null) {
+            await _loadOfflineProfile(cachedUserId);
+            return;
+          }
+        }
+
+        // No fallback available, sign out and show login
         await FirebaseAuth.instance.signOut();
         ref.read(userProfileProvider.notifier).clearLoggedInUserProfile();
+      }
+    } else if (hasCachedSession && !isOnline) {
+      // No Firebase session but has cached session and offline
+      print('🔌 No Firebase session, using cached profile for offline access');
+      final cachedUserId = await SessionPersistenceService().getCachedUserId();
+      if (cachedUserId != null) {
+        await _loadOfflineProfile(cachedUserId);
+      }
+    }
+  }
+
+  /// Load profile from cache for offline access
+  Future<void> _loadOfflineProfile(String userId) async {
+    if (_loadingProfile) return; // Prevent multiple simultaneous loads
+
+    setState(() => _loadingProfile = true);
+
+    try {
+      print('📦 Loading offline profile for: $userId');
+      final cachedProfile = CacheService.instance.getCachedUserProfile(userId);
+
+      if (cachedProfile != null) {
+        print('✅ Loaded cached profile: ${cachedProfile.name}');
+        // Set the cached profile as logged in (with offline flag)
+        await ref
+            .read(userProfileProvider.notifier)
+            .setLoggedInUserProfile(cachedProfile, isOffline: true);
+      } else {
+        print('❌ No cached profile found');
+        // Try to get from cached users list as fallback
+        final cachedUsers = CacheService.instance.getCachedUsers();
+        UserProfile? profile;
+        for (var user in cachedUsers) {
+          if (user.id == userId) {
+            profile = user;
+            break;
+          }
+        }
+
+        if (profile != null) {
+          print('✅ Found profile in cached users list');
+          await ref
+              .read(userProfileProvider.notifier)
+              .setLoggedInUserProfile(profile, isOffline: true);
+        }
+      }
+    } catch (e) {
+      print('❌ Error loading offline profile: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _loadingProfile = false);
       }
     }
   }

@@ -8,6 +8,7 @@ import 'package:pivot/features/schedule/widgets/share_schedule_dialog.dart';
 import 'package:pivot/features/schedule/widgets/import_schedule_dialog.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/models/schedule_item.dart';
+import 'package:pivot/screens/models/schadule_card.dart';
 
 class ScheduleTab extends ConsumerStatefulWidget {
   final Function(int) onDaySelected;
@@ -131,26 +132,13 @@ class _ScheduleTabState extends ConsumerState<ScheduleTab>
   }
 
   void _handleNotificationToggle(String itemId) {
-    // Toggle notification logic would go here
-    // For now, this is a placeholder
-  }
-
-  void _handleReorder(int oldIndex, int newIndex) {
+    // Toggle notification for the schedule item
     try {
-      final scheduleState = ref.read(scheduleProvider);
-      final currentDay =
-          scheduleState.days.isNotEmpty ? scheduleState.days[0] : '';
-
-      if (currentDay.isNotEmpty &&
-          oldIndex != newIndex &&
-          oldIndex >= 0 &&
-          newIndex >= 0) {
-        final items = scheduleState.schedule[currentDay] ?? [];
-        ref
-            .read(scheduleProvider.notifier)
-            .reorderScheduleItems(currentDay, items);
-      }
-    } catch (e) {}
+      ref.read(scheduleProvider.notifier).toggleNotification(itemId);
+      print('📱 ScheduleTab: Toggled notification for item $itemId');
+    } catch (e) {
+      print('❌ ScheduleTab: Failed to toggle notification - $e');
+    }
   }
 
   void _handleEditItem(ScheduleItem item) {
@@ -240,11 +228,6 @@ class _ScheduleTabState extends ConsumerState<ScheduleTab>
                 textAlign: TextAlign.center,
               ),
             ),
-            SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _refreshSchedule,
-              child: Text('إعادة المحاولة'),
-            ),
           ],
         ),
       );
@@ -266,11 +249,6 @@ class _ScheduleTabState extends ConsumerState<ScheduleTab>
               style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
               textAlign: TextAlign.center,
             ),
-            SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _refreshSchedule,
-              child: Text('تحديث الجدول'),
-            ),
           ],
         ),
       );
@@ -284,23 +262,20 @@ class _ScheduleTabState extends ConsumerState<ScheduleTab>
 
     return Stack(
       children: [
-        RefreshIndicator(
-          onRefresh: _refreshSchedule,
-          child: CustomScrollView(
-            slivers: ScheduleCalendarBuilder.buildCalendar(
-              selectedDayIndex: validIndex,
-              context: context,
-              days: days,
-              dayScheduleItems: itemsForSelectedDay,
-              onDaySelected: _handleDaySelected,
-              handleDelete: _handleDelete,
-              onNotificationToggle: _handleNotificationToggle,
-              onEditItem: _handleEditItem,
-              showEmptyState: true,
-              enableAnimations: true,
-              onReorder: _handleReorder,
+        Column(
+          children: [
+            // Fixed header with day tabs
+            _buildDayTabs(context, days, validIndex),
+
+            // Scrollable schedule items
+            Expanded(
+              child: _buildScrollableScheduleItems(
+                context,
+                itemsForSelectedDay,
+                currentDay,
+              ),
             ),
-          ),
+          ],
         ),
         // Speed dial with add and share actions positioned at bottom right
         Positioned(
@@ -349,5 +324,268 @@ class _ScheduleTabState extends ConsumerState<ScheduleTab>
         ),
       ],
     );
+  }
+
+  /// Builds the fixed day tabs header
+  Widget _buildDayTabs(
+    BuildContext context,
+    List<String> days,
+    int selectedIndex,
+  ) {
+    return Container(
+      height: Responsive.space(context, size: Space.xlarge) * 1.8,
+      margin: EdgeInsets.symmetric(
+        horizontal: Responsive.space(context, size: Space.medium),
+        vertical: Responsive.space(context, size: Space.small),
+      ),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(
+          Responsive.space(context, size: Space.large),
+        ),
+        color: Colors.grey.shade50,
+        border: Border.all(color: Colors.grey.shade200, width: 1),
+      ),
+      child: _buildEnhancedTabBar(
+        context,
+        days,
+        selectedIndex,
+        _handleDaySelected,
+        true, // enableAnimations
+      ),
+    );
+  }
+
+  /// Builds scrollable schedule items
+  Widget _buildScrollableScheduleItems(
+    BuildContext context,
+    List<ScheduleItem> items,
+    String currentDay,
+  ) {
+    if (items.isEmpty) {
+      return _buildEmptyState(context, 'لا توجد محاضرات أو سكاشن لهذا اليوم');
+    }
+
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: EdgeInsets.symmetric(
+        horizontal: Responsive.space(context, size: Space.small),
+        vertical: Responsive.space(context, size: Space.small),
+      ),
+      child: Column(
+        children:
+            items
+                .map(
+                  (item) => _buildScheduleCard(
+                    context,
+                    item,
+                    _handleDelete,
+                    _handleNotificationToggle,
+                    _handleEditItem,
+                  ),
+                )
+                .toList(),
+      ),
+    );
+  }
+
+  /// Builds individual schedule card
+  Widget _buildScheduleCard(
+    BuildContext context,
+    ScheduleItem item,
+    Function(String itemId) handleDelete,
+    Function(String itemId)? onNotificationToggle,
+    Function(ScheduleItem item)? onEditItem,
+  ) {
+    return Container(
+      margin: EdgeInsets.only(
+        bottom: Responsive.space(context, size: Space.small),
+      ),
+      child: SchaduleCard(
+        item: item,
+        handleDelete: () => handleDelete(item.id),
+        onNotificationToggle:
+            onNotificationToggle != null
+                ? () => onNotificationToggle(item.id)
+                : null,
+        onEditItem: onEditItem != null ? () => onEditItem(item) : null,
+      ),
+    );
+  }
+
+  /// Builds enhanced tab bar with today detection
+  Widget _buildEnhancedTabBar(
+    BuildContext context,
+    List<String> days,
+    int selectedIndex,
+    Function(int) onDaySelected,
+    bool enableAnimations,
+  ) {
+    final validSelectedIndex = selectedIndex.clamp(0, days.length - 1);
+    final todayIndex = _getTodayIndex(days);
+    final initialIndex = todayIndex != -1 ? todayIndex : validSelectedIndex;
+
+    return DefaultTabController(
+      length: days.length,
+      initialIndex: initialIndex,
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: TabBar(
+          isScrollable: true,
+          physics: const BouncingScrollPhysics(),
+          indicator: BoxDecoration(
+            borderRadius: BorderRadius.circular(
+              Responsive.space(context, size: Space.medium),
+            ),
+            color: Colors.black,
+          ),
+          indicatorSize: TabBarIndicatorSize.tab,
+          indicatorPadding: EdgeInsets.symmetric(
+            horizontal: Responsive.space(context, size: Space.small),
+            vertical: Responsive.space(context, size: Space.small) * 0.5,
+          ),
+          labelPadding: EdgeInsets.symmetric(
+            horizontal: Responsive.space(context, size: Space.small),
+          ),
+          onTap: (index) {
+            if (index >= 0 && index < days.length) {
+              _handleDaySelected(index);
+            }
+          },
+          tabs:
+              days.asMap().entries.map((entry) {
+                final index = entry.key;
+                final day = entry.value;
+                final isToday = _isToday(day);
+                final isSelected = validSelectedIndex == index;
+
+                return Tab(
+                  child: Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: Responsive.space(context, size: Space.medium),
+                      vertical: Responsive.space(context, size: Space.small),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (isToday) ...[
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              color: Colors.orange.shade600,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          SizedBox(
+                            width:
+                                Responsive.space(context, size: Space.small) *
+                                0.5,
+                          ),
+                        ],
+                        Text(
+                          day,
+                          style: TextStyle(
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.medium,
+                            ),
+                            fontWeight:
+                                isToday ? FontWeight.bold : FontWeight.w600,
+                            color:
+                                isSelected
+                                    ? Colors.white
+                                    : isToday
+                                    ? Colors.orange.shade700
+                                    : Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+        ),
+      ),
+    );
+  }
+
+  /// Builds empty state for schedule items
+  Widget _buildEmptyState(BuildContext context, String message) {
+    return Container(
+      padding: EdgeInsets.all(Responsive.space(context, size: Space.large)),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: EdgeInsets.all(
+              Responsive.space(context, size: Space.xlarge),
+            ),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.schedule_outlined,
+              size: Responsive.text(context, size: TextSize.heading) * 1.5,
+              color: Colors.grey.shade400,
+            ),
+          ),
+          SizedBox(height: Responsive.space(context, size: Space.xlarge)),
+          Text(
+            message,
+            style: TextStyle(
+              fontSize: Responsive.text(context, size: TextSize.medium),
+              color: Colors.grey.shade600,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Checks if the given day is today
+  bool _isToday(String day) {
+    final now = DateTime.now();
+    final today = _getDayName(now.weekday);
+
+    final normalizedDay = day.trim().toLowerCase();
+    final normalizedToday = today.trim().toLowerCase();
+
+    return normalizedDay == normalizedToday;
+  }
+
+  /// Gets today's index in the days list
+  int _getTodayIndex(List<String> days) {
+    for (int i = 0; i < days.length; i++) {
+      if (_isToday(days[i])) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  /// Gets day name from weekday number
+  String _getDayName(int weekday) {
+    switch (weekday) {
+      case 1: // Monday
+        return 'الاثنين';
+      case 2: // Tuesday
+        return 'الثلاثاء';
+      case 3: // Wednesday
+        return 'الاربعاء';
+      case 4: // Thursday
+        return 'الخميس';
+      case 5: // Friday
+        return 'الجمعة';
+      case 6: // Saturday
+        return 'السبت';
+      case 7: // Sunday
+        return 'الاحد';
+      default:
+        return '';
+    }
   }
 }

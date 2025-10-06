@@ -55,8 +55,12 @@ service cloud.firestore {
 
     // ===== PHASE 1: AUTH (Login/Registration) =====
     match /users/{userId} {
-      // Allow read for authenticated users
+      // Allow read for authenticated users (single document read)
       allow read: if isSignedIn();
+      
+      // Allow list/query for authenticated users (needed for search, instructors, etc.)
+      // This allows users to see professors and assistants for subject enrollment
+      allow list: if isSignedIn();
       
       // Allow create for new user registration
       allow create: if isSignedIn() && request.auth.uid == userId;
@@ -66,12 +70,14 @@ service cloud.firestore {
       
       // Allow delete for user's own profile or admins (account deletion)
       allow delete: if isOwnerOrAdmin(userId);
-      
-      // Allow list for admin operations
-      allow list: if canPerformAdminOperations();
 
       // ===== PHASE 4: PROFILE SUB-COLLECTIONS =====
       match /tasks/{taskId} {
+        allow read, write: if isUser(userId);
+      }
+
+      // User-specific task notes (private to each user)
+      match /task_notes/{taskId} {
         allow read, write: if isUser(userId);
       }
 

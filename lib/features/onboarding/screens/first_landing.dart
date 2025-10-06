@@ -33,6 +33,28 @@ class _FirstLandingScreenState extends ConsumerState<FirstLandingScreen> {
   void initState() {
     super.initState();
     _checkAuthState();
+    _debugBiometricStatus(); // Add debug method call
+  }
+
+  /// Debug method to check biometric status on app start
+  Future<void> _debugBiometricStatus() async {
+    if (kDebugMode) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final isEnabled = prefs.getBool('isBiometricEnabled') ?? false;
+        final isSupported = await _localAuthService.isBiometricSupported();
+        final isEnrolled = await _localAuthService.isBiometricEnrolled();
+        final credentials = await _storage.read(key: 'biometric_email');
+        
+        print('🔐 [BiometricDebug] Initial biometric status:');
+        print('   🔧 Enabled: $isEnabled');
+        print('   📱 Supported: $isSupported');
+        print('   ✅ Enrolled: $isEnrolled');
+        print('   📧 Has credentials: ${credentials != null}');
+      } catch (e) {
+        print('🔐 [BiometricDebug] Error checking biometric status: $e');
+      }
+    }
   }
 
   Future<void> _checkAuthState() async {
@@ -76,19 +98,43 @@ class _FirstLandingScreenState extends ConsumerState<FirstLandingScreen> {
       final prefs = await SharedPreferences.getInstance();
       final isBiometricEnabled = prefs.getBool('isBiometricEnabled') ?? false;
       final isSupported = await _localAuthService.isBiometricSupported();
+      final isEnrolled = await _localAuthService.isBiometricEnrolled();
 
-      if (isBiometricEnabled && isSupported) {
+      if (kDebugMode) {
+        print('🔐 [BiometricLogin] Checking biometric availability...');
+        print('   📱 Is supported: $isSupported');
+        print('   ✅ Is enrolled: $isEnrolled');
+        print('   🔧 Is enabled: $isBiometricEnabled');
+      }
+
+      if (isBiometricEnabled && isSupported && isEnrolled) {
+        if (kDebugMode) {
+          print('🔐 [BiometricLogin] All conditions met, attempting biometric authentication...');
+        }
+        
         final authResult = await _localAuthService.authenticate('ابصم يباشا');
 
         if (authResult.success) {
+          if (kDebugMode) {
+            print('🔐 [BiometricLogin] Biometric authentication successful!');
+          }
+          
           final email = await _storage.read(key: 'biometric_email');
           final password = await _storage.read(key: 'biometric_password');
+
+          if (kDebugMode) {
+            print('🔐 [BiometricLogin] Retrieved credentials: email=${email != null ? "***" : "null"}, password=${password != null ? "***" : "null"}');
+          }
 
           if (email != null && password != null) {
             UserProfile? userProfile = await _authService
                 .signInWithEmailAndPassword(email, password);
 
             if (mounted && userProfile != null) {
+              if (kDebugMode) {
+                print('🔐 [BiometricLogin] User profile loaded successfully, navigating to landing...');
+              }
+              
               ref
                   .read(userProfileProvider.notifier)
                   .setLoggedInUserProfile(userProfile);
@@ -112,6 +158,9 @@ class _FirstLandingScreenState extends ConsumerState<FirstLandingScreen> {
             }
           }
         } else if (mounted && authResult.errorMessage != null) {
+          if (kDebugMode) {
+            print('🔐 [BiometricLogin] Authentication failed: ${authResult.errorMessage}');
+          }
           // Show specific error message
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -120,9 +169,20 @@ class _FirstLandingScreenState extends ConsumerState<FirstLandingScreen> {
             ),
           );
         }
+      } else {
+        if (kDebugMode) {
+          print('🔐 [BiometricLogin] Biometric not available - conditions not met:');
+          print('   🔧 Enabled: $isBiometricEnabled');
+          print('   📱 Supported: $isSupported'); 
+          print('   ✅ Enrolled: $isEnrolled');
+        }
       }
+      
       // Fallback to manual login screen
       if (mounted) {
+        if (kDebugMode) {
+          print('🔐 [BiometricLogin] Falling back to manual login...');
+        }
         Navigator.pushReplacementNamed(context, '/login');
       }
     } catch (e) {

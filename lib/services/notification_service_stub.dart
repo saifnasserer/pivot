@@ -1,4 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+
+/// Stub background message handler (never called on stub platforms)
+@pragma('vm:entry-point')
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // Stub implementation - does nothing
+}
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();

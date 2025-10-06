@@ -299,4 +299,57 @@ class MaterialsService {
       throw Exception('Failed to fetch materials by doctor: $e');
     }
   }
+
+  // Rate a material
+  Future<void> rateMaterial(
+    String lectureId,
+    MaterialLink material,
+    String userId,
+    double rating,
+  ) async {
+    try {
+      final lectureRef = _firestore.collection('lectures').doc(lectureId);
+      final lectureDoc = await lectureRef.get();
+
+      if (!lectureDoc.exists) {
+        throw Exception('Lecture not found');
+      }
+
+      final data = lectureDoc.data()!;
+      final links = List<Map<String, dynamic>>.from(data['links'] ?? []);
+
+      // Find the material in the links array
+      final materialIndex = links.indexWhere(
+        (link) => link['url'] == material.url,
+      );
+
+      if (materialIndex == -1) {
+        throw Exception('Material not found in lecture');
+      }
+
+      // Update the rating
+      final materialData = links[materialIndex];
+      final userRatings = Map<String, double>.from(
+        materialData['userRatings'] ?? {},
+      );
+      userRatings[userId] = rating;
+
+      // Calculate new average
+      final totalRatings = userRatings.length;
+      final sum = userRatings.values.reduce((a, b) => a + b);
+      final averageRating = sum / totalRatings;
+
+      // Update the material data
+      materialData['userRatings'] = userRatings;
+      materialData['totalRatings'] = totalRatings;
+      materialData['averageRating'] = averageRating;
+
+      links[materialIndex] = materialData;
+
+      // Update the lecture document
+      await lectureRef.update({'links': links});
+    } catch (e) {
+      throw Exception('Failed to rate material: $e');
+    }
+  }
 }

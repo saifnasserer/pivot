@@ -26,7 +26,13 @@ class BiometricSettingsService {
   Future<bool> isBiometricEnabled() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      return prefs.getBool(_biometricEnabledKey) ?? false;
+      final isEnabled = prefs.getBool(_biometricEnabledKey) ?? false;
+      
+      if (kDebugMode) {
+        print('🔐 [BiometricSettings] Checking if biometric is enabled: $isEnabled');
+      }
+      
+      return isEnabled;
     } catch (e) {
       if (kDebugMode) {
         print('Error checking biometric enabled status: $e');
@@ -38,15 +44,30 @@ class BiometricSettingsService {
   /// Enable biometric authentication
   Future<bool> enableBiometric(String email, String password) async {
     try {
+      if (kDebugMode) {
+        print('🔐 [BiometricSettings] Enabling biometric authentication...');
+      }
+      
       // Check if biometrics are available
       final stats = await _localAuthService.getBiometricStats();
       if (!stats['canAuthenticate']) {
+        if (kDebugMode) {
+          print('🔐 [BiometricSettings] Biometric not available for authentication');
+        }
         return false;
+      }
+
+      if (kDebugMode) {
+        print('🔐 [BiometricSettings] Storing credentials securely...');
       }
 
       // Store credentials securely
       await _secureStorage.write(key: _biometricEmailKey, value: email);
       await _secureStorage.write(key: _biometricPasswordKey, value: password);
+
+      if (kDebugMode) {
+        print('🔐 [BiometricSettings] Updating settings...');
+      }
 
       // Update settings
       final prefs = await SharedPreferences.getInstance();
@@ -58,6 +79,10 @@ class BiometricSettingsService {
       await prefs.setInt(_biometricAttemptsKey, 0);
       await prefs.setInt(_biometricSuccessCountKey, 0);
       await prefs.setInt(_biometricFailureCountKey, 0);
+
+      if (kDebugMode) {
+        print('🔐 [BiometricSettings] Biometric authentication enabled successfully!');
+      }
 
       return true;
     } catch (e) {

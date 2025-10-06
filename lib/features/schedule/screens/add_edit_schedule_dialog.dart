@@ -21,9 +21,11 @@ class _AddEditScheduleDialogState extends ConsumerState<AddEditScheduleDialog> {
   String _title = '';
   String _location = '';
   String _time = '';
+  String _instructor = '';
   final _timeController = TextEditingController();
   final _titleController = TextEditingController();
   final _locationController = TextEditingController();
+  final _instructorController = TextEditingController();
   ScheduleItemType _selectedType = ScheduleItemType.lecture; // Default type
   bool _notificationEnabled = true; // Default to enabled
 
@@ -37,11 +39,42 @@ class _AddEditScheduleDialogState extends ConsumerState<AddEditScheduleDialog> {
       _title = item.title;
       _location = item.location;
       _time = item.time;
+      _instructor = item.instructor;
       _titleController.text = item.title;
       _locationController.text = item.location;
-      _timeController.text = item.time;
+      _instructorController.text = item.instructor;
+
+      // Convert stored time to display format
+      final timeDisplay = _convertToDisplayTime(item.time);
+      _timeController.text = timeDisplay;
+
       _selectedType = item.type;
       _notificationEnabled = item.notificationEnabled;
+    }
+  }
+
+  // Helper method to convert stored time to display format
+  String _convertToDisplayTime(String storedTime) {
+    try {
+      // If already in display format, return as is
+      if (storedTime.contains('AM') || storedTime.contains('PM')) {
+        return storedTime;
+      }
+
+      // Convert from HH:MM to display format
+      if (storedTime.contains(':')) {
+        final parts = storedTime.split(':');
+        if (parts.length >= 2) {
+          int hour = int.parse(parts[0]);
+          int minute = int.parse(parts[1]);
+          final timeOfDay = TimeOfDay(hour: hour, minute: minute);
+          return timeOfDay.format(context);
+        }
+      }
+
+      return storedTime; // Return as is if can't parse
+    } catch (e) {
+      return storedTime; // Return as is if error
     }
   }
 
@@ -50,6 +83,7 @@ class _AddEditScheduleDialogState extends ConsumerState<AddEditScheduleDialog> {
     _timeController.dispose();
     _titleController.dispose();
     _locationController.dispose();
+    _instructorController.dispose();
     super.dispose();
   }
 
@@ -124,6 +158,18 @@ class _AddEditScheduleDialogState extends ConsumerState<AddEditScheduleDialog> {
   }
 
   void _submitForm() {
+    // Validate time field
+    if (_time.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('الرجاء اختيار الوقت'),
+          backgroundColor: Colors.red.shade600,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     if (_formKey.currentState!.validate()) {
       if (_isEditing) {
         final updatedItem = widget.itemToEdit!.copyWith(
@@ -132,6 +178,7 @@ class _AddEditScheduleDialogState extends ConsumerState<AddEditScheduleDialog> {
           time: _time,
           type: _selectedType,
           notificationEnabled: _notificationEnabled,
+          instructor: _instructor,
         );
         ref
             .read(scheduleProvider.notifier)
@@ -145,6 +192,7 @@ class _AddEditScheduleDialogState extends ConsumerState<AddEditScheduleDialog> {
           time: _time,
           type: _selectedType,
           notificationEnabled: _notificationEnabled,
+          instructor: _instructor,
         );
         ref.read(scheduleProvider.notifier).addScheduleItem(newItem);
       }
@@ -172,8 +220,12 @@ class _AddEditScheduleDialogState extends ConsumerState<AddEditScheduleDialog> {
     );
     if (picked != null) {
       setState(() {
-        _time = picked.format(context);
-        _timeController.text = _time;
+        // Store time in HH:MM format for consistency
+        _time =
+            '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
+        _timeController.text = picked.format(
+          context,
+        ); // Display formatted time to user
       });
     }
   }
@@ -248,6 +300,24 @@ class _AddEditScheduleDialogState extends ConsumerState<AddEditScheduleDialog> {
               ),
               SizedBox(height: Responsive.space(context, size: Space.medium)),
 
+              // Instructor
+              UnifiedFormField(
+                hint: 'اسم الدكتور او المعيد',
+                controller: _instructorController,
+                onChanged: (value) {
+                  setState(() {
+                    _instructor = value;
+                  });
+                },
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'الرجاء إدخال اسم الدكتور او المعيد';
+                  }
+                  return null;
+                },
+              ),
+              SizedBox(height: Responsive.space(context, size: Space.medium)),
+
               // Location
               UnifiedFormField(
                 hint: 'المكان',
@@ -266,50 +336,86 @@ class _AddEditScheduleDialogState extends ConsumerState<AddEditScheduleDialog> {
               ),
               SizedBox(height: Responsive.space(context, size: Space.medium)),
 
-              // Time Selection
-              UnifiedSectionHeader(title: 'الوقت', icon: Icons.access_time),
-
               InkWell(
                 onTap: _selectTime,
                 child: Container(
                   padding: EdgeInsets.all(
-                    Responsive.space(context, size: Space.medium),
+                    Responsive.space(context, size: Space.large),
                   ),
                   decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey[300]!),
+                    gradient: LinearGradient(
+                      colors: [Colors.blue.shade50, Colors.blue.shade100],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    border: Border.all(color: Colors.blue.shade200),
                     borderRadius: BorderRadius.circular(
                       Responsive.space(context, size: Space.large),
                     ),
-                    color: Color(0xFFF7F7F7),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.blue.shade100,
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
                   child: Row(
                     children: [
-                      Icon(
-                        Icons.access_time,
-                        color: Colors.black,
-                        size: Responsive.space(context, size: Space.medium),
+                      Container(
+                        padding: EdgeInsets.all(
+                          Responsive.space(context, size: Space.small),
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade100,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.access_time_rounded,
+                          color: Colors.blue.shade700,
+                          size: Responsive.space(context, size: Space.medium),
+                        ),
                       ),
                       SizedBox(
-                        width: Responsive.space(context, size: Space.small),
+                        width: Responsive.space(context, size: Space.medium),
                       ),
                       Expanded(
-                        child: Text(
-                          _time.isEmpty ? 'اضغط لاختيار الوقت' : _time,
-                          style: TextStyle(
-                            fontSize: Responsive.text(
-                              context,
-                              size: TextSize.medium,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'الوقت',
+                              style: TextStyle(
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.small,
+                                ),
+                                color: Colors.blue.shade600,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
-                            fontWeight:
-                                _time.isNotEmpty
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
-                            color:
-                                _time.isNotEmpty
-                                    ? Colors.black87
-                                    : Colors.grey[600],
-                          ),
-                          textAlign: TextAlign.right,
+                            SizedBox(height: 2),
+                            Text(
+                              _time.isEmpty
+                                  ? 'اضغط لاختيار الوقت'
+                                  : _timeController.text,
+                              style: TextStyle(
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.medium,
+                                ),
+                                fontWeight:
+                                    _time.isNotEmpty
+                                        ? FontWeight.bold
+                                        : FontWeight.w500,
+                                color:
+                                    _time.isNotEmpty
+                                        ? Colors.black87
+                                        : Colors.grey[600],
+                              ),
+                              textAlign: TextAlign.right,
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -318,51 +424,103 @@ class _AddEditScheduleDialogState extends ConsumerState<AddEditScheduleDialog> {
               ),
               SizedBox(height: Responsive.space(context, size: Space.medium)),
 
-              // Notification Toggle
-              UnifiedSectionHeader(
-                title: 'الإشعارات',
-                icon: Icons.notifications,
-              ),
-
               Container(
                 padding: EdgeInsets.all(
-                  Responsive.space(context, size: Space.medium),
+                  Responsive.space(context, size: Space.large),
                 ),
                 decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey[300]!),
+                  gradient: LinearGradient(
+                    colors: [
+                      _notificationEnabled
+                          ? Colors.green.shade50
+                          : Colors.grey.shade50,
+                      _notificationEnabled
+                          ? Colors.green.shade100
+                          : Colors.grey.shade100,
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  border: Border.all(
+                    color:
+                        _notificationEnabled
+                            ? Colors.green.shade200
+                            : Colors.grey.shade200,
+                  ),
                   borderRadius: BorderRadius.circular(
                     Responsive.space(context, size: Space.large),
                   ),
-                  color: Color(0xFFF7F7F7),
+                  boxShadow: [
+                    BoxShadow(
+                      color:
+                          _notificationEnabled
+                              ? Colors.green.shade100
+                              : Colors.grey.shade100,
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Row(
                       children: [
-                        Icon(
-                          _notificationEnabled
-                              ? Icons.notifications_active
-                              : Icons.notifications_off,
-                          color:
-                              _notificationEnabled
-                                  ? Colors.black
-                                  : Colors.grey[500],
-                          size: Responsive.space(context, size: Space.medium),
+                        Container(
+                          padding: EdgeInsets.all(
+                            Responsive.space(context, size: Space.small),
+                          ),
+                          decoration: BoxDecoration(
+                            color:
+                                _notificationEnabled
+                                    ? Colors.green.shade100
+                                    : Colors.grey.shade100,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            _notificationEnabled
+                                ? Icons.notifications_active_rounded
+                                : Icons.notifications_off_rounded,
+                            color:
+                                _notificationEnabled
+                                    ? Colors.green.shade700
+                                    : Colors.grey.shade500,
+                            size: Responsive.space(context, size: Space.medium),
+                          ),
                         ),
                         SizedBox(
-                          width: Responsive.space(context, size: Space.small),
+                          width: Responsive.space(context, size: Space.medium),
                         ),
-                        Text(
-                          'تفعيل الإشعارات',
-                          style: TextStyle(
-                            fontSize: Responsive.text(
-                              context,
-                              size: TextSize.medium,
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'الإشعارات',
+                              style: TextStyle(
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.small,
+                                ),
+                                color:
+                                    _notificationEnabled
+                                        ? Colors.green.shade600
+                                        : Colors.grey.shade600,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
-                            fontWeight: FontWeight.w500,
-                            color: Colors.black87,
-                          ),
+                            SizedBox(height: 2),
+                            Text(
+                              _notificationEnabled ? 'مفعلة' : 'معطلة',
+                              style: TextStyle(
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.medium,
+                                ),
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -373,7 +531,10 @@ class _AddEditScheduleDialogState extends ConsumerState<AddEditScheduleDialog> {
                           _notificationEnabled = value;
                         });
                       },
-                      activeThumbColor: Colors.black,
+                      activeColor: Colors.green.shade400,
+                      activeThumbColor: Colors.white,
+                      inactiveThumbColor: Colors.white,
+                      inactiveTrackColor: Colors.grey.shade300,
                     ),
                   ],
                 ),

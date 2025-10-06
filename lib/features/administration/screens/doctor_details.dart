@@ -5,7 +5,6 @@ import 'package:auto_size_text/auto_size_text.dart';
 import 'package:pivot/screens/models/card_model.dart';
 import 'package:pivot/responsive.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:pivot/features/user/providers/user_profile_provider.dart';
 
 class DoctorDetails extends ConsumerStatefulWidget {
   const DoctorDetails({super.key, required this.userProfile});

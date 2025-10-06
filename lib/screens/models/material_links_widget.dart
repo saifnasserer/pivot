@@ -6,6 +6,7 @@ import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/services/doctor_subject_service.dart';
 import 'package:pivot/features/media/screens/material_links_screen.dart';
 import 'package:pivot/features/administration/screens/doctor/profile/material_links_route.dart';
+import 'package:pivot/features/administration/screens/doctor/edit_lecture_dialog.dart';
 import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
@@ -15,6 +16,7 @@ class SubjectModel extends ConsumerStatefulWidget {
   final IconData? icon;
   final bool canEdit;
   final VoidCallback? onLectureDeleted;
+  final String? subjectName;
 
   const SubjectModel({
     super.key,
@@ -22,6 +24,7 @@ class SubjectModel extends ConsumerStatefulWidget {
     this.icon,
     this.canEdit = false,
     this.onLectureDeleted,
+    this.subjectName,
   });
 
   @override
@@ -113,6 +116,55 @@ class _SubjectModelState extends ConsumerState<SubjectModel>
     }
   }
 
+  Future<void> _handleEdit() async {
+    if (_isLoading) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final result = await showDialog<String>(
+        context: context,
+        builder:
+            (context) => EditLectureDialog(
+              currentTitle: widget.lecture.title,
+              subjectName: widget.subjectName ?? 'المادة',
+            ),
+      );
+
+      if (result != null &&
+          result.trim().isNotEmpty &&
+          result.trim() != widget.lecture.title) {
+        final service = DoctorSubjectService();
+        await service.updateLecture(widget.lecture.id, result.trim());
+
+        // Notify parent to refresh
+        widget.onLectureDeleted?.call();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('تم تحديث عنوان المحاضرة بنجاح'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('فشل في تحديث المحاضرة: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final service = DoctorSubjectService();
@@ -167,7 +219,32 @@ class _SubjectModelState extends ConsumerState<SubjectModel>
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      if (widget.canEdit)
+                      if (widget.canEdit) ...[
+                        // Edit button
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(
+                              Responsive.space(context, size: Space.large),
+                            ),
+                          ),
+                          child: IconButton(
+                            icon: Icon(
+                              Icons.edit_outlined,
+                              color: Colors.blue.shade600,
+                              size: Responsive.space(
+                                context,
+                                size: Space.medium,
+                              ),
+                            ),
+                            onPressed: _isLoading ? null : _handleEdit,
+                            tooltip: 'تعديل عنوان المحاضرة',
+                          ),
+                        ),
+                        SizedBox(
+                          width: Responsive.space(context, size: Space.tiny),
+                        ),
+                        // Delete button
                         Container(
                           decoration: BoxDecoration(
                             color: Colors.red.shade50,
@@ -184,66 +261,76 @@ class _SubjectModelState extends ConsumerState<SubjectModel>
                                 size: Space.medium,
                               ),
                             ),
-                            onPressed: () {
-                              showDialog(
-                                context: context,
-                                builder: (BuildContext context) {
-                                  return UnifiedDialog(
-                                    title: 'حذف المحتوى',
-                                    subtitle: widget.lecture.title,
-                                    content: const Text(
-                                      'متأكد ؟ \n المحتوى هيتم حذفه بكل اللي جوا.',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(color: Colors.grey),
-                                    ),
-                                    onCancel: () => Navigator.of(context).pop(),
-                                    onConfirm: () async {
-                                      try {
-                                        await service.deleteLecture(
-                                          widget.lecture.id,
-                                        );
-                                        Navigator.of(context).pop();
-
-                                        // Notify parent to refresh
-                                        widget.onLectureDeleted?.call();
-
-                                        if (mounted) {
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            const SnackBar(
-                                              content: Text(
-                                                'تم حذف المحاضرة بنجاح',
+                            onPressed:
+                                _isLoading
+                                    ? null
+                                    : () {
+                                      showDialog(
+                                        context: context,
+                                        builder: (BuildContext context) {
+                                          return UnifiedDialog(
+                                            title: 'حذف المحتوى',
+                                            subtitle: widget.lecture.title,
+                                            content: const Text(
+                                              'متأكد ؟ \n المحتوى هيتم حذفه بكل اللي جوا.',
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(
+                                                color: Colors.grey,
                                               ),
-                                              backgroundColor: Colors.green,
                                             ),
+                                            onCancel:
+                                                () =>
+                                                    Navigator.of(context).pop(),
+                                            onConfirm: () async {
+                                              try {
+                                                await service.deleteLecture(
+                                                  widget.lecture.id,
+                                                );
+                                                Navigator.of(context).pop();
+
+                                                // Notify parent to refresh
+                                                widget.onLectureDeleted?.call();
+
+                                                if (mounted) {
+                                                  ScaffoldMessenger.of(
+                                                    context,
+                                                  ).showSnackBar(
+                                                    const SnackBar(
+                                                      content: Text(
+                                                        'تم حذف المحاضرة بنجاح',
+                                                      ),
+                                                      backgroundColor:
+                                                          Colors.green,
+                                                    ),
+                                                  );
+                                                }
+                                              } catch (e) {
+                                                Navigator.of(context).pop();
+                                                if (mounted) {
+                                                  ScaffoldMessenger.of(
+                                                    context,
+                                                  ).showSnackBar(
+                                                    SnackBar(
+                                                      content: Text(
+                                                        'فشل حذف المحاضرة: $e',
+                                                      ),
+                                                      backgroundColor:
+                                                          Colors.red,
+                                                    ),
+                                                  );
+                                                }
+                                              }
+                                            },
+                                            confirmText: 'حذف',
+                                            confirmIcon: Icons.delete,
                                           );
-                                        }
-                                      } catch (e) {
-                                        Navigator.of(context).pop();
-                                        if (mounted) {
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                'فشل حذف المحاضرة: $e',
-                                              ),
-                                              backgroundColor: Colors.red,
-                                            ),
-                                          );
-                                        }
-                                      }
+                                        },
+                                      );
                                     },
-                                    confirmText: 'حذف',
-                                    confirmIcon: Icons.delete,
-                                  );
-                                },
-                              );
-                            },
                             tooltip: 'حذف المحتوى',
                           ),
                         ),
+                      ],
                       SizedBox(
                         width: Responsive.space(context, size: Space.small),
                       ),

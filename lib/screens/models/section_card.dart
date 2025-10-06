@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/models/section_model.dart';
 import 'package:pivot/features/administration/providers/sections_provider.dart';
-import 'package:pivot/features/subjects/providers/legacy_subject_provider.dart';
+import 'package:pivot/features/subjects/providers/subject_provider.dart';
 import 'package:pivot/features/administration/screens/assistants/add_edit_section_dialog.dart';
 import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:gradient_borders/gradient_borders.dart';
@@ -81,7 +81,7 @@ class SectionCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final subjectState = ref.read(legacySubjectProviderProvider);
+    final subjectState = ref.read(SubjectProviderProvider);
     final subjects = subjectState.filteredSubjects;
     final userProfileState = ref.watch(userProfileProvider);
     final userProfile = userProfileState.loggedInUserProfile;

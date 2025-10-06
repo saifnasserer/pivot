@@ -1,12 +1,32 @@
 import 'package:flutter/material.dart';
 
 class Responsive {
-  static double width(BuildContext context) =>
-      MediaQuery.of(context).size.width;
+  static double width(BuildContext context) {
+    // Check if the widget is still mounted and context is valid
+    if (!context.mounted) {
+      return 360.0; // Default mobile width
+    }
+
+    final mediaQuery = MediaQuery.maybeOf(context);
+    if (mediaQuery == null) {
+      // Fallback to default screen width if MediaQuery is not available
+      return 360.0; // Default mobile width
+    }
+    return mediaQuery.size.width;
+  }
 
   // Updated to use available height considering system UI insets
   static double height(BuildContext context) {
-    final mediaQuery = MediaQuery.of(context);
+    // Check if the widget is still mounted and context is valid
+    if (!context.mounted) {
+      return 640.0; // Default mobile height
+    }
+
+    final mediaQuery = MediaQuery.maybeOf(context);
+    if (mediaQuery == null) {
+      // Fallback to default screen height if MediaQuery is not available
+      return 640.0; // Default mobile height
+    }
     return mediaQuery.size.height -
         mediaQuery.padding.top -
         mediaQuery.padding.bottom;
@@ -14,7 +34,15 @@ class Responsive {
 
   // New method to get available height for dialogs and overlays
   static double availableHeight(BuildContext context) {
-    final mediaQuery = MediaQuery.of(context);
+    // Check if the widget is still mounted and context is valid
+    if (!context.mounted) {
+      return 640.0; // Default mobile height
+    }
+
+    final mediaQuery = MediaQuery.maybeOf(context);
+    if (mediaQuery == null) {
+      return 640.0; // Default mobile height
+    }
     return mediaQuery.size.height -
         mediaQuery.viewInsets.top -
         mediaQuery.viewInsets.bottom;
@@ -22,7 +50,15 @@ class Responsive {
 
   // New method to get safe area height
   static double safeHeight(BuildContext context) {
-    final mediaQuery = MediaQuery.of(context);
+    // Check if the widget is still mounted and context is valid
+    if (!context.mounted) {
+      return 640.0; // Default mobile height
+    }
+
+    final mediaQuery = MediaQuery.maybeOf(context);
+    if (mediaQuery == null) {
+      return 640.0; // Default mobile height
+    }
     return mediaQuery.size.height -
         mediaQuery.padding.top -
         mediaQuery.padding.bottom -
@@ -88,12 +124,30 @@ enum TextSize { small, medium, heading }
 enum Space { tiny, small, medium, large, xlarge }
 
 class ScreenD {
-  static double width(BuildContext context) =>
-      MediaQuery.of(context).size.width;
+  static double width(BuildContext context) {
+    // Check if the widget is still mounted and context is valid
+    if (!context.mounted) {
+      return 360.0; // Default mobile width
+    }
+
+    final mediaQuery = MediaQuery.maybeOf(context);
+    if (mediaQuery == null) {
+      return 360.0; // Default mobile width
+    }
+    return mediaQuery.size.width;
+  }
 
   // Updated to use available height
   static double height(BuildContext context) {
-    final mediaQuery = MediaQuery.of(context);
+    // Check if the widget is still mounted and context is valid
+    if (!context.mounted) {
+      return 640.0; // Default mobile height
+    }
+
+    final mediaQuery = MediaQuery.maybeOf(context);
+    if (mediaQuery == null) {
+      return 640.0; // Default mobile height
+    }
     return mediaQuery.size.height -
         mediaQuery.padding.top -
         mediaQuery.padding.bottom;

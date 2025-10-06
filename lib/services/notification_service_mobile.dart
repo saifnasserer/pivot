@@ -5,6 +5,32 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:pivot/services/fcm_token_manager.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:pivot/services/local_notification_service.dart';
+import 'package:pivot/services/notification_controller.dart';
+
+/// Background message handler - must be top-level function
+@pragma('vm:entry-point')
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  print('🔔 Background FCM message received: ${message.messageId}');
+  print('   Title: ${message.notification?.title}');
+  print('   Body: ${message.notification?.body}');
+  print('   Data: ${message.data}');
+
+  // Show local notification when FCM arrives in background
+  // This ensures user sees the notification even when app is closed
+  try {
+    await LocalNotificationService.instance.sendImmediateNotification(
+      title:
+          message.notification?.title ?? message.data['title'] ?? 'إشعار جديد',
+      body: message.notification?.body ?? message.data['body'] ?? '',
+      payload: message.data.map(
+        (key, value) => MapEntry(key, value.toString()),
+      ),
+    );
+  } catch (e) {
+    print('❌ Error showing background notification: $e');
+  }
+}
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -44,25 +70,55 @@ class NotificationService {
     FirebaseMessaging.instance.getInitialMessage().then((
       RemoteMessage? message,
     ) {
-      if (message != null) {}
+      if (message != null) {
+        print(
+          '🔔 App opened from terminated state via notification: ${message.messageId}',
+        );
+        // Handle the notification tap
+        NotificationController.handleFCMNotificationTap(message.data);
+      }
     });
 
     // Handle notification taps when app is in background
-    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {});
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      print(
+        '🔔 App opened from background via notification: ${message.messageId}',
+      );
+      // Handle the notification tap
+      NotificationController.handleFCMNotificationTap(message.data);
+    });
   }
 
   void _setupTokenRefreshListener() {
     _messaging.onTokenRefresh.listen((newToken) async {
       try {
         await saveTokenToFirestore(newToken);
-      } catch (e) {}
+      } catch (e) {
+        print('Error refreshing FCM token: $e');
+      }
     });
   }
 
   void _showForegroundNotification(RemoteMessage message) {
     // Since FCM notifications don't show automatically when app is in foreground,
-    // we can show a local notification instead
-    // TODO: Integrate with LocalNotificationService to show the notification
+    // show a local notification instead
+    final notification = message.notification;
+    final data = message.data;
+
+    if (notification != null) {
+      LocalNotificationService.instance.sendImmediateNotification(
+        title: notification.title ?? 'إشعار جديد',
+        body: notification.body ?? '',
+        payload: data.map((key, value) => MapEntry(key, value.toString())),
+      );
+    } else if (data.isNotEmpty) {
+      // If no notification payload but has data, create notification from data
+      LocalNotificationService.instance.sendImmediateNotification(
+        title: data['title'] ?? 'إشعار جديد',
+        body: data['body'] ?? data['message'] ?? '',
+        payload: data.map((key, value) => MapEntry(key, value.toString())),
+      );
+    }
   }
 
   Future<bool> requestPermissionsExplicitly() async {
@@ -109,7 +165,9 @@ class NotificationService {
         'lastTokenUpdate': FieldValue.serverTimestamp(),
         'tokenStatus': 'active', // Track token status
       }, SetOptions(merge: true));
-    } catch (e) {}
+    } catch (e) {
+      print('Error saving FCM token to Firestore: $e');
+    }
   }
 
   Future<String?> getUserFCMToken(String userId) async {

@@ -85,4 +85,19 @@ class MaterialsRepository {
   Future<List<MaterialLink>> getMaterialsByDoctor(String doctorId) async {
     return await _materialsService.getMaterialsByDoctor(doctorId);
   }
+
+  // Rate a material
+  Future<void> rateMaterial(
+    String lectureId,
+    MaterialLink material,
+    String userId,
+    double rating,
+  ) async {
+    return await _materialsService.rateMaterial(
+      lectureId,
+      material,
+      userId,
+      rating,
+    );
+  }
 }

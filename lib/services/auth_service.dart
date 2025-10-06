@@ -1,9 +1,11 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pivot/models/user_profile.dart'; // Assuming your UserProfile model is here
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:pivot/services/user_number_service.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:pivot/services/offline_service.dart';
+import 'package:pivot/services/session_persistence_service.dart';
+import 'package:pivot/services/cache_service.dart';
 
 class AuthService {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
@@ -25,6 +27,42 @@ class AuthService {
     }
   }
 
+  /// Offline login using cached credentials
+  /// Returns cached user profile if available
+  Future<UserProfile?> offlineLogin(String cachedUserId) async {
+    try {
+      print('🔌 Attempting offline login for user: $cachedUserId');
+
+      // Try to get cached profile from Hive
+      final cachedProfile = CacheService.instance.getCachedUserProfile(
+        cachedUserId,
+      );
+
+      if (cachedProfile != null) {
+        print('✅ Offline login successful with cached profile');
+        return cachedProfile;
+      }
+
+      // Fallback: Try to get from cached users list
+      final cachedUsers = CacheService.instance.getCachedUsers();
+      final profile = cachedUsers.cast<UserProfile?>().firstWhere(
+        (user) => user?.id == cachedUserId,
+        orElse: () => null,
+      );
+
+      if (profile != null) {
+        print('✅ Offline login successful with cached user from list');
+        return profile;
+      }
+
+      print('❌ No cached profile found for offline login');
+      return null;
+    } catch (e) {
+      print('❌ Offline login failed: $e');
+      return null;
+    }
+  }
+
   // Sign in with email and password
   Future<UserProfile?> signInWithEmailAndPassword(
     String email,
@@ -41,6 +79,37 @@ class AuthService {
 
       // Clean email input
       final cleanEmail = email.trim().toLowerCase();
+
+      // Check connectivity first
+      final isOnline = OfflineService().hasConnection;
+
+      if (!isOnline) {
+        print('🔌 Offline mode detected - attempting offline login');
+
+        // Attempt offline login with cached credentials
+        final cachedUserId =
+            await SessionPersistenceService().getCachedUserId();
+        final cachedEmail =
+            await SessionPersistenceService().getCachedUserEmail();
+
+        // Verify the email matches
+        if (cachedUserId != null && cachedEmail == cleanEmail) {
+          final profile = await offlineLogin(cachedUserId);
+          if (profile != null) {
+            print('✅ Offline login successful');
+            return profile;
+          }
+        }
+
+        // No cached session available
+        throw FirebaseAuthException(
+          code: 'network-request-failed',
+          message: 'لا يوجد اتصال بالإنترنت. يجب الاتصال بالإنترنت لأول مرة',
+        );
+      }
+
+      // Online mode - proceed with Firebase authentication
+      print('🌐 Online mode - Firebase authentication');
 
       // Clear any existing auth state to prevent credential conflicts
       await clearAuthState();
@@ -67,8 +136,20 @@ class AuthService {
           print('Warning: User email is not verified');
         }
 
+        // Save session for offline access
+        print('💾 Saving session for offline access');
+        await SessionPersistenceService().saveUserSession(user);
+
         // Fetch the user profile after successful login
-        return await getUserProfile(user.uid);
+        final profile = await getUserProfile(user.uid);
+
+        // Cache the profile for offline use
+        if (profile != null) {
+          print('💾 Caching user profile for offline access');
+          await CacheService.instance.cacheUserProfile(profile);
+        }
+
+        return profile;
       }
       return null;
     } on FirebaseAuthException catch (e) {
@@ -116,6 +197,10 @@ class AuthService {
       print('Warning: Failed to cancel notifications on logout: $e');
     }
 
+    // Clear cached session for offline access
+    print('🗑️ Clearing cached session');
+    await SessionPersistenceService().clearSession();
+
     await _firebaseAuth.signOut();
   }
 
@@ -137,9 +222,6 @@ class AuthService {
     User? user = result.user;
 
     if (user != null) {
-      // Generate unique user number
-      final userNumber = await UserNumberService.getNextUserNumber();
-
       // Create a UserProfile object from the provided data and UID
       UserProfile newUserProfile = UserProfile(
         id: user.uid,
@@ -149,7 +231,6 @@ class AuthService {
         level: userData['level'],
         section: userData['section'],
         profileImageUrl: userData['profileImageUrl'], // Optional
-        userNumber: userNumber, // Add the generated user number
       );
 
       // Add createdAt and gender to the user data for Firestore
@@ -162,6 +243,7 @@ class AuthService {
           .collection('users')
           .doc(user.uid)
           .set(userDataForFirestore);
+
       return newUserProfile;
     }
     return null;
@@ -185,21 +267,35 @@ class AuthService {
   // Method to get all users
   Future<List<UserProfile>> getAllUsers() async {
     final user = _firebaseAuth.currentUser;
-    if (user == null) return [];
+    if (user == null) {
+      print('❌ getAllUsers: No user logged in');
+      return [];
+    }
     try {
-      // Fetch the current user's role
-      // final userDoc = await _firestore.collection('users').doc(user.uid).get();
-      // final userRole = userDoc.data()?['role']?.toString() ?? '';
+      print('🔍 getAllUsers: Fetching all users from Firestore...');
       final snapshot =
           await _firestore
               .collection('users')
               // .where('role', whereIn: ['Professor', 'miniProfessor'])
               .get();
 
-      return snapshot.docs
-          .map((doc) => UserProfile.fromJson(doc.data()))
-          .toList();
+      final users =
+          snapshot.docs
+              .map((doc) {
+                try {
+                  return UserProfile.fromJson(doc.data());
+                } catch (e) {
+                  print('⚠️ Error parsing user ${doc.id}: $e');
+                  return null;
+                }
+              })
+              .whereType<UserProfile>()
+              .toList();
+
+      print('✅ getAllUsers: Fetched ${users.length} users');
+      return users;
     } catch (e) {
+      print('❌ getAllUsers: Error fetching users - $e');
       return [];
     }
   }

@@ -182,25 +182,39 @@ class _UserSearchModalContentState extends State<_UserSearchModalContent> {
 
     // Debugging: print current user and token
     final user = FirebaseAuth.instance.currentUser;
+    print('🔍 SearchCard: Current user: ${user?.uid}');
     if (user != null) {
       final token = await user.getIdToken();
+      print('🔍 SearchCard: Token exists: ${token != null}');
     }
 
     try {
+      print('🔍 SearchCard: Calling AuthService().getAllUsers()...');
       // Direct server fetch first (bypass cache for testing)
       final serverUsers = await AuthService().getAllUsers();
+      print('🔍 SearchCard: Got ${serverUsers.length} users from server');
 
       final filteredServerUsers =
           serverUsers
               .where(
-                (u) => [
-                  'Professor',
-                  'miniProfessor',
-                  'professor',
-                  'miniprofessor',
-                ].contains(u.role),
+                (u) {
+                  final role = u.role.trim().toLowerCase();
+                  final matches =
+                      [
+                        'professor',
+                        'miniprofessor',
+                      ].contains(role);
+                  if (matches) {
+                    print('  ✓ Including ${u.name} (${u.role})');
+                  }
+                  return matches;
+                },
               )
               .toList();
+
+      print(
+        '🔍 SearchCard: Filtered to ${filteredServerUsers.length} professors/assistants',
+      );
 
       // Update UI immediately with server data
       if (mounted) {
@@ -210,11 +224,13 @@ class _UserSearchModalContentState extends State<_UserSearchModalContent> {
           _isLoading = false;
         });
         await CacheService.instance.cacheUsers(serverUsers);
+        print('✅ SearchCard: UI updated with ${filteredServerUsers.length} users');
       }
 
       // Load from cache for future use
       final cachedUsers = CacheService.instance.getCachedUsers();
       if (cachedUsers.isNotEmpty) {
+        print('📦 SearchCard: Cache has ${cachedUsers.length} users');
         final filteredCachedUsers =
             cachedUsers
                 .where(
@@ -224,8 +240,13 @@ class _UserSearchModalContentState extends State<_UserSearchModalContent> {
                   ].contains(u.role.trim().toLowerCase()),
                 )
                 .toList();
+        print(
+          '📦 SearchCard: Cache has ${filteredCachedUsers.length} professors/assistants',
+        );
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('❌ SearchCard: Error fetching professors - $e');
+      print('Stack trace: $stackTrace');
       if (mounted) {
         setState(() {
           _error = 'Failed to load users: $e';

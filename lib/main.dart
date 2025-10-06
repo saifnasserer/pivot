@@ -46,6 +46,11 @@ import 'package:pivot/services/cache_service.dart';
 import 'package:pivot/services/notification_service.dart';
 import 'package:pivot/services/local_notification_service.dart';
 import 'package:pivot/services/permission_service.dart';
+import 'package:pivot/services/offline_service.dart';
+import 'package:pivot/services/session_persistence_service.dart';
+import 'package:pivot/services/offline_queue_service.dart';
+import 'package:pivot/services/sync_manager.dart';
+import 'package:pivot/services/notification_controller.dart';
 import 'dart:async';
 import 'package:pivot/features/home/screens/adminstration/add_user_screen.dart'
     deferred as add_user_screen;
@@ -63,6 +68,8 @@ import 'firebase_options.dart';
 import 'widgets/platform_service.dart';
 import 'widgets/ios_install_instructions_screen.dart';
 import 'package:flutter/foundation.dart';
+// Import the background handler (platform-specific)
+import 'package:pivot/services/notification_service.dart' as notif_service;
 
 // Route name constants
 const String routeUserManagement = '/user-management';
@@ -136,6 +143,18 @@ void main() async {
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
+  // Register FCM background message handler (must be called before runApp)
+  if (!kIsWeb) {
+    try {
+      FirebaseMessaging.onBackgroundMessage(
+        notif_service.firebaseMessagingBackgroundHandler,
+      );
+      print('✅ FCM background handler registered');
+    } catch (e) {
+      print('❌ Error registering FCM background handler: $e');
+    }
+  }
+
   // Enable Firestore offline persistence for better performance
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: true,
@@ -155,7 +174,23 @@ void main() async {
 
   await initializeDateFormatting('ar');
 
+  // Initialize cache service for offline data storage
   await CacheService.instance.init();
+
+  // Initialize offline service for connectivity monitoring
+  print('🔌 Initializing OfflineService...');
+  await OfflineService().initialize();
+
+  // Initialize offline queue service for syncing operations
+  print('📦 Initializing OfflineQueueService...');
+  await OfflineQueueService().init();
+
+  // Clean up old queued operations (older than 7 days)
+  await OfflineQueueService().clearOldOperations(7);
+
+  // Check and clear expired sessions
+  print('🔐 Checking session persistence...');
+  await SessionPersistenceService().clearExpiredSession();
 
   runApp(const ProviderScope(child: PivotWithNotifications()));
 
@@ -198,15 +233,43 @@ void _initializeAppBackgroundServices() async {
   try {
     // Initialize local notifications on mobile platforms
     if (!kIsWeb) {
-      LocalNotificationService.instance.initialize();
+      print('🔔 Initializing local notification service...');
+      try {
+        await LocalNotificationService.instance.initialize();
+        print('✅ Local notification service initialized');
+      } catch (e) {
+        print(
+          '❌ CRITICAL: Local notification service failed to initialize: $e',
+        );
+      }
+
+      // Initialize notification controller and listeners
+      print('🔔 Initializing notification controller...');
+      try {
+        await NotificationController.initialize();
+        print('✅ Notification controller initialized');
+      } catch (e) {
+        print('❌ CRITICAL: Notification controller failed to initialize: $e');
+      }
+
       // Ensure notification permission is requested every launch if not granted
+      print('🔔 Requesting notification permissions...');
       try {
         await PermissionService.requestNotificationPermission();
-      } catch (_) {}
+        print('✅ Notification permissions requested');
+      } catch (e) {
+        print('⚠️ Could not request notification permissions: $e');
+      }
     }
 
     // Initialize FCM token manager
-    FCMTokenManager().initialize().catchError((error) {});
+    print('🔔 Initializing FCM token manager...');
+    try {
+      await FCMTokenManager().initialize();
+      print('✅ FCM token manager initialized');
+    } catch (error) {
+      print('❌ FCM token manager initialization error: $error');
+    }
 
     // final notificationTrigger = NotificationTriggerService();
     // Completely disabled automatic notification sending to prevent test notifications and timeouts
@@ -217,7 +280,9 @@ void _initializeAppBackgroundServices() async {
     // Timer.periodic(const Duration(days: 1), (_) {
     //   notificationTrigger.cleanupOldNotifications();
     // });
-  } catch (e) {}
+  } catch (e) {
+    print('❌ Error in background services initialization: $e');
+  }
 
   if (kIsWeb) {
     FirebaseAuth.instance.setPersistence(Persistence.LOCAL).catchError((_) {});
@@ -245,6 +310,7 @@ class Pivot extends StatelessWidget {
     return Consumer(
       builder: (context, ref, child) {
         return MaterialApp(
+          navigatorKey: NotificationController.navigatorKey,
           onGenerateRoute: (settings) {
             // Remove EditProfile and TasksControl special cases; handle via routes map and arguments
             return null;
@@ -545,24 +611,61 @@ class Pivot extends StatelessWidget {
   }
 }
 
-// Add a StatefulWidget wrapper to handle periodic notifications
-class PivotWithNotifications extends StatefulWidget {
+// Add a ConsumerStatefulWidget wrapper to handle periodic notifications and sync
+class PivotWithNotifications extends ConsumerStatefulWidget {
   const PivotWithNotifications({super.key});
 
   @override
-  State<PivotWithNotifications> createState() => _PivotWithNotificationsState();
+  ConsumerState<PivotWithNotifications> createState() =>
+      _PivotWithNotificationsState();
 }
 
-class _PivotWithNotificationsState extends State<PivotWithNotifications> {
+class _PivotWithNotificationsState
+    extends ConsumerState<PivotWithNotifications> {
   Timer? _notificationTimer;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      NotificationService().initialize(context).catchError((e) {});
+      _initializeNotifications();
+
+      // Initialize SyncManager for automatic offline queue syncing
+      try {
+        ref.read(syncManagerProvider);
+        print('✅ SyncManager initialized via provider');
+      } catch (e) {
+        print('⚠️ SyncManager initialization error: $e');
+      }
     });
     _startPeriodicNotifications();
+  }
+
+  Future<void> _initializeNotifications() async {
+    print('🔔 Starting notification service initialization...');
+
+    try {
+      await NotificationService().initialize(context);
+      print('✅ NotificationService initialized successfully');
+    } catch (e) {
+      print('❌ CRITICAL: NotificationService initialization failed: $e');
+
+      // Show user-friendly error if in context
+      if (mounted && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('تعذر تفعيل الإشعارات. قد لا تستقبل التذكيرات.'),
+            duration: Duration(seconds: 5),
+            backgroundColor: Colors.orange,
+            action: SnackBarAction(
+              label: 'حسناً',
+              textColor: Colors.white,
+              onPressed: () {},
+            ),
+          ),
+        );
+      }
+    }
   }
 
   void _startPeriodicNotifications() {

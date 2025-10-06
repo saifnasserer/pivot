@@ -123,24 +123,23 @@ class TaskNotifier extends StateNotifier<TaskState> {
     }
   }
 
-  Future<void> addTaskNote(String id, String note) async {
+  Future<List<TaskNote>> getTaskNotes(String taskId) async {
     try {
-      await _repo.addTaskNote(id, note);
-      // Refresh tasks
-      await fetchTasks();
+      return await _repo.getTaskNotes(taskId);
     } catch (e) {
       state = state.copyWith(error: e.toString());
+      return [];
     }
   }
 
+  Future<void> addTaskNote(String id, String note) async {
+    // Notes are stored in user-specific collection, handled directly by service
+    await _repo.addTaskNote(id, note);
+  }
+
   Future<void> deleteTaskNote(String id, String noteId) async {
-    try {
-      await _repo.deleteTaskNote(id, noteId);
-      // Refresh tasks
-      await fetchTasks();
-    } catch (e) {
-      state = state.copyWith(error: e.toString());
-    }
+    // Notes are stored in user-specific collection, handled directly by service
+    await _repo.deleteTaskNote(id, noteId);
   }
 
   Future<void> scheduleTaskReminder(String id, DateTime reminderTime) async {

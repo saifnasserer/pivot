@@ -4,7 +4,7 @@ import 'package:pivot/features/subjects/screens/screens.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/features/administration/providers/sections_provider.dart';
 import 'package:pivot/features/user/providers/user_profile_provider.dart';
-import 'package:pivot/features/subjects/providers/legacy_subject_provider.dart';
+import 'package:pivot/features/subjects/providers/subject_provider.dart';
 import 'package:pivot/models/subject_model.dart';
 
 class AssistantProfileController {
@@ -25,15 +25,13 @@ class AssistantProfileController {
         // Fetch all users for admin functionality
         ref.read(userProfileProvider.notifier).fetchAllUsers().then((_) {
           ref
-              .read(legacySubjectProviderProvider.notifier)
+              .read(SubjectProviderProvider.notifier)
               .fetchAndFilterSubjects(displayedProfile)
               .then((_) {
                 if (context.mounted) {
                   try {
                     final subjects =
-                        ref
-                            .read(legacySubjectProviderProvider)
-                            .filteredSubjects;
+                        ref.read(SubjectProviderProvider).filteredSubjects;
                     onSubjectsLoaded(subjects);
 
                     if (subjects.isNotEmpty) {

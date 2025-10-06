@@ -18,6 +18,7 @@ class UserProfileState {
   final List<UserProfile> allUsers;
   final bool isLoading;
   final bool isAuthenticating;
+  final bool isOffline; // NEW: Indicates if using cached data in offline mode
   final String? error;
   final Map<String, UserProfile> userProfilesCache;
 
@@ -27,6 +28,7 @@ class UserProfileState {
     this.allUsers = const [],
     this.isLoading = false,
     this.isAuthenticating = false,
+    this.isOffline = false, // NEW
     this.error,
     this.userProfilesCache = const {},
   });
@@ -37,6 +39,7 @@ class UserProfileState {
     List<UserProfile>? allUsers,
     bool? isLoading,
     bool? isAuthenticating,
+    bool? isOffline, // NEW
     String? error,
     Map<String, UserProfile>? userProfilesCache,
   }) => UserProfileState(
@@ -45,6 +48,7 @@ class UserProfileState {
     allUsers: allUsers ?? this.allUsers,
     isLoading: isLoading ?? this.isLoading,
     isAuthenticating: isAuthenticating ?? this.isAuthenticating,
+    isOffline: isOffline ?? this.isOffline, // NEW
     error: error ?? this.error,
     userProfilesCache: userProfilesCache ?? this.userProfilesCache,
   );
@@ -64,12 +68,20 @@ class UserProfileNotifier extends StateNotifier<UserProfileState> {
   );
 
   Future<void> loadLoggedInUserProfile() async {
-    state = state.copyWith(isLoading: true, error: null);
+    state = state.copyWith(isLoading: true, error: null, isOffline: false);
     try {
       final profile = await _repo.getLoggedInUserProfile();
-      state = state.copyWith(isLoading: false, loggedInUserProfile: profile);
+      state = state.copyWith(
+        isLoading: false,
+        loggedInUserProfile: profile,
+        isOffline: false,
+      );
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(
+        isLoading: false,
+        error: e.toString(),
+        isOffline: false,
+      );
     }
   }
 
@@ -218,8 +230,21 @@ class UserProfileNotifier extends StateNotifier<UserProfileState> {
     }
   }
 
-  Future<void> setLoggedInUserProfile(UserProfile profile) async {
-    state = state.copyWith(loggedInUserProfile: profile);
+  /// Set logged in user profile (supports offline mode)
+  Future<void> setLoggedInUserProfile(
+    UserProfile profile, {
+    bool isOffline = false,
+  }) async {
+    state = state.copyWith(
+      loggedInUserProfile: profile,
+      isOffline: isOffline,
+      isLoading: false,
+      error: null,
+    );
+
+    if (isOffline) {
+      print('🔌 Profile set in offline mode: ${profile.name}');
+    }
   }
 
   Future<void> setUserProfile(UserProfile profile) async {

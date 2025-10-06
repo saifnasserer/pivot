@@ -3,3 +3,4 @@ functions-framework
 firebase-admin>=6.0.0
 flask
 requests
+gunicorn

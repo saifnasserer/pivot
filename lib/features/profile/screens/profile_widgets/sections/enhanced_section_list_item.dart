@@ -4,10 +4,10 @@ import 'package:pivot/models/section_model.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/features/subjects/providers/subjects_provider.dart';
 import 'package:pivot/features/user/providers/user_profile_provider.dart';
-import 'assistant_selection_dialog.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
+import 'package:pivot/screens/models/instructors_gate.dart';
 
 /// Enhanced section list item with simplified approach - similar to subjects
 class EnhancedSectionListItem extends ConsumerStatefulWidget {
@@ -54,34 +54,29 @@ class _EnhancedSectionListItemState
 
   void _onTap() {
     final subjectsState = ref.read(subjectsProvider);
-    final instructors = subjectsState.instructorsBySubject[widget.subject.id];
-    final assistants =
-        instructors?.where((prof) => prof.role == 'miniProfessor').toList() ??
-        [];
+    final instructors =
+        subjectsState.instructorsBySubject[widget.subject.id] ?? [];
 
-    // If there are assistants, show assistant selection dialog (regardless of sections)
-    if (assistants.isNotEmpty) {
-      _showEnhancedSectionDetails(
-        context,
-        widget.subject,
-        // Use first section if available, otherwise create placeholder
-        widget.sections.isNotEmpty
-            ? widget.sections.first
-            : Section(
-              id: 'placeholder',
-              name: 'سيتم إضافة السكاشن قريباً',
-              location: 'قريباً',
-              days: 'قريباً',
-              time: 'قريباً',
-              subjectId: widget.subject.id,
-              assistantId:
-                  assistants.first.id, // Use first assistant as placeholder
-            ),
-        assistants,
-      );
+    print('🎯 EnhancedSectionListItem: Clicked ${widget.subject.name}');
+    print(
+      '📊 EnhancedSectionListItem: Found ${instructors.length} instructors',
+    );
+
+    // Filter assistants for configuration
+    final assistants =
+        instructors.where((prof) => prof.role == 'miniProfessor').toList();
+
+    print('📊 EnhancedSectionListItem: Found ${assistants.length} assistants');
+
+    // If there are instructors, show InstructorsGate dialog
+    if (instructors.isNotEmpty) {
+      _showInstructorsGateDialog(instructors, assistants);
     } else {
       // Show a simple dialog for subjects without instructors
-      _showNoSectionDialog(context, widget.subject);
+      print(
+        '⚠️ EnhancedSectionListItem: No instructors found, showing placeholder',
+      );
+      _showNoInstructorsDialog();
     }
   }
 
@@ -275,18 +270,18 @@ class _EnhancedSectionListItemState
     );
   }
 
-  void _showNoSectionDialog(BuildContext context, Subject subject) {
+  void _showNoInstructorsDialog() {
     showDialog(
       context: context,
       builder:
           (context) => UnifiedDialog(
-            title: subject.name,
+            title: widget.subject.name,
             content: Padding(
               padding: EdgeInsets.symmetric(
                 vertical: Responsive.space(context, size: Space.large),
               ),
               child: Text(
-                'سيتم إضافة السكشن قريباً',
+                'لا يوجد معيدين أو دكاترة مسجلين لهذه المادة بعد',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: Responsive.text(context, size: TextSize.medium),
@@ -303,21 +298,17 @@ class _EnhancedSectionListItemState
     );
   }
 
-  void _showEnhancedSectionDetails(
-    BuildContext context,
-    Subject subject,
-    Section section,
+  void _showInstructorsGateDialog(
+    List<UserProfile> instructors,
     List<UserProfile> assistants,
   ) async {
     final userProfileState = ref.read(userProfileProvider);
     final currentUser = userProfileState.loggedInUserProfile;
-    final currentAssistantId = currentUser?.assistantPreferences[subject.id];
+    final currentAssistantId =
+        currentUser?.assistantPreferences[widget.subject.id];
 
-    // Auto-select if only one assistant
-    String? selectedAssistantId = currentAssistantId;
-    if (assistants.length == 1) {
-      selectedAssistantId = assistants.first.id;
-      // Auto-save the preference
+    // Auto-save preference if only one assistant
+    if (assistants.length == 1 && currentAssistantId != assistants.first.id) {
       try {
         final loggedInUser = userProfileState.loggedInUserProfile;
         if (loggedInUser != null) {
@@ -325,35 +316,35 @@ class _EnhancedSectionListItemState
               .read(userProfileProvider.notifier)
               .updateAssistantPreferences({
                 ...loggedInUser.assistantPreferences,
-                subject.id: selectedAssistantId,
+                widget.subject.id: assistants.first.id,
               });
         }
-      } catch (e) {}
+      } catch (e) {
+        print('⚠️ Failed to auto-save single assistant preference: $e');
+      }
     }
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder:
-          (context) => Dialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(
-                Responsive.space(context, size: Space.large),
-              ),
-            ),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.8,
-                maxWidth: MediaQuery.of(context).size.width * 0.9,
-              ),
-              child: AssistantSelectionDialog(
-                subject: subject,
-                section: section,
-                assistants: assistants,
-                selectedAssistantId: null, // Dialog will read from provider
-                onAssistantSelected: (assistantId) async {
-                  try {
-                    // Get the current logged-in user profile
+    // Check if widget is still mounted after async operations
+    if (!mounted) return;
+
+    // Show InstructorsGate dialog with assistants configuration
+    bool saveSucceeded = false;
+    bool saveFailed = false;
+
+    try {
+      await showInstructorsGate(
+        context: context,
+        ref: ref,
+        subject: widget.subject,
+        instructors: assistants.isNotEmpty ? assistants : instructors,
+        config:
+            assistants.isNotEmpty
+                ? InstructorsGateConfig.assistants.copyWith(
+                  enableSelection: true,
+                  enableEditMode:
+                      assistants.length >
+                      1, // Only enable edit if multiple assistants
+                  onInstructorSelected: (assistantId) async {
                     final userProfileState = ref.read(userProfileProvider);
                     final loggedInUser = userProfileState.loggedInUserProfile;
                     if (loggedInUser == null) {
@@ -364,33 +355,40 @@ class _EnhancedSectionListItemState
                         .read(userProfileProvider.notifier)
                         .updateAssistantPreferences({
                           ...loggedInUser.assistantPreferences,
-                          subject.id: assistantId,
+                          widget.subject.id: assistantId,
                         });
-                    // Show success message
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('تم حفظ اختيار المعيد بنجاح'),
-                        backgroundColor: Colors.green,
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
-                    // Close the dialog after successful update
-                    Navigator.of(context).pop();
-                  } catch (e) {
-                    // Show error message to user
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('فشل في حفظ اختيار المعيد'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                    // Re-throw to let the dialog handle the error state
-                    rethrow;
-                  }
-                },
-              ),
-            ),
-          ),
-    );
+
+                    // Mark save as successful
+                    saveSucceeded = true;
+                  },
+                )
+                : InstructorsGateConfig.professors,
+        selectedInstructorId: currentAssistantId,
+        section: widget.sections.isNotEmpty ? widget.sections.first : null,
+      );
+    } catch (e) {
+      saveFailed = true;
+      print('❌ Failed to save assistant preference: $e');
+    }
+
+    // Show feedback after dialog closes
+    if (!mounted) return;
+
+    if (saveSucceeded && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم حفظ اختيار المعيد بنجاح'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } else if (saveFailed && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('فشل في حفظ اختيار المعيد'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 }

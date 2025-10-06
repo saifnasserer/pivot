@@ -123,6 +123,26 @@ class CacheService {
     return box.values.toList();
   }
 
+  /// Cache single user profile (for logged-in user)
+  Future<void> cacheUserProfile(UserProfile profile) async {
+    final box = Hive.box<UserProfile>(_usersBoxName);
+    await box.put(profile.id, profile);
+    await _updateCacheTimestamp(_usersBoxName, DateTime.now());
+    print('💾 Cached user profile: ${profile.name}');
+  }
+
+  /// Get cached user profile by ID
+  UserProfile? getCachedUserProfile(String userId) {
+    final box = Hive.box<UserProfile>(_usersBoxName);
+    return box.get(userId);
+  }
+
+  /// Check if specific user profile is cached
+  bool hasUserProfileCache(String userId) {
+    final box = Hive.box<UserProfile>(_usersBoxName);
+    return box.containsKey(userId);
+  }
+
   // Section Caching
   Future<void> cacheSections(List<Section> sections) async {
     final box = Hive.box<Section>(_sectionsBoxName);
@@ -198,20 +218,119 @@ class CacheService {
     await _updateCacheTimestamp(_announcementsBoxName, null);
   }
 
+  // Category-specific announcement caching
+  Future<void> cacheAnnouncementsByCategory(
+    String categoryKey,
+    List<AnnouncementData> announcements,
+  ) async {
+    final box = Hive.box<AnnouncementData>(_announcementsBoxName);
+
+    // Clear existing announcements for this category first
+    final keysToRemove =
+        box.keys
+            .where((key) => key.toString().startsWith('${categoryKey}_'))
+            .toList();
+
+    for (var key in keysToRemove) {
+      await box.delete(key);
+    }
+
+    // Store announcements with category prefix
+    // IMPORTANT: HiveObject instances can only be stored with ONE key
+    // We need to remove the object from any previous key before storing with new key
+    for (var ann in announcements) {
+      final newKey =
+          '${categoryKey}_${ann.id ?? ann.title.hashCode.toString()}';
+
+      try {
+        // Check if this HiveObject is already in the box
+        if (ann.isInBox) {
+          // Remove from previous key first
+          final oldKey = ann.key;
+          if (oldKey != null && oldKey != newKey) {
+            await box.delete(oldKey);
+            print('🗑️ Removed announcement from old key: $oldKey');
+          }
+        }
+
+        // Now store with new key
+        await box.put(newKey, ann);
+      } catch (e) {
+        if (e.toString().contains('cannot be stored with two different keys')) {
+          print(
+            '⚠️ HiveObject duplicate key error for announcement: ${ann.id}',
+          );
+          print('   Attempting to fix by removing old entry...');
+
+          // Find and remove the old entry
+          final oldKey = ann.key;
+          if (oldKey != null) {
+            try {
+              await box.delete(oldKey);
+              // Try storing again
+              await box.put(newKey, ann);
+              print('✅ Fixed duplicate key error');
+            } catch (e2) {
+              print('❌ Could not fix duplicate key error: $e2');
+              // Skip this announcement
+              continue;
+            }
+          }
+        } else {
+          print('❌ Error caching announcement: $e');
+          rethrow;
+        }
+      }
+    }
+
+    // Store category metadata
+    await _updateCacheTimestamp('${categoryKey}_metadata', DateTime.now());
+    print(
+      '✅ Cached ${announcements.length} announcements for category: $categoryKey',
+    );
+  }
+
+  List<AnnouncementData> getCachedAnnouncementsByCategory(String categoryKey) {
+    final box = Hive.box<AnnouncementData>(_announcementsBoxName);
+    final announcements = <AnnouncementData>[];
+
+    for (var key in box.keys) {
+      if (key.toString().startsWith('${categoryKey}_')) {
+        final ann = box.get(key);
+        if (ann != null && !announcements.any((a) => a.id == ann.id)) {
+          announcements.add(ann);
+        }
+      }
+    }
+
+    return announcements;
+  }
+
+  bool isCategoryCacheValid(String categoryKey) {
+    return isCacheValid('${categoryKey}_metadata');
+  }
+
   // ===== SMART CACHING METHODS =====
 
   /// Check if cache is valid based on expiry time
   bool isCacheValid(String cacheType, {int? customExpiryMinutes}) {
-    final metadataBox = Hive.box<Map>(_cacheMetadataBoxName);
-    final timestampData = metadataBox.get('${cacheType}_timestamp');
-    final timestamp = timestampData is Map ? timestampData['timestamp'] : null;
+    try {
+      final metadataBox = Hive.box<Map>(_cacheMetadataBoxName);
+      final timestampData = metadataBox.get('${cacheType}_timestamp');
 
-    if (timestamp == null) return false;
+      if (timestampData == null) return false;
 
-    final expiryMinutes = customExpiryMinutes ?? _getCacheExpiry(cacheType);
-    final expiryTime = timestamp.add(Duration(minutes: expiryMinutes));
+      final timestamp = timestampData['timestamp'];
+      if (timestamp is! DateTime) return false;
 
-    return DateTime.now().isBefore(expiryTime);
+      final expiryMinutes = customExpiryMinutes ?? _getCacheExpiry(cacheType);
+      final expiryTime = timestamp.add(Duration(minutes: expiryMinutes));
+
+      return DateTime.now().isBefore(expiryTime);
+    } catch (e) {
+      print('❌ Error checking cache validity: $e');
+      return false;
+    }
   }
 
   /// Get cache expiry time for different data types
@@ -237,10 +356,19 @@ class CacheService {
     String cacheType,
     DateTime? timestamp,
   ) async {
-    final metadataBox = Hive.box<Map>(_cacheMetadataBoxName);
-    await metadataBox.put('${cacheType}_timestamp', {
-      'timestamp': timestamp ?? DateTime.now(),
-    });
+    try {
+      final metadataBox = Hive.box<Map>(_cacheMetadataBoxName);
+      if (timestamp == null) {
+        // Clear the timestamp (mark as invalid)
+        await metadataBox.delete('${cacheType}_timestamp');
+      } else {
+        await metadataBox.put('${cacheType}_timestamp', {
+          'timestamp': timestamp,
+        });
+      }
+    } catch (e) {
+      print('❌ Error updating cache timestamp: $e');
+    }
   }
 
   /// Smart cache retrieval - returns cached data if valid, null if expired
@@ -319,6 +447,30 @@ class CacheService {
   Future<void> clearUserProfile(String userId) async {
     final box = Hive.box<UserProfile>(_usersBoxName);
     await box.delete(userId);
+  }
+
+  /// Clear all cached data for a specific user (called during logout)
+  Future<void> clearUserCache(String? userId) async {
+    print('🗑️ Clearing user cache...');
+    try {
+      // Clear user profile if userId is provided
+      if (userId != null) {
+        await clearUserProfile(userId);
+        print('   ✅ User profile cleared');
+      }
+
+      // Clear schedule cache (user-specific)
+      await Hive.box<ScheduleItem>(_scheduleBoxName).clear();
+      print('   ✅ Schedule cache cleared');
+
+      // Optionally clear other caches depending on your app's needs
+      // (Sections and subjects might be shared across users, so maybe keep them)
+
+      print('✅ User cache cleared successfully');
+    } catch (e) {
+      print('❌ Error clearing user cache: $e');
+      // Don't rethrow - allow logout to continue
+    }
   }
 
   Future<void> close() async {

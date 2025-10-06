@@ -96,10 +96,9 @@ class SubjectsState {
   );
 }
 
-final subjectsProvider =
-    StateNotifierProvider.autoDispose<SubjectsNotifier, SubjectsState>(
-      (ref) => SubjectsNotifier(ref),
-    );
+final subjectsProvider = StateNotifierProvider<SubjectsNotifier, SubjectsState>(
+  (ref) => SubjectsNotifier(ref),
+);
 
 class SubjectsNotifier extends StateNotifier<SubjectsState> {
   SubjectsNotifier(this._ref) : super(const SubjectsState());
@@ -454,5 +453,27 @@ class SubjectsNotifier extends StateNotifier<SubjectsState> {
         state = state.copyWith(isLoading: false, error: e.toString());
       }
     }
+  }
+
+  // Background refresh - updates data without blocking UI
+  Future<void> backgroundRefresh() async {
+    _checkDisposed();
+    try {
+      // Only refresh if not currently loading to avoid conflicts
+      if (!state.isLoading) {
+        print('🔄 SubjectsProvider: Background refresh started');
+        await initialize();
+        print('✅ SubjectsProvider: Background refresh completed');
+      }
+    } catch (e) {
+      print('❌ SubjectsProvider: Background refresh failed - $e');
+      // Don't update error state for background refresh failures
+    }
+  }
+
+  // Check if data is stale and needs refresh
+  bool get isDataStale {
+    // Consider data stale if it's empty
+    return state.subjects.isEmpty;
   }
 }

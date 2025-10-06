@@ -3,6 +3,7 @@ import 'package:pivot/features/announcements/repositories/announcements_reposito
 import 'package:pivot/features/announcements/services/announcements_service.dart';
 import 'package:pivot/features/home/screens/adminstration/models/announcement_data.dart';
 import 'package:pivot/models/comment_data.dart';
+import 'package:pivot/services/cache_service.dart';
 
 final announcementsServiceProvider = Provider<AnnouncementsService>(
   (ref) => AnnouncementsService(),
@@ -27,6 +28,8 @@ class AnnouncementsState {
   final bool isUploading;
   final double uploadProgress;
   final String? uploadError;
+  final bool isFromCache;
+  final DateTime? lastFetchTime;
 
   const AnnouncementsState({
     this.announcements = const [],
@@ -40,6 +43,8 @@ class AnnouncementsState {
     this.isUploading = false,
     this.uploadProgress = 0.0,
     this.uploadError,
+    this.isFromCache = false,
+    this.lastFetchTime,
   });
 
   AnnouncementsState copyWith({
@@ -54,6 +59,8 @@ class AnnouncementsState {
     bool? isUploading,
     double? uploadProgress,
     String? uploadError,
+    bool? isFromCache,
+    DateTime? lastFetchTime,
   }) => AnnouncementsState(
     announcements: announcements ?? this.announcements,
     isLoading: isLoading ?? this.isLoading,
@@ -67,6 +74,8 @@ class AnnouncementsState {
     isUploading: isUploading ?? this.isUploading,
     uploadProgress: uploadProgress ?? this.uploadProgress,
     uploadError: uploadError ?? this.uploadError,
+    isFromCache: isFromCache ?? this.isFromCache,
+    lastFetchTime: lastFetchTime ?? this.lastFetchTime,
   );
 }
 
@@ -96,8 +105,47 @@ class AnnouncementsNotifier extends StateNotifier<AnnouncementsState> {
     String? userLevel,
     bool includeScheduledAndExpired = false,
     int limit = 10,
+    bool forceRefresh = false,
   }) async {
-    state = state.copyWith(isLoading: true, error: null, hasMore: true);
+    // Generate cache key based on filters
+    final cacheKey = _generateCacheKey(department, timeFilter, userLevel);
+
+    // Check if we should use cache first
+    if (!forceRefresh) {
+      final cachedAnnouncements = _getCachedAnnouncements(cacheKey);
+      if (cachedAnnouncements.isNotEmpty) {
+        // Show cached data immediately
+        state = state.copyWith(
+          announcements: cachedAnnouncements,
+          isLoading: false,
+          error: null,
+          currentDepartmentFilter: department,
+          currentTimeFilter: timeFilter,
+          currentUserLevel: userLevel,
+          isFromCache: true,
+          lastFetchTime: DateTime.now(),
+        );
+
+        // Still fetch fresh data in background for next time
+        _fetchAnnouncementsInBackground(
+          department,
+          timeFilter,
+          userLevel,
+          includeScheduledAndExpired,
+          limit,
+          cacheKey,
+        );
+        return;
+      }
+    }
+
+    // No cache available or force refresh - fetch from network
+    state = state.copyWith(
+      isLoading: true,
+      error: null,
+      hasMore: true,
+      isFromCache: false,
+    );
     try {
       final announcements = await _repo.fetchAnnouncements(
         department: department,
@@ -107,6 +155,9 @@ class AnnouncementsNotifier extends StateNotifier<AnnouncementsState> {
         limit: limit,
         startAfterDocument: null, // Fresh fetch, no pagination
       );
+
+      // Cache the results
+      _cacheAnnouncements(cacheKey, announcements);
 
       // If we got fewer announcements than the limit, there are no more
       final hasMore = announcements.length >= limit;
@@ -118,9 +169,25 @@ class AnnouncementsNotifier extends StateNotifier<AnnouncementsState> {
         currentTimeFilter: timeFilter,
         currentUserLevel: userLevel,
         hasMore: hasMore,
+        isFromCache: false,
+        lastFetchTime: DateTime.now(),
       );
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      // If network fails, try to show cached data as fallback
+      final cachedAnnouncements = _getCachedAnnouncements(cacheKey);
+      if (cachedAnnouncements.isNotEmpty) {
+        state = state.copyWith(
+          isLoading: false,
+          announcements: cachedAnnouncements,
+          error: 'اتصال ضعيف - يتم عرض البيانات المحفوظة',
+          currentDepartmentFilter: department,
+          currentTimeFilter: timeFilter,
+          currentUserLevel: userLevel,
+          isFromCache: true,
+        );
+      } else {
+        state = state.copyWith(isLoading: false, error: e.toString());
+      }
     }
   }
 
@@ -418,5 +485,175 @@ class AnnouncementsNotifier extends StateNotifier<AnnouncementsState> {
 
   void setUploadError(String? error) {
     state = state.copyWith(uploadError: error);
+  }
+
+  // ===== CACHING HELPER METHODS =====
+
+  /// Generate a unique cache key based on filters
+  String _generateCacheKey(
+    String? department,
+    String? timeFilter,
+    String? userLevel,
+  ) {
+    return 'announcements_${department ?? 'all'}_${timeFilter ?? 'all'}_${userLevel ?? 'all'}';
+  }
+
+  /// Get cached announcements for a specific key
+  List<AnnouncementData> _getCachedAnnouncements(String cacheKey) {
+    try {
+      final cacheService = CacheService.instance;
+
+      // First try category-specific cache
+      final isCacheValid = cacheService.isCategoryCacheValid(cacheKey);
+      if (isCacheValid == true) {
+        final cachedAnnouncements = cacheService
+            .getCachedAnnouncementsByCategory(cacheKey);
+        if (cachedAnnouncements.isNotEmpty) {
+          print(
+            '✅ Using category cache for key: $cacheKey (${cachedAnnouncements.length} items)',
+          );
+          return cachedAnnouncements;
+        }
+      }
+
+      // Fallback: Filter general cache by current filters (for offline support)
+      // This ensures offline mode works while keeping tabs separate
+      final generalCache = cacheService.getCachedAnnouncementsByCategory(
+        cacheKey,
+      );
+      if (generalCache.isEmpty) {
+        // Try to filter from all cached announcements
+        final allCached = cacheService.getCachedAnnouncements();
+        if (allCached.isNotEmpty) {
+          // Extract filters from cache key
+          final filters = _extractFiltersFromCacheKey(cacheKey);
+          final filtered = _filterAnnouncementsByKey(allCached, filters);
+
+          if (filtered.isNotEmpty) {
+            print(
+              '⚠️ Using filtered general cache for key: $cacheKey (${filtered.length} items)',
+            );
+            return filtered;
+          }
+        }
+      }
+
+      print('⚠️ No cache available for key: $cacheKey');
+    } catch (e) {
+      print('❌ Error getting cached announcements: $e');
+    }
+    return [];
+  }
+
+  /// Extract filters from cache key
+  Map<String, String?> _extractFiltersFromCacheKey(String cacheKey) {
+    // Cache key format: announcements_${department}_${timeFilter}_${userLevel}
+    final parts = cacheKey.split('_');
+    return {
+      'department': parts.length > 1 && parts[1] != 'all' ? parts[1] : null,
+      'timeFilter': parts.length > 2 && parts[2] != 'all' ? parts[2] : null,
+      'userLevel': parts.length > 3 && parts[3] != 'all' ? parts[3] : null,
+    };
+  }
+
+  /// Filter announcements by extracted filters
+  List<AnnouncementData> _filterAnnouncementsByKey(
+    List<AnnouncementData> announcements,
+    Map<String, String?> filters,
+  ) {
+    return announcements.where((ann) {
+      // Filter by department
+      if (filters['department'] != null && filters['department'] != 'all') {
+        if (ann.department != filters['department']) {
+          return false;
+        }
+      }
+
+      // Filter by time (today)
+      if (filters['timeFilter'] == 'today') {
+        try {
+          final now = DateTime.now();
+          final today = DateTime(now.year, now.month, now.day);
+
+          // Parse the date string (format: "DD/MM/YYYY" or similar)
+          final dateParts = ann.date.split('/');
+          if (dateParts.length == 3) {
+            final annDay = int.parse(dateParts[0]);
+            final annMonth = int.parse(dateParts[1]);
+            final annYear = int.parse(dateParts[2]);
+            final annDate = DateTime(annYear, annMonth, annDay);
+
+            if (!annDate.isAtSameMomentAs(today)) {
+              return false;
+            }
+          }
+        } catch (e) {
+          // If date parsing fails, skip this filter
+          print('⚠️ Could not parse date for filtering: ${ann.date}');
+        }
+      }
+
+      // Filter by level (if applicable)
+      if (filters['userLevel'] != null && ann.level != null) {
+        if (ann.level != filters['userLevel']) {
+          return false;
+        }
+      }
+
+      return true;
+    }).toList();
+  }
+
+  /// Cache announcements with a specific key
+  void _cacheAnnouncements(
+    String cacheKey,
+    List<AnnouncementData> announcements,
+  ) {
+    try {
+      final cacheService = CacheService.instance;
+      cacheService.cacheAnnouncementsByCategory(cacheKey, announcements);
+      print(
+        '✅ Cached ${announcements.length} announcements for key: $cacheKey',
+      );
+    } catch (e) {
+      print('❌ Error caching announcements: $e');
+    }
+  }
+
+  /// Fetch announcements in background for next time
+  void _fetchAnnouncementsInBackground(
+    String? department,
+    String? timeFilter,
+    String? userLevel,
+    bool includeScheduledAndExpired,
+    int limit,
+    String cacheKey,
+  ) async {
+    try {
+      final announcements = await _repo.fetchAnnouncements(
+        department: department,
+        timeFilter: timeFilter,
+        userLevel: userLevel,
+        includeScheduledAndExpired: includeScheduledAndExpired,
+        limit: limit,
+        startAfterDocument: null,
+      );
+
+      // Update cache with fresh data
+      _cacheAnnouncements(cacheKey, announcements);
+      print('✅ Background refresh completed for key: $cacheKey');
+    } catch (e) {
+      print('❌ Background refresh failed: $e');
+    }
+  }
+
+  /// Force refresh announcements (bypass cache)
+  Future<void> forceRefresh() async {
+    await fetchAnnouncements(
+      department: state.currentDepartmentFilter,
+      timeFilter: state.currentTimeFilter,
+      userLevel: state.currentUserLevel,
+      forceRefresh: true,
+    );
   }
 }

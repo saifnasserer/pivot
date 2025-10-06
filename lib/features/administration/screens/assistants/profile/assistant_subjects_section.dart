@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/models/subject_model.dart';
-import 'package:pivot/features/subjects/providers/legacy_subject_provider.dart';
+import 'package:pivot/features/subjects/providers/subject_provider.dart';
 import 'package:pivot/features/administration/providers/sections_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/models/section_card.dart';
@@ -60,7 +60,7 @@ class _AssistantSubjectsSectionState
   }
 
   void _checkForUpdates() {
-    final subjectProvider = ref.read(legacySubjectProviderProvider);
+    final subjectProvider = ref.read(SubjectProviderProvider);
     final subjects = subjectProvider.filteredSubjects;
     final currentAssistantId = widget.userProfile.id;
 
@@ -110,7 +110,7 @@ class _AssistantSubjectsSectionState
   }
 
   void _updateTabController() {
-    final subjectProvider = ref.read(legacySubjectProviderProvider);
+    final subjectProvider = ref.read(SubjectProviderProvider);
     final subjects = subjectProvider.filteredSubjects;
 
     // Only update if the number of subjects actually changed
@@ -196,7 +196,7 @@ class _AssistantSubjectsSectionState
   }
 
   void _notifyCurrentSubjectChanged() {
-    final subjectProvider = ref.read(legacySubjectProviderProvider);
+    final subjectProvider = ref.read(SubjectProviderProvider);
     final subjects = subjectProvider.filteredSubjects;
 
     if (subjects.isNotEmpty && _tabController.index < subjects.length) {
@@ -208,7 +208,7 @@ class _AssistantSubjectsSectionState
   }
 
   Subject? getCurrentSubject() {
-    final subjectProvider = ref.read(legacySubjectProviderProvider);
+    final subjectProvider = ref.read(SubjectProviderProvider);
     final subjects = subjectProvider.filteredSubjects;
 
     if (subjects.isNotEmpty && _tabController.index < subjects.length) {
@@ -218,7 +218,7 @@ class _AssistantSubjectsSectionState
   }
 
   Future<void> _loadSectionsForSubject(int index) async {
-    final subjectProvider = ref.read(legacySubjectProviderProvider);
+    final subjectProvider = ref.read(SubjectProviderProvider);
     final subjects = subjectProvider.filteredSubjects;
 
     if (subjects.isNotEmpty && index < subjects.length) {
@@ -315,7 +315,7 @@ class _AssistantSubjectsSectionState
 
   @override
   Widget build(BuildContext context) {
-    final subjectProvider = ref.watch(legacySubjectProviderProvider);
+    final subjectProvider = ref.watch(SubjectProviderProvider);
     final subjects = subjectProvider.filteredSubjects;
 
     // Safety check: ensure TabController length matches subjects length
