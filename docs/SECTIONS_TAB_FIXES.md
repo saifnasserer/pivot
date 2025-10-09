@@ -286,3 +286,4 @@ Display: section.days, section.time, section.location
 - `/lib/models/section_model.dart` - Section model
 - `/lib/widgets/unified_dialog.dart` - Dialog components
 - `/lib/screens/models/instructors_gate.dart` - Instructors selection dialog
+

@@ -203,3 +203,4 @@ The schedule tab now:
 - **Reduces costs** significantly (up to 87% fewer reads)
 
 This provides a **native app-like experience** with instant loading and offline-first behavior.
+

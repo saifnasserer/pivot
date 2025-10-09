@@ -49,12 +49,17 @@ class SectionsBuilder {
                 ),
                 SizedBox(height: Responsive.space(context, size: Space.medium)),
                 ElevatedButton(
-                  onPressed:
-                      () => ref
+                  onPressed: () {
+                    if (loggedInUser != null) {
+                      ref
                           .read(sectionsProvider.notifier)
-                          .fetchSectionsForUserSubjects(
-                            enrolledSubjects.map((s) => s.id).toList(),
-                          ),
+                          .loadSectionsForUser(
+                            loggedInUser.id,
+                            loggedInUser.enrolledSubjects,
+                            forceRefresh: true,
+                          );
+                    }
+                  },
                   child: Text('إعادة المحاولة'),
                 ),
               ],

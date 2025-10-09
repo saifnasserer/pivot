@@ -31,8 +31,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Riverpod handles state automatically now
-    // Individual tabs manage their own data loading
+    // Ensure the logged-in user's profile is set as the viewed profile
+    // This is important for sections_tab and other components that check userProfile
+    final userProfileState = ref.read(userProfileProvider);
+    final loggedInUser = userProfileState.loggedInUserProfile;
+    final viewedUser = userProfileState.userProfile;
+
+    // If viewing own profile and userProfile is not set or outdated, load it
+    if (loggedInUser != null &&
+        (viewedUser == null || viewedUser.id != loggedInUser.id)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ref
+              .read(userProfileProvider.notifier)
+              .loadUserProfile(loggedInUser.id);
+        }
+      });
+    }
   }
 
   @override

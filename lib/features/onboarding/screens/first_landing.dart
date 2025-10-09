@@ -63,7 +63,10 @@ class _FirstLandingScreenState extends ConsumerState<FirstLandingScreen> {
       try {
         UserProfile? userProfile = await _authService.getUserProfile(user.uid);
         if (mounted && userProfile != null) {
-          ref.read(userProfileProvider.notifier).setUserProfile(userProfile);
+          // Set as logged-in user profile (authenticated user)
+          ref
+              .read(userProfileProvider.notifier)
+              .setLoggedInUserProfile(userProfile);
 
           // Let AuthWrapper handle navigation automatically
           // This ensures consistent navigation flow and prevents conflicts
@@ -134,12 +137,10 @@ class _FirstLandingScreenState extends ConsumerState<FirstLandingScreen> {
                 '🔐 [BiometricLogin] Login successful, navigating to landing...',
               );
 
+              // Set as logged-in user profile (authenticated user)
               ref
                   .read(userProfileProvider.notifier)
                   .setLoggedInUserProfile(userProfile);
-              ref
-                  .read(userProfileProvider.notifier)
-                  .setUserProfile(userProfile);
 
               if (mounted) {
                 Navigator.pushReplacementNamed(context, '/landing');

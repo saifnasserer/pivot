@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart' as intl;
 import 'package:pivot/features/administration/providers/sections_provider.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/widgets/custom_text_field.dart';
 import 'package:pivot/screens/models/task.dart';
 import 'package:file_picker/file_picker.dart';
@@ -98,9 +99,13 @@ class _AddEditTaskDialogContentState
     if (!mounted) return;
 
     try {
-      await ref.read(sectionsProvider.notifier).fetchSectionsForUserSubjects([
-        _selectedSubjectId!,
-      ]);
+      // Get logged-in user for sections fetch
+      final user = ref.read(userProfileProvider).loggedInUserProfile;
+      if (user != null) {
+        await ref.read(sectionsProvider.notifier).loadSectionsForUser(user.id, [
+          _selectedSubjectId!,
+        ]);
+      }
 
       if (!mounted) return;
 

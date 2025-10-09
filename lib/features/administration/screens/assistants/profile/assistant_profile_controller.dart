@@ -44,7 +44,7 @@ class AssistantProfileController {
         // Fetch sections for this specific assistant
         ref
             .read(sectionsProvider.notifier)
-            .fetchSectionsForAssistant(displayedProfile.id);
+            .loadSectionsForAssistant(displayedProfile.id);
       } catch (e) {}
     });
   }

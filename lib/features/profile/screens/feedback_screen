@@ -569,7 +569,8 @@ class _FeedbackScreenState extends State<FeedbackScreen>
         context,
         listen: false,
       );
-      final userProfile = userProfileProvider.loggedInUserProfile;
+      final userProfile = userProfileProvider.  final UserProfile?
+;
 
       if (userProfile == null) {
         throw Exception('User profile not found');

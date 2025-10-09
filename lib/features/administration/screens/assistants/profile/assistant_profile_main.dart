@@ -4,6 +4,7 @@ import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/features/subjects/providers/subject_provider.dart';
 import 'package:pivot/features/user/providers/user_profile_provider.dart';
+import 'package:pivot/features/administration/providers/sections_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/features/profile/screens/profile_widgets/Profile_options.dart';
 import 'package:pivot/features/subjects/screens/screens.dart';
@@ -58,7 +59,8 @@ class _AssistantProfileMainState extends ConsumerState<AssistantProfileMain>
       profileToShow = argument['instructor'] as UserProfile?;
       targetSubject = argument['subject'] as Subject?;
     } else {
-      profileToShow = ref.watch(userProfileProvider).userProfile;
+      // Fallback: use loggedInUserProfile if no argument provided (viewing own profile)
+      profileToShow = ref.watch(userProfileProvider).loggedInUserProfile;
     }
 
     if (profileToShow != null && profileToShow.id != _previousProfileId) {
@@ -70,9 +72,14 @@ class _AssistantProfileMainState extends ConsumerState<AssistantProfileMain>
         _targetSubject = targetSubject;
       }
 
-      // Ensure we have the correct profile data before fetching
+      // IMPORTANT: Set this profile as the viewed profile in the provider
+      // This ensures other components (like sections_tab) know which profile is being viewed
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && profileToShow != null) {
+          // Load the profile in the provider (creates separate instance)
+          ref
+              .read(userProfileProvider.notifier)
+              .loadUserProfile(profileToShow.id);
           _fetchInitialData(profileToShow);
         }
       });
@@ -88,7 +95,7 @@ class _AssistantProfileMainState extends ConsumerState<AssistantProfileMain>
     print('Teaching subjects: ${userProfile.teachingSubjects}');
 
     // Check if this is the logged-in user's own profile
-    final loggedInUser = ref.read(userProfileProvider).userProfile;
+    final loggedInUser = ref.read(userProfileProvider).loggedInUserProfile;
     final isOwnProfile = loggedInUser?.id == userProfile.id;
     print('Is own profile: $isOwnProfile');
 
@@ -141,7 +148,7 @@ class _AssistantProfileMainState extends ConsumerState<AssistantProfileMain>
   }
 
   List<Widget> _getCategoryContentSlivers(BuildContext context) {
-    final loggedInUser = ref.watch(userProfileProvider).userProfile;
+    final loggedInUser = ref.watch(userProfileProvider).loggedInUserProfile;
     final isOwnProfile = loggedInUser?.id == _displayedProfile?.id;
     final userProfile = _displayedProfile;
 
@@ -211,7 +218,7 @@ class _AssistantProfileMainState extends ConsumerState<AssistantProfileMain>
   }
 
   bool _shouldShowAddSectionButton() {
-    final loggedInUser = ref.read(userProfileProvider).userProfile;
+    final loggedInUser = ref.read(userProfileProvider).loggedInUserProfile;
 
     if (loggedInUser == null) return false;
 
@@ -304,16 +311,33 @@ class _AssistantProfileMainState extends ConsumerState<AssistantProfileMain>
     }
   }
 
-  void _onBackPressed() {
-    // Restore logged-in user profile when navigating back
-    ref.read(userProfileProvider.notifier).restoreLoggedInUserProfile();
-    Navigator.pop(context);
+  void _onBackPressed() async {
+    // When navigating back, reload the logged-in user's sections
+    // This ensures sections_tab shows the correct data for the logged-in user
+    final loggedInUser = ref.read(userProfileProvider).loggedInUserProfile;
+    if (loggedInUser != null) {
+      // Reload sections for the logged-in user
+      await ref
+          .read(sectionsProvider.notifier)
+          .loadSectionsForUser(
+            loggedInUser.id,
+            loggedInUser.enrolledSubjects,
+          );
+      
+      // Load the logged-in user's profile as the viewed profile
+      await ref
+          .read(userProfileProvider.notifier)
+          .loadUserProfile(loggedInUser.id);
+    }
+    if (mounted) {
+      Navigator.pop(context);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final userProfile = _displayedProfile;
-    final loggedInUser = ref.watch(userProfileProvider).userProfile;
+    final loggedInUser = ref.watch(userProfileProvider).loggedInUserProfile;
     final isOwnProfile = loggedInUser?.id == userProfile?.id;
 
     if (userProfile == null) {
@@ -327,14 +351,27 @@ class _AssistantProfileMainState extends ConsumerState<AssistantProfileMain>
       canPop: false,
       onPopInvoked: (didPop) async {
         if (!didPop) {
-          // Restore profile BEFORE popping
-          print(
-            'Navigating back from assistant profile, restoring logged-in user profile',
-          );
-          ref.read(userProfileProvider.notifier).restoreLoggedInUserProfile();
-
-          // Now pop after restoration
-          Navigator.of(context).pop();
+          // When navigating back, reload the logged-in user's sections and profile
+          print('Navigating back from assistant profile');
+          final loggedInUser =
+              ref.read(userProfileProvider).loggedInUserProfile;
+          if (loggedInUser != null) {
+            // Reload sections for the logged-in user first
+            await ref
+                .read(sectionsProvider.notifier)
+                .loadSectionsForUser(
+                  loggedInUser.id,
+                  loggedInUser.enrolledSubjects,
+                );
+            
+            // Then load the logged-in user's profile as the viewed profile
+            await ref
+                .read(userProfileProvider.notifier)
+                .loadUserProfile(loggedInUser.id);
+          }
+          if (mounted) {
+            Navigator.of(context).pop();
+          }
         }
       },
       child: Scaffold(

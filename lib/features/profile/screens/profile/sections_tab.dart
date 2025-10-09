@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/features/user/providers/user_profile_provider.dart';
-import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/features/administration/providers/sections_provider.dart';
 import 'package:pivot/features/subjects/providers/subjects_provider.dart';
 import 'package:pivot/features/profile/screens/profile_widgets/sections/sections.dart';
 
+/// Simplified SectionsTab using snapshot-based approach
+/// Load once from cache, refresh manually with pull-to-refresh
 class SectionsTab extends ConsumerStatefulWidget {
   const SectionsTab({super.key});
 
@@ -13,239 +14,174 @@ class SectionsTab extends ConsumerStatefulWidget {
   ConsumerState<SectionsTab> createState() => _SectionsTabState();
 }
 
-class _SectionsTabState extends ConsumerState<SectionsTab> {
+class _SectionsTabState extends ConsumerState<SectionsTab>
+    with AutomaticKeepAliveClientMixin {
   bool _hasInitialized = false;
-  String? _lastProfileId; // Track profile changes
-  List<String>? _lastEnrolledSubjects; // Track enrolled subjects changes
-  Map<String, String>? _lastAssistantPreferences; // Track assistant preferences
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
     super.initState();
-    // Load sections on init
+    // Load sections snapshot on init
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && !_hasInitialized) {
-        _initializeSections();
+        _loadSectionsSnapshot();
       }
     });
-  }
-
-  void _initializeSections() {
-    final userProfileState = ref.read(userProfileProvider);
-    final sectionsState = ref.read(sectionsProvider);
-    final targetProfile = _getTargetProfile(
-      userProfileState.userProfile,
-      userProfileState.loggedInUserProfile,
-    );
-
-    if (targetProfile != null) {
-      final hasSections = sectionsState.sections.isNotEmpty;
-
-      print(
-        '📊 SectionsTab: hasSections=$hasSections, isLoading=${sectionsState.isLoading}',
-      );
-      print('📊 SectionsTab: ${sectionsState.sections.length} sections cached');
-
-      // Fetch if no data and not loading
-      if (!hasSections && !sectionsState.isLoading) {
-        print('🔄 SectionsTab: Fetching sections...');
-        _refreshDataProviders(targetProfile);
-        if (targetProfile.enrolledSubjects.isNotEmpty) {
-          _loadSectionsForUser(targetProfile);
-        }
-      } else if (hasSections) {
-        print(
-          '✅ SectionsTab: Reusing cached sections (${sectionsState.sections.length} total) - Zero reads',
-        );
-      }
-
-      _hasInitialized = true;
-    }
   }
 
   @override
-  void didUpdateWidget(SectionsTab oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // Refresh when widget updates
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _initializeSections();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Reload sections if we were navigated away and back
+    // This ensures we show the logged-in user's sections after viewing another profile
+    if (_hasInitialized && mounted) {
+      final sectionsState = ref.read(sectionsProvider);
+      final userProfileState = ref.read(userProfileProvider);
+      final loggedInUser = userProfileState.loggedInUserProfile;
+
+      // Check if the current sections belong to a different user (e.g., after viewing assistant profile)
+      if (loggedInUser != null &&
+          sectionsState.currentUserId != null &&
+          sectionsState.currentUserId != loggedInUser.id) {
+        print(
+          '🔄 [SectionsTab] Detected sections mismatch, reloading for logged-in user',
+        );
+        _loadSectionsSnapshot();
       }
-    });
-  }
-
-  UserProfile? _getTargetProfile(
-    UserProfile? userProfile,
-    UserProfile? loggedInUser,
-  ) {
-    // If we're viewing someone else's profile, show their sections
-    if (userProfile != null &&
-        loggedInUser != null &&
-        userProfile.id != loggedInUser.id) {
-      return userProfile;
     }
-
-    // Otherwise, show logged-in user's sections
-    return loggedInUser;
   }
 
-  // Helper method to compare lists (like subjects_tab.dart)
-  bool _listsEqual(List<String>? list1, List<String> list2) {
-    if (list1 == null) return false;
-    if (list1.length != list2.length) return false;
+  /// Load sections snapshot for logged-in user
+  /// Uses cache-first approach (zero Firestore reads if cache valid)
+  void _loadSectionsSnapshot() async {
+    final userProfileState = ref.read(userProfileProvider);
+    final loggedInUser = userProfileState.loggedInUserProfile;
 
-    final set1 = list1.toSet();
-    final set2 = list2.toSet();
-
-    return set1.containsAll(set2) && set2.containsAll(set1);
-  }
-
-  // Helper method to compare maps
-  bool _mapsEqual(Map<String, String>? map1, Map<String, String> map2) {
-    if (map1 == null) return false;
-    if (map1.length != map2.length) return false;
-
-    for (final key in map1.keys) {
-      if (map1[key] != map2[key]) return false;
-    }
-    return true;
-  }
-
-  void _loadSectionsForUser(UserProfile userProfile) {
-    final sectionsState = ref.read(sectionsProvider);
-
-    // Prevent multiple simultaneous loading calls
-    if (sectionsState.isLoading) {
-      print('⏳ SectionsTab: Already loading, skipping...');
+    if (loggedInUser == null) {
+      print('⚠️ [SectionsTab] No logged-in user found');
       return;
     }
 
-    if (userProfile.enrolledSubjects.isNotEmpty) {
-      // Check if we already have sections for these subjects in cache/state
-      final hasRelevantData = sectionsState.sections.any(
-        (s) => userProfile.enrolledSubjects.contains(s.subjectId),
-      );
+    print('📊 [SectionsTab] Loading sections snapshot');
+    print('   User: ${loggedInUser.name} (${loggedInUser.id})');
+    print('   Enrolled subjects: ${loggedInUser.enrolledSubjects}');
 
-      if (hasRelevantData) {
-        // We have data, just filter it locally
-        print(
-          '✅ SectionsTab: Using cached sections (${sectionsState.sections.length} total) - Zero server reads',
-        );
-      } else {
-        // No relevant data, fetch from server (provider will check cache first)
-        print('📦 SectionsTab: Fetching sections for subjects...');
-        ref
-            .read(sectionsProvider.notifier)
-            .fetchSectionsForUserSubjects(userProfile.enrolledSubjects)
-            .catchError((error) {
-              print('❌ SectionsTab: Fetch error - $error');
-            });
-      }
-    } else {
-      // No enrolled subjects
-      ref.read(sectionsProvider.notifier).resetFilter();
+    // Load subjects first (needed for display)
+    ref.read(subjectsProvider.notifier).fetchAndFilterSubjects(loggedInUser);
+
+    // Load sections snapshot (cache-first)
+    await ref
+        .read(sectionsProvider.notifier)
+        .loadSectionsForUser(loggedInUser.id, loggedInUser.enrolledSubjects);
+
+    if (mounted) {
+      setState(() {
+        _hasInitialized = true;
+      });
     }
   }
 
-  void _refreshDataProviders(UserProfile targetProfile) {
-    try {
-      // Only refresh subjects provider here
-      // Sections will be loaded by _loadSectionsForUser() to avoid duplicate fetches
-      ref.read(subjectsProvider.notifier).fetchAndFilterSubjects(targetProfile);
-    } catch (e) {
-      print('❌ SectionsTab: Error refreshing data providers - $e');
+  /// Refresh sections snapshot from Firestore
+  Future<void> _refreshSectionsSnapshot() async {
+    final userProfileState = ref.read(userProfileProvider);
+    final loggedInUser = userProfileState.loggedInUserProfile;
+
+    if (loggedInUser == null) {
+      print('⚠️ [SectionsTab] No logged-in user found for refresh');
+      return;
     }
+
+    print('🔄 [SectionsTab] Manually refreshing sections snapshot');
+
+    // Refresh subjects
+    await ref
+        .read(subjectsProvider.notifier)
+        .fetchAndFilterSubjects(loggedInUser);
+
+    // Force refresh sections from Firestore
+    await ref
+        .read(sectionsProvider.notifier)
+        .refreshSections(loggedInUser.id, loggedInUser.enrolledSubjects);
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
     final sectionsState = ref.watch(sectionsProvider);
-    final userProfileState = ref.watch(userProfileProvider);
 
-    try {
-      // Get the correct profile to use
-      final userProfile = userProfileState.userProfile;
-      final loggedInUser = userProfileState.loggedInUserProfile;
-      final targetProfile = _getTargetProfile(userProfile, loggedInUser);
-
-      // Check if profile or enrolled subjects or preferences changed (without triggering refresh in build)
-      if (targetProfile != null && _hasInitialized) {
-        final currentProfileId = targetProfile.id;
-        final currentEnrolledSubjects = targetProfile.enrolledSubjects;
-        final currentAssistantPreferences = targetProfile.assistantPreferences;
-
-        // Only refresh if profile ID, enrolled subjects, or assistant preferences actually changed
-        if (_lastProfileId != currentProfileId ||
-            !_listsEqual(_lastEnrolledSubjects, currentEnrolledSubjects) ||
-            !_mapsEqual(
-              _lastAssistantPreferences,
-              currentAssistantPreferences,
-            )) {
-          // Update tracking variables FIRST to prevent infinite loop
-          _lastProfileId = currentProfileId;
-          _lastEnrolledSubjects = List.from(currentEnrolledSubjects);
-          _lastAssistantPreferences = Map.from(currentAssistantPreferences);
-
-          // Schedule refresh for next frame
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
-              print('🔄 SectionsTab: Profile changed, refreshing...');
-              _refreshDataProviders(targetProfile);
-              if (targetProfile.enrolledSubjects.isNotEmpty) {
-                _loadSectionsForUser(targetProfile);
-              }
-            }
-          });
-        }
-      } else if (targetProfile != null) {
-        // Initialize tracking on first build
-        _lastProfileId = targetProfile.id;
-        _lastEnrolledSubjects = List.from(targetProfile.enrolledSubjects);
-        _lastAssistantPreferences = Map.from(
-          targetProfile.assistantPreferences,
-        );
-      }
-
-      if (sectionsState.isLoading) {
-        return const Center(child: CircularProgressIndicator());
-      }
-      if (sectionsState.error != null) {
-        return Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.error_outline, size: 48, color: Colors.red.shade300),
-              SizedBox(height: 16),
-              Text(
-                'خطأ: ${sectionsState.error}',
-                style: TextStyle(fontSize: 16, color: Colors.red.shade600),
-                textAlign: TextAlign.center,
-              ),
-              SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () {
-                  if (targetProfile != null &&
-                      targetProfile.enrolledSubjects.isNotEmpty) {
-                    ref
-                        .read(sectionsProvider.notifier)
-                        .fetchSectionsForUserSubjects(
-                          targetProfile.enrolledSubjects,
-                        );
-                  }
-                },
-                child: Text('إعادة المحاولة'),
-              ),
-            ],
-          ),
-        );
-      }
-
-      // Build sections slivers - this will handle all states internally
-      final sectionSlivers = buildSectionsSlivers(context, ref);
-
-      return CustomScrollView(slivers: sectionSlivers);
-    } catch (e) {
-      return const Center(child: Text('لا يمكن تحميل الأقسام حالياً'));
+    // Show loading state during initialization
+    if (!_hasInitialized || sectionsState.isLoading) {
+      return const Center(child: CircularProgressIndicator());
     }
+
+    // Show error state
+    if (sectionsState.error != null && sectionsState.sections.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 48, color: Colors.red.shade300),
+            const SizedBox(height: 16),
+            Text(
+              'خطأ: ${sectionsState.error}',
+              style: TextStyle(fontSize: 16, color: Colors.red.shade600),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _refreshSectionsSnapshot,
+              child: const Text('إعادة المحاولة'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Build sections list with pull-to-refresh
+    return RefreshIndicator(
+      onRefresh: _refreshSectionsSnapshot,
+      child: CustomScrollView(
+        physics:
+            const AlwaysScrollableScrollPhysics(), // Enable pull-to-refresh
+        slivers: [
+          // Show offline indicator if using cached data
+          if (sectionsState.error != null)
+            SliverToBoxAdapter(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 8,
+                  horizontal: 16,
+                ),
+                color: Colors.orange.shade100,
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.cloud_off,
+                      size: 16,
+                      color: Colors.orange.shade700,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        sectionsState.error!,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.orange.shade700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          // Build sections slivers
+          ...buildSectionsSlivers(context, ref),
+        ],
+      ),
+    );
   }
 }

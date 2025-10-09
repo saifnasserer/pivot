@@ -107,7 +107,7 @@ class _WeekTasksState extends ConsumerState<WeekTasks>
       fetchFutures.add(
         ref
             .read(sectionsProvider.notifier)
-            .fetchSectionsForUserSubjects(user.enrolledSubjects),
+            .loadSectionsForUser(user.id, user.enrolledSubjects),
       );
     }
 

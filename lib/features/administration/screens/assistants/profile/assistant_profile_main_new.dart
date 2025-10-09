@@ -59,7 +59,8 @@ class _AssistantProfileMainState extends ConsumerState<AssistantProfileMain>
       profileToShow = argument['instructor'] as UserProfile?;
       targetSubject = argument['subject'] as Subject?;
     } else {
-      profileToShow = ref.watch(userProfileProvider).userProfile;
+      // Fallback: use loggedInUserProfile if no argument provided (viewing own profile)
+      profileToShow = ref.watch(userProfileProvider).loggedInUserProfile;
     }
 
     if (profileToShow != null && profileToShow.id != _previousProfileId) {
@@ -89,7 +90,7 @@ class _AssistantProfileMainState extends ConsumerState<AssistantProfileMain>
     print('Teaching subjects: ${userProfile.teachingSubjects}');
 
     // Check if this is the logged-in user's own profile
-    final loggedInUser = ref.read(userProfileProvider).userProfile;
+    final loggedInUser = ref.read(userProfileProvider).loggedInUserProfile;
     final isOwnProfile = loggedInUser?.id == userProfile.id;
     print('Is own profile: $isOwnProfile');
 
@@ -124,6 +125,11 @@ class _AssistantProfileMainState extends ConsumerState<AssistantProfileMain>
             .catchError((error) {
               print('Error in fetchAndFilterSubjects: $error');
             });
+
+        // Load sections for this assistant (this sets currentUserId to assistant's ID)
+        ref
+            .read(sectionsProvider.notifier)
+            .loadSectionsForAssistant(profileToUse.id);
       } catch (e) {
         print('Provider access error: $e');
       }
@@ -141,7 +147,7 @@ class _AssistantProfileMainState extends ConsumerState<AssistantProfileMain>
   }
 
   List<Widget> _getCategoryContentSlivers(BuildContext context) {
-    final loggedInUser = ref.watch(userProfileProvider).userProfile;
+    final loggedInUser = ref.watch(userProfileProvider).loggedInUserProfile;
     final isOwnProfile = loggedInUser?.id == _displayedProfile?.id;
     final userProfile = _displayedProfile;
 
@@ -202,7 +208,7 @@ class _AssistantProfileMainState extends ConsumerState<AssistantProfileMain>
   }
 
   bool _shouldShowAddSectionButton() {
-    final loggedInUser = ref.read(userProfileProvider).userProfile;
+    final loggedInUser = ref.read(userProfileProvider).loggedInUserProfile;
 
     if (loggedInUser == null) return false;
 
@@ -290,7 +296,7 @@ class _AssistantProfileMainState extends ConsumerState<AssistantProfileMain>
       // Reload sections for the assistant
       await ref
           .read(sectionsProvider.notifier)
-          .fetchSectionsForAssistant(userProfile.id);
+          .loadSectionsForAssistant(userProfile.id);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -307,16 +313,30 @@ class _AssistantProfileMainState extends ConsumerState<AssistantProfileMain>
     }
   }
 
-  void _onBackPressed() {
-    // Restore logged-in user profile when navigating back
-    ref.read(userProfileProvider.notifier).restoreLoggedInUserProfile();
-    Navigator.pop(context);
+  void _onBackPressed() async {
+    // When navigating back, reload the logged-in user's sections
+    // This ensures sections_tab shows the correct data for the logged-in user
+    final loggedInUser = ref.read(userProfileProvider).loggedInUserProfile;
+    if (loggedInUser != null) {
+      // Reload sections for the logged-in user (sets currentUserId back to logged-in user's ID)
+      await ref
+          .read(sectionsProvider.notifier)
+          .loadSectionsForUser(loggedInUser.id, loggedInUser.enrolledSubjects);
+
+      // Load the logged-in user's profile as the viewed profile
+      await ref
+          .read(userProfileProvider.notifier)
+          .loadUserProfile(loggedInUser.id);
+    }
+    if (mounted) {
+      Navigator.pop(context);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final userProfile = _displayedProfile;
-    final loggedInUser = ref.watch(userProfileProvider).userProfile;
+    final loggedInUser = ref.watch(userProfileProvider).loggedInUserProfile;
     final isOwnProfile = loggedInUser?.id == userProfile?.id;
 
     if (userProfile == null) {
@@ -330,14 +350,27 @@ class _AssistantProfileMainState extends ConsumerState<AssistantProfileMain>
       canPop: false,
       onPopInvoked: (didPop) async {
         if (!didPop) {
-          // Restore profile BEFORE popping
-          print(
-            'Navigating back from assistant profile, restoring logged-in user profile',
-          );
-          ref.read(userProfileProvider.notifier).restoreLoggedInUserProfile();
+          // When navigating back, reload the logged-in user's sections and profile
+          print('Navigating back from assistant profile');
+          final loggedInUser =
+              ref.read(userProfileProvider).loggedInUserProfile;
+          if (loggedInUser != null) {
+            // Reload sections for the logged-in user first (sets currentUserId back)
+            await ref
+                .read(sectionsProvider.notifier)
+                .loadSectionsForUser(
+                  loggedInUser.id,
+                  loggedInUser.enrolledSubjects,
+                );
 
-          // Now pop after restoration
-          Navigator.of(context).pop();
+            // Then load the logged-in user's profile as the viewed profile
+            await ref
+                .read(userProfileProvider.notifier)
+                .loadUserProfile(loggedInUser.id);
+          }
+          if (mounted) {
+            Navigator.of(context).pop();
+          }
         }
       },
       child: Scaffold(

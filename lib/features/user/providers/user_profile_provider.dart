@@ -13,12 +13,19 @@ final userProfileRepositoryProvider = Provider<UserProfileRepository>((ref) {
 });
 
 class UserProfileState {
-  final UserProfile? userProfile; // The profile being viewed
-  final UserProfile? loggedInUserProfile; // Currently authenticated user
+  /// The profile currently being viewed (changes dynamically when navigating between profiles)
+  /// When viewing own profile: userProfile.id == loggedInUserProfile.id (but separate instances)
+  /// When viewing another user: userProfile.id != loggedInUserProfile.id
+  final UserProfile? userProfile;
+
+  /// The authenticated user who is currently logged in (constant during the session)
+  /// This should NEVER change when viewing other profiles, only when user logs in/out or updates their own data
+  final UserProfile? loggedInUserProfile;
+
   final List<UserProfile> allUsers;
   final bool isLoading;
   final bool isAuthenticating;
-  final bool isOffline; // NEW: Indicates if using cached data in offline mode
+  final bool isOffline; // Indicates if using cached data in offline mode
   final String? error;
   final Map<String, UserProfile> userProfilesCache;
 
@@ -85,10 +92,14 @@ class UserProfileNotifier extends StateNotifier<UserProfileState> {
     }
   }
 
+  /// Load a user profile for viewing
+  /// This method should be called when navigating to any profile (including own profile)
+  /// It keeps loggedInUserProfile constant and only updates userProfile
   Future<void> loadUserProfile(String userId) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final profile = await _repo.getUserProfile(userId);
+      // Always set userProfile as a separate instance, never share reference with loggedInUserProfile
       state = state.copyWith(isLoading: false, userProfile: profile);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
@@ -125,11 +136,19 @@ class UserProfileNotifier extends StateNotifier<UserProfileState> {
       print('👤 [UserProfile] Updating enrolled subjects: $subjectIds');
       await _repo.updateEnrolledSubjects(subjectIds);
       print('👤 [UserProfile] Successfully updated in Firestore');
-      // Reload profile to get updated data
+
+      // Reload logged-in user profile to get updated data
       if (mounted) {
-        print('👤 [UserProfile] Reloading profile...');
+        print('👤 [UserProfile] Reloading logged-in user profile...');
         await loadLoggedInUserProfile();
-        print('👤 [UserProfile] Profile reloaded');
+        print('👤 [UserProfile] Logged-in user profile reloaded');
+
+        // If viewing own profile, also reload the viewed profile
+        if (isViewingOwnProfile && state.loggedInUserProfile != null) {
+          print('👤 [UserProfile] Reloading viewed profile (own profile)...');
+          await loadUserProfile(state.loggedInUserProfile!.id);
+          print('👤 [UserProfile] Viewed profile reloaded');
+        }
       } else {
         print('⚠️ [UserProfile] Not mounted after update');
       }
@@ -144,9 +163,15 @@ class UserProfileNotifier extends StateNotifier<UserProfileState> {
   Future<void> updateTeachingSubjects(List<String> subjectIds) async {
     try {
       await _repo.updateTeachingSubjects(subjectIds);
-      // Reload profile to get updated data
+
+      // Reload logged-in user profile to get updated data
       if (mounted) {
         await loadLoggedInUserProfile();
+
+        // If viewing own profile, also reload the viewed profile
+        if (isViewingOwnProfile && state.loggedInUserProfile != null) {
+          await loadUserProfile(state.loggedInUserProfile!.id);
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -224,6 +249,13 @@ class UserProfileNotifier extends StateNotifier<UserProfileState> {
           profileImageUrl: imageUrl,
         );
         state = state.copyWith(loggedInUserProfile: updatedProfile);
+
+        // Also update userProfile if viewing own profile
+        if (state.userProfile?.id == state.loggedInUserProfile!.id) {
+          state = state.copyWith(
+            userProfile: updatedProfile.copyWith(profileImageUrl: imageUrl),
+          );
+        }
       }
     } catch (e) {
       state = state.copyWith(error: e.toString());
@@ -370,8 +402,14 @@ class UserProfileNotifier extends StateNotifier<UserProfileState> {
   ) async {
     try {
       await _repo.updateAssistantPreferences(preferences);
-      // Reload logged in user profile to get updated preferences
+
+      // Reload logged-in user profile to get updated preferences
       await loadLoggedInUserProfile();
+
+      // If viewing own profile, also reload the viewed profile
+      if (isViewingOwnProfile && state.loggedInUserProfile != null) {
+        await loadUserProfile(state.loggedInUserProfile!.id);
+      }
     } catch (e) {
       state = state.copyWith(error: e.toString());
     }
@@ -396,11 +434,20 @@ class UserProfileNotifier extends StateNotifier<UserProfileState> {
     }
   }
 
-  /// Restore logged-in user profile as the currently viewed profile
-  /// Used when navigating back from viewing another user's profile
-  void restoreLoggedInUserProfile() {
+  /// Load logged-in user's profile for viewing (e.g., when opening own profile)
+  /// This creates a separate copy to avoid shared references between loggedInUserProfile and userProfile
+  Future<void> viewOwnProfile() async {
     if (state.loggedInUserProfile != null) {
-      state = state.copyWith(userProfile: state.loggedInUserProfile);
+      // Load the logged-in user's profile fresh from the repository
+      // This ensures userProfile is a separate instance from loggedInUserProfile
+      await loadUserProfile(state.loggedInUserProfile!.id);
     }
+  }
+
+  /// Helper method to check if currently viewing own profile
+  bool get isViewingOwnProfile {
+    return state.loggedInUserProfile != null &&
+        state.userProfile != null &&
+        state.loggedInUserProfile!.id == state.userProfile!.id;
   }
 }

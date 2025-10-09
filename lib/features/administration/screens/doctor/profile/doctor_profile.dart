@@ -72,7 +72,8 @@ class _DoctorProfileState extends ConsumerState<DoctorProfile>
       profileToShow = argument['instructor'] as UserProfile?;
       targetSubject = argument['subject'] as Subject?;
     } else {
-      profileToShow = ref.watch(userProfileProvider).userProfile;
+      // Fallback: use loggedInUserProfile if no argument provided (viewing own profile)
+      profileToShow = ref.watch(userProfileProvider).loggedInUserProfile;
     }
 
     if (profileToShow != null) {
@@ -108,7 +109,7 @@ class _DoctorProfileState extends ConsumerState<DoctorProfile>
     print('Teaching subjects: ${userProfile.teachingSubjects}');
 
     // Check if this is the logged-in user's own profile
-    final loggedInUser = ref.read(userProfileProvider).userProfile;
+    final loggedInUser = ref.read(userProfileProvider).loggedInUserProfile;
     final isOwnProfile = loggedInUser?.id == userProfile.id;
     print('Is own profile: $isOwnProfile');
     print('Logged in user ID: ${loggedInUser?.id}');
@@ -169,7 +170,8 @@ class _DoctorProfileState extends ConsumerState<DoctorProfile>
       } else if (argument is Map<String, dynamic>) {
         profileFromArgs = argument['instructor'] as UserProfile?;
       } else {
-        profileFromArgs = ref.read(userProfileProvider).userProfile;
+        // Fallback to loggedInUserProfile if no argument
+        profileFromArgs = ref.read(userProfileProvider).loggedInUserProfile;
       }
 
       if (profileFromArgs != null) {
@@ -188,7 +190,13 @@ class _DoctorProfileState extends ConsumerState<DoctorProfile>
         '🔄 [DoctorProfile] Refreshing profile data for ID: $profileIdToRefresh',
       );
 
-      // Fetch fresh profile data from Firestore
+      // IMPORTANT: Load the profile in the provider's userProfile
+      // This ensures the provider knows which profile is being viewed
+      await ref
+          .read(userProfileProvider.notifier)
+          .loadUserProfile(profileIdToRefresh);
+
+      // Fetch fresh profile data from Firestore for local display
       final freshProfile = await ref
           .read(userProfileProvider.notifier)
           .getUserProfileById(profileIdToRefresh);
@@ -296,7 +304,7 @@ class _DoctorProfileState extends ConsumerState<DoctorProfile>
   }
 
   List<Widget> _getCategoryContentSlivers(BuildContext context) {
-    final loggedInUser = ref.watch(userProfileProvider).userProfile;
+    final loggedInUser = ref.watch(userProfileProvider).loggedInUserProfile;
     final isOwnProfile = loggedInUser?.id == _displayedProfile?.id;
     final userProfile = _displayedProfile;
 
@@ -374,7 +382,7 @@ class _DoctorProfileState extends ConsumerState<DoctorProfile>
   }
 
   bool _shouldShowAddLectureButton() {
-    final loggedInUser = ref.watch(userProfileProvider).userProfile;
+    final loggedInUser = ref.watch(userProfileProvider).loggedInUserProfile;
 
     if (loggedInUser == null) return false;
 
@@ -420,16 +428,24 @@ class _DoctorProfileState extends ConsumerState<DoctorProfile>
     }
   }
 
-  void _onBackPressed() {
-    // Restore logged-in user profile when navigating back
-    ref.read(userProfileProvider.notifier).restoreLoggedInUserProfile();
-    Navigator.pop(context);
+  void _onBackPressed() async {
+    // When navigating back, load the logged-in user's profile as the viewed profile
+    // This ensures sections_tab and other components show the correct data
+    final loggedInUser = ref.read(userProfileProvider).loggedInUserProfile;
+    if (loggedInUser != null) {
+      await ref
+          .read(userProfileProvider.notifier)
+          .loadUserProfile(loggedInUser.id);
+    }
+    if (mounted) {
+      Navigator.pop(context);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final userProfile = _displayedProfile;
-    final loggedInUser = ref.watch(userProfileProvider).userProfile;
+    final loggedInUser = ref.watch(userProfileProvider).loggedInUserProfile;
     final isOwnProfile = loggedInUser?.id == userProfile?.id;
 
     if (userProfile == null) {
@@ -445,14 +461,18 @@ class _DoctorProfileState extends ConsumerState<DoctorProfile>
       canPop: false,
       onPopInvoked: (didPop) async {
         if (!didPop) {
-          // Restore profile BEFORE popping
-          print(
-            'Navigating back from doctor profile, restoring logged-in user profile',
-          );
-          ref.read(userProfileProvider.notifier).restoreLoggedInUserProfile();
-
-          // Now pop after restoration
-          Navigator.of(context).pop();
+          // When navigating back, load the logged-in user's profile as the viewed profile
+          print('Navigating back from doctor profile');
+          final loggedInUser =
+              ref.read(userProfileProvider).loggedInUserProfile;
+          if (loggedInUser != null) {
+            await ref
+                .read(userProfileProvider.notifier)
+                .loadUserProfile(loggedInUser.id);
+          }
+          if (mounted) {
+            Navigator.of(context).pop();
+          }
         }
       },
       child: Scaffold(

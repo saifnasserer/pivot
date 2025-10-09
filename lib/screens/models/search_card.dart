@@ -5,7 +5,6 @@ import 'package:pivot/services/auth_service.dart';
 import 'package:pivot/services/cache_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 
 class UserSearchCard extends StatelessWidget {
@@ -142,10 +141,8 @@ void showUserSearchModal(BuildContext context, WidgetRef ref) {
     builder: (context) {
       return _UserSearchModalContent();
     },
-  ).then((_) {
-    // Restore logged-in user profile when modal is dismissed
-    ref.read(userProfileProvider.notifier).restoreLoggedInUserProfile();
-  });
+  );
+  // No need to restore profile - loggedInUserProfile remains constant
 }
 
 class _UserSearchModalContent extends StatefulWidget {
@@ -195,22 +192,14 @@ class _UserSearchModalContentState extends State<_UserSearchModalContent> {
       print('🔍 SearchCard: Got ${serverUsers.length} users from server');
 
       final filteredServerUsers =
-          serverUsers
-              .where(
-                (u) {
-                  final role = u.role.trim().toLowerCase();
-                  final matches =
-                      [
-                        'professor',
-                        'miniprofessor',
-                      ].contains(role);
-                  if (matches) {
-                    print('  ✓ Including ${u.name} (${u.role})');
-                  }
-                  return matches;
-                },
-              )
-              .toList();
+          serverUsers.where((u) {
+            final role = u.role.trim().toLowerCase();
+            final matches = ['professor', 'miniprofessor'].contains(role);
+            if (matches) {
+              print('  ✓ Including ${u.name} (${u.role})');
+            }
+            return matches;
+          }).toList();
 
       print(
         '🔍 SearchCard: Filtered to ${filteredServerUsers.length} professors/assistants',
@@ -224,7 +213,9 @@ class _UserSearchModalContentState extends State<_UserSearchModalContent> {
           _isLoading = false;
         });
         await CacheService.instance.cacheUsers(serverUsers);
-        print('✅ SearchCard: UI updated with ${filteredServerUsers.length} users');
+        print(
+          '✅ SearchCard: UI updated with ${filteredServerUsers.length} users',
+        );
       }
 
       // Load from cache for future use

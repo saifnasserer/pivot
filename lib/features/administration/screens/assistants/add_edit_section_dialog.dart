@@ -335,49 +335,47 @@ class _AddEditSectionDialogState extends ConsumerState<AddEditSectionDialog> {
                 children: [
                   Expanded(
                     flex: 2,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(
-                          Responsive.space(context, size: Space.large),
-                        ),
-                        border: Border.all(color: Colors.grey[300]!),
-                      ),
-                      child: DropdownButtonFormField<String>(
-                        initialValue: _selectedType,
-                        items:
-                            ['سكشن', 'عملي'].map((String value) {
-                              return DropdownMenuItem<String>(
-                                value: value,
-                                child: Text(
-                                  value,
-                                  style: TextStyle(
-                                    fontSize: Responsive.text(
-                                      context,
-                                      size: TextSize.medium,
-                                    ),
+                    child: DropdownButtonFormField<String>(
+                      initialValue: _selectedType,
+                      items:
+                          ['سكشن', 'عملي'].map((String value) {
+                            return DropdownMenuItem<String>(
+                              value: value,
+                              child: Text(
+                                value,
+                                style: TextStyle(
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.medium,
                                   ),
                                 ),
-                              );
-                            }).toList(),
-                        onChanged: (newValue) {
-                          if (newValue != null) {
-                            setState(() {
-                              _selectedType = newValue;
-                            });
-                          }
-                        },
-                        decoration: InputDecoration(
-                          hintText: 'النوع',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(
-                              Responsive.space(context, size: Space.large),
-                            ),
-                            borderSide: BorderSide(color: Color(0xFFF7F7F7)),
+                              ),
+                            );
+                          }).toList(),
+                      onChanged: (newValue) {
+                        if (newValue != null) {
+                          setState(() {
+                            _selectedType = newValue;
+                          });
+                        }
+                      },
+                      decoration: InputDecoration(
+                        hintText: 'النوع',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(
+                            Responsive.space(context, size: Space.large),
                           ),
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(
+                            Responsive.space(context, size: Space.large),
                           ),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
                         ),
                       ),
                     ),
@@ -385,39 +383,35 @@ class _AddEditSectionDialogState extends ConsumerState<AddEditSectionDialog> {
                   SizedBox(width: Responsive.space(context, size: Space.small)),
                   Expanded(
                     flex: 3,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(
-                          Responsive.space(context, size: Space.large),
-                        ),
-                        border: Border.all(color: Colors.grey[300]!),
-                      ),
-                      child: TextFormField(
-                        controller: _sectionNumberController,
-                        decoration: InputDecoration(
-                          hintText: 'الرقم',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(
-                              Responsive.space(context, size: Space.large),
-                            ),
-                            borderSide: BorderSide(color: Color(0xFFF7F7F7)),
+                    child: TextFormField(
+                      controller: _sectionNumberController,
+                      decoration: InputDecoration(
+                        hintText: 'الرقم',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(
+                            Responsive.space(context, size: Space.large),
                           ),
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
                         ),
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                        ],
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'مطلوب';
-                          }
-                          return null;
-                        },
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(
+                            Responsive.space(context, size: Space.large),
+                          ),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                       ),
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'مطلوب';
+                        }
+                        return null;
+                      },
                     ),
                   ),
                 ],

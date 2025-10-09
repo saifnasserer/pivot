@@ -89,9 +89,17 @@ class _EnhancedSectionListItemState
     // Get the preferred section to display based on user's assistant preference
     Section? displaySection;
 
+    print('🎯 [EnhancedSectionItem] Subject: ${widget.subject.name}');
+    print('   Available sections: ${widget.sections.length}');
+    for (var s in widget.sections) {
+      print('   - ${s.name} (Assistant: ${s.assistantId})');
+    }
+
     if (widget.sections.isNotEmpty) {
       final preferredAssistantId =
           currentUser?.assistantPreferences[widget.subject.id];
+
+      print('   User preferred assistant: $preferredAssistantId');
 
       // If user has a preferred assistant, find their section
       if (preferredAssistantId != null) {
@@ -99,9 +107,15 @@ class _EnhancedSectionListItemState
           (section) => section.assistantId == preferredAssistantId,
           orElse: () => widget.sections.first,
         );
+        print(
+          '   → Selected section: ${displaySection.name} (matched preference)',
+        );
       } else {
         // No preference set, use first section
         displaySection = widget.sections.first;
+        print(
+          '   → Selected section: ${displaySection.name} (no preference, using first)',
+        );
       }
     }
 

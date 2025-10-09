@@ -8,261 +8,166 @@ final sectionServiceProvider = Provider<SectionService>((ref) {
   return SectionService();
 });
 
-// State class
+// Simplified State class for snapshot-based approach
 class SectionsState {
-  final List<Section> sections;
+  final List<Section> sections; // Current sections snapshot
   final bool isLoading;
   final String? error;
-  final String? currentAssistantId;
-  final List<String> currentSubjectIds;
+  final String? currentUserId; // Track which user's sections are loaded
 
   const SectionsState({
     this.sections = const [],
     this.isLoading = false,
     this.error,
-    this.currentAssistantId,
-    this.currentSubjectIds = const [],
+    this.currentUserId,
   });
 
   SectionsState copyWith({
     List<Section>? sections,
     bool? isLoading,
     String? error,
-    String? currentAssistantId,
-    List<String>? currentSubjectIds,
+    String? currentUserId,
   }) {
     return SectionsState(
       sections: sections ?? this.sections,
       isLoading: isLoading ?? this.isLoading,
       error: error,
-      currentAssistantId: currentAssistantId ?? this.currentAssistantId,
-      currentSubjectIds: currentSubjectIds ?? this.currentSubjectIds,
+      currentUserId: currentUserId ?? this.currentUserId,
     );
   }
 }
 
-// Notifier
+// Simplified Notifier - Snapshot-based approach
 class SectionsNotifier extends StateNotifier<SectionsState> {
   final SectionService _sectionService;
 
-  SectionsNotifier(this._sectionService) : super(const SectionsState()) {
-    // Load from cache on startup (local-first approach)
-    _loadFromCacheOnly();
-  }
+  SectionsNotifier(this._sectionService) : super(const SectionsState());
 
-  // Load ONLY from cache (no server fetch) - private method for initialization
-  void _loadFromCacheOnly() {
-    try {
+  /// Load sections for a user (snapshot approach)
+  /// 1. Check Hive cache first
+  /// 2. If cache exists: use it immediately (zero Firestore reads)
+  /// 3. If cache empty: fetch from Firestore and cache
+  Future<void> loadSectionsForUser(
+    String userId,
+    List<String> subjectIds, {
+    bool forceRefresh = false,
+  }) async {
+    print('📊 [SectionsProvider] loadSectionsForUser called');
+    print('   User ID: $userId');
+    print('   Subject IDs: $subjectIds');
+    print('   Force Refresh: $forceRefresh');
+
+    if (subjectIds.isEmpty) {
+      print('   ⚠️ No enrolled subjects, clearing sections');
+      state = state.copyWith(
+        sections: [],
+        currentUserId: userId,
+        isLoading: false,
+      );
+      return;
+    }
+
+    // Step 1: Try cache first (unless force refresh)
+    if (!forceRefresh) {
       final cachedSections = CacheService.instance.getCachedSections();
-      if (cachedSections.isEmpty) {
-        print('📦 SectionsProvider: No cached sections found');
+
+      if (cachedSections.isNotEmpty) {
+        // Filter by enrolled subjects
+        final filteredSections =
+            cachedSections
+                .where((s) => subjectIds.contains(s.subjectId))
+                .toList();
+
+        print(
+          '   ✅ Using cached sections (${filteredSections.length} sections) - Zero Firestore reads',
+        );
+
+        state = state.copyWith(
+          sections: filteredSections,
+          currentUserId: userId,
+          isLoading: false,
+        );
         return;
       }
-
-      print(
-        '✅ SectionsProvider: Loaded ${cachedSections.length} sections from cache - Zero server reads',
-      );
-      state = state.copyWith(sections: cachedSections, isLoading: false);
-    } catch (e) {
-      print('❌ SectionsProvider: Error loading from cache - $e');
-    }
-  }
-
-  // Reload from cache (useful when app resumes)
-  void reloadFromCache() {
-    _loadFromCacheOnly();
-  }
-
-  // Fetch sections for a specific assistant
-  Future<void> fetchSectionsForAssistant(String assistantId) async {
-    if (assistantId.isEmpty) {
-      state = state.copyWith(sections: [], currentAssistantId: assistantId);
-      return;
     }
 
-    state = state.copyWith(
-      isLoading: true,
-      error: null,
-      currentAssistantId: assistantId,
-    );
+    // Step 2: Fetch from Firestore
+    state = state.copyWith(isLoading: true, error: null, currentUserId: userId);
 
     try {
-      // Step 1: Load from cache first
-      final cachedSections = CacheService.instance.getCachedSections();
-      final filteredCached =
-          cachedSections.where((s) => s.assistantId == assistantId).toList();
-      if (filteredCached.isNotEmpty && mounted) {
-        state = state.copyWith(sections: filteredCached, isLoading: false);
-      }
+      print('   🔄 Fetching sections from Firestore...');
+      final sections = await _sectionService.getSectionsForSubjects(subjectIds);
 
-      // Step 2: Fetch from server in the background
-      final sections = await _sectionService.getSectionsForAssistant(
-        assistantId,
-      );
+      // Cache the results
       await CacheService.instance.cacheSections(sections);
+
+      print('   ✅ Fetched and cached ${sections.length} sections');
 
       if (mounted) {
         state = state.copyWith(sections: sections, isLoading: false);
       }
     } catch (e) {
-      if (mounted) {
-        state = state.copyWith(
-          isLoading: false,
-          error: 'Failed to fetch sections: ${e.toString()}',
-        );
-      }
-    }
-  }
+      print('   ❌ Error fetching sections: $e');
 
-  // Fetch sections for subjects (for backward compatibility and student views)
-  Future<void> fetchSectionsForUserSubjects(List<String> subjectIds) async {
-    if (subjectIds.isEmpty) {
-      state = state.copyWith(sections: [], currentSubjectIds: subjectIds);
-      return;
-    }
-
-    // Store the current subject IDs
-    state = state.copyWith(currentSubjectIds: subjectIds);
-
-    try {
-      // Step 1: Load from cache first (local-first approach)
+      // Fallback to cache if available
       final cachedSections = CacheService.instance.getCachedSections();
-      final filteredCached =
-          cachedSections
-              .where((s) => subjectIds.contains(s.subjectId))
-              .toList();
+      if (cachedSections.isNotEmpty) {
+        print('   💡 Using cached sections as fallback');
+        final filteredSections =
+            cachedSections
+                .where((s) => subjectIds.contains(s.subjectId))
+                .toList();
 
-      if (filteredCached.isNotEmpty) {
-        // Use cached data immediately
-        print(
-          '✅ SectionsProvider: Using cached sections for subjects (${filteredCached.length} sections) - Zero server reads',
-        );
         if (mounted) {
-          state = state.copyWith(sections: filteredCached, isLoading: false);
+          state = state.copyWith(
+            sections: filteredSections,
+            isLoading: false,
+            error: 'Using cached data (offline)',
+          );
         }
-        return; // Return early with cached data
-      }
-
-      // Step 2: Only fetch from server if cache is empty
-      print('🔄 SectionsProvider: Fetching sections from server...');
-      state = state.copyWith(isLoading: true, error: null);
-
-      final sections = await _sectionService.getSectionsForSubjects(subjectIds);
-      await CacheService.instance.cacheSections(sections);
-
-      print('💾 SectionsProvider: Cached ${sections.length} sections');
-
-      if (mounted) {
-        state = state.copyWith(sections: sections, isLoading: false);
-      }
-    } catch (e) {
-      print('❌ SectionsProvider: Error fetching sections - $e');
-      if (mounted) {
-        state = state.copyWith(
-          isLoading: false,
-          error: 'Failed to fetch sections: ${e.toString()}',
-        );
+      } else {
+        if (mounted) {
+          state = state.copyWith(
+            isLoading: false,
+            error: 'Failed to load sections: ${e.toString()}',
+          );
+        }
       }
     }
   }
 
-  // Force refresh from server (bypasses cache)
-  Future<void> forceRefreshForSubjects(List<String> subjectIds) async {
-    if (subjectIds.isEmpty) {
-      state = state.copyWith(sections: [], currentSubjectIds: subjectIds);
-      return;
-    }
-
-    state = state.copyWith(
-      isLoading: true,
-      error: null,
-      currentSubjectIds: subjectIds,
-    );
-
-    try {
-      print('🔄 SectionsProvider: Force refreshing from server...');
-      final sections = await _sectionService.getSectionsForSubjects(subjectIds);
-      await CacheService.instance.cacheSections(sections);
-
-      print(
-        '💾 SectionsProvider: Updated cache with ${sections.length} sections',
-      );
-
-      if (mounted) {
-        state = state.copyWith(sections: sections, isLoading: false);
-      }
-    } catch (e) {
-      print('❌ SectionsProvider: Error force refreshing - $e');
-      if (mounted) {
-        state = state.copyWith(
-          isLoading: false,
-          error: 'Failed to fetch sections: ${e.toString()}',
-        );
-      }
-    }
+  /// Force refresh sections from Firestore
+  Future<void> refreshSections(String userId, List<String> subjectIds) async {
+    print('🔄 [SectionsProvider] Force refresh sections');
+    await loadSectionsForUser(userId, subjectIds, forceRefresh: true);
   }
 
-  // Get all sections
-  Future<void> getAllSections() async {
-    state = state.copyWith(isLoading: true, error: null);
-
-    try {
-      final sections = await _sectionService.getAllSections();
-      await CacheService.instance.cacheSections(sections);
-
-      if (mounted) {
-        state = state.copyWith(sections: sections, isLoading: false);
-      }
-    } catch (e) {
-      if (mounted) {
-        state = state.copyWith(
-          isLoading: false,
-          error: 'Failed to fetch sections: ${e.toString()}',
-        );
-      }
-    }
+  /// Clear sections cache
+  Future<void> clearSectionsCache() async {
+    await CacheService.instance.clearSectionsCache();
+    state = state.copyWith(sections: []);
   }
 
-  // Add section
-  Future<void> addSection(Section section) async {
-    try {
-      print('SectionsProvider: Adding section...');
-      print('Current assistant ID: ${state.currentAssistantId}');
-      print('Current subject IDs: ${state.currentSubjectIds}');
+  // ===== ADMIN OPERATIONS (for assistants managing sections) =====
 
+  /// Add section (admin operation)
+  Future<void> addSection(Section section, {String? loggedInUserId}) async {
+    try {
+      print('📝 [SectionsProvider] Adding section...');
       final newSection = await _sectionService.addSection(section);
 
-      if (!mounted) {
-        print('SectionsProvider: Not mounted, returning early');
-        return;
-      }
+      if (!mounted) return;
 
-      // Always refresh the list and update cache after adding a section
-      if (state.currentAssistantId != null) {
-        // If we're viewing an assistant's sections, refresh that assistant's sections
-        print(
-          'SectionsProvider: Refreshing sections for assistant ${state.currentAssistantId}',
-        );
-        await fetchSectionsForAssistant(state.currentAssistantId!);
-      } else if (state.currentSubjectIds.isNotEmpty) {
-        // If we're viewing sections by subject, refresh those
-        print(
-          'SectionsProvider: Refreshing sections for subjects ${state.currentSubjectIds}',
-        );
-        await fetchSectionsForUserSubjects(state.currentSubjectIds);
-      } else {
-        // Otherwise, just add the new section to the current list and update cache
-        print('SectionsProvider: Adding section to current list');
-        final updatedSections = [...state.sections, newSection];
-        await CacheService.instance.cacheSections(updatedSections);
-        if (mounted) {
-          state = state.copyWith(sections: updatedSections);
-        }
-      }
+      // Update local state
+      final updatedSections = [...state.sections, newSection];
+      state = state.copyWith(sections: updatedSections);
 
-      print('SectionsProvider: Section added successfully!');
+      // Update cache
+      await CacheService.instance.cacheSections(updatedSections);
+
+      print('   ✅ Section added successfully');
     } catch (e) {
-      print('SectionsProvider: Error adding section: $e');
+      print('   ❌ Error adding section: $e');
       if (mounted) {
         state = state.copyWith(error: 'Failed to add section: ${e.toString()}');
       }
@@ -270,72 +175,116 @@ class SectionsNotifier extends StateNotifier<SectionsState> {
     }
   }
 
-  // Update section
+  /// Update section (admin operation)
   Future<void> updateSection(Section section) async {
-    state = state.copyWith(isLoading: true, error: null);
-
     try {
+      print('📝 [SectionsProvider] Updating section...');
       await _sectionService.updateSection(section);
 
       if (!mounted) return;
 
-      // Refresh based on current filter
-      if (state.currentSubjectIds.isNotEmpty) {
-        await fetchSectionsForUserSubjects(state.currentSubjectIds);
-      } else if (state.currentAssistantId != null) {
-        await fetchSectionsForAssistant(state.currentAssistantId!);
-      } else {
-        await getAllSections();
-      }
+      // Update local state
+      final updatedSections =
+          state.sections.map((s) {
+            return s.id == section.id ? section : s;
+          }).toList();
+
+      state = state.copyWith(sections: updatedSections);
+
+      // Update cache
+      await CacheService.instance.cacheSections(updatedSections);
+
+      print('   ✅ Section updated successfully');
     } catch (e) {
+      print('   ❌ Error updating section: $e');
       if (mounted) {
         state = state.copyWith(
-          isLoading: false,
           error: 'Failed to update section: ${e.toString()}',
         );
       }
+      rethrow;
     }
   }
 
-  // Delete section
+  /// Delete section (admin operation)
   Future<void> deleteSection(String sectionId) async {
-    state = state.copyWith(isLoading: true, error: null);
-
     try {
+      print('🗑️ [SectionsProvider] Deleting section...');
       await _sectionService.deleteSection(sectionId);
 
       if (!mounted) return;
 
-      // Refresh based on current filter
-      if (state.currentSubjectIds.isNotEmpty) {
-        await fetchSectionsForUserSubjects(state.currentSubjectIds);
-      } else if (state.currentAssistantId != null) {
-        await fetchSectionsForAssistant(state.currentAssistantId!);
-      } else {
-        await getAllSections();
-      }
+      // Update local state
+      final updatedSections =
+          state.sections.where((s) => s.id != sectionId).toList();
+      state = state.copyWith(sections: updatedSections);
+
+      // Update cache
+      await CacheService.instance.cacheSections(updatedSections);
+
+      print('   ✅ Section deleted successfully');
     } catch (e) {
+      print('   ❌ Error deleting section: $e');
+      if (mounted) {
+        state = state.copyWith(
+          error: 'Failed to delete section: ${e.toString()}',
+        );
+      }
+      rethrow;
+    }
+  }
+
+  // ===== ASSISTANT-SPECIFIC OPERATIONS =====
+
+  /// Fetch sections for a specific assistant (temporary view)
+  Future<void> loadSectionsForAssistant(String assistantId) async {
+    print('👤 [SectionsProvider] Loading sections for assistant: $assistantId');
+
+    if (assistantId.isEmpty) {
+      state = state.copyWith(sections: [], isLoading: false, currentUserId: null);
+      return;
+    }
+
+    state = state.copyWith(isLoading: true, error: null);
+
+    try {
+      final sections = await _sectionService.getSectionsForAssistant(
+        assistantId,
+      );
+
+      if (mounted) {
+        // Set currentUserId to the assistant ID to track that these are not the logged-in user's sections
+        state = state.copyWith(
+          sections: sections,
+          isLoading: false,
+          currentUserId: assistantId,
+        );
+      }
+
+      print('   ✅ Loaded ${sections.length} sections for assistant');
+    } catch (e) {
+      print('   ❌ Error loading assistant sections: $e');
       if (mounted) {
         state = state.copyWith(
           isLoading: false,
-          error: 'Failed to delete section: ${e.toString()}',
+          error: 'Failed to load sections: ${e.toString()}',
         );
       }
     }
   }
 
-  // Reset filter
-  void resetFilter() {
-    state = const SectionsState();
-  }
-
-  // Clear error
+  /// Clear error
   void clearError() {
     state = state.copyWith(error: null);
   }
+
+  /// Reset state
+  void reset() {
+    state = const SectionsState();
+  }
 }
 
-// Provider - Using persistent provider for better caching
+// Provider - Simplified snapshot-based provider
 final sectionsProvider = StateNotifierProvider<SectionsNotifier, SectionsState>(
   (ref) {
     final service = ref.watch(sectionServiceProvider);

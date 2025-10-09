@@ -221,13 +221,30 @@ class _AssistantSubjectsSectionState
     final subjectProvider = ref.read(SubjectProviderProvider);
     final subjects = subjectProvider.filteredSubjects;
 
+    print(
+      '🔄 [AssistantSubjectsSection] Loading sections for subject at index $index',
+    );
+    print('   Total subjects: ${subjects.length}');
+
     if (subjects.isNotEmpty && index < subjects.length) {
       final assistantId = widget.userProfile.id;
+      final subject = subjects[index];
 
-      // Use the SectionProvider to load sections for this assistant
-      await ref
-          .read(sectionsProvider.notifier)
-          .fetchSectionsForAssistant(assistantId);
+      print('   Subject: ${subject.name}');
+      print('   Assistant ID: $assistantId');
+
+      try {
+        // Use the SectionProvider to load sections for this assistant
+        await ref
+            .read(sectionsProvider.notifier)
+            .loadSectionsForAssistant(assistantId);
+
+        print('   ✅ Sections loaded successfully');
+      } catch (e) {
+        print('   ❌ Error loading sections: $e');
+      }
+    } else {
+      print('   ⚠️ Invalid index or no subjects');
     }
   }
 
@@ -238,7 +255,16 @@ class _AssistantSubjectsSectionState
             .where((section) => section.subjectId == subject.id)
             .toList();
 
+    print(
+      '🎨 [AssistantSubjectsSection] Building content for subject: ${subject.name}',
+    );
+    print('   isLoading: ${sectionsState.isLoading}');
+    print('   All sections count: ${sectionsState.sections.length}');
+    print('   Filtered sections for this subject: ${sections.length}');
+    print('   Error: ${sectionsState.error}');
+
     if (sectionsState.isLoading) {
+      print('   → Showing loading indicator');
       return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -274,6 +300,7 @@ class _AssistantSubjectsSectionState
     }
 
     if (sections.isEmpty) {
+      print('   → Showing empty state');
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -296,19 +323,31 @@ class _AssistantSubjectsSectionState
       );
     }
 
+    print('   → Showing ${sections.length} sections');
+
     return RefreshIndicator(
       onRefresh: () async {
         await _loadSectionsForSubject(_tabController.index);
       },
       child: ListView.builder(
         itemCount: sections.length,
-        itemBuilder:
-            (context, index) => SectionCard(
-              section: sections[index],
-              subjectName: subject.name,
-              isCurrentUserSection:
-                  widget.loggedInUser?.id == widget.userProfile.id,
-            ),
+        itemBuilder: (context, index) {
+          final section = sections[index];
+          // Extract section number from name (e.g., "سكاشن 1" -> "1")
+          final sectionNumberFromName = section.name.split(' ').last;
+          // Check if this section matches the logged-in user's section
+          final bool isCurrentUserSection =
+              widget.loggedInUser != null &&
+              widget.loggedInUser!.section.isNotEmpty &&
+              widget.loggedInUser!.section.toLowerCase() ==
+                  sectionNumberFromName.toLowerCase();
+
+          return SectionCard(
+            section: section,
+            subjectName: subject.name,
+            isCurrentUserSection: isCurrentUserSection,
+          );
+        },
       ),
     );
   }

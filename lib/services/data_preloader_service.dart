@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/features/tasks/providers/tasks_provider.dart';
 import 'package:pivot/features/subjects/providers/subjects_provider.dart';
 import 'package:pivot/features/administration/providers/sections_provider.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/models/user_profile.dart';
 
 /// Service to preload data for better user experience
@@ -58,7 +59,7 @@ class DataPreloaderService {
         futures.add(
           ref
               .read(sectionsProvider.notifier)
-              .fetchSectionsForUserSubjects(user.enrolledSubjects),
+              .loadSectionsForUser(user.id, user.enrolledSubjects),
         );
         print(
           '🏫 DataPreloader: Scheduling sections fetch for ${user.enrolledSubjects.length} subjects',
@@ -106,9 +107,13 @@ class DataPreloaderService {
         print(
           '🎯 DataPreloader: Preloading sections for ${subjectIds.length} subjects',
         );
-        await ref
-            .read(sectionsProvider.notifier)
-            .fetchSectionsForUserSubjects(subjectIds);
+        // Get logged-in user for sections fetch
+        final user = ref.read(userProfileProvider).loggedInUserProfile;
+        if (user != null) {
+          await ref
+              .read(sectionsProvider.notifier)
+              .loadSectionsForUser(user.id, subjectIds);
+        }
       }
     } catch (e) {
       print('❌ DataPreloader: Error preloading subject data - $e');

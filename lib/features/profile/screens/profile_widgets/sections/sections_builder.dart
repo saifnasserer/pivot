@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/models/section_model.dart';
+import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/features/administration/providers/sections_provider.dart';
 import 'package:pivot/features/subjects/providers/subjects_provider.dart';
 import 'package:pivot/features/user/providers/user_profile_provider.dart';
@@ -8,9 +9,9 @@ import 'enhanced_section_list_item.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/models/subject_model.dart';
 
-/// Enhanced sections builder with simplified logic - similar to subjects
+/// Simplified sections builder for snapshot-based approach
 class SectionsBuilder {
-  /// Builds a complete sections list with simplified approach
+  /// Builds a complete sections list with snapshot data
   static List<Widget> buildSectionsSlivers(
     BuildContext context,
     WidgetRef ref, {
@@ -20,15 +21,22 @@ class SectionsBuilder {
     final sectionsState = ref.watch(sectionsProvider);
     final subjectsState = ref.watch(subjectsProvider);
 
+    // Show loading state
     if (userProfileState.isLoading || sectionsState.isLoading) {
       return [_buildLoadingState(context)];
     }
 
     final loggedInUser = userProfileState.loggedInUserProfile;
-    final allSections = sectionsState.sections;
+    final allSections = sectionsState.sections; // Snapshot data
     final enrolledSubjects = subjectsState.filteredSubjects;
 
-    if (sectionsState.error != null) {
+    print('🔍 [SectionsBuilder] Building sections UI');
+    print('   User: ${loggedInUser?.name} (${loggedInUser?.id})');
+    print('   Total sections in snapshot: ${allSections.length}');
+    print('   Enrolled subjects: ${enrolledSubjects.length}');
+
+    // Show error state if error and no sections
+    if (sectionsState.error != null && allSections.isEmpty) {
       return [
         SliverFillRemaining(
           hasScrollBody: false,
@@ -46,18 +54,6 @@ class SectionsBuilder {
                   ),
                   textAlign: TextAlign.center,
                 ),
-                SizedBox(height: Responsive.space(context, size: Space.medium)),
-                ElevatedButton(
-                  onPressed: () {
-                    final enrolledIds = loggedInUser?.enrolledSubjects ?? [];
-                    if (enrolledIds.isNotEmpty) {
-                      ref
-                          .read(sectionsProvider.notifier)
-                          .fetchSectionsForUserSubjects(enrolledIds);
-                    }
-                  },
-                  child: Text('إعادة المحاولة'),
-                ),
               ],
             ),
           ),
@@ -69,34 +65,40 @@ class SectionsBuilder {
       return [_buildErrorState(context)];
     }
 
-    // Simplified approach: Show section cards for all enrolled subjects
     final enrolledSubjectIds = loggedInUser.enrolledSubjects.toSet();
+    print('   User enrolled subject IDs: $enrolledSubjectIds');
 
-    // Check if user has no enrolled subjects first
+    // Check if user has no enrolled subjects
     if (enrolledSubjectIds.isEmpty) {
       return [_buildEmptyState(context)];
     }
 
-    final registeredSubjects =
-        enrolledSubjects
-            .where((s) => enrolledSubjectIds.contains(s.id))
-            .toList();
+    // Filter sections by enrolled subjects
+    final userRelevantSections = allSections.where((section) {
+      return enrolledSubjectIds.contains(section.subjectId);
+    }).toList();
 
-    // If we have enrolled subjects but none found in the list, show loading
-    // This means subjects are still being fetched
+    print('   Filtered sections: ${userRelevantSections.length}');
+
+    // Filter subjects by enrolled
+    final registeredSubjects = enrolledSubjects
+        .where((s) => enrolledSubjectIds.contains(s.id))
+        .toList();
+
+    // If subjects not loaded yet, show loading
     if (registeredSubjects.isEmpty && enrolledSubjectIds.isNotEmpty) {
-      print(
-        '📂 [SectionsBuilder] Subjects not loaded yet, showing loading state',
-      );
+      print('   ⏳ Subjects not loaded yet');
       return [_buildLoadingState(context)];
     }
 
+    // Build sections list
     return [
       _buildSectionsList(
         context,
         registeredSubjects,
-        allSections,
+        userRelevantSections,
         enableAnimations,
+        loggedInUser,
       ),
     ];
   }
@@ -115,7 +117,7 @@ class SectionsBuilder {
     );
   }
 
-  /// Builds empty state with enhanced design
+  /// Builds empty state
   static Widget _buildEmptyState(BuildContext context) {
     return SliverFillRemaining(
       hasScrollBody: false,
@@ -162,12 +164,13 @@ class SectionsBuilder {
     );
   }
 
-  /// Builds sections list with simplified approach
+  /// Builds sections list
   static Widget _buildSectionsList(
     BuildContext context,
     List<Subject> subjects,
     List<Section> allSections,
     bool enableAnimations,
+    UserProfile? loggedInUser,
   ) {
     return SliverPadding(
       padding: EdgeInsets.symmetric(
@@ -175,28 +178,33 @@ class SectionsBuilder {
         vertical: Responsive.space(context, size: Space.small),
       ),
       sliver: SliverList(
-        delegate: SliverChildBuilderDelegate((context, index) {
-          final subject = subjects[index];
+        delegate: SliverChildBuilderDelegate(
+          (context, index) {
+            final subject = subjects[index];
 
-          // Find sections for this subject (if any)
-          final subjectSections =
-              allSections
-                  .where((section) => section.subjectId == subject.id)
-                  .toList();
+            // Find sections for this subject
+            final subjectSections = allSections
+                .where((section) => section.subjectId == subject.id)
+                .toList();
 
-          return AnimatedContainer(
-            duration:
-                enableAnimations
-                    ? Duration(milliseconds: 300 + (index * 50))
-                    : Duration.zero,
-            curve: Curves.easeInOut,
-            child: EnhancedSectionListItem(
-              subject: subject,
-              sections: subjectSections,
-              index: index,
-            ),
-          );
-        }, childCount: subjects.length),
+            print(
+              '   Subject: ${subject.name} → ${subjectSections.length} sections',
+            );
+
+            return AnimatedContainer(
+              duration: enableAnimations
+                  ? Duration(milliseconds: 300 + (index * 50))
+                  : Duration.zero,
+              curve: Curves.easeInOut,
+              child: EnhancedSectionListItem(
+                subject: subject,
+                sections: subjectSections,
+                index: index,
+              ),
+            );
+          },
+          childCount: subjects.length,
+        ),
       ),
     );
   }
