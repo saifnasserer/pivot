@@ -30,27 +30,48 @@ class _ScheduleTabState extends ConsumerState<ScheduleTab>
   @override
   void initState() {
     super.initState();
-    // Ensure schedule data is loaded when tab is initialized
+    // Provider loads from cache automatically on startup
+    // We just need to ensure correct day selection after data loads
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _refreshScheduleData();
+      if (mounted) {
+        final scheduleState = ref.read(scheduleProvider);
+        if (scheduleState.schedule.isNotEmpty) {
+          _ensureCorrectDaySelected();
+        }
+      }
     });
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Local-first: Only refresh if no data exists
-    // This prevents unnecessary fetches when switching tabs
-    _refreshScheduleData();
+    // The provider now loads from cache automatically on startup
+    // We only need to ensure the correct day is selected
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        final scheduleState = ref.read(scheduleProvider);
+        if (scheduleState.schedule.isNotEmpty) {
+          _ensureCorrectDaySelected();
+        } else if (scheduleState.schedule.isEmpty && !scheduleState.isLoading) {
+          // Only fetch if we have no data at all (first time)
+          print('📦 didChangeDependencies: No data, fetching from server...');
+          ref.read(scheduleProvider.notifier).fetchSchedule();
+        }
+      }
+    });
   }
 
   @override
   void didUpdateWidget(ScheduleTab oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Refresh when widget updates (e.g., after importing schedule)
+    // Just ensure correct day is selected when widget updates
+    // Data changes are handled automatically by the provider
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        _refreshScheduleData();
+        final scheduleState = ref.read(scheduleProvider);
+        if (scheduleState.schedule.isNotEmpty) {
+          _ensureCorrectDaySelected();
+        }
       }
     });
   }
@@ -58,20 +79,27 @@ class _ScheduleTabState extends ConsumerState<ScheduleTab>
   void _refreshScheduleData() {
     final scheduleState = ref.read(scheduleProvider);
 
-    // Local-first strategy: Only fetch if no data exists (first time load)
-    if (scheduleState.schedule.isEmpty && !scheduleState.isLoading) {
-      print('🔄 ScheduleTab: Fetching schedule (first load)...');
+    if (scheduleState.schedule.isNotEmpty) {
+      // We have data (from cache), use it immediately
+      print(
+        '✅ ScheduleTab: Using local schedule (${scheduleState.schedule.length} days) - Zero server reads',
+      );
+      // Ensure correct day is selected when using cached data
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _ensureCorrectDaySelected();
+        }
+      });
+    } else if (scheduleState.schedule.isEmpty && !scheduleState.isLoading) {
+      // No data in cache, need to fetch from server (first time only)
+      print(
+        '📦 ScheduleTab: No local data - Fetching from server (first time)...',
+      );
       try {
         ref.read(scheduleProvider.notifier).fetchSchedule();
       } catch (e) {
         print('❌ ScheduleTab: Fetch error - $e');
       }
-    } else if (scheduleState.schedule.isNotEmpty) {
-      print(
-        '✅ ScheduleTab: Using local schedule (${scheduleState.schedule.length} days) - Zero reads',
-      );
-      // Auto-select today if available
-      _autoSelectTodayIfAvailable();
     }
   }
 
@@ -96,11 +124,40 @@ class _ScheduleTabState extends ConsumerState<ScheduleTab>
     }
   }
 
+  // Ensure the correct day is selected (called when app resumes or data loads)
+  void _ensureCorrectDaySelected() {
+    final scheduleState = ref.read(scheduleProvider);
+    final days = scheduleState.days;
+
+    if (days.isEmpty) return;
+
+    // Check if current selected index is valid
+    if (_selectedDayIndex < 0 || _selectedDayIndex >= days.length) {
+      // Invalid index, reset to today or first day
+      final todayIndex = ScheduleCalendarBuilder.getTodayIndex(days);
+      final targetIndex = todayIndex != -1 ? todayIndex : 0;
+
+      print(
+        '📅 ScheduleTab: Correcting invalid day index $_selectedDayIndex -> $targetIndex',
+      );
+      setState(() {
+        _selectedDayIndex = targetIndex;
+      });
+      widget.onDaySelected(targetIndex);
+    } else {
+      // Valid index, but make sure we notify the parent
+      print(
+        '📅 ScheduleTab: Day index $_selectedDayIndex is valid (${days[_selectedDayIndex]})',
+      );
+      widget.onDaySelected(_selectedDayIndex);
+    }
+  }
+
   Future<void> _refreshSchedule() async {
     print('🔄 ScheduleTab: Manual refresh...');
     try {
-      // Manual refresh: Force fetch from remote
-      await ref.read(scheduleProvider.notifier).fetchSchedule();
+      // Manual refresh: Force fetch from remote (bypasses cache)
+      await ref.read(scheduleProvider.notifier).forceRefresh();
 
       // Auto-select today after refreshing schedule data
       final scheduleState = ref.read(scheduleProvider);

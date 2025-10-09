@@ -2,17 +2,12 @@ flutter_native_splash:
   # Background color
   color: "#ffffff"
 
-  # Image to display
+  # Image to display (centered)
   image: assets/icon.png
 
-  # Branding (optional)
-  branding: assets/icon.png
-  branding_mode: bottom
-
-  # Color for the branding image
+  # Color for dark mode
   color_dark: "#ffffff"
   image_dark: assets/icon.png
-  branding_dark: assets/icon.png
 
   # Android 12+ support
   android_12:

@@ -369,8 +369,9 @@ class _SignupPage2State extends ConsumerState<SignupPage2> {
                                           ),
                                   onChanged: (value) {
                                     if (_selectedLevel.isEmpty ||
-                                        _selectedDepartment.isEmpty)
+                                        _selectedDepartment.isEmpty) {
                                       return;
+                                    }
                                     setState(() {
                                       _selectedSection = value!;
                                     });

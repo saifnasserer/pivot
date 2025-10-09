@@ -442,14 +442,17 @@ class _DoctorProfileState extends ConsumerState<DoctorProfile>
     }
 
     return PopScope(
-      canPop: true,
-      onPopInvoked: (didPop) {
-        if (didPop) {
-          // Only restore profile when actually navigating back
+      canPop: false,
+      onPopInvoked: (didPop) async {
+        if (!didPop) {
+          // Restore profile BEFORE popping
           print(
             'Navigating back from doctor profile, restoring logged-in user profile',
           );
           ref.read(userProfileProvider.notifier).restoreLoggedInUserProfile();
+
+          // Now pop after restoration
+          Navigator.of(context).pop();
         }
       },
       child: Scaffold(

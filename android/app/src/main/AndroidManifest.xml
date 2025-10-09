@@ -9,7 +9,10 @@
     <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
     
     <!-- Media permissions for profile pictures -->
+    <!-- For Android 13+ (API 33+) -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <!-- For Android 10-12 (API 29-32) -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     
     <!-- Notification permissions for academic reminders -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>

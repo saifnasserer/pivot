@@ -115,6 +115,8 @@ class AnnouncementsNotifier extends StateNotifier<AnnouncementsState> {
       final cachedAnnouncements = _getCachedAnnouncements(cacheKey);
       if (cachedAnnouncements.isNotEmpty) {
         // Show cached data immediately
+        if (!mounted) return;
+
         state = state.copyWith(
           announcements: cachedAnnouncements,
           isLoading: false,
@@ -140,6 +142,8 @@ class AnnouncementsNotifier extends StateNotifier<AnnouncementsState> {
     }
 
     // No cache available or force refresh - fetch from network
+    if (!mounted) return;
+
     state = state.copyWith(
       isLoading: true,
       error: null,
@@ -156,11 +160,10 @@ class AnnouncementsNotifier extends StateNotifier<AnnouncementsState> {
         startAfterDocument: null, // Fresh fetch, no pagination
       );
 
-      // Cache the results
-      _cacheAnnouncements(cacheKey, announcements);
-
       // If we got fewer announcements than the limit, there are no more
       final hasMore = announcements.length >= limit;
+
+      if (!mounted) return;
 
       state = state.copyWith(
         isLoading: false,
@@ -172,9 +175,16 @@ class AnnouncementsNotifier extends StateNotifier<AnnouncementsState> {
         isFromCache: false,
         lastFetchTime: DateTime.now(),
       );
+
+      // Cache the results after updating state
+      _cacheAnnouncements(cacheKey, announcements);
     } catch (e) {
       // If network fails, try to show cached data as fallback
+      if (!mounted) return;
+
       final cachedAnnouncements = _getCachedAnnouncements(cacheKey);
+      if (!mounted) return; // Check again after cache operation
+
       if (cachedAnnouncements.isNotEmpty) {
         state = state.copyWith(
           isLoading: false,
@@ -197,12 +207,15 @@ class AnnouncementsNotifier extends StateNotifier<AnnouncementsState> {
       return;
     }
 
+    if (!mounted) return;
     state = state.copyWith(isLoadingMore: true);
 
     try {
       final lastDoc = _repo.getLastDocument();
       if (lastDoc == null) {
-        state = state.copyWith(isLoadingMore: false, hasMore: false);
+        if (mounted) {
+          state = state.copyWith(isLoadingMore: false, hasMore: false);
+        }
         return;
       }
 
@@ -305,13 +318,17 @@ class AnnouncementsNotifier extends StateNotifier<AnnouncementsState> {
     try {
       await _repo.deleteAnnouncement(id);
       // Remove from local state
+      if (!mounted) return;
+
       final updatedAnnouncements =
           state.announcements
               .where((announcement) => announcement.id != id)
               .toList();
       state = state.copyWith(announcements: updatedAnnouncements);
     } catch (e) {
-      state = state.copyWith(error: e.toString());
+      if (mounted) {
+        state = state.copyWith(error: e.toString());
+      }
     }
   }
 
@@ -319,6 +336,8 @@ class AnnouncementsNotifier extends StateNotifier<AnnouncementsState> {
     try {
       await _repo.togglePin(id);
       // Update local state
+      if (!mounted) return;
+
       final updatedAnnouncements =
           state.announcements.map((announcement) {
             if (announcement.id == id) {
@@ -328,7 +347,9 @@ class AnnouncementsNotifier extends StateNotifier<AnnouncementsState> {
           }).toList();
       state = state.copyWith(announcements: updatedAnnouncements);
     } catch (e) {
-      state = state.copyWith(error: e.toString());
+      if (mounted) {
+        state = state.copyWith(error: e.toString());
+      }
     }
   }
 
@@ -336,6 +357,8 @@ class AnnouncementsNotifier extends StateNotifier<AnnouncementsState> {
     if (announcement.id == null) return;
     try {
       // Update local state immediately
+      if (!mounted) return;
+
       final updatedAnnouncements =
           state.announcements.map((a) {
             if (a.id == announcement.id) {
@@ -348,6 +371,8 @@ class AnnouncementsNotifier extends StateNotifier<AnnouncementsState> {
       // Update in repository
       await _repo.togglePin(announcement.id!);
     } catch (e) {
+      if (!mounted) return;
+
       state = state.copyWith(error: e.toString());
       // Refresh to get correct state on error
       await fetchAnnouncements(
@@ -361,6 +386,8 @@ class AnnouncementsNotifier extends StateNotifier<AnnouncementsState> {
     if (announcement.id == null) return;
     try {
       // Update local state immediately
+      if (!mounted) return;
+
       final updatedAnnouncements =
           state.announcements.map((a) {
             if (a.id == announcement.id) {
@@ -373,6 +400,8 @@ class AnnouncementsNotifier extends StateNotifier<AnnouncementsState> {
       // Update in repository
       await _repo.togglePin(announcement.id!);
     } catch (e) {
+      if (!mounted) return;
+
       state = state.copyWith(error: e.toString());
       // Refresh to get correct state on error
       await fetchAnnouncements(
@@ -399,12 +428,16 @@ class AnnouncementsNotifier extends StateNotifier<AnnouncementsState> {
     try {
       await _repo.addComment(announcementId, comment);
       // Refresh the list
+      if (!mounted) return;
+
       await fetchAnnouncements(
         department: state.currentDepartmentFilter,
         timeFilter: state.currentTimeFilter,
       );
     } catch (e) {
-      state = state.copyWith(error: e.toString());
+      if (mounted) {
+        state = state.copyWith(error: e.toString());
+      }
     }
   }
 
@@ -412,12 +445,16 @@ class AnnouncementsNotifier extends StateNotifier<AnnouncementsState> {
     try {
       await _repo.deleteComment(announcementId, commentId);
       // Refresh the list
+      if (!mounted) return;
+
       await fetchAnnouncements(
         department: state.currentDepartmentFilter,
         timeFilter: state.currentTimeFilter,
       );
     } catch (e) {
-      state = state.copyWith(error: e.toString());
+      if (mounted) {
+        state = state.copyWith(error: e.toString());
+      }
     }
   }
 
@@ -472,18 +509,22 @@ class AnnouncementsNotifier extends StateNotifier<AnnouncementsState> {
   }
 
   void clearError() {
+    if (!mounted) return;
     state = state.copyWith(error: null);
   }
 
   void setUploadProgress(double progress) {
+    if (!mounted) return;
     state = state.copyWith(uploadProgress: progress);
   }
 
   void setUploading(bool uploading) {
+    if (!mounted) return;
     state = state.copyWith(isUploading: uploading);
   }
 
   void setUploadError(String? error) {
+    if (!mounted) return;
     state = state.copyWith(uploadError: error);
   }
 

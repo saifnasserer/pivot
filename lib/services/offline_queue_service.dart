@@ -316,7 +316,7 @@ class OfflineQueueService {
       }
 
       if (removedCount > 0) {
-        print('🗑️ Removed $removedCount old operations (>${days} days)');
+        print('🗑️ Removed $removedCount old operations (>$days days)');
       }
     } catch (e) {
       print('❌ Error clearing old operations: $e');

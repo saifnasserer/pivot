@@ -4,6 +4,7 @@ import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/features/subjects/providers/subject_provider.dart';
 import 'package:pivot/features/user/providers/user_profile_provider.dart';
+import 'package:pivot/features/administration/providers/sections_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/features/profile/screens/profile_widgets/Profile_options.dart';
 import 'package:pivot/features/subjects/screens/subject_selection_screen.dart';
@@ -205,10 +206,17 @@ class _AssistantProfileMainState extends ConsumerState<AssistantProfileMain>
 
     if (loggedInUser == null) return false;
 
-    // Only show if user can add sections and we have a current subject selected
-    return loggedInUser.role != 'Student' &&
-        _currentCategory == 'المواد' &&
-        _currentSubject != null;
+    // Show if user can add sections and we're in the subjects category
+    // Don't check for _currentSubject as it might not be initialized yet
+    if (loggedInUser.role == 'Student' || _currentCategory != 'المواد') {
+      return false;
+    }
+
+    // Check if we have any subjects available
+    final subjectProvider = ref.read(SubjectProviderProvider);
+    final subjects = subjectProvider.filteredSubjects;
+
+    return subjects.isNotEmpty;
   }
 
   Future<void> _editTeachingSubjects() async {
@@ -251,33 +259,42 @@ class _AssistantProfileMainState extends ConsumerState<AssistantProfileMain>
     final userProfile = _displayedProfile;
     if (userProfile == null) return;
 
-    // Check if we have a current subject selected
-    if (_currentSubject == null) {
+    // Get current subject from the provider if _currentSubject is not set
+    final subjectProvider = ref.read(SubjectProviderProvider);
+    final subjects = subjectProvider.filteredSubjects;
+
+    if (subjects.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('يرجى اختيار مادة أولاً'),
+          content: Text('لا توجد مواد متاحة'),
           backgroundColor: Colors.orange,
         ),
       );
       return;
     }
 
+    // Use _currentSubject if available, otherwise use the first subject
+    final selectedSubject = _currentSubject ?? subjects.first;
+
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder:
           (context) => AddEditSectionDialog(
-            subjects: [_currentSubject!],
-            autoSelectedSubjectId: _currentSubject!.id,
+            subjects: subjects,
+            autoSelectedSubjectId: selectedSubject.id,
             targetAssistantId: userProfile.id,
           ),
     );
 
     if (result != null && mounted) {
+      // Reload sections for the assistant
+      await ref
+          .read(sectionsProvider.notifier)
+          .fetchSectionsForAssistant(userProfile.id);
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'تم إضافة السكاشن إلى مادة "${_currentSubject!.name}" بنجاح',
-          ),
+          content: Text('تم إضافة السكاشن بنجاح'),
           backgroundColor: Colors.green,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
@@ -310,14 +327,17 @@ class _AssistantProfileMainState extends ConsumerState<AssistantProfileMain>
     }
 
     return PopScope(
-      canPop: true,
-      onPopInvoked: (didPop) {
-        if (didPop) {
-          // Only restore profile when actually navigating back
+      canPop: false,
+      onPopInvoked: (didPop) async {
+        if (!didPop) {
+          // Restore profile BEFORE popping
           print(
             'Navigating back from assistant profile, restoring logged-in user profile',
           );
           ref.read(userProfileProvider.notifier).restoreLoggedInUserProfile();
+
+          // Now pop after restoration
+          Navigator.of(context).pop();
         }
       },
       child: Scaffold(

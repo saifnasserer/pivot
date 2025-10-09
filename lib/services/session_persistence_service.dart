@@ -195,7 +195,7 @@ class SessionPersistenceService {
       final isExpired = daysSinceLogin > 30;
 
       if (isExpired) {
-        print('⏰ Session expired (${daysSinceLogin} days old)');
+        print('⏰ Session expired ($daysSinceLogin days old)');
       }
 
       return isExpired;

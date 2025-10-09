@@ -67,6 +67,7 @@ import 'web_service_worker.dart';
 import 'firebase_options.dart';
 import 'widgets/platform_service.dart';
 import 'widgets/ios_install_instructions_screen.dart';
+import 'widgets/android_landing_screen.dart';
 import 'package:flutter/foundation.dart';
 // Import the background handler (platform-specific)
 import 'package:pivot/services/notification_service.dart' as notif_service;
@@ -129,8 +130,34 @@ Future<void> _initializeAppCheck() async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Show a loading indicator for web before runApp
+  // Early check for iOS/Android web - show landing screen immediately without initialization
   if (kIsWeb) {
+    // Check if user explicitly wants to skip platform check (from "Continue on Web" button)
+    final skipPlatformCheck =
+        Uri.base.queryParameters['skip_platform_check'] == 'true';
+
+    if (!skipPlatformCheck) {
+      // Check platform early to avoid unnecessary initialization
+      if (PlatformService.isIOSWeb()) {
+        runApp(
+          const MaterialApp(
+            home: IOSInstallInstructionsScreen(),
+            debugShowCheckedModeBanner: false,
+          ),
+        );
+        return; // Exit early, no need for Firebase initialization
+      } else if (PlatformService.isAndroidWeb()) {
+        runApp(
+          const MaterialApp(
+            home: AndroidLandingScreen(),
+            debugShowCheckedModeBanner: false,
+          ),
+        );
+        return; // Exit early, no need for Firebase initialization
+      }
+    }
+
+    // For other web platforms (desktop) or skip_platform_check=true, show loading indicator
     runApp(
       const MaterialApp(
         home: Scaffold(
@@ -328,15 +355,19 @@ class Pivot extends StatelessWidget {
             );
           },
           home:
-              PlatformService.isIOSWeb()
+              // Check if user wants to skip platform check (from "Continue on Web")
+              (kIsWeb &&
+                      Uri.base.queryParameters['skip_platform_check'] == 'true')
+                  ? const AuthWrapper()
+                  : PlatformService.isIOSWeb()
                   ? const IOSInstallInstructionsScreen()
+                  : PlatformService.isAndroidWeb()
+                  ? const AndroidLandingScreen()
                   : const AuthWrapper(),
-          // PlatformService.isIOSWeb()
-          //     ? const IOSInstallInstructionsScreen()
-          //     : const AuthWrapper(),
           routes: {
             '/ios-install-instructions':
                 (context) => const IOSInstallInstructionsScreen(),
+            '/android-landing': (context) => const AndroidLandingScreen(),
             '/auth-wrapper': (context) => const AuthWrapper(),
             '/introduction-wrapper': (context) => const IntroductionWrapper(),
             '/first-landing': (context) => const FirstLandingScreen(),

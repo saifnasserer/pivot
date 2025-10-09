@@ -63,7 +63,13 @@ class SectionService {
     try {
       final sectionData = section.toJson();
 
+      print('SectionService: Adding section to Firestore...');
+      print('Section data: $sectionData');
+
       final docRef = await _sectionsCollection.add(sectionData);
+
+      print('SectionService: Section added successfully with ID: ${docRef.id}');
+
       // Return a new Section object with the ID from the created document
       return Section(
         id: docRef.id,
@@ -75,6 +81,7 @@ class SectionService {
         location: section.location,
       );
     } catch (e) {
+      print('SectionService: Error adding section: $e');
       rethrow;
     }
   }

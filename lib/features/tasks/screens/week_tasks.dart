@@ -13,6 +13,7 @@ import 'add_personal_task_dialog.dart';
 
 import 'package:pivot/services/sound_service.dart';
 import 'package:pivot/services/data_preloader_service.dart';
+import 'package:pivot/services/offline_service.dart';
 
 /// Enhanced WeekTasks with analytics, smart organization, and modern UI
 class WeekTasks extends ConsumerStatefulWidget {
@@ -63,37 +64,46 @@ class _WeekTasksState extends ConsumerState<WeekTasks>
     });
   }
 
-  /// Smart data initialization - leverages preloaded data for instant UI
-  /// Eliminates loading time by using persistent providers and preloading
+  /// Smart data initialization - uses local-first approach with cache
+  /// Providers now load from cache automatically, so we only fetch if cache is empty
   void _initializeDataSmart(UserProfile user) {
     final subjectsState = ref.read(subjectsProvider);
     final sectionsState = ref.read(sectionsProvider);
     final tasksState = ref.read(tasksProvider);
+    final offlineService = ref.read(offlineServiceProvider);
 
-    // Check if data is already available from preloading
-    final isDataReady = DataPreloaderService.isWeekTasksDataReady(ref, user);
+    // Check if we have cached data
+    final hasSubjects = subjectsState.filteredSubjects.isNotEmpty;
+    final hasSections = sectionsState.sections.isNotEmpty;
+    final hasTasks = tasksState.tasks.isNotEmpty;
 
-    if (isDataReady) {
+    if (hasSubjects && hasSections && hasTasks) {
       print(
-        '⚡ WeekTasks: Using preloaded data - Instant UI (S:${subjectsState.filteredSubjects.length}, Sec:${sectionsState.sections.length}, T:${tasksState.tasks.length})',
+        '✅ WeekTasks: Using cached data (S:${subjectsState.filteredSubjects.length}, Sec:${sectionsState.sections.length}, T:${tasksState.tasks.length}) - Zero server reads',
       );
       return;
     }
 
-    // Only fetch what's missing (fallback for edge cases)
+    // Only fetch missing data if we're online
+    if (!offlineService.hasConnection) {
+      print('📡 WeekTasks: Offline - using available cached data');
+      return;
+    }
+
+    // Fetch missing data (providers will check cache first)
     final fetchFutures = <Future>[];
 
-    // Only fetch subjects if not already loaded or loading
-    if (subjectsState.filteredSubjects.isEmpty && !subjectsState.isLoading) {
+    if (!hasSubjects && !subjectsState.isLoading) {
+      print('📦 WeekTasks: Fetching subjects...');
       fetchFutures.add(
         ref.read(subjectsProvider.notifier).fetchAndFilterSubjects(user),
       );
     }
 
-    // Only fetch sections if not already loaded or loading
-    if (sectionsState.sections.isEmpty &&
+    if (!hasSections &&
         !sectionsState.isLoading &&
         user.enrolledSubjects.isNotEmpty) {
+      print('📦 WeekTasks: Fetching sections...');
       fetchFutures.add(
         ref
             .read(sectionsProvider.notifier)
@@ -101,20 +111,12 @@ class _WeekTasksState extends ConsumerState<WeekTasks>
       );
     }
 
-    // Only fetch tasks if not already loaded or loading
-    if (tasksState.tasks.isEmpty && !tasksState.isLoading) {
+    if (!hasTasks && !tasksState.isLoading) {
+      print('📦 WeekTasks: Fetching tasks...');
       fetchFutures.add(ref.read(tasksProvider.notifier).getAllTasks());
     }
 
-    if (fetchFutures.isEmpty) {
-      print(
-        '✅ WeekTasks: Using cached data (S:${subjectsState.filteredSubjects.length}, Sec:${sectionsState.sections.length}, T:${tasksState.tasks.length}) - Zero reads',
-      );
-    } else {
-      print(
-        '🔄 WeekTasks: Fallback fetch for ${fetchFutures.length} missing data sources...',
-      );
-      // Fetch all in parallel for better performance
+    if (fetchFutures.isNotEmpty) {
       Future.wait(fetchFutures).catchError((error) {
         print('❌ WeekTasks: Fetch error - $error');
         return <dynamic>[];
@@ -322,8 +324,9 @@ class _WeekTasksState extends ConsumerState<WeekTasks>
     final userProfileState = ref.watch(userProfileProvider);
     final sectionsState = ref.watch(sectionsProvider);
     final subjectsState = ref.watch(subjectsProvider);
+    final offlineService = ref.watch(offlineServiceProvider);
 
-    // Listen for when user profile loads and trigger data fetching
+    // Listen for when user profile loads
     ref.listen<UserProfileState>(userProfileProvider, (previous, next) {
       // When profile becomes available (was null, now has value)
       if (previous?.loggedInUserProfile == null &&
@@ -332,20 +335,9 @@ class _WeekTasksState extends ConsumerState<WeekTasks>
           if (mounted) {
             final loggedInUser = next.loggedInUserProfile!;
 
-            // Fetch subjects with instructors
-            ref
-                .read(subjectsProvider.notifier)
-                .fetchAndFilterSubjects(loggedInUser);
-
-            // Fetch sections for enrolled subjects
-            if (loggedInUser.enrolledSubjects.isNotEmpty) {
-              ref
-                  .read(sectionsProvider.notifier)
-                  .fetchSectionsForUserSubjects(loggedInUser.enrolledSubjects);
-            }
-
-            // Fetch all tasks
-            ref.read(tasksProvider.notifier).getAllTasks();
+            // Providers now load from cache automatically on startup
+            // We only need to fetch if cache is empty (handled by _initializeDataSmart)
+            _initializeDataSmart(loggedInUser);
 
             // Update assistant preferences
             _updateAssistantPreferencesIfNeeded();
@@ -503,6 +495,9 @@ class _WeekTasksState extends ConsumerState<WeekTasks>
     return Scaffold(
       body: CustomScrollView(
         slivers: [
+          // Offline Indicator
+          if (!offlineService.hasConnection) _buildOfflineIndicator(),
+
           // Assistant Selection Warning
           if (subjectsNeedingSelection.isNotEmpty)
             _buildAssistantSelectionWarning(
@@ -523,6 +518,41 @@ class _WeekTasksState extends ConsumerState<WeekTasks>
         ],
       ),
       floatingActionButton: _buildFloatingActionButton(),
+    );
+  }
+
+  /// Build offline indicator banner
+  Widget _buildOfflineIndicator() {
+    return SliverToBoxAdapter(
+      child: Container(
+        margin: EdgeInsets.symmetric(
+          horizontal: Responsive.space(context, size: Space.medium),
+          vertical: Responsive.space(context, size: Space.small),
+        ),
+        padding: EdgeInsets.all(Responsive.space(context, size: Space.small)),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(
+            Responsive.space(context, size: Space.medium),
+          ),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.cloud_off, color: Colors.grey.shade600, size: 20),
+            SizedBox(width: Responsive.space(context, size: Space.small)),
+            Text(
+              'تعمل دلوقتي أوفلاين - بتستخدم البيانات المحفوظة',
+              style: TextStyle(
+                color: Colors.grey.shade700,
+                fontSize: Responsive.text(context, size: TextSize.small),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -708,19 +738,27 @@ class _WeekTasksState extends ConsumerState<WeekTasks>
     );
   }
 
-  void _handleTaskStatusChange(Task task) async {
+  void _handleTaskStatusChange(Task task) {
     // Use the tasks provider for all task status changes (both personal and system tasks)
-    try {
-      await ref.read(tasksProvider.notifier).toggleTaskCompletion(task.id);
+    // Don't await - let optimistic update handle UI instantly
+    final userProfileState = ref.read(userProfileProvider);
+    final user = userProfileState.loggedInUserProfile;
 
-      // Play sound when task is completed
-      final userProfileState = ref.read(userProfileProvider);
-      final user = userProfileState.loggedInUserProfile;
-      if (user != null && task.isCompletedFor(user.id)) {
-        await SoundService().playCorrectSound();
-      }
-    } catch (e) {
+    // Check if task will be completed after toggle
+    final willBeCompleted = user != null && !task.isCompletedFor(user.id);
+
+    // Trigger toggle (optimistic update happens inside provider)
+    ref.read(tasksProvider.notifier).toggleTaskCompletion(task.id).catchError((
+      e,
+    ) {
       print('❌ WeekTasks: Error toggling task completion - $e');
+    });
+
+    // Play sound immediately if task is being completed
+    if (willBeCompleted) {
+      SoundService().playCorrectSound().catchError((e) {
+        print('❌ WeekTasks: Error playing sound - $e');
+      });
     }
   }
 

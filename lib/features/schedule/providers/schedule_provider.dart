@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/features/schedule/repositories/schedule_repository.dart';
 import 'package:pivot/features/schedule/services/schedule_service.dart';
 import 'package:pivot/screens/models/schedule_item.dart';
+import 'package:pivot/services/cache_service.dart';
 
 final scheduleServiceProvider = Provider<ScheduleService>(
   (ref) => ScheduleService(),
@@ -45,35 +46,89 @@ class ScheduleState {
   );
 }
 
-final scheduleProvider =
-    StateNotifierProvider.autoDispose<ScheduleNotifier, ScheduleState>(
-      (ref) => ScheduleNotifier(ref),
-    );
+// Removed autoDispose to persist state across app lifecycle
+final scheduleProvider = StateNotifierProvider<ScheduleNotifier, ScheduleState>(
+  (ref) => ScheduleNotifier(ref),
+);
 
 class ScheduleNotifier extends StateNotifier<ScheduleState> {
   ScheduleNotifier(this._ref) : super(const ScheduleState()) {
-    // Automatically load schedule on startup
-    fetchSchedule();
+    // Load from cache on startup (completely local-first)
+    _loadFromCacheOnly();
   }
 
   final Ref _ref;
   late final ScheduleRepository _repo = _ref.read(scheduleRepositoryProvider);
 
+  // Load ONLY from cache (no server fetch) - private method for initialization
+  void _loadFromCacheOnly() {
+    try {
+      final cachedItems = CacheService.instance.getCachedSchedule();
+      if (cachedItems.isEmpty) {
+        print('📦 ScheduleProvider: No cached schedule found');
+        state = state.copyWith(isLoading: false, schedule: {});
+        return;
+      }
+
+      // Convert cached items to schedule map
+      final cachedSchedule = <String, List<ScheduleItem>>{};
+      for (var item in cachedItems) {
+        cachedSchedule.putIfAbsent(item.day, () => []).add(item);
+      }
+
+      // Sort each day's items by order
+      for (var entry in cachedSchedule.entries) {
+        entry.value.sort((a, b) {
+          final aOrder = a.order ?? 0;
+          final bOrder = b.order ?? 0;
+          return aOrder.compareTo(bOrder);
+        });
+      }
+
+      print(
+        '✅ ScheduleProvider: Loaded ${cachedItems.length} items from cache - Zero server reads',
+      );
+      state = state.copyWith(isLoading: false, schedule: cachedSchedule);
+    } catch (e) {
+      print('❌ ScheduleProvider: Error loading from cache - $e');
+      state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
+  // Reload from cache (useful when app resumes or data might have changed locally)
+  void reloadFromCache() {
+    _loadFromCacheOnly();
+  }
+
+  // Fetch from server and update cache (called only when needed)
   Future<void> fetchSchedule() async {
     state = state.copyWith(isLoading: true, error: null);
+
     try {
+      print('🔄 ScheduleProvider: Fetching from server...');
       final schedule = await _repo.fetchSchedule();
-      state = state.copyWith(isLoading: false, schedule: schedule);
+
+      // Cache the fetched schedule
+      final allItems = schedule.values.expand((items) => items).toList();
+      await CacheService.instance.cacheSchedule(allItems);
+      print('💾 ScheduleProvider: Cached ${allItems.length} schedule items');
+
+      if (mounted) {
+        state = state.copyWith(isLoading: false, schedule: schedule);
+      }
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      print('❌ ScheduleProvider: Error fetching schedule - $e');
+      if (mounted) {
+        state = state.copyWith(isLoading: false, error: e.toString());
+      }
     }
   }
 
   Future<void> addScheduleItem(ScheduleItem item) async {
     try {
       await _repo.addScheduleItem(item);
-      // Refresh the schedule
-      await fetchSchedule();
+      // Force refresh from server and update cache
+      await forceRefresh();
     } catch (e) {
       state = state.copyWith(error: e.toString());
     }
@@ -82,8 +137,8 @@ class ScheduleNotifier extends StateNotifier<ScheduleState> {
   Future<void> updateScheduleItem(String id, ScheduleItem item) async {
     try {
       await _repo.updateScheduleItem(id, item);
-      // Refresh the schedule
-      await fetchSchedule();
+      // Force refresh from server and update cache
+      await forceRefresh();
     } catch (e) {
       state = state.copyWith(error: e.toString());
     }
@@ -92,10 +147,34 @@ class ScheduleNotifier extends StateNotifier<ScheduleState> {
   Future<void> deleteScheduleItem(String id) async {
     try {
       await _repo.deleteScheduleItem(id);
-      // Refresh the schedule
-      await fetchSchedule();
+      // Force refresh from server and update cache
+      await forceRefresh();
     } catch (e) {
       state = state.copyWith(error: e.toString());
+    }
+  }
+
+  // Force refresh from server (bypasses cache)
+  Future<void> forceRefresh() async {
+    state = state.copyWith(isLoading: true, error: null);
+
+    try {
+      print('🔄 ScheduleProvider: Force refreshing from server...');
+      final schedule = await _repo.fetchSchedule();
+
+      // Update cache with fresh data
+      final allItems = schedule.values.expand((items) => items).toList();
+      await CacheService.instance.cacheSchedule(allItems);
+      print('💾 ScheduleProvider: Updated cache with ${allItems.length} items');
+
+      if (mounted) {
+        state = state.copyWith(isLoading: false, schedule: schedule);
+      }
+    } catch (e) {
+      print('❌ ScheduleProvider: Error force refreshing - $e');
+      if (mounted) {
+        state = state.copyWith(isLoading: false, error: e.toString());
+      }
     }
   }
 

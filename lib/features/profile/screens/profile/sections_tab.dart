@@ -14,67 +14,64 @@ class SectionsTab extends ConsumerStatefulWidget {
 }
 
 class _SectionsTabState extends ConsumerState<SectionsTab> {
-  bool _hasLoadedSections = false;
-  UserProfile? _previousUserProfile;
-  List<String> _previousEnrolledSubjects = [];
-  Map<String, String> _previousAssistantPreferences = {};
+  bool _hasInitialized = false;
+  String? _lastProfileId; // Track profile changes
+  List<String>? _lastEnrolledSubjects; // Track enrolled subjects changes
+  Map<String, String>? _lastAssistantPreferences; // Track assistant preferences
 
   @override
   void initState() {
     super.initState();
-    // Sections will auto-load through Riverpod
+    // Load sections on init
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_hasInitialized) {
+        _initializeSections();
+      }
+    });
+  }
+
+  void _initializeSections() {
+    final userProfileState = ref.read(userProfileProvider);
+    final sectionsState = ref.read(sectionsProvider);
+    final targetProfile = _getTargetProfile(
+      userProfileState.userProfile,
+      userProfileState.loggedInUserProfile,
+    );
+
+    if (targetProfile != null) {
+      final hasSections = sectionsState.sections.isNotEmpty;
+
+      print(
+        '📊 SectionsTab: hasSections=$hasSections, isLoading=${sectionsState.isLoading}',
+      );
+      print('📊 SectionsTab: ${sectionsState.sections.length} sections cached');
+
+      // Fetch if no data and not loading
+      if (!hasSections && !sectionsState.isLoading) {
+        print('🔄 SectionsTab: Fetching sections...');
+        _refreshDataProviders(targetProfile);
+        if (targetProfile.enrolledSubjects.isNotEmpty) {
+          _loadSectionsForUser(targetProfile);
+        }
+      } else if (hasSections) {
+        print(
+          '✅ SectionsTab: Reusing cached sections (${sectionsState.sections.length} total) - Zero reads',
+        );
+      }
+
+      _hasInitialized = true;
+    }
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final userProfileState = ref.read(userProfileProvider);
-    final userProfile = userProfileState.userProfile;
-    final loggedInUser = userProfileState.loggedInUserProfile;
-
-    // Determine which profile to use based on context
-    final targetProfile = _getTargetProfile(userProfile, loggedInUser);
-
-    if (targetProfile != null) {
-      // Check if we need to reload due to profile changes
-      final shouldReload = _shouldReloadDueToProfileChange(targetProfile);
-
-      if (shouldReload) {
-        print('🔄 SectionsTab: Profile changed, reloading...');
-        // Reset loading state and reload
-        _hasLoadedSections = false;
-        _updatePreviousProfile(targetProfile);
-
-        // Force refresh of data providers when switching profiles
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            _refreshDataProviders(targetProfile);
-            if (targetProfile.enrolledSubjects.isNotEmpty) {
-              _loadSectionsForUser(targetProfile);
-            } else {
-              setState(() {
-                _hasLoadedSections = true;
-              });
-            }
-          }
-        });
-      } else if (!_hasLoadedSections) {
-        _updatePreviousProfile(targetProfile);
-        // Initial load
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            _refreshDataProviders(targetProfile);
-            if (targetProfile.enrolledSubjects.isNotEmpty) {
-              _loadSectionsForUser(targetProfile);
-            } else {
-              setState(() {
-                _hasLoadedSections = true;
-              });
-            }
-          }
-        });
+  void didUpdateWidget(SectionsTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Refresh when widget updates
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _initializeSections();
       }
-    }
+    });
   }
 
   UserProfile? _getTargetProfile(
@@ -92,47 +89,22 @@ class _SectionsTabState extends ConsumerState<SectionsTab> {
     return loggedInUser;
   }
 
-  bool _shouldReloadDueToProfileChange(UserProfile currentProfile) {
-    // Check if enrolled subjects changed
-    if (!_areListsEqual(
-      _previousEnrolledSubjects,
-      currentProfile.enrolledSubjects,
-    )) {
-      return true;
-    }
-
-    // Check if assistant preferences changed
-    if (!_areMapsEqual(
-      _previousAssistantPreferences,
-      currentProfile.assistantPreferences,
-    )) {
-      return true;
-    }
-
-    // Check if user profile itself changed (different instance)
-    if (_previousUserProfile != currentProfile) {
-      return true;
-    }
-
-    return false;
-  }
-
-  void _updatePreviousProfile(UserProfile profile) {
-    _previousUserProfile = profile;
-    _previousEnrolledSubjects = List.from(profile.enrolledSubjects);
-    _previousAssistantPreferences = Map.from(profile.assistantPreferences);
-  }
-
-  bool _areListsEqual(List<String> list1, List<String> list2) {
+  // Helper method to compare lists (like subjects_tab.dart)
+  bool _listsEqual(List<String>? list1, List<String> list2) {
+    if (list1 == null) return false;
     if (list1.length != list2.length) return false;
-    for (int i = 0; i < list1.length; i++) {
-      if (list1[i] != list2[i]) return false;
-    }
-    return true;
+
+    final set1 = list1.toSet();
+    final set2 = list2.toSet();
+
+    return set1.containsAll(set2) && set2.containsAll(set1);
   }
 
-  bool _areMapsEqual(Map<String, String> map1, Map<String, String> map2) {
+  // Helper method to compare maps
+  bool _mapsEqual(Map<String, String>? map1, Map<String, String> map2) {
+    if (map1 == null) return false;
     if (map1.length != map2.length) return false;
+
     for (final key in map1.keys) {
       if (map1[key] != map2[key]) return false;
     }
@@ -141,77 +113,48 @@ class _SectionsTabState extends ConsumerState<SectionsTab> {
 
   void _loadSectionsForUser(UserProfile userProfile) {
     final sectionsState = ref.read(sectionsProvider);
-    final hasData = sectionsState.sections.isNotEmpty;
 
     // Prevent multiple simultaneous loading calls
     if (sectionsState.isLoading) {
+      print('⏳ SectionsTab: Already loading, skipping...');
       return;
     }
 
     if (userProfile.enrolledSubjects.isNotEmpty) {
-      // Only fetch if data is not already loaded
-      if (!hasData && !sectionsState.isLoading) {
-        print('🔄 SectionsTab: Fetching sections...');
+      // Check if we already have sections for these subjects in cache/state
+      final hasRelevantData = sectionsState.sections.any(
+        (s) => userProfile.enrolledSubjects.contains(s.subjectId),
+      );
+
+      if (hasRelevantData) {
+        // We have data, just filter it locally
+        print(
+          '✅ SectionsTab: Using cached sections (${sectionsState.sections.length} total) - Zero server reads',
+        );
+      } else {
+        // No relevant data, fetch from server (provider will check cache first)
+        print('📦 SectionsTab: Fetching sections for subjects...');
         ref
             .read(sectionsProvider.notifier)
             .fetchSectionsForUserSubjects(userProfile.enrolledSubjects)
-            .then((_) {
-              if (mounted) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (mounted) {
-                    setState(() {
-                      _hasLoadedSections = true;
-                    });
-                  }
-                });
-              }
-            })
             .catchError((error) {
               print('❌ SectionsTab: Fetch error - $error');
-              if (mounted) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (mounted) {
-                    setState(() {
-                      _hasLoadedSections = true;
-                    });
-                  }
-                });
-              }
             });
-      } else if (hasData) {
-        print(
-          '✅ SectionsTab: Reusing data from WeekTasks (${sectionsState.sections.length} sections) - Zero reads',
-        );
-        setState(() {
-          _hasLoadedSections = true;
-        });
       }
     } else {
+      // No enrolled subjects
       ref.read(sectionsProvider.notifier).resetFilter();
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          setState(() {
-            _hasLoadedSections = true;
-          });
-        }
-      });
     }
   }
 
   void _refreshDataProviders(UserProfile targetProfile) {
     try {
-      // Refresh subjects
+      // Only refresh subjects provider here
+      // Sections will be loaded by _loadSectionsForUser() to avoid duplicate fetches
       ref.read(subjectsProvider.notifier).fetchAndFilterSubjects(targetProfile);
-
-      // Clear and reload sections for the target profile
-      if (targetProfile.enrolledSubjects.isNotEmpty) {
-        ref
-            .read(sectionsProvider.notifier)
-            .fetchSectionsForUserSubjects(targetProfile.enrolledSubjects);
-      } else {
-        ref.read(sectionsProvider.notifier).resetFilter();
-      }
-    } catch (e) {}
+    } catch (e) {
+      print('❌ SectionsTab: Error refreshing data providers - $e');
+    }
   }
 
   @override
@@ -220,6 +163,49 @@ class _SectionsTabState extends ConsumerState<SectionsTab> {
     final userProfileState = ref.watch(userProfileProvider);
 
     try {
+      // Get the correct profile to use
+      final userProfile = userProfileState.userProfile;
+      final loggedInUser = userProfileState.loggedInUserProfile;
+      final targetProfile = _getTargetProfile(userProfile, loggedInUser);
+
+      // Check if profile or enrolled subjects or preferences changed (without triggering refresh in build)
+      if (targetProfile != null && _hasInitialized) {
+        final currentProfileId = targetProfile.id;
+        final currentEnrolledSubjects = targetProfile.enrolledSubjects;
+        final currentAssistantPreferences = targetProfile.assistantPreferences;
+
+        // Only refresh if profile ID, enrolled subjects, or assistant preferences actually changed
+        if (_lastProfileId != currentProfileId ||
+            !_listsEqual(_lastEnrolledSubjects, currentEnrolledSubjects) ||
+            !_mapsEqual(
+              _lastAssistantPreferences,
+              currentAssistantPreferences,
+            )) {
+          // Update tracking variables FIRST to prevent infinite loop
+          _lastProfileId = currentProfileId;
+          _lastEnrolledSubjects = List.from(currentEnrolledSubjects);
+          _lastAssistantPreferences = Map.from(currentAssistantPreferences);
+
+          // Schedule refresh for next frame
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              print('🔄 SectionsTab: Profile changed, refreshing...');
+              _refreshDataProviders(targetProfile);
+              if (targetProfile.enrolledSubjects.isNotEmpty) {
+                _loadSectionsForUser(targetProfile);
+              }
+            }
+          });
+        }
+      } else if (targetProfile != null) {
+        // Initialize tracking on first build
+        _lastProfileId = targetProfile.id;
+        _lastEnrolledSubjects = List.from(targetProfile.enrolledSubjects);
+        _lastAssistantPreferences = Map.from(
+          targetProfile.assistantPreferences,
+        );
+      }
+
       if (sectionsState.isLoading) {
         return const Center(child: CircularProgressIndicator());
       }
@@ -238,13 +224,6 @@ class _SectionsTabState extends ConsumerState<SectionsTab> {
               SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () {
-                  final userProfile = userProfileState.userProfile;
-                  final loggedInUser = userProfileState.loggedInUserProfile;
-                  final targetProfile = _getTargetProfile(
-                    userProfile,
-                    loggedInUser,
-                  );
-
                   if (targetProfile != null &&
                       targetProfile.enrolledSubjects.isNotEmpty) {
                     ref

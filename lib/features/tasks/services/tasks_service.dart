@@ -383,4 +383,9 @@ class TasksService {
       throw Exception('Failed to toggle task completion: $e');
     }
   }
+
+  // Get current user ID
+  String? getCurrentUserId() {
+    return _auth.currentUser?.uid;
+  }
 }

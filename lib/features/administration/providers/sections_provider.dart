@@ -45,7 +45,33 @@ class SectionsState {
 class SectionsNotifier extends StateNotifier<SectionsState> {
   final SectionService _sectionService;
 
-  SectionsNotifier(this._sectionService) : super(const SectionsState());
+  SectionsNotifier(this._sectionService) : super(const SectionsState()) {
+    // Load from cache on startup (local-first approach)
+    _loadFromCacheOnly();
+  }
+
+  // Load ONLY from cache (no server fetch) - private method for initialization
+  void _loadFromCacheOnly() {
+    try {
+      final cachedSections = CacheService.instance.getCachedSections();
+      if (cachedSections.isEmpty) {
+        print('📦 SectionsProvider: No cached sections found');
+        return;
+      }
+
+      print(
+        '✅ SectionsProvider: Loaded ${cachedSections.length} sections from cache - Zero server reads',
+      );
+      state = state.copyWith(sections: cachedSections, isLoading: false);
+    } catch (e) {
+      print('❌ SectionsProvider: Error loading from cache - $e');
+    }
+  }
+
+  // Reload from cache (useful when app resumes)
+  void reloadFromCache() {
+    _loadFromCacheOnly();
+  }
 
   // Fetch sections for a specific assistant
   Future<void> fetchSectionsForAssistant(String assistantId) async {
@@ -95,6 +121,58 @@ class SectionsNotifier extends StateNotifier<SectionsState> {
       return;
     }
 
+    // Store the current subject IDs
+    state = state.copyWith(currentSubjectIds: subjectIds);
+
+    try {
+      // Step 1: Load from cache first (local-first approach)
+      final cachedSections = CacheService.instance.getCachedSections();
+      final filteredCached =
+          cachedSections
+              .where((s) => subjectIds.contains(s.subjectId))
+              .toList();
+
+      if (filteredCached.isNotEmpty) {
+        // Use cached data immediately
+        print(
+          '✅ SectionsProvider: Using cached sections for subjects (${filteredCached.length} sections) - Zero server reads',
+        );
+        if (mounted) {
+          state = state.copyWith(sections: filteredCached, isLoading: false);
+        }
+        return; // Return early with cached data
+      }
+
+      // Step 2: Only fetch from server if cache is empty
+      print('🔄 SectionsProvider: Fetching sections from server...');
+      state = state.copyWith(isLoading: true, error: null);
+
+      final sections = await _sectionService.getSectionsForSubjects(subjectIds);
+      await CacheService.instance.cacheSections(sections);
+
+      print('💾 SectionsProvider: Cached ${sections.length} sections');
+
+      if (mounted) {
+        state = state.copyWith(sections: sections, isLoading: false);
+      }
+    } catch (e) {
+      print('❌ SectionsProvider: Error fetching sections - $e');
+      if (mounted) {
+        state = state.copyWith(
+          isLoading: false,
+          error: 'Failed to fetch sections: ${e.toString()}',
+        );
+      }
+    }
+  }
+
+  // Force refresh from server (bypasses cache)
+  Future<void> forceRefreshForSubjects(List<String> subjectIds) async {
+    if (subjectIds.isEmpty) {
+      state = state.copyWith(sections: [], currentSubjectIds: subjectIds);
+      return;
+    }
+
     state = state.copyWith(
       isLoading: true,
       error: null,
@@ -102,29 +180,19 @@ class SectionsNotifier extends StateNotifier<SectionsState> {
     );
 
     try {
-      // Step 1: Try to load from cache first, but handle type casting errors
-      try {
-        final cachedSections = CacheService.instance.getCachedSections();
-        final filteredCached =
-            cachedSections
-                .where((s) => subjectIds.contains(s.subjectId))
-                .toList();
-        if (filteredCached.isNotEmpty && mounted) {
-          state = state.copyWith(sections: filteredCached, isLoading: false);
-        }
-      } catch (cacheError) {
-        // Clear the sections cache if there's a type casting issue
-        await CacheService.instance.clearSectionsCache();
-      }
-
-      // Step 2: Fetch from server in the background
+      print('🔄 SectionsProvider: Force refreshing from server...');
       final sections = await _sectionService.getSectionsForSubjects(subjectIds);
       await CacheService.instance.cacheSections(sections);
+
+      print(
+        '💾 SectionsProvider: Updated cache with ${sections.length} sections',
+      );
 
       if (mounted) {
         state = state.copyWith(sections: sections, isLoading: false);
       }
     } catch (e) {
+      print('❌ SectionsProvider: Error force refreshing - $e');
       if (mounted) {
         state = state.copyWith(
           isLoading: false,
@@ -158,25 +226,47 @@ class SectionsNotifier extends StateNotifier<SectionsState> {
   // Add section
   Future<void> addSection(Section section) async {
     try {
+      print('SectionsProvider: Adding section...');
+      print('Current assistant ID: ${state.currentAssistantId}');
+      print('Current subject IDs: ${state.currentSubjectIds}');
+
       final newSection = await _sectionService.addSection(section);
 
-      if (!mounted) return;
+      if (!mounted) {
+        print('SectionsProvider: Not mounted, returning early');
+        return;
+      }
 
-      // If we're currently fetching sections for an assistant, refresh the list
-      if (state.currentAssistantId != null &&
-          section.assistantId == state.currentAssistantId) {
+      // Always refresh the list and update cache after adding a section
+      if (state.currentAssistantId != null) {
+        // If we're viewing an assistant's sections, refresh that assistant's sections
+        print(
+          'SectionsProvider: Refreshing sections for assistant ${state.currentAssistantId}',
+        );
         await fetchSectionsForAssistant(state.currentAssistantId!);
+      } else if (state.currentSubjectIds.isNotEmpty) {
+        // If we're viewing sections by subject, refresh those
+        print(
+          'SectionsProvider: Refreshing sections for subjects ${state.currentSubjectIds}',
+        );
+        await fetchSectionsForUserSubjects(state.currentSubjectIds);
       } else {
-        // Otherwise just add to the current list
+        // Otherwise, just add the new section to the current list and update cache
+        print('SectionsProvider: Adding section to current list');
         final updatedSections = [...state.sections, newSection];
+        await CacheService.instance.cacheSections(updatedSections);
         if (mounted) {
           state = state.copyWith(sections: updatedSections);
         }
       }
+
+      print('SectionsProvider: Section added successfully!');
     } catch (e) {
+      print('SectionsProvider: Error adding section: $e');
       if (mounted) {
         state = state.copyWith(error: 'Failed to add section: ${e.toString()}');
       }
+      rethrow;
     }
   }
 

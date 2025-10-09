@@ -63,38 +63,31 @@ class _SubjectSelectionScreenState
 
     _selectedSubjectIds = Set<String>.from(widget.previouslySelectedIds);
 
-    // Initialize subjects provider - local-first approach
-    // Only fetches from Firestore if cache is empty
+    // Provider now loads from cache automatically on startup
+    // We only need to ensure all subjects are loaded (not filtered)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (kDebugMode) {
-        print(
-          '📚 [SubjectSelection] Initializing with local-first strategy...',
-        );
+        print('📚 [SubjectSelection] Initializing...');
       }
 
-      // Get user profile to determine role
-      final userProfileState = ref.read(userProfileProvider);
-      final userRole = userProfileState.loggedInUserProfile?.role;
+      final subjectState = ref.read(SubjectProviderProvider);
 
-      // For Super Admin editing other users, force fresh data to ensure all subjects are available
-      final isSuperAdminEditingOthers =
-          widget.targetUserId != null && userRole == 'Super Admin';
-
-      if (kDebugMode) {
-        print('   👤 User role: $userRole');
-        print('   📚 Loading all subjects (level filtering removed)');
-        if (isSuperAdminEditingOthers) {
-          print('   🔧 Super Admin editing other user - forcing fresh data');
-          print('   👥 Target user ID: ${widget.targetUserId}');
-          print('   👤 Target user role: ${widget.targetUserRole}');
-        }
-      }
-      ref
-          .read(SubjectProviderProvider.notifier)
-          .fetchAllSubjects(
-            userRole: userRole,
-            forceAllSubjects: isSuperAdminEditingOthers,
+      // Check if we already have all subjects loaded
+      if (subjectState.allSubjects.isNotEmpty) {
+        if (kDebugMode) {
+          print(
+            '✅ [SubjectSelection] Using cached subjects (${subjectState.allSubjects.length}) - Zero server reads',
           );
+        }
+      } else {
+        // No data in cache, fetch from server (first time only)
+        if (kDebugMode) {
+          print(
+            '📦 [SubjectSelection] No cached data, fetching from server...',
+          );
+        }
+        ref.read(SubjectProviderProvider.notifier).fetchAllSubjects();
+      }
 
       // Fetch guide content
       ref.read(guideProvider.notifier).fetchGuideContent();

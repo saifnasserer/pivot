@@ -492,13 +492,67 @@ class TasksNotifier extends StateNotifier<TasksState> {
     );
   }
 
-  // Toggle task completion status
+  // Toggle task completion status with optimistic update for instant UI response
   Future<void> toggleTaskCompletion(String taskId) async {
     try {
+      // Get current user ID from repository/service
+      final currentUserId = _repository.getCurrentUserId();
+      if (currentUserId == null) {
+        throw Exception('User not authenticated');
+      }
+
+      // Find the task in current state
+      final taskIndex = state.tasks.indexWhere((t) => t.id == taskId);
+      if (taskIndex == -1) {
+        throw Exception('Task not found in local state');
+      }
+
+      final task = state.tasks[taskIndex];
+
+      // OPTIMISTIC UPDATE: Update local state immediately for instant UI response
+      final isCurrentlyCompleted = task.completedBy.contains(currentUserId);
+      final updatedCompletedBy = List<String>.from(task.completedBy);
+
+      if (isCurrentlyCompleted) {
+        updatedCompletedBy.remove(currentUserId);
+      } else {
+        updatedCompletedBy.add(currentUserId);
+      }
+
+      final updatedTask = Task(
+        id: task.id,
+        title: task.title,
+        description: task.description,
+        dueDate: task.dueDate,
+        importance: task.importance,
+        completedBy: updatedCompletedBy,
+        sectionId: task.sectionId,
+        subjectId: task.subjectId,
+        assistantId: task.assistantId,
+        isPersonal: task.isPersonal,
+        attachments: task.attachments,
+        notes: task.notes,
+      );
+
+      // Update local state immediately
+      final updatedTasks = List<Task>.from(state.tasks);
+      updatedTasks[taskIndex] = updatedTask;
+
+      state = state.copyWith(tasks: updatedTasks);
+      print(
+        '✅ TasksProvider: Optimistic update applied - UI updated instantly',
+      );
+
+      // Now perform Firebase sync in background
       await _repository.toggleTaskCompletion(taskId);
-      // Refresh tasks to get updated completion status
-      await getAllTasks();
+      print('✅ TasksProvider: Firebase sync completed');
+
+      // Optionally refresh to ensure consistency (but UI already updated)
+      // await getAllTasks();
     } catch (e) {
+      print('❌ TasksProvider: Toggle failed - $e');
+      // Revert optimistic update by refreshing from server
+      await getAllTasks();
       state = state.copyWith(error: e.toString());
     }
   }

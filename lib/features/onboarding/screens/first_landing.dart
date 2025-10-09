@@ -45,7 +45,7 @@ class _FirstLandingScreenState extends ConsumerState<FirstLandingScreen> {
         final isSupported = await _localAuthService.isBiometricSupported();
         final isEnrolled = await _localAuthService.isBiometricEnrolled();
         final credentials = await _storage.read(key: 'biometric_email');
-        
+
         print('🔐 [BiometricDebug] Initial biometric status:');
         print('   🔧 Enabled: $isEnabled');
         print('   📱 Supported: $isSupported');
@@ -95,46 +95,45 @@ class _FirstLandingScreenState extends ConsumerState<FirstLandingScreen> {
         return;
       }
 
+      // Check if credentials are stored (biometric is enabled by default on first login)
+      final storedEmail = await _storage.read(key: 'biometric_email');
+      final storedPassword = await _storage.read(key: 'biometric_password');
+      final hasStoredCredentials =
+          storedEmail != null && storedPassword != null;
+
+      // Check if biometric is explicitly disabled by user
       final prefs = await SharedPreferences.getInstance();
-      final isBiometricEnabled = prefs.getBool('isBiometricEnabled') ?? false;
-      final isSupported = await _localAuthService.isBiometricSupported();
-      final isEnrolled = await _localAuthService.isBiometricEnrolled();
+      final isBiometricDisabled = prefs.getBool('isBiometricEnabled') == false;
 
-      if (kDebugMode) {
-        print('🔐 [BiometricLogin] Checking biometric availability...');
-        print('   📱 Is supported: $isSupported');
-        print('   ✅ Is enrolled: $isEnrolled');
-        print('   🔧 Is enabled: $isBiometricEnabled');
-      }
+      print('🔐 [BiometricLogin] Checking biometric availability...');
+      print('   💾 Has stored credentials: $hasStoredCredentials');
+      print('   🔧 Explicitly disabled by user: $isBiometricDisabled');
 
-      if (isBiometricEnabled && isSupported && isEnrolled) {
-        if (kDebugMode) {
-          print('🔐 [BiometricLogin] All conditions met, attempting biometric authentication...');
-        }
-        
-        final authResult = await _localAuthService.authenticate('ابصم يباشا');
+      // If credentials exist and biometric is not disabled, try biometric auth
+      if (hasStoredCredentials && !isBiometricDisabled) {
+        final isSupported = await _localAuthService.isBiometricSupported();
+        final isEnrolled = await _localAuthService.isBiometricEnrolled();
 
-        if (authResult.success) {
-          if (kDebugMode) {
+        print('   📱 Device supports biometric: $isSupported');
+        print('   ✅ Biometric enrolled on device: $isEnrolled');
+
+        if (isSupported && isEnrolled) {
+          print('🔐 [BiometricLogin] Attempting biometric authentication...');
+
+          final authResult = await _localAuthService.authenticate('ابصم يباشا');
+
+          if (authResult.success) {
             print('🔐 [BiometricLogin] Biometric authentication successful!');
-          }
-          
-          final email = await _storage.read(key: 'biometric_email');
-          final password = await _storage.read(key: 'biometric_password');
+            print('🔐 [BiometricLogin] Signing in with stored credentials...');
 
-          if (kDebugMode) {
-            print('🔐 [BiometricLogin] Retrieved credentials: email=${email != null ? "***" : "null"}, password=${password != null ? "***" : "null"}');
-          }
-
-          if (email != null && password != null) {
             UserProfile? userProfile = await _authService
-                .signInWithEmailAndPassword(email, password);
+                .signInWithEmailAndPassword(storedEmail, storedPassword);
 
             if (mounted && userProfile != null) {
-              if (kDebugMode) {
-                print('🔐 [BiometricLogin] User profile loaded successfully, navigating to landing...');
-              }
-              
+              print(
+                '🔐 [BiometricLogin] Login successful, navigating to landing...',
+              );
+
               ref
                   .read(userProfileProvider.notifier)
                   .setLoggedInUserProfile(userProfile);
@@ -142,12 +141,12 @@ class _FirstLandingScreenState extends ConsumerState<FirstLandingScreen> {
                   .read(userProfileProvider.notifier)
                   .setUserProfile(userProfile);
 
-              // Navigate to landing screen after successful biometric login
               if (mounted) {
                 Navigator.pushReplacementNamed(context, '/landing');
               }
               return; // Exit after successful login
             } else if (mounted) {
+              print('❌ [BiometricLogin] Failed to load user profile');
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text(
@@ -156,37 +155,42 @@ class _FirstLandingScreenState extends ConsumerState<FirstLandingScreen> {
                 ),
               );
             }
+          } else if (mounted && authResult.errorMessage != null) {
+            print(
+              '🔐 [BiometricLogin] Authentication failed: ${authResult.errorMessage}',
+            );
+            // User can try manual login
+          } else {
+            print('🔐 [BiometricLogin] Authentication cancelled by user');
           }
-        } else if (mounted && authResult.errorMessage != null) {
-          if (kDebugMode) {
-            print('🔐 [BiometricLogin] Authentication failed: ${authResult.errorMessage}');
+        } else {
+          if (!isSupported) {
+            print('📱 [BiometricLogin] Device does not support biometrics');
           }
-          // Show specific error message
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(authResult.errorMessage!),
-              backgroundColor: Colors.orange,
-            ),
-          );
+          if (!isEnrolled) {
+            print(
+              '📱 [BiometricLogin] No fingerprints/face enrolled on device',
+            );
+          }
         }
       } else {
-        if (kDebugMode) {
-          print('🔐 [BiometricLogin] Biometric not available - conditions not met:');
-          print('   🔧 Enabled: $isBiometricEnabled');
-          print('   📱 Supported: $isSupported'); 
-          print('   ✅ Enrolled: $isEnrolled');
+        if (!hasStoredCredentials) {
+          print(
+            '📦 [BiometricLogin] No credentials stored - first time login required',
+          );
+        }
+        if (isBiometricDisabled) {
+          print('🔧 [BiometricLogin] Biometric disabled by user in settings');
         }
       }
-      
+
       // Fallback to manual login screen
       if (mounted) {
-        if (kDebugMode) {
-          print('🔐 [BiometricLogin] Falling back to manual login...');
-        }
+        print('🔐 [BiometricLogin] Navigating to manual login screen...');
         Navigator.pushReplacementNamed(context, '/login');
       }
     } catch (e) {
-      //debugprint('Biometric login error: $e');
+      print('❌ [BiometricLogin] Error: $e');
       if (mounted) {
         ScaffoldMessenger.of(
           context,

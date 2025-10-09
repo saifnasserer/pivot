@@ -324,14 +324,17 @@ class _AssistantProfileMainState extends ConsumerState<AssistantProfileMain>
     }
 
     return PopScope(
-      canPop: true,
-      onPopInvoked: (didPop) {
-        if (didPop) {
-          // Only restore profile when actually navigating back
+      canPop: false,
+      onPopInvoked: (didPop) async {
+        if (!didPop) {
+          // Restore profile BEFORE popping
           print(
             'Navigating back from assistant profile, restoring logged-in user profile',
           );
           ref.read(userProfileProvider.notifier).restoreLoggedInUserProfile();
+
+          // Now pop after restoration
+          Navigator.of(context).pop();
         }
       },
       child: Scaffold(

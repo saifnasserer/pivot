@@ -21,6 +21,29 @@ class PlatformServiceWeb {
     }
   }
 
+  static bool isAndroidWeb() {
+    if (!kIsWeb) return false;
+
+    try {
+      final userAgent = html.window.navigator.userAgent.toLowerCase();
+      // Check if it's Android and not in standalone/app mode
+      final isAndroid = userAgent.contains('android');
+      final isStandalone =
+          html.window.matchMedia('(display-mode: standalone)').matches;
+
+      if (kDebugMode) {
+        print('UserAgent: $userAgent');
+        print('isAndroid: $isAndroid');
+        print('isStandalone: $isStandalone');
+        print('Should show Android landing: ${isAndroid && !isStandalone}');
+      }
+
+      return isAndroid && !isStandalone;
+    } catch (e) {
+      return false;
+    }
+  }
+
   static bool _hasStandaloneTrue(dynamic navigator) {
     try {
       return navigator.standalone == true;

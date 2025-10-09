@@ -531,9 +531,9 @@ class _AddEditScheduleDialogState extends ConsumerState<AddEditScheduleDialog> {
                           _notificationEnabled = value;
                         });
                       },
-                      activeColor: Colors.green.shade400,
-                      activeThumbColor: Colors.white,
-                      inactiveThumbColor: Colors.white,
+                      activeThumbColor: Colors.green.shade400,
+                      activeTrackColor: Colors.white,
+                      inactiveThumbColor: Colors.grey.shade300,
                       inactiveTrackColor: Colors.grey.shade300,
                     ),
                   ],

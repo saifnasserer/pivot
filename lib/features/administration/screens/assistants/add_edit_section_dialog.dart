@@ -201,14 +201,32 @@ class _AddEditSectionDialogState extends ConsumerState<AddEditSectionDialog> {
       location: _locationController.text.trim(),
     );
 
+    // Debug log
+    print('Attempting to ${_isEditing ? 'update' : 'add'} section:');
+    print('  Name: ${newSection.name}');
+    print('  Assistant ID: ${newSection.assistantId}');
+    print('  Subject ID: ${newSection.subjectId}');
+    print('  Days: ${newSection.days}');
+    print('  Time: ${newSection.time}');
+    print('  Location: ${newSection.location}');
+
     try {
       if (_isEditing) {
         await ref.read(sectionsProvider.notifier).updateSection(newSection);
       } else {
         await ref.read(sectionsProvider.notifier).addSection(newSection);
       }
-      if (mounted) Navigator.of(context).pop();
+
+      // Return success result to parent
+      if (mounted) {
+        Navigator.of(context).pop({
+          'success': true,
+          'section': newSection,
+          'subjectId': _selectedSubjectId,
+        });
+      }
     } catch (e) {
+      print('Error saving section: $e'); // Debug log
       _showValidationError('حدث خطأ أثناء حفظ السكشن: ${e.toString()}');
     }
   }

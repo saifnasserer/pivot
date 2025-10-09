@@ -102,16 +102,3 @@ class SharedSchedule {
     return 'https://your-app-domain.com/schedule/$shareId';
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-

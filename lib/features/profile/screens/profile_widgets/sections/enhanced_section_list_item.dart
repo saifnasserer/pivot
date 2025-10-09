@@ -82,6 +82,29 @@ class _EnhancedSectionListItemState
 
   @override
   Widget build(BuildContext context) {
+    // Watch user profile provider to get the logged-in user and their preferences
+    final userProfileState = ref.watch(userProfileProvider);
+    final currentUser = userProfileState.loggedInUserProfile;
+
+    // Get the preferred section to display based on user's assistant preference
+    Section? displaySection;
+
+    if (widget.sections.isNotEmpty) {
+      final preferredAssistantId =
+          currentUser?.assistantPreferences[widget.subject.id];
+
+      // If user has a preferred assistant, find their section
+      if (preferredAssistantId != null) {
+        displaySection = widget.sections.firstWhere(
+          (section) => section.assistantId == preferredAssistantId,
+          orElse: () => widget.sections.first,
+        );
+      } else {
+        // No preference set, use first section
+        displaySection = widget.sections.first;
+      }
+    }
+
     return AnimatedBuilder(
       animation: _scaleAnimation,
       builder: (context, child) {
@@ -177,26 +200,19 @@ class _EnhancedSectionListItemState
                               ),
                               alignment: WrapAlignment.end,
                               children: [
-                                // Show section info if available, otherwise show placeholder
-                                if (widget.sections.isNotEmpty)
-                                  ...widget.sections
-                                      .take(1)
-                                      .map(
-                                        (section) => [
-                                          _buildInfoChip(
-                                            context,
-                                            section.location,
-                                            Colors.green,
-                                          ),
-                                          _buildInfoChip(
-                                            context,
-                                            '${section.days} - ${section.time}',
-                                            Colors.orange,
-                                          ),
-                                        ],
-                                      )
-                                      .expand((e) => e)
-                                else
+                                // Show preferred section info if available, otherwise show placeholder
+                                if (displaySection != null) ...[
+                                  _buildInfoChip(
+                                    context,
+                                    displaySection.location,
+                                    Colors.green,
+                                  ),
+                                  _buildInfoChip(
+                                    context,
+                                    '${displaySection.days} - ${displaySection.time}',
+                                    Colors.orange,
+                                  ),
+                                ] else
                                   _buildInfoChip(
                                     context,
                                     'سيتم إضافة السكشن قريباً',
@@ -327,6 +343,17 @@ class _EnhancedSectionListItemState
     // Check if widget is still mounted after async operations
     if (!mounted) return;
 
+    // Get the preferred section to pass to the dialog
+    Section? preferredSection;
+    if (widget.sections.isNotEmpty && currentAssistantId != null) {
+      preferredSection = widget.sections.firstWhere(
+        (section) => section.assistantId == currentAssistantId,
+        orElse: () => widget.sections.first,
+      );
+    } else if (widget.sections.isNotEmpty) {
+      preferredSection = widget.sections.first;
+    }
+
     // Show InstructorsGate dialog with assistants configuration
     bool saveSucceeded = false;
     bool saveFailed = false;
@@ -364,7 +391,7 @@ class _EnhancedSectionListItemState
                 )
                 : InstructorsGateConfig.professors,
         selectedInstructorId: currentAssistantId,
-        section: widget.sections.isNotEmpty ? widget.sections.first : null,
+        section: preferredSection,
       );
     } catch (e) {
       saveFailed = true;

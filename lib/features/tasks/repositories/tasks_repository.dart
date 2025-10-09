@@ -108,4 +108,9 @@ class TasksRepository {
   Future<bool> bulkDeleteTasks(List<String> taskIds) async {
     return await _tasksService.bulkDeleteTasks(taskIds);
   }
+
+  // Get current user ID
+  String? getCurrentUserId() {
+    return _tasksService.getCurrentUserId();
+  }
 }

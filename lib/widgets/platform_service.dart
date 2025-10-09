@@ -8,4 +8,9 @@ class PlatformService {
     if (!kIsWeb) return false;
     return PlatformServiceWeb.isIOSWeb();
   }
+
+  static bool isAndroidWeb() {
+    if (!kIsWeb) return false;
+    return PlatformServiceWeb.isAndroidWeb();
+  }
 }
