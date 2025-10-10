@@ -5,6 +5,9 @@ import 'package:pivot/models/section_model.dart';
 import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/models/subject_model.dart';
+import 'package:pivot/features/home/screens/adminstration/animated_route.dart';
+import 'package:pivot/features/administration/screens/assistants/profile/assistant_profile_main.dart';
+import 'package:pivot/features/administration/screens/doctor/profile/doctor_profile.dart';
 
 /// Configuration for the InstructorsGate dialog
 class InstructorsGateConfig {
@@ -123,15 +126,25 @@ class InstructorsGate extends ConsumerStatefulWidget {
   ConsumerState<InstructorsGate> createState() => _InstructorsGateState();
 }
 
-class _InstructorsGateState extends ConsumerState<InstructorsGate> {
+class _InstructorsGateState extends ConsumerState<InstructorsGate>
+    with TickerProviderStateMixin {
   String? _selectedInstructorId;
   bool _isSaving = false;
   bool _isEditMode = false;
+
+  // Animation controllers
+  late AnimationController _fadeController;
+  late AnimationController _slideController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
 
   @override
   void initState() {
     super.initState();
     _selectedInstructorId = widget.selectedInstructorId;
+
+    // Initialize animations
+    _initializeAnimations();
 
     // Initialize with current preference if in selection mode
     if (widget.config.enableSelection) {
@@ -154,6 +167,40 @@ class _InstructorsGateState extends ConsumerState<InstructorsGate> {
     }
   }
 
+  void _initializeAnimations() {
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 400),
+      vsync: this,
+    );
+
+    _slideController = AnimationController(
+      duration: const Duration(milliseconds: 400),
+      vsync: this,
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut),
+    );
+
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0.0, 0.05),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
+    );
+
+    // Start animations
+    _fadeController.forward();
+    _slideController.forward();
+  }
+
+  @override
+  void dispose() {
+    _fadeController.dispose();
+    _slideController.dispose();
+    super.dispose();
+  }
+
   void _toggleEditMode() {
     if (mounted) {
       setState(() {
@@ -174,9 +221,7 @@ class _InstructorsGateState extends ConsumerState<InstructorsGate> {
     if (widget.config.onInstructorTapped != null) {
       widget.config.onInstructorTapped!(instructor);
     } else {
-      // Default navigation based on instructor type
-      Navigator.of(context).pop();
-
+      // Default navigation based on instructor type with AnimatedAddRoute
       // Create navigation arguments that include both instructor and subject
       final navigationArgs = {
         'instructor': instructor,
@@ -184,194 +229,239 @@ class _InstructorsGateState extends ConsumerState<InstructorsGate> {
         'fromSubject': true, // Flag to indicate we came from a subject
       };
 
+      Widget destinationScreen;
       switch (widget.config.instructorType) {
         case 'professor':
-          Navigator.pushNamed(
-            context,
-            '/doctor-profile',
-            arguments: navigationArgs,
-          );
+          destinationScreen = const DoctorProfile();
           break;
         case 'assistant':
-          Navigator.pushNamed(
-            context,
-            '/assistant-profile',
-            arguments: navigationArgs,
-          );
+          destinationScreen = const AssistantProfileMain();
           break;
         default:
-          Navigator.pushNamed(
-            context,
-            '/doctor-profile',
-            arguments: navigationArgs,
-          );
+          destinationScreen = const DoctorProfile();
       }
+
+      Navigator.of(context).pushReplacement(
+        AnimatedAddRoute(
+          startPosition: Offset.zero,
+          child: destinationScreen,
+          arguments: navigationArgs,
+        ),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Expanded(
-          child: Directionality(
-            textDirection: TextDirection.rtl,
-            child: SingleChildScrollView(
-              padding: Responsive.padding(context, size: Space.medium),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  // Subject header
-                  _buildSubjectHeader(),
-
-                  SizedBox(
-                    height: Responsive.space(context, size: Space.medium),
-                  ),
-                  Divider(thickness: 1, color: Colors.grey[200]),
-                  SizedBox(
-                    height: Responsive.space(context, size: Space.small),
-                  ),
-
-                  // Instructors section
-                  if (widget.instructors.isNotEmpty) ...[
-                    _buildInstructorsSection(),
-                  ] else ...[
-                    _buildNoInstructorsSection(),
-                  ],
-                ],
-              ),
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          leading: IconButton(
+            onPressed: () => Navigator.of(context).pop(),
+            icon: const Icon(Icons.arrow_back, color: Colors.black),
+          ),
+          title: Text(
+            widget.config.title,
+            style: TextStyle(
+              fontSize: Responsive.text(context, size: TextSize.heading),
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
             ),
           ),
+          centerTitle: true,
+          actions: [
+            // Edit Button (if enabled)
+            if (widget.config.enableEditMode)
+              IconButton(
+                onPressed: _toggleEditMode,
+                icon: Icon(
+                  _isEditMode ? Icons.close : Icons.edit,
+                  color: _isEditMode ? Colors.red : Colors.black,
+                ),
+                tooltip:
+                    _isEditMode
+                        ? 'إلغاء التعديل'
+                        : 'تعديل ${widget.config.defaultInstructorLabel}',
+              ),
+          ],
         ),
+        body: SafeArea(
+          child: Column(
+            children: [
+              // Animated content
+              Expanded(
+                child: FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: SlideTransition(
+                    position: _slideAnimation,
+                    child: SingleChildScrollView(
+                      padding: Responsive.padding(context, size: Space.large),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          // Subject header
+                          _buildSubjectHeader(),
 
-        // Footer with action buttons
-        _buildFooter(),
-      ],
+                          SizedBox(
+                            height: Responsive.space(
+                              context,
+                              size: Space.medium,
+                            ),
+                          ),
+                          Divider(thickness: 1, color: Colors.grey[200]),
+                          SizedBox(
+                            height: Responsive.space(
+                              context,
+                              size: Space.medium,
+                            ),
+                          ),
+
+                          // Instructors section
+                          if (widget.instructors.isNotEmpty) ...[
+                            _buildInstructorsSection(),
+                          ] else ...[
+                            _buildNoInstructorsSection(),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              // Footer with action buttons
+              _buildFooter(),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
   Widget _buildSubjectHeader() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        Container(
-          padding: EdgeInsets.all(Responsive.space(context, size: Space.small)),
-          decoration: BoxDecoration(
-            color: widget.config.primaryColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(
-              Responsive.space(context, size: Space.large),
-            ),
-          ),
-          child: Icon(
-            widget.config.icon,
-            color: widget.config.primaryColor,
-            size: Responsive.space(context, size: Space.medium),
-          ),
-        ),
-        SizedBox(width: Responsive.space(context, size: Space.medium)),
-        Expanded(
-          child: Text(
-            widget.subject.name,
-            style: TextStyle(
-              fontSize: Responsive.text(context, size: TextSize.heading),
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-            textAlign: TextAlign.right,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildInstructorsSection() {
     return Container(
+      padding: Responsive.padding(context, size: Space.medium),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(
-          Responsive.space(context, size: Space.large),
+        gradient: LinearGradient(
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+          colors: [
+            widget.config.primaryColor.withOpacity(0.1),
+            widget.config.primaryColor.withOpacity(0.05),
+          ],
         ),
-        border: Border.all(color: Colors.grey[200]!),
+        borderRadius: BorderRadius.circular(
+          Responsive.space(context, size: Space.medium),
+        ),
+        border: Border.all(color: widget.config.primaryColor.withOpacity(0.2)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Padding(
-            padding: EdgeInsets.all(
-              Responsive.space(context, size: Space.medium),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Edit Button (if enabled)
-                if (widget.config.enableEditMode)
-                  IconButton(
-                    onPressed: _toggleEditMode,
-                    icon: Icon(
-                      _isEditMode ? Icons.close : Icons.edit,
-                      color: _isEditMode ? Colors.red : Colors.black,
-                    ),
-                    tooltip:
-                        _isEditMode
-                            ? 'إلغاء التعديل'
-                            : 'تعديل ${widget.config.defaultInstructorLabel}',
+                Text(
+                  'المادة',
+                  style: TextStyle(
+                    fontSize: Responsive.text(context, size: TextSize.small),
+                    color: Colors.grey.shade600,
                   ),
-                // Status indicator
-                if (widget.config.enableSelection &&
-                    _selectedInstructorId != null)
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: Responsive.space(context, size: Space.small),
-                      vertical: Responsive.space(context, size: Space.tiny),
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(
-                        Responsive.space(context, size: Space.small),
-                      ),
-                      border: Border.all(color: Colors.green.withOpacity(0.3)),
-                    ),
-                    child: Text(
-                      'تم الاختيار',
-                      style: TextStyle(
-                        fontSize: Responsive.text(
-                          context,
-                          size: TextSize.small,
-                        ),
-                        color: Colors.green,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                  textAlign: TextAlign.right,
+                ),
+                SizedBox(height: Responsive.space(context, size: Space.tiny)),
+                Text(
+                  widget.subject.name,
+                  style: TextStyle(
+                    fontSize: Responsive.text(context, size: TextSize.heading),
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
                   ),
-                // Title
-                Expanded(
-                  child: Text(
-                    widget.config.title,
-                    style: TextStyle(
-                      fontSize: Responsive.text(context, size: TextSize.medium),
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                    textAlign: TextAlign.right,
-                  ),
+                  textAlign: TextAlign.right,
                 ),
               ],
             ),
           ),
-          ListView.separated(
-            shrinkWrap: true,
-            physics: NeverScrollableScrollPhysics(),
-            itemCount: widget.instructors.length,
-            separatorBuilder:
-                (context, index) => Divider(height: 1, color: Colors.grey[200]),
-            itemBuilder: (context, index) {
-              final instructor = widget.instructors[index];
-              return _buildInstructorTile(instructor);
-            },
-          ),
+          // SizedBox(width: Responsive.space(context, size: Space.medium)),
+          // Container(
+          //   padding: EdgeInsets.all(
+          //     Responsive.space(context, size: Space.medium),
+          //   ),
+          //   decoration: BoxDecoration(
+          //     color: widget.config.primaryColor.withOpacity(0.15),
+          //     borderRadius: BorderRadius.circular(
+          //       Responsive.space(context, size: Space.medium),
+          //     ),
+          //   ),
+          //   child: Icon(
+          //     widget.config.icon,
+          //     color: widget.config.primaryColor,
+          //     size: Responsive.space(context, size: Space.large),
+          //   ),
+          // ),
         ],
       ),
+    );
+  }
+
+  Widget _buildInstructorsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Status indicator
+        if (widget.config.enableSelection && _selectedInstructorId != null)
+          Container(
+            margin: EdgeInsets.only(
+              bottom: Responsive.space(context, size: Space.medium),
+            ),
+            padding: EdgeInsets.symmetric(
+              horizontal: Responsive.space(context, size: Space.medium),
+              vertical: Responsive.space(context, size: Space.small),
+            ),
+            decoration: BoxDecoration(
+              color: Colors.green.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(
+                Responsive.space(context, size: Space.medium),
+              ),
+              border: Border.all(color: Colors.green.withOpacity(0.3)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                Text(
+                  'تم الاختيار',
+                  style: TextStyle(
+                    fontSize: Responsive.text(context, size: TextSize.medium),
+                    color: Colors.green,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                SizedBox(width: Responsive.space(context, size: Space.small)),
+                Icon(Icons.check_circle, color: Colors.green, size: 20),
+              ],
+            ),
+          ),
+
+        // Instructors list
+        ListView.separated(
+          shrinkWrap: true,
+          physics: NeverScrollableScrollPhysics(),
+          itemCount: widget.instructors.length,
+          separatorBuilder:
+              (context, index) => SizedBox(
+                height: Responsive.space(context, size: Space.small),
+              ),
+          itemBuilder: (context, index) {
+            final instructor = widget.instructors[index];
+            return _buildInstructorTile(instructor);
+          },
+        ),
+      ],
     );
   }
 
@@ -381,212 +471,272 @@ class _InstructorsGateState extends ConsumerState<InstructorsGate> {
         _isEditMode &&
         _selectedInstructorId == instructor.id;
 
-    return ListTile(
-      leading: CircleAvatar(
-        backgroundColor:
-            isSelected
-                ? Colors.green.withOpacity(0.2)
-                : Colors.black.withOpacity(0.1),
-        child: Icon(
-          isSelected ? Icons.check : Icons.person,
-          color: isSelected ? Colors.green : Colors.black,
+    return Container(
+      decoration: BoxDecoration(
+        color: isSelected ? Colors.green.withOpacity(0.05) : Colors.white,
+        borderRadius: BorderRadius.circular(
+          Responsive.space(context, size: Space.medium),
+        ),
+        border: Border.all(
+          color:
+              isSelected ? Colors.green.withOpacity(0.3) : Colors.grey.shade200,
+          width: isSelected ? 2 : 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap:
+              _isEditMode
+                  ? () => _onInstructorSelected(instructor.id)
+                  : () => _onInstructorTapped(instructor),
+          borderRadius: BorderRadius.circular(
+            Responsive.space(context, size: Space.medium),
+          ),
+          child: Padding(
+            padding: Responsive.padding(context, size: Space.medium),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: Responsive.space(context, size: Space.medium),
+                  backgroundColor:
+                      isSelected
+                          ? Colors.green.withOpacity(0.2)
+                          : widget.config.primaryColor.withOpacity(0.1),
+                  child: Icon(
+                    isSelected ? Icons.check : Icons.person,
+                    color:
+                        isSelected ? Colors.green : widget.config.primaryColor,
+                    size: Responsive.space(context, size: Space.medium),
+                  ),
+                ),
+
+                // Trailing icon
+                SizedBox(width: Responsive.space(context, size: Space.medium)),
+                // Content
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        instructor.name,
+                        style: TextStyle(
+                          fontSize: Responsive.text(
+                            context,
+                            size: TextSize.medium,
+                          ),
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                        textAlign: TextAlign.right,
+                      ),
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.tiny),
+                      ),
+                      Text(
+                        _isEditMode
+                            ? (isSelected
+                                ? widget.config.defaultInstructorLabel
+                                : 'انقر لاختيار ك${widget.config.defaultInstructorLabel}')
+                            : widget.config.instructorLabel,
+                        style: TextStyle(
+                          fontSize: Responsive.text(
+                            context,
+                            size: TextSize.small,
+                          ),
+                          color:
+                              isSelected
+                                  ? Colors.green.shade700
+                                  : Colors.grey.shade600,
+                        ),
+                        textAlign: TextAlign.right,
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(width: Responsive.space(context, size: Space.medium)),
+                // Leading avatar
+                Icon(
+                  _isEditMode
+                      ? (isSelected
+                          ? Icons.check_circle
+                          : Icons.radio_button_unchecked)
+                      : Icons.arrow_forward_ios,
+                  color: isSelected ? Colors.green : Colors.grey.shade400,
+                  size: 20,
+                ),
+              ],
+            ),
+          ),
         ),
       ),
-      title: Text(
-        instructor.name,
-        style: TextStyle(
-          fontSize: Responsive.text(context, size: TextSize.medium),
-          fontWeight: FontWeight.w600,
-          color: Colors.black87,
-        ),
-      ),
-      subtitle: Text(
-        _isEditMode
-            ? (isSelected
-                ? widget.config.defaultInstructorLabel
-                : 'انقر لاختيار ك${widget.config.defaultInstructorLabel}')
-            : widget.config.instructorLabel,
-        style: TextStyle(
-          fontSize: Responsive.text(context, size: TextSize.small),
-          color: isSelected ? Colors.green.shade700 : Colors.grey.shade600,
-        ),
-      ),
-      trailing: Icon(
-        _isEditMode
-            ? (isSelected ? Icons.check_circle : Icons.radio_button_unchecked)
-            : Icons.arrow_forward_ios,
-        color: isSelected ? Colors.green : Colors.grey.shade400,
-        size: 20,
-      ),
-      onTap:
-          _isEditMode
-              ? () => _onInstructorSelected(instructor.id)
-              : () => _onInstructorTapped(instructor),
     );
   }
 
   Widget _buildNoInstructorsSection() {
-    return Container(
-      padding: Responsive.padding(context, size: Space.medium),
-      decoration: BoxDecoration(
-        color: Colors.orange.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(
-          Responsive.space(context, size: Space.large),
-        ),
-        border: Border.all(color: Colors.orange.withOpacity(0.3)),
-      ),
-      child: Row(
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.info_outline, color: Colors.orange, size: 24),
-          SizedBox(width: Responsive.space(context, size: Space.medium)),
-          Expanded(
+          SizedBox(height: Responsive.space(context, size: Space.xlarge)),
+          Container(
+            padding: EdgeInsets.all(
+              Responsive.space(context, size: Space.large),
+            ),
+            decoration: BoxDecoration(
+              color: Colors.orange.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.inbox_outlined,
+              color: Colors.orange,
+              size: Responsive.space(context, size: Space.xlarge) * 1.5,
+            ),
+          ),
+          SizedBox(height: Responsive.space(context, size: Space.large)),
+          Text(
+            'لا يوجد ${widget.config.instructorLabel}ين',
+            style: TextStyle(
+              fontSize: Responsive.text(context, size: TextSize.heading),
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: Responsive.space(context, size: Space.small)),
+          Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: Responsive.space(context, size: Space.large),
+            ),
             child: Text(
               widget.config.emptyMessage,
               style: TextStyle(
-                fontSize: Responsive.text(context, size: TextSize.small),
-                color: Colors.orange,
+                fontSize: Responsive.text(context, size: TextSize.medium),
+                color: Colors.grey.shade600,
               ),
+              textAlign: TextAlign.center,
             ),
           ),
+          SizedBox(height: Responsive.space(context, size: Space.xlarge)),
         ],
       ),
     );
   }
 
   Widget _buildFooter() {
+    // Only show footer when in edit mode and selection is enabled
+    if (!_isEditMode ||
+        !widget.config.enableSelection ||
+        widget.instructors.isEmpty ||
+        _selectedInstructorId == null) {
+      return const SizedBox.shrink();
+    }
+
     return Container(
-      padding: Responsive.padding(context, size: Space.medium),
+      padding: Responsive.padding(context, size: Space.large),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(
-            Responsive.space(context, size: Space.large),
-          ),
-          bottomRight: Radius.circular(
-            Responsive.space(context, size: Space.large),
-          ),
-        ),
         border: Border(top: BorderSide(color: Colors.grey.shade200)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          if (_isEditMode &&
-              widget.config.enableSelection &&
-              widget.instructors.isNotEmpty &&
-              _selectedInstructorId != null)
-            Expanded(
-              child: ElevatedButton(
-                onPressed:
-                    _isSaving
-                        ? null
-                        : () async {
-                          if (mounted) {
-                            setState(() {
-                              _isSaving = true;
-                            });
-                          }
-                          try {
-                            if (widget.config.onInstructorSelected != null) {
-                              await widget.config.onInstructorSelected!(
-                                _selectedInstructorId!,
-                              );
-                            }
+      child: SafeArea(
+        top: false,
+        child: ElevatedButton(
+          onPressed:
+              _isSaving
+                  ? null
+                  : () async {
+                    if (mounted) {
+                      setState(() {
+                        _isSaving = true;
+                      });
+                    }
+                    try {
+                      if (widget.config.onInstructorSelected != null) {
+                        await widget.config.onInstructorSelected!(
+                          _selectedInstructorId!,
+                        );
+                      }
 
-                            // Reset saving state and close dialog on success
-                            if (mounted) {
-                              setState(() {
-                                _isSaving = false;
-                              });
-                              // Close the dialog after successful save
-                              Navigator.of(context).pop();
-                            }
-                          } catch (e) {
-                            // Reset saving state on error
-                            if (mounted) {
-                              setState(() {
-                                _isSaving = false;
-                              });
-                            }
-                            // Error will be shown by the callback's ScaffoldMessenger
-                          }
-                        },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black,
-                  foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(
-                    horizontal: Responsive.space(context, size: Space.large),
-                    vertical: Responsive.space(context, size: Space.medium),
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(
-                      Responsive.space(context, size: Space.medium),
-                    ),
-                  ),
-                ),
-                child:
-                    _isSaving
-                        ? SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
-                            ),
-                          ),
-                        )
-                        : Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.save, size: 18),
-                            SizedBox(
-                              width: Responsive.space(
-                                context,
-                                size: Space.small,
-                              ),
-                            ),
-                            Text('حفظ الاختيار'),
-                          ],
-                        ),
-              ),
-            )
-          else
-            Expanded(
-              child: ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.grey.shade300,
-                  foregroundColor: Colors.black87,
-                  padding: EdgeInsets.symmetric(
-                    horizontal: Responsive.space(context, size: Space.large),
-                    vertical: Responsive.space(context, size: Space.medium),
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(
-                      Responsive.space(context, size: Space.medium),
-                    ),
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.close, size: 18),
-                    SizedBox(
-                      width: Responsive.space(context, size: Space.small),
-                    ),
-                    Text('إغلاق'),
-                  ],
-                ),
+                      // Reset saving state and close screen on success
+                      if (mounted) {
+                        setState(() {
+                          _isSaving = false;
+                        });
+                        Navigator.of(context).pop();
+                      }
+                    } catch (e) {
+                      // Reset saving state on error
+                      if (mounted) {
+                        setState(() {
+                          _isSaving = false;
+                        });
+                      }
+                      // Error will be shown by the callback's ScaffoldMessenger
+                    }
+                  },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.black,
+            foregroundColor: Colors.white,
+            padding: EdgeInsets.symmetric(
+              vertical: Responsive.space(context, size: Space.medium),
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(
+                Responsive.space(context, size: Space.medium),
               ),
             ),
-        ],
+            elevation: 0,
+          ),
+          child:
+              _isSaving
+                  ? SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                  : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.save, size: 20),
+                      SizedBox(
+                        width: Responsive.space(context, size: Space.small),
+                      ),
+                      Text(
+                        'حفظ الاختيار',
+                        style: TextStyle(
+                          fontSize: Responsive.text(
+                            context,
+                            size: TextSize.medium,
+                          ),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+        ),
       ),
     );
   }
 }
 
-/// Helper function to show InstructorsGate dialog
+/// Helper function to navigate to InstructorsGate screen
 Future<void> showInstructorsGate({
   required BuildContext context,
   required WidgetRef ref,
@@ -596,31 +746,16 @@ Future<void> showInstructorsGate({
   String? selectedInstructorId,
   Section? section,
 }) {
-  return showDialog(
-    context: context,
-    builder:
-        (context) => Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(
-              Responsive.space(context, size: Space.large),
-            ),
-          ),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.8,
-              maxWidth: MediaQuery.of(context).size.width * 0.9,
-            ),
-            child: InstructorsGate(
-              subject: subject,
-              instructors: instructors,
-              config: config,
-              selectedInstructorId: selectedInstructorId,
-              section: section,
-            ),
-          ),
-        ),
-  ).then((_) {
-    // User profile will remain active after dialog dismissal
-    // No need to restore as Riverpod handles state automatically
-  });
+  return Navigator.of(context).push(
+    AnimatedAddRoute(
+      startPosition: Offset.zero,
+      child: InstructorsGate(
+        subject: subject,
+        instructors: instructors,
+        config: config,
+        selectedInstructorId: selectedInstructorId,
+        section: section,
+      ),
+    ),
+  );
 }

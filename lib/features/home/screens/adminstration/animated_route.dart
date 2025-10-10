@@ -1,53 +1,58 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/responsive.dart';
 
-
 class AnimatedAddRoute extends PageRouteBuilder {
   final Widget child;
   final Offset startPosition;
+  final Object? arguments;
 
-  AnimatedAddRoute({required this.child, required this.startPosition})
-    : super(
-        pageBuilder: (context, animation, secondaryAnimation) => child,
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          const begin = Offset(0.0, 1.0);
-          const end = Offset.zero;
-          const curve = Curves.easeInOutCubic;
+  AnimatedAddRoute({
+    required this.child,
+    required this.startPosition,
+    this.arguments,
+  }) : super(
+         pageBuilder: (context, animation, secondaryAnimation) => child,
+         settings:
+             arguments != null ? RouteSettings(arguments: arguments) : null,
+         transitionsBuilder: (context, animation, secondaryAnimation, child) {
+           const begin = Offset(0.0, 1.0);
+           const end = Offset.zero;
+           const curve = Curves.easeInOutCubic;
 
-          var tween = Tween(
-            begin: begin,
-            end: end,
-          ).chain(CurveTween(curve: curve));
+           var tween = Tween(
+             begin: begin,
+             end: end,
+           ).chain(CurveTween(curve: curve));
 
-          var offsetAnimation = animation.drive(tween);
+           var offsetAnimation = animation.drive(tween);
 
-          // Scale animation
-          var scaleTween = Tween<double>(
-            begin: 0.8,
-            end: 1.0,
-          ).chain(CurveTween(curve: curve));
+           // Scale animation
+           var scaleTween = Tween<double>(
+             begin: 0.8,
+             end: 1.0,
+           ).chain(CurveTween(curve: curve));
 
-          var scaleAnimation = animation.drive(scaleTween);
+           var scaleAnimation = animation.drive(scaleTween);
 
-          // Fade animation
-          var fadeTween = Tween<double>(
-            begin: 0.0,
-            end: 1.0,
-          ).chain(CurveTween(curve: curve));
+           // Fade animation
+           var fadeTween = Tween<double>(
+             begin: 0.0,
+             end: 1.0,
+           ).chain(CurveTween(curve: curve));
 
-          var fadeAnimation = animation.drive(fadeTween);
+           var fadeAnimation = animation.drive(fadeTween);
 
-          return SlideTransition(
-            position: offsetAnimation,
-            child: ScaleTransition(
-              scale: scaleAnimation,
-              child: FadeTransition(opacity: fadeAnimation, child: child),
-            ),
-          );
-        },
-        transitionDuration: const Duration(milliseconds: 400),
-        reverseTransitionDuration: const Duration(milliseconds: 300),
-      );
+           return SlideTransition(
+             position: offsetAnimation,
+             child: ScaleTransition(
+               scale: scaleAnimation,
+               child: FadeTransition(opacity: fadeAnimation, child: child),
+             ),
+           );
+         },
+         transitionDuration: const Duration(milliseconds: 400),
+         reverseTransitionDuration: const Duration(milliseconds: 300),
+       );
 }
 
 // Custom animated button that expands to full screen

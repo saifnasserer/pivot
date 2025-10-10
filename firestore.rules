@@ -76,6 +76,11 @@ service cloud.firestore {
         allow read, write: if isUser(userId);
       }
 
+      // Archived tasks (completed tasks moved to archive)
+      match /archived_tasks/{taskId} {
+        allow read, write: if isUser(userId);
+      }
+
       // User-specific task notes (private to each user)
       match /task_notes/{taskId} {
         allow read, write: if isUser(userId);

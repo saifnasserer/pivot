@@ -113,4 +113,29 @@ class TasksRepository {
   String? getCurrentUserId() {
     return _tasksService.getCurrentUserId();
   }
+
+  // Archive a completed task
+  Future<bool> archiveTask(Task task) async {
+    return await _tasksService.archiveTask(task);
+  }
+
+  // Restore archived task
+  Future<bool> restoreArchivedTask(String taskId) async {
+    return await _tasksService.restoreArchivedTask(taskId);
+  }
+
+  // Get archived tasks
+  Future<List<Task>> getArchivedTasks() async {
+    return await _tasksService.getArchivedTasks();
+  }
+
+  // Delete archived task permanently
+  Future<bool> deleteArchivedTask(String taskId) async {
+    return await _tasksService.deleteArchivedTask(taskId);
+  }
+
+  // Clean up old archived tasks
+  Future<bool> cleanupOldArchivedTasks({int daysToKeep = 30}) async {
+    return await _tasksService.cleanupOldArchivedTasks(daysToKeep: daysToKeep);
+  }
 }

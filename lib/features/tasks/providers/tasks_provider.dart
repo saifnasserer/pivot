@@ -85,6 +85,82 @@ class TasksNotifier extends StateNotifier<TasksState> {
 
   TasksNotifier(this._repository) : super(const TasksState());
 
+  // Helper method to check if task should be shown in current view
+  bool _shouldShowTaskInCurrentView(Task task) {
+    // Check section filter
+    if (state.selectedSectionId != null &&
+        task.sectionId != state.selectedSectionId) {
+      return false;
+    }
+
+    // Check subject filter
+    if (state.selectedSubjectId != null &&
+        task.subjectId != state.selectedSubjectId) {
+      return false;
+    }
+
+    // Check importance filter
+    if (state.selectedImportance != null &&
+        task.importance != state.selectedImportance) {
+      return false;
+    }
+
+    // Check personal filter
+    if (state.showPersonalOnly && !task.isPersonal) {
+      return false;
+    }
+
+    // Check overdue filter
+    if (state.showOverdueOnly && !task.dueDate.isBefore(DateTime.now())) {
+      return false;
+    }
+
+    // Check today filter
+    if (state.showTodayOnly) {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final tomorrow = today.add(const Duration(days: 1));
+      if (!(task.dueDate.isAfter(today) && task.dueDate.isBefore(tomorrow))) {
+        return false;
+      }
+    }
+
+    // Check search query
+    if (state.searchQuery.isNotEmpty) {
+      final query = state.searchQuery.toLowerCase();
+      if (!task.title.toLowerCase().contains(query) &&
+          !task.description.toLowerCase().contains(query)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  // Helper method to refresh current view context
+  Future<void> _refreshCurrentView() async {
+    // Determine which view to refresh based on current state
+    if (state.selectedSectionId != null) {
+      await getTasksBySection(state.selectedSectionId!);
+    } else if (state.selectedSubjectId != null) {
+      await getTasksBySubject(state.selectedSubjectId!);
+    } else if (state.selectedImportance != null) {
+      await getTasksByImportance(state.selectedImportance!);
+    } else if (state.showPersonalOnly) {
+      await getPersonalTasks();
+    } else if (state.showCompletedOnly) {
+      await getCompletedTasks();
+    } else if (state.showOverdueOnly) {
+      await getOverdueTasks();
+    } else if (state.showTodayOnly) {
+      await getTasksDueToday();
+    } else if (state.searchQuery.isNotEmpty) {
+      await searchTasks(state.searchQuery);
+    } else {
+      await getAllTasks();
+    }
+  }
+
   // Get all tasks
   Future<void> getAllTasks() async {
     state = state.copyWith(isLoading: true, error: null);
@@ -240,82 +316,147 @@ class TasksNotifier extends StateNotifier<TasksState> {
     }
   }
 
-  // Add task
+  // Add task with optimistic update for instant UI response
   Future<bool> addTask(Task task) async {
-    state = state.copyWith(isLoading: true, error: null);
     try {
+      // OPTIMISTIC UPDATE: Add task to local state immediately
+      final updatedTasks = [...state.tasks, task];
+      final updatedFilteredTasks =
+          _shouldShowTaskInCurrentView(task)
+              ? [...state.filteredTasks, task]
+              : state.filteredTasks;
+
+      state = state.copyWith(
+        tasks: updatedTasks,
+        filteredTasks: updatedFilteredTasks,
+      );
+
+      print('✅ TasksProvider: Optimistic add - UI updated instantly');
+
+      // Now sync to Firebase in background
       final success = await _repository.addTask(task);
-      if (success) {
-        await getAllTasks(); // Refresh the list
+
+      if (!success) {
+        // Revert if failed
+        print('❌ TasksProvider: Add failed - reverting');
+        await _refreshCurrentView();
       }
-      state = state.copyWith(isLoading: false);
+
       return success;
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      // Revert on error
+      print('❌ TasksProvider: Add error - reverting: $e');
+      await _refreshCurrentView();
+      state = state.copyWith(error: e.toString());
       return false;
     }
   }
 
-  // Update task
+  // Update task with optimistic update for instant UI response
   Future<bool> updateTask(Task task) async {
-    state = state.copyWith(isLoading: true, error: null);
     try {
+      // Store old state for rollback
+      final oldTasks = state.tasks;
+      final oldFilteredTasks = state.filteredTasks;
+
+      // OPTIMISTIC UPDATE: Update task in local state immediately
+      final updatedTasks =
+          state.tasks.map((t) => t.id == task.id ? task : t).toList();
+
+      // Check if updated task should be in filtered view
+      final shouldShow = _shouldShowTaskInCurrentView(task);
+      final updatedFilteredTasks =
+          state.filteredTasks.where((t) => t.id != task.id).toList();
+      if (shouldShow) {
+        updatedFilteredTasks.add(task);
+      }
+
+      state = state.copyWith(
+        tasks: updatedTasks,
+        filteredTasks: updatedFilteredTasks,
+      );
+
+      print('✅ TasksProvider: Optimistic update - UI updated instantly');
+
+      // Now sync to Firebase in background
       final success = await _repository.updateTask(task);
-      if (success) {
-        await getAllTasks(); // Refresh the list
+
+      if (!success) {
+        // Revert if failed
+        print('❌ TasksProvider: Update failed - reverting');
+        state = state.copyWith(
+          tasks: oldTasks,
+          filteredTasks: oldFilteredTasks,
+        );
       }
-      state = state.copyWith(isLoading: false);
+
       return success;
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      // Revert on error
+      print('❌ TasksProvider: Update error - reverting: $e');
+      await _refreshCurrentView();
+      state = state.copyWith(error: e.toString());
       return false;
     }
   }
 
-  // Delete task
+  // Delete task with optimistic update for instant UI response
   Future<bool> deleteTask(String taskId) async {
-    state = state.copyWith(isLoading: true, error: null);
     try {
+      // Store old state for rollback
+      final oldTasks = state.tasks;
+      final oldFilteredTasks = state.filteredTasks;
+
+      // OPTIMISTIC UPDATE: Remove task from local state immediately
+      final updatedTasks = state.tasks.where((t) => t.id != taskId).toList();
+      final updatedFilteredTasks =
+          state.filteredTasks.where((t) => t.id != taskId).toList();
+
+      state = state.copyWith(
+        tasks: updatedTasks,
+        filteredTasks: updatedFilteredTasks,
+      );
+
+      print('✅ TasksProvider: Optimistic delete - UI updated instantly');
+
+      // Now sync to Firebase in background
       final success = await _repository.deleteTask(taskId);
-      if (success) {
-        await getAllTasks(); // Refresh the list
+
+      if (!success) {
+        // Revert if failed
+        print('❌ TasksProvider: Delete failed - reverting');
+        state = state.copyWith(
+          tasks: oldTasks,
+          filteredTasks: oldFilteredTasks,
+        );
       }
-      state = state.copyWith(isLoading: false);
+
       return success;
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      // Revert on error
+      print('❌ TasksProvider: Delete error - reverting: $e');
+      await _refreshCurrentView();
+      state = state.copyWith(error: e.toString());
       return false;
     }
   }
 
-  // Mark task as completed
+  // Mark task as completed - uses optimistic toggleTaskCompletion
   Future<bool> markTaskCompleted(String taskId) async {
-    state = state.copyWith(isLoading: true, error: null);
     try {
-      final success = await _repository.markTaskCompleted(taskId);
-      if (success) {
-        await getAllTasks(); // Refresh the list
-      }
-      state = state.copyWith(isLoading: false);
-      return success;
+      await toggleTaskCompletion(taskId);
+      return true;
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
       return false;
     }
   }
 
-  // Mark task as not completed
+  // Mark task as not completed - uses optimistic toggleTaskCompletion
   Future<bool> markTaskNotCompleted(String taskId) async {
-    state = state.copyWith(isLoading: true, error: null);
     try {
-      final success = await _repository.markTaskNotCompleted(taskId);
-      if (success) {
-        await getAllTasks(); // Refresh the list
-      }
-      state = state.copyWith(isLoading: false);
-      return success;
+      await toggleTaskCompletion(taskId);
+      return true;
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
       return false;
     }
   }
@@ -367,7 +508,8 @@ class TasksNotifier extends StateNotifier<TasksState> {
     try {
       final success = await _repository.bulkUpdateTasks(tasks);
       if (success) {
-        await getAllTasks(); // Refresh the list
+        // Refresh based on current view context
+        await _refreshCurrentView();
       }
       state = state.copyWith(isLoading: false);
       return success;
@@ -383,7 +525,8 @@ class TasksNotifier extends StateNotifier<TasksState> {
     try {
       final success = await _repository.bulkDeleteTasks(taskIds);
       if (success) {
-        await getAllTasks(); // Refresh the list
+        // Refresh based on current view context
+        await _refreshCurrentView();
       }
       state = state.copyWith(isLoading: false);
       return success;
@@ -492,7 +635,9 @@ class TasksNotifier extends StateNotifier<TasksState> {
     );
   }
 
-  // Toggle task completion status with optimistic update for instant UI response
+  // Toggle task completion status with ARCHIVE concept
+  // When completed → archive (remove from active tasks)
+  // When uncompleted → restore from archive (if exists)
   Future<void> toggleTaskCompletion(String taskId) async {
     try {
       // Get current user ID from repository/service
@@ -508,52 +653,156 @@ class TasksNotifier extends StateNotifier<TasksState> {
       }
 
       final task = state.tasks[taskIndex];
-
-      // OPTIMISTIC UPDATE: Update local state immediately for instant UI response
       final isCurrentlyCompleted = task.completedBy.contains(currentUserId);
-      final updatedCompletedBy = List<String>.from(task.completedBy);
 
       if (isCurrentlyCompleted) {
-        updatedCompletedBy.remove(currentUserId);
+        // Task is currently completed → UNCOMPLETE and restore from archive
+        print(
+          '🔄 TasksProvider: Uncompleting task - will remain in active tasks',
+        );
+
+        // Update completedBy array in Firebase
+        await _repository.toggleTaskCompletion(taskId);
+
+        // Refresh to get updated task
+        await _refreshCurrentView();
+
+        print('✅ TasksProvider: Task unmarked as completed');
       } else {
-        updatedCompletedBy.add(currentUserId);
+        // Task is NOT completed → COMPLETE and ARCHIVE
+        print('📦 TasksProvider: Completing task - will archive');
+        print('   Task ID: ${task.id}');
+        print('   Task Title: ${task.title}');
+        print('   Current completedBy: ${task.completedBy}');
+
+        // OPTIMISTIC UPDATE: Remove from local state immediately
+        final updatedTasks = state.tasks.where((t) => t.id != taskId).toList();
+        final updatedFilteredTasks =
+            state.filteredTasks.where((t) => t.id != taskId).toList();
+
+        state = state.copyWith(
+          tasks: updatedTasks,
+          filteredTasks: updatedFilteredTasks,
+        );
+
+        print('✅ TasksProvider: Task removed from UI instantly');
+
+        // Create task with completion status for archiving
+        final taskWithCompletion = Task(
+          id: task.id,
+          title: task.title,
+          description: task.description,
+          dueDate: task.dueDate,
+          importance: task.importance,
+          completedBy: [...task.completedBy, currentUserId],
+          sectionId: task.sectionId,
+          subjectId: task.subjectId,
+          assistantId: task.assistantId,
+          isPersonal: task.isPersonal,
+          attachments: task.attachments,
+          notes: task.notes,
+        );
+
+        print(
+          '   Updated completedBy for archive: ${taskWithCompletion.completedBy}',
+        );
+
+        // Archive the task (this will move it from tasks to archived_tasks)
+        // The archiveTask method handles everything in one atomic operation
+        try {
+          final archived = await _repository.archiveTask(taskWithCompletion);
+          if (archived) {
+            print('✅ TasksProvider: Task archived successfully');
+          } else {
+            print('❌ TasksProvider: Failed to archive task');
+            throw Exception('Failed to archive task');
+          }
+        } catch (archiveError) {
+          print('❌ TasksProvider: Archive error - $archiveError');
+          rethrow;
+        }
       }
-
-      final updatedTask = Task(
-        id: task.id,
-        title: task.title,
-        description: task.description,
-        dueDate: task.dueDate,
-        importance: task.importance,
-        completedBy: updatedCompletedBy,
-        sectionId: task.sectionId,
-        subjectId: task.subjectId,
-        assistantId: task.assistantId,
-        isPersonal: task.isPersonal,
-        attachments: task.attachments,
-        notes: task.notes,
-      );
-
-      // Update local state immediately
-      final updatedTasks = List<Task>.from(state.tasks);
-      updatedTasks[taskIndex] = updatedTask;
-
-      state = state.copyWith(tasks: updatedTasks);
-      print(
-        '✅ TasksProvider: Optimistic update applied - UI updated instantly',
-      );
-
-      // Now perform Firebase sync in background
-      await _repository.toggleTaskCompletion(taskId);
-      print('✅ TasksProvider: Firebase sync completed');
-
-      // Optionally refresh to ensure consistency (but UI already updated)
-      // await getAllTasks();
     } catch (e) {
       print('❌ TasksProvider: Toggle failed - $e');
       // Revert optimistic update by refreshing from server
-      await getAllTasks();
+      await _refreshCurrentView();
       state = state.copyWith(error: e.toString());
+    }
+  }
+
+  // Archive a task manually (without toggling completion)
+  Future<bool> archiveTask(Task task) async {
+    try {
+      // OPTIMISTIC UPDATE: Remove from local state immediately
+      final updatedTasks = state.tasks.where((t) => t.id != task.id).toList();
+      final updatedFilteredTasks =
+          state.filteredTasks.where((t) => t.id != task.id).toList();
+
+      state = state.copyWith(
+        tasks: updatedTasks,
+        filteredTasks: updatedFilteredTasks,
+      );
+
+      print('✅ TasksProvider: Task removed from UI for archiving');
+
+      // Archive in Firebase
+      final success = await _repository.archiveTask(task);
+
+      if (!success) {
+        // Revert if failed
+        await _refreshCurrentView();
+      }
+
+      return success;
+    } catch (e) {
+      print('❌ TasksProvider: Archive failed - $e');
+      await _refreshCurrentView();
+      return false;
+    }
+  }
+
+  // Get archived tasks
+  Future<List<Task>> getArchivedTasks() async {
+    try {
+      return await _repository.getArchivedTasks();
+    } catch (e) {
+      print('❌ TasksProvider: Failed to get archived tasks - $e');
+      return [];
+    }
+  }
+
+  // Restore archived task
+  Future<bool> restoreArchivedTask(String taskId) async {
+    try {
+      final success = await _repository.restoreArchivedTask(taskId);
+      if (success) {
+        // Refresh to show restored task
+        await _refreshCurrentView();
+      }
+      return success;
+    } catch (e) {
+      print('❌ TasksProvider: Failed to restore archived task - $e');
+      return false;
+    }
+  }
+
+  // Delete archived task permanently
+  Future<bool> deleteArchivedTask(String taskId) async {
+    try {
+      return await _repository.deleteArchivedTask(taskId);
+    } catch (e) {
+      print('❌ TasksProvider: Failed to delete archived task - $e');
+      return false;
+    }
+  }
+
+  // Clean up old archived tasks
+  Future<bool> cleanupOldArchivedTasks({int daysToKeep = 30}) async {
+    try {
+      return await _repository.cleanupOldArchivedTasks(daysToKeep: daysToKeep);
+    } catch (e) {
+      print('❌ TasksProvider: Failed to cleanup archived tasks - $e');
+      return false;
     }
   }
 

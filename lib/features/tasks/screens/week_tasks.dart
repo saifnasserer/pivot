@@ -14,6 +14,9 @@ import 'add_personal_task_dialog.dart';
 import 'package:pivot/services/sound_service.dart';
 import 'package:pivot/services/data_preloader_service.dart';
 import 'package:pivot/services/offline_service.dart';
+import 'package:pivot/features/home/screens/adminstration/animated_route.dart';
+import 'package:flutter_speed_dial/flutter_speed_dial.dart';
+import 'archived_tasks_screen.dart';
 
 /// Enhanced WeekTasks with analytics, smart organization, and modern UI
 class WeekTasks extends ConsumerStatefulWidget {
@@ -25,7 +28,6 @@ class WeekTasks extends ConsumerStatefulWidget {
 
 class _WeekTasksState extends ConsumerState<WeekTasks>
     with TickerProviderStateMixin {
-  bool _isCompletedTasksExpanded = false;
   late AnimationController _progressAnimationController;
   late AnimationController _listAnimationController;
   late Animation<double> _listAnimation;
@@ -481,13 +483,13 @@ class _WeekTasksState extends ConsumerState<WeekTasks>
         }).toList();
 
     final userId = loggedInUser.id;
+
+    // Since completed tasks are now archived, we only show pending tasks
     final pendingTasks =
         filteredTasks.where((t) => !t.isCompletedFor(userId)).toList();
-    final completedTasks =
-        filteredTasks.where((t) => t.isCompletedFor(userId)).toList();
 
     print(
-      '📊 WeekTasks: ${pendingTasks.length} pending, ${completedTasks.length} completed (${relevantSections.length} sections)',
+      '📊 WeekTasks: ${pendingTasks.length} pending (${relevantSections.length} sections) - Completed tasks are archived',
     );
 
     final groupedTasks = _groupTasks(pendingTasks);
@@ -505,19 +507,15 @@ class _WeekTasksState extends ConsumerState<WeekTasks>
               subjectsState,
             ),
 
-          if (pendingTasks.isEmpty && completedTasks.isEmpty)
+          if (pendingTasks.isEmpty)
             _buildEmptyState()
           else ...[
             // Grouped Task Lists
             ..._buildGroupedTaskLists(groupedTasks),
-
-            // Completed Tasks Section
-            if (completedTasks.isNotEmpty)
-              _buildCompletedTasksSection(completedTasks),
           ],
         ],
       ),
-      floatingActionButton: _buildFloatingActionButton(),
+      floatingActionButton: _buildSpeedDial(),
     );
   }
 
@@ -813,97 +811,60 @@ class _WeekTasksState extends ConsumerState<WeekTasks>
     return '';
   }
 
-  /// Build completed tasks section with enhanced design
-  Widget _buildCompletedTasksSection(List<Task> completedTasks) {
-    return SliverToBoxAdapter(
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: Responsive.space(context, size: Space.medium),
-          vertical: Responsive.space(context, size: Space.small),
-        ),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.grey.withOpacity(0.05),
-            borderRadius: BorderRadius.circular(
-              Responsive.space(context, size: Space.medium),
-            ),
-            border: Border.all(color: Colors.grey.withOpacity(0.2)),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(
-              Responsive.space(context, size: Space.medium),
-            ),
-            child: Theme(
-              data: Theme.of(
-                context,
-              ).copyWith(dividerColor: Colors.transparent),
-              child: ExpansionTile(
-                tilePadding: EdgeInsets.symmetric(
-                  horizontal: Responsive.space(context, size: Space.medium),
-                ),
-                title: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Icon(Icons.check_circle, color: Colors.green, size: 20),
-                    SizedBox(
-                      width: Responsive.space(context, size: Space.small),
-                    ),
-                    Text(
-                      'ضن (${completedTasks.length})',
-                      style: TextStyle(
-                        color: Colors.black87,
-                        fontSize: Responsive.text(
-                          context,
-                          size: TextSize.medium,
-                        ),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-                controlAffinity: ListTileControlAffinity.leading,
-                initiallyExpanded: _isCompletedTasksExpanded,
-                onExpansionChanged: (isExpanded) {
-                  setState(() {
-                    _isCompletedTasksExpanded = isExpanded;
-                  });
-                },
-                children:
-                    completedTasks.map((task) {
-                      return Padding(
-                        padding: EdgeInsets.only(
-                          bottom:
-                              task == completedTasks.last
-                                  ? Responsive.space(context, size: Space.small)
-                                  : 0,
-                        ),
-                        child: TaskModel(
-                          task: task,
-                          admin: false,
-                          onStatusChanged: () => _handleTaskStatusChange(task),
-                          onEdit:
-                              () => _showAddEditTaskDialog(context, task: task),
-                          onDelete: () => _handleTaskDelete(task),
-                        ),
-                      );
-                    }).toList(),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// Build enhanced floating action button
-  Widget _buildFloatingActionButton() {
-    return FloatingActionButton.extended(
-      heroTag: 'week_tasks_fab',
-      onPressed: () => _showAddEditTaskDialog(context),
+  /// Build speed dial with add task and archive options
+  Widget _buildSpeedDial() {
+    return SpeedDial(
+      icon: Icons.add,
+      activeIcon: Icons.close,
       backgroundColor: Colors.black,
+      foregroundColor: Colors.white,
+      activeBackgroundColor: Colors.black,
+      activeForegroundColor: Colors.white,
+      visible: true,
+      closeManually: false,
       elevation: 4,
-      shape: CircleBorder(),
-      label: const Icon(Icons.add, color: Colors.white, size: 20),
+      overlayColor: Colors.black,
+      overlayOpacity: 0.5,
+      direction: SpeedDialDirection.up,
+      children: [
+        SpeedDialChild(
+          child: const Icon(Icons.archive_outlined),
+          backgroundColor: Colors.grey.shade700,
+          foregroundColor: Colors.white,
+          label: 'الأرشيف',
+          labelStyle: TextStyle(
+            fontSize: Responsive.text(context, size: TextSize.small),
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
+          ),
+          labelBackgroundColor: Colors.white,
+          onTap: () {
+            Navigator.of(context).push(
+              AnimatedAddRoute(
+                startPosition: Offset.zero,
+                child: const ArchivedTasksScreen(),
+              ),
+            );
+          },
+          elevation: 4,
+          shape: const CircleBorder(),
+        ),
+        SpeedDialChild(
+          child: const Icon(Icons.add),
+          backgroundColor: Colors.black,
+          foregroundColor: Colors.white,
+          label: 'إضافة تاسك',
+          labelStyle: TextStyle(
+            fontSize: Responsive.text(context, size: TextSize.small),
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
+          ),
+          labelBackgroundColor: Colors.white,
+          onTap: () => _showAddEditTaskDialog(context),
+          elevation: 4,
+          shape: const CircleBorder(),
+        ),
+      ],
     );
   }
 

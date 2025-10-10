@@ -319,11 +319,8 @@ class _AssistantProfileMainState extends ConsumerState<AssistantProfileMain>
       // Reload sections for the logged-in user
       await ref
           .read(sectionsProvider.notifier)
-          .loadSectionsForUser(
-            loggedInUser.id,
-            loggedInUser.enrolledSubjects,
-          );
-      
+          .loadSectionsForUser(loggedInUser.id, loggedInUser.enrolledSubjects);
+
       // Load the logged-in user's profile as the viewed profile
       await ref
           .read(userProfileProvider.notifier)
@@ -363,7 +360,7 @@ class _AssistantProfileMainState extends ConsumerState<AssistantProfileMain>
                   loggedInUser.id,
                   loggedInUser.enrolledSubjects,
                 );
-            
+
             // Then load the logged-in user's profile as the viewed profile
             await ref
                 .read(userProfileProvider.notifier)

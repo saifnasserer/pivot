@@ -13,6 +13,16 @@ class TasksService {
     return _firestore.collection('users').doc(user.uid).collection('tasks');
   }
 
+  // Get archived tasks collection reference for current user
+  CollectionReference get _archivedTasksCollection {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('User not logged in');
+    return _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('archived_tasks');
+  }
+
   // Get all tasks for current user
   Future<List<Task>> getAllTasks() async {
     try {
@@ -387,5 +397,186 @@ class TasksService {
   // Get current user ID
   String? getCurrentUserId() {
     return _auth.currentUser?.uid;
+  }
+
+  // Archive a completed task (move from tasks to archived_tasks)
+  Future<bool> archiveTask(Task task) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        print('❌ TasksService: User not logged in');
+        throw Exception('User not logged in');
+      }
+
+      print('📦 TasksService: Starting archive process for task ${task.id}');
+      print('   Task title: ${task.title}');
+      print('   CompletedBy: ${task.completedBy}');
+
+      // Add archived timestamp to task data
+      final archivedTaskData = {
+        ...task.toMap(),
+        'archivedAt': FieldValue.serverTimestamp(),
+        'archivedBy': user.uid,
+      };
+
+      print('   Archive data prepared, starting batch operation...');
+
+      // Use batch to ensure atomicity
+      final batch = _firestore.batch();
+
+      // Add to archived collection
+      final archivedDocRef = _archivedTasksCollection.doc(task.id);
+      batch.set(archivedDocRef, archivedTaskData);
+      print('   ✓ Batch: SET to archived_tasks/${task.id}');
+
+      // Remove from active tasks
+      final activeDocRef = _tasksCollection.doc(task.id);
+      batch.delete(activeDocRef);
+      print('   ✓ Batch: DELETE from tasks/${task.id}');
+
+      print('   Committing batch...');
+      await batch.commit();
+
+      print('✅ TasksService: Task ${task.id} archived successfully!');
+      print('   Path: users/${user.uid}/archived_tasks/${task.id}');
+      return true;
+    } catch (e) {
+      print('❌ TasksService: Failed to archive task - $e');
+      print('   Stack trace: ${StackTrace.current}');
+      throw Exception('Failed to archive task: $e');
+    }
+  }
+
+  // Restore archived task back to active tasks
+  Future<bool> restoreArchivedTask(String taskId) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        print('❌ TasksService: User not logged in for restore');
+        throw Exception('User not logged in');
+      }
+
+      print('🔄 TasksService: Starting restore process for task $taskId');
+
+      // Get archived task
+      final archivedDoc = await _archivedTasksCollection.doc(taskId).get();
+      if (!archivedDoc.exists) {
+        print('❌ TasksService: Archived task $taskId not found');
+        throw Exception('Archived task not found');
+      }
+
+      final taskData = archivedDoc.data() as Map<String, dynamic>;
+      print('   Task title: ${taskData['title']}');
+      print('   Current completedBy: ${taskData['completedBy']}');
+
+      // Remove archive-specific fields
+      taskData.remove('archivedAt');
+      taskData.remove('archivedBy');
+
+      // IMPORTANT: Remove current user from completedBy array
+      // This marks the task as NOT completed for this user
+      final completedBy = List<String>.from(taskData['completedBy'] ?? []);
+      completedBy.remove(user.uid);
+      taskData['completedBy'] = completedBy;
+
+      print('   Updated completedBy (user removed): $completedBy');
+
+      // Use batch to ensure atomicity
+      final batch = _firestore.batch();
+
+      // Add back to active tasks with updated completedBy
+      batch.set(_tasksCollection.doc(taskId), taskData);
+
+      // Remove from archived collection
+      batch.delete(_archivedTasksCollection.doc(taskId));
+
+      print('   Committing batch...');
+      await batch.commit();
+
+      print('✅ TasksService: Task $taskId restored successfully');
+      print('   Path: users/${user.uid}/tasks/$taskId');
+      return true;
+    } catch (e) {
+      print('❌ TasksService: Failed to restore task - $e');
+      throw Exception('Failed to restore task: $e');
+    }
+  }
+
+  // Get all archived tasks for current user
+  Future<List<Task>> getArchivedTasks() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        print('❌ TasksService: User not logged in for getArchivedTasks');
+        throw Exception('User not logged in');
+      }
+
+      print('📂 TasksService: Fetching archived tasks...');
+      print('   Path: users/${user.uid}/archived_tasks');
+
+      final snapshot =
+          await _archivedTasksCollection
+              .orderBy('archivedAt', descending: true)
+              .get();
+
+      print('   Found ${snapshot.docs.length} archived tasks');
+
+      final tasks =
+          snapshot.docs.map((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            print('   - ${doc.id}: ${data['title']}');
+            return Task.fromMap(data);
+          }).toList();
+
+      print(
+        '✅ TasksService: Successfully fetched ${tasks.length} archived tasks',
+      );
+      return tasks;
+    } catch (e) {
+      print('❌ TasksService: Failed to fetch archived tasks - $e');
+      throw Exception('Failed to fetch archived tasks: $e');
+    }
+  }
+
+  // Delete archived task permanently
+  Future<bool> deleteArchivedTask(String taskId) async {
+    try {
+      await _archivedTasksCollection.doc(taskId).delete();
+      print('✅ TasksService: Archived task $taskId deleted permanently');
+      return true;
+    } catch (e) {
+      print('❌ TasksService: Failed to delete archived task - $e');
+      throw Exception('Failed to delete archived task: $e');
+    }
+  }
+
+  // Clean up old archived tasks (optional - can be called periodically)
+  Future<bool> cleanupOldArchivedTasks({int daysToKeep = 30}) async {
+    try {
+      final cutoffDate = DateTime.now().subtract(Duration(days: daysToKeep));
+      final snapshot =
+          await _archivedTasksCollection
+              .where('archivedAt', isLessThan: Timestamp.fromDate(cutoffDate))
+              .get();
+
+      if (snapshot.docs.isEmpty) {
+        print('✅ TasksService: No old archived tasks to clean up');
+        return true;
+      }
+
+      final batch = _firestore.batch();
+      for (var doc in snapshot.docs) {
+        batch.delete(doc.reference);
+      }
+
+      await batch.commit();
+      print(
+        '✅ TasksService: Cleaned up ${snapshot.docs.length} old archived tasks',
+      );
+      return true;
+    } catch (e) {
+      print('❌ TasksService: Failed to cleanup archived tasks - $e');
+      throw Exception('Failed to cleanup archived tasks: $e');
+    }
   }
 }
