@@ -849,10 +849,11 @@ final tasksProvider = StateNotifierProvider<TasksNotifier, TasksState>((ref) {
 // Use this when viewing assistant tasks, subject tasks, or any filtered view
 // This keeps the main tasksProvider clean and unmodified
 // ============================================================================
-final viewTasksProvider = StateNotifierProvider.autoDispose<TasksNotifier, TasksState>((ref) {
-  final repository = ref.watch(tasksRepositoryProvider);
-  return TasksNotifier(repository);
-});
+final viewTasksProvider =
+    StateNotifierProvider.autoDispose<TasksNotifier, TasksState>((ref) {
+      final repository = ref.watch(tasksRepositoryProvider);
+      return TasksNotifier(repository);
+    });
 
 // Convenience providers for specific data from MAIN provider
 final tasksListProvider = Provider<List<Task>>((ref) {

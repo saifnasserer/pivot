@@ -76,11 +76,14 @@ class _WeekTasksState extends ConsumerState<WeekTasks>
 
     // Ensure the main tasks provider has ALL tasks (not filtered by section/subject)
     // The viewTasksProvider is used for viewing specific filtered tasks in other screens
-    final hasFiltersSet = tasksState.selectedSectionId != null || 
-                          tasksState.selectedSubjectId != null;
-    
+    final hasFiltersSet =
+        tasksState.selectedSectionId != null ||
+        tasksState.selectedSubjectId != null;
+
     if (hasFiltersSet) {
-      print('🔄 WeekTasks: Main provider has filters set - reloading all tasks');
+      print(
+        '🔄 WeekTasks: Main provider has filters set - reloading all tasks',
+      );
       // Reload all tasks to ensure we have the complete list
       ref.read(tasksProvider.notifier).getAllTasks();
       return; // Return early since getAllTasks will load the data
