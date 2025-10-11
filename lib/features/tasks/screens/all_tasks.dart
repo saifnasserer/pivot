@@ -22,12 +22,13 @@ class _TasksControlState extends ConsumerState<TasksControl> {
   void initState() {
     super.initState();
     // Load tasks when the screen is first loaded
+    // Use viewTasksProvider to avoid polluting the main tasksProvider
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final sectionId = ModalRoute.of(context)?.settings.arguments as String?;
       if (sectionId != null) {
-        ref.read(tasksProvider.notifier).getTasksBySection(sectionId);
+        ref.read(viewTasksProvider.notifier).getTasksBySection(sectionId);
       } else {
-        ref.read(tasksProvider.notifier).getAllTasks();
+        ref.read(viewTasksProvider.notifier).getAllTasks();
       }
     });
   }
@@ -35,7 +36,8 @@ class _TasksControlState extends ConsumerState<TasksControl> {
   @override
   Widget build(BuildContext context) {
     final sectionId = ModalRoute.of(context)?.settings.arguments as String?;
-    final tasksState = ref.watch(tasksProvider);
+    // Use viewTasksProvider for viewing specific section tasks
+    final tasksState = ref.watch(viewTasksProvider);
     final sectionsState = ref.watch(sectionsProvider);
     final userProfileState = ref.watch(userProfileProvider);
     final userProfile = userProfileState.loggedInUserProfile;
@@ -97,10 +99,18 @@ class _TasksControlState extends ConsumerState<TasksControl> {
                     },
                     onDelete: () {
                       if (canEdit) {
+                        // Use viewTasksProvider for this view
+                        ref.read(viewTasksProvider.notifier).deleteTask(task.id);
+                        // Also update main provider to keep it in sync
                         ref.read(tasksProvider.notifier).deleteTask(task.id);
                       }
                     },
                     onStatusChanged: () {
+                      // Use viewTasksProvider for this view
+                      ref
+                          .read(viewTasksProvider.notifier)
+                          .markTaskCompleted(task.id);
+                      // Also update main provider to keep it in sync
                       ref
                           .read(tasksProvider.notifier)
                           .markTaskCompleted(task.id);
@@ -157,6 +167,8 @@ class _TasksControlState extends ConsumerState<TasksControl> {
       onSave: (savedTask) async {
         try {
           if (isEditing) {
+            // Update in both providers to keep them in sync
+            await ref.read(viewTasksProvider.notifier).updateTask(savedTask);
             await ref.read(tasksProvider.notifier).updateTask(savedTask);
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -167,6 +179,8 @@ class _TasksControlState extends ConsumerState<TasksControl> {
               );
             }
           } else {
+            // Add to both providers to keep them in sync
+            await ref.read(viewTasksProvider.notifier).addTask(savedTask);
             await ref.read(tasksProvider.notifier).addTask(savedTask);
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(

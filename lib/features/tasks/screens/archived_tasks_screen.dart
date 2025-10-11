@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/features/tasks/providers/tasks_provider.dart';
 import 'package:pivot/features/user/providers/user_profile_provider.dart';
+import 'package:pivot/services/offline_service.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/models/task.dart';
 import 'package:pivot/screens/models/task_model.dart';
@@ -28,6 +29,11 @@ class _ArchivedTasksScreenState extends ConsumerState<ArchivedTasksScreen>
   static const int _pageSize = 20;
   int _currentPage = 0;
   bool _hasMore = true;
+
+  // Cache management
+  List<Task> _cachedAllTasks = []; // Full cached list
+  DateTime? _lastFetchTime;
+  static const Duration _cacheValidity = Duration(minutes: 5);
 
   @override
   void initState() {
@@ -62,7 +68,75 @@ class _ArchivedTasksScreenState extends ConsumerState<ArchivedTasksScreen>
     }
   }
 
-  Future<void> _loadArchivedTasks() async {
+  Future<void> _loadArchivedTasks({bool forceRefresh = false}) async {
+    final offlineService = ref.read(offlineServiceProvider);
+    final now = DateTime.now();
+    final isCacheValid =
+        _lastFetchTime != null &&
+        now.difference(_lastFetchTime!) < _cacheValidity;
+
+    // Use cache if valid and not forcing refresh
+    if (!forceRefresh && isCacheValid && _cachedAllTasks.isNotEmpty) {
+      print(
+        '📦 ArchivedTasks: Using cached data (${_cachedAllTasks.length} tasks)',
+      );
+      setState(() {
+        _isLoading = true;
+        _currentPage = 0;
+        _hasMore = true;
+      });
+
+      // Simulate brief loading for smooth UX
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      if (mounted) {
+        setState(() {
+          _archivedTasks = _cachedAllTasks.take(_pageSize).toList();
+          _hasMore = _cachedAllTasks.length > _pageSize;
+          _isLoading = false;
+        });
+        _animationController.forward();
+      }
+      return;
+    }
+
+    // If offline and no cache, show cached data or error
+    if (!offlineService.hasConnection) {
+      if (_cachedAllTasks.isNotEmpty) {
+        print('📡 ArchivedTasks: Offline - using stale cache');
+        setState(() {
+          _isLoading = true;
+          _currentPage = 0;
+          _hasMore = true;
+        });
+
+        await Future.delayed(const Duration(milliseconds: 100));
+
+        if (mounted) {
+          setState(() {
+            _archivedTasks = _cachedAllTasks.take(_pageSize).toList();
+            _hasMore = _cachedAllTasks.length > _pageSize;
+            _isLoading = false;
+          });
+          _animationController.forward();
+        }
+      } else {
+        setState(() {
+          _isLoading = false;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('لا يوجد اتصال بالإنترنت ولا توجد بيانات محفوظة'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+      return;
+    }
+
+    // Fetch from server
     setState(() {
       _isLoading = true;
       _currentPage = 0;
@@ -70,28 +144,51 @@ class _ArchivedTasksScreenState extends ConsumerState<ArchivedTasksScreen>
     });
 
     try {
+      print('🌐 ArchivedTasks: Fetching from server...');
       final allTasks =
           await ref.read(tasksProvider.notifier).getArchivedTasks();
+
       if (mounted) {
         setState(() {
+          // Update cache
+          _cachedAllTasks = allTasks;
+          _lastFetchTime = DateTime.now();
+
           // Take first page
           _archivedTasks = allTasks.take(_pageSize).toList();
           _hasMore = allTasks.length > _pageSize;
           _isLoading = false;
         });
         _animationController.forward();
+        print('✅ ArchivedTasks: Loaded ${allTasks.length} tasks from server');
       }
     } catch (e) {
+      print('❌ ArchivedTasks: Error loading - $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('فشل تحميل التاسكات المؤرشفة: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+
+        // If we have cache, use it as fallback
+        if (_cachedAllTasks.isNotEmpty) {
+          setState(() {
+            _archivedTasks = _cachedAllTasks.take(_pageSize).toList();
+            _hasMore = _cachedAllTasks.length > _pageSize;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('تعذر تحديث البيانات - عرض البيانات المحفوظة'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('فشل تحميل التاسكات المؤرشفة: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }
@@ -103,48 +200,68 @@ class _ArchivedTasksScreenState extends ConsumerState<ArchivedTasksScreen>
       _isLoadingMore = true;
     });
 
-    try {
-      final allTasks =
-          await ref.read(tasksProvider.notifier).getArchivedTasks();
-      if (mounted) {
-        setState(() {
-          _currentPage++;
-          final startIndex = _currentPage * _pageSize;
-          final endIndex = startIndex + _pageSize;
+    // Use cached data for pagination - no need to fetch again
+    await Future.delayed(const Duration(milliseconds: 200)); // Simulate loading
 
-          if (startIndex < allTasks.length) {
-            _archivedTasks.addAll(
-              allTasks.skip(startIndex).take(_pageSize).toList(),
-            );
-            _hasMore = endIndex < allTasks.length;
-          } else {
-            _hasMore = false;
-          }
+    if (mounted) {
+      setState(() {
+        _currentPage++;
+        final startIndex = _currentPage * _pageSize;
+        final endIndex = startIndex + _pageSize;
 
-          _isLoadingMore = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoadingMore = false;
-        });
-      }
+        if (startIndex < _cachedAllTasks.length) {
+          _archivedTasks.addAll(
+            _cachedAllTasks.skip(startIndex).take(_pageSize).toList(),
+          );
+          _hasMore = endIndex < _cachedAllTasks.length;
+          print('📄 ArchivedTasks: Loaded page $_currentPage from cache');
+        } else {
+          _hasMore = false;
+        }
+
+        _isLoadingMore = false;
+      });
     }
   }
 
   Future<void> _restoreTask(Task task) async {
+    // OPTIMISTIC UPDATE: Remove from UI immediately
+    final taskIndex = _archivedTasks.indexWhere((t) => t.id == task.id);
+    if (taskIndex == -1) return;
+
+    final removedTask = _archivedTasks[taskIndex];
+
+    setState(() {
+      // Remove from displayed list
+      _archivedTasks.removeAt(taskIndex);
+      // Remove from cache
+      _cachedAllTasks.removeWhere((t) => t.id == task.id);
+    });
+
+    print(
+      '✅ ArchivedTasks: Optimistic update - task removed from UI instantly',
+    );
+
+    // Show immediate feedback
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('جاري استعادة "${task.title}"...'),
+          backgroundColor: Colors.blue,
+          duration: const Duration(seconds: 1),
+        ),
+      );
+    }
+
     try {
-      // Call provider to restore task - let provider handle state management
+      // Restore task in background
       final success = await ref
           .read(tasksProvider.notifier)
           .restoreArchivedTask(task.id);
 
       if (mounted) {
         if (success) {
-          // Reload archived tasks to reflect the change
-          await _loadArchivedTasks();
-
+          print('✅ ArchivedTasks: Task restored successfully in background');
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('تم استعادة "${task.title}" بنجاح'),
@@ -153,6 +270,13 @@ class _ArchivedTasksScreenState extends ConsumerState<ArchivedTasksScreen>
             ),
           );
         } else {
+          // Revert on failure
+          print('❌ ArchivedTasks: Restore failed - reverting');
+          setState(() {
+            _archivedTasks.insert(taskIndex, removedTask);
+            _cachedAllTasks.add(removedTask);
+          });
+
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('فشل استعادة التاسك'),
@@ -162,9 +286,19 @@ class _ArchivedTasksScreenState extends ConsumerState<ArchivedTasksScreen>
         }
       }
     } catch (e) {
+      print('❌ ArchivedTasks: Restore error - $e');
+      // Revert on error
       if (mounted) {
+        setState(() {
+          _archivedTasks.insert(taskIndex, removedTask);
+          _cachedAllTasks.add(removedTask);
+        });
+
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('خطأ في الاستعادة: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -204,7 +338,9 @@ class _ArchivedTasksScreenState extends ConsumerState<ArchivedTasksScreen>
 
       if (mounted) {
         if (success) {
-          await _loadArchivedTasks();
+          // Invalidate cache and reload
+          _lastFetchTime = null;
+          await _loadArchivedTasks(forceRefresh: true);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('تم تنظيف التاسكات القديمة بنجاح'),
@@ -233,6 +369,12 @@ class _ArchivedTasksScreenState extends ConsumerState<ArchivedTasksScreen>
   Widget build(BuildContext context) {
     final userProfileState = ref.watch(userProfileProvider);
     final userId = userProfileState.loggedInUserProfile?.id;
+    final connectivityStatus = ref.watch(connectivityStatusProvider);
+    final isOffline = connectivityStatus.when(
+      data: (isOnline) => !isOnline,
+      loading: () => false,
+      error: (_, __) => false,
+    );
 
     return Directionality(
       textDirection: TextDirection.rtl,
@@ -264,50 +406,94 @@ class _ArchivedTasksScreenState extends ConsumerState<ArchivedTasksScreen>
           ],
         ),
         body: SafeArea(
-          child:
-              _isLoading
-                  ? const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CircularProgressIndicator(color: Colors.black),
-                        SizedBox(height: 16),
-                        Text('جاري تحميل التاسكات المؤرشفة...'),
-                      ],
-                    ),
-                  )
-                  : _archivedTasks.isEmpty
-                  ? _buildEmptyState()
-                  : FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: ListView.builder(
-                      controller: _scrollController,
-                      padding: EdgeInsets.all(
-                        Responsive.space(context, size: Space.medium),
-                      ),
-                      itemCount:
-                          _archivedTasks.length + (_isLoadingMore ? 1 : 0),
-                      itemBuilder: (context, index) {
-                        // Show loading indicator at the end
-                        if (index == _archivedTasks.length) {
-                          return Padding(
-                            padding: EdgeInsets.all(
-                              Responsive.space(context, size: Space.large),
-                            ),
-                            child: const Center(
-                              child: CircularProgressIndicator(
-                                color: Colors.black,
-                              ),
-                            ),
-                          );
-                        }
+          child: Column(
+            children: [
+              // Offline indicator
+              if (isOffline) _buildOfflineIndicator(),
 
-                        final task = _archivedTasks[index];
-                        return _buildArchivedTaskCard(task, userId);
-                      },
-                    ),
-                  ),
+              // Main content
+              Expanded(
+                child:
+                    _isLoading
+                        ? const Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              CircularProgressIndicator(color: Colors.black),
+                              SizedBox(height: 16),
+                              Text('جاري تحميل التاسكات المؤرشفة...'),
+                            ],
+                          ),
+                        )
+                        : _archivedTasks.isEmpty
+                        ? _buildEmptyState()
+                        : RefreshIndicator(
+                          onRefresh:
+                              () => _loadArchivedTasks(forceRefresh: true),
+                          child: FadeTransition(
+                            opacity: _fadeAnimation,
+                            child: ListView.builder(
+                              controller: _scrollController,
+                              padding: EdgeInsets.all(
+                                Responsive.space(context, size: Space.medium),
+                              ),
+                              itemCount:
+                                  _archivedTasks.length +
+                                  (_isLoadingMore ? 1 : 0),
+                              itemBuilder: (context, index) {
+                                // Show loading indicator at the end
+                                if (index == _archivedTasks.length) {
+                                  return Padding(
+                                    padding: EdgeInsets.all(
+                                      Responsive.space(
+                                        context,
+                                        size: Space.large,
+                                      ),
+                                    ),
+                                    child: const Center(
+                                      child: CircularProgressIndicator(
+                                        color: Colors.black,
+                                      ),
+                                    ),
+                                  );
+                                }
+
+                                final task = _archivedTasks[index];
+                                return _buildArchivedTaskCard(task, userId);
+                              },
+                            ),
+                          ),
+                        ),
+              ),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildOfflineIndicator() {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(
+        horizontal: Responsive.space(context, size: Space.medium),
+        vertical: Responsive.space(context, size: Space.small),
+      ),
+      color: Colors.orange.shade100,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.cloud_off, size: 16, color: Colors.orange.shade900),
+          SizedBox(width: 8),
+          Text(
+            'لا يوجد اتصال - عرض البيانات المحفوظة',
+            style: TextStyle(
+              color: Colors.orange.shade900,
+              fontSize: Responsive.text(context, size: TextSize.small),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }

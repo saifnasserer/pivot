@@ -5,6 +5,7 @@ import 'package:pivot/models/lecture_model.dart';
 import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/features/media/providers/materials_provider.dart';
+import 'package:pivot/services/offline_service.dart';
 import 'material_card.dart';
 import 'add_material_dialog.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -60,11 +61,16 @@ class MaterialLinksScreen extends ConsumerStatefulWidget {
 
 class _MaterialLinksScreenState extends ConsumerState<MaterialLinksScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   bool _showSearch = false;
 
   @override
   void initState() {
     super.initState();
+
+    // Add scroll listener for pagination
+    _scrollController.addListener(_onScroll);
+
     // Fetch material links when screen initializes
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (widget.lecture != null) {
@@ -87,7 +93,33 @@ class _MaterialLinksScreenState extends ConsumerState<MaterialLinksScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      // User is near the bottom, load more items
+      _loadMoreMaterials();
+    }
+  }
+
+  void _loadMoreMaterials() {
+    final materialsState = ref.read(materialsProvider);
+
+    // Don't load if already loading or no more items
+    if (materialsState.isLoadingMore || !materialsState.hasMore) {
+      return;
+    }
+
+    if (widget.lecture != null) {
+      ref.read(materialsProvider.notifier).loadMoreMaterialsByLectureId();
+    } else if (widget.subject != null && widget.assistantId != null) {
+      ref
+          .read(materialsProvider.notifier)
+          .loadMoreMaterialsBySubjectAndAssistant();
+    }
   }
 
   Future<void> _launchURL(String urlString) async {
@@ -148,11 +180,49 @@ class _MaterialLinksScreenState extends ConsumerState<MaterialLinksScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final connectivityStatus = ref.watch(connectivityStatusProvider);
+    final isOffline = connectivityStatus.when(
+      data: (isOnline) => !isOnline,
+      loading: () => false,
+      error: (_, __) => false,
+    );
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: _showSearch ? null : _buildAppBar(),
-      body: _buildBody(),
+      body: Column(
+        children: [
+          if (isOffline) _buildOfflineIndicator(),
+          Expanded(child: _buildBody()),
+        ],
+      ),
       floatingActionButton: _buildFloatingActionButton(),
+    );
+  }
+
+  Widget _buildOfflineIndicator() {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(
+        horizontal: Responsive.space(context, size: Space.medium),
+        vertical: Responsive.space(context, size: Space.small),
+      ),
+      color: Colors.orange.shade100,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.cloud_off, size: 16, color: Colors.orange.shade900),
+          SizedBox(width: 8),
+          Text(
+            'لا يوجد اتصال بالإنترنت',
+            style: TextStyle(
+              color: Colors.orange.shade900,
+              fontSize: Responsive.text(context, size: TextSize.small),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -273,11 +343,19 @@ class _MaterialLinksScreenState extends ConsumerState<MaterialLinksScreen> {
                         }
                       },
                       child: ListView.builder(
+                        controller: _scrollController,
                         padding: EdgeInsets.all(
                           Responsive.space(context, size: Space.small),
                         ),
-                        itemCount: filteredLinks.length,
+                        itemCount:
+                            filteredLinks.length +
+                            (materialsState.isLoadingMore ? 1 : 0),
                         itemBuilder: (context, index) {
+                          // Show loading indicator at the bottom
+                          if (index == filteredLinks.length) {
+                            return _buildLoadingMoreIndicator();
+                          }
+
                           final link = filteredLinks[index];
                           return MaterialCard(
                             materialLink: link,
@@ -826,6 +904,34 @@ class _MaterialLinksScreenState extends ConsumerState<MaterialLinksScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildLoadingMoreIndicator() {
+    return Container(
+      padding: EdgeInsets.all(Responsive.space(context, size: Space.medium)),
+      alignment: Alignment.center,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+            ),
+          ),
+          SizedBox(width: 12),
+          Text(
+            'جاري تحميل المزيد...',
+            style: TextStyle(
+              color: Colors.grey.shade600,
+              fontSize: Responsive.text(context, size: TextSize.small),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

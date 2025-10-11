@@ -835,13 +835,26 @@ class TasksNotifier extends StateNotifier<TasksState> {
   }
 }
 
-// Providers - Using persistent providers for better caching and reduced reads
+// ============================================================================
+// MAIN TASKS PROVIDER - Permanent provider for user's tasks (used in week_tasks.dart)
+// This provider should NEVER be modified when viewing specific assistant/subject tasks
+// ============================================================================
 final tasksProvider = StateNotifierProvider<TasksNotifier, TasksState>((ref) {
   final repository = ref.watch(tasksRepositoryProvider);
   return TasksNotifier(repository);
 });
 
-// Convenience providers for specific data
+// ============================================================================
+// VIEW TASKS PROVIDER - Temporary provider for viewing specific tasks
+// Use this when viewing assistant tasks, subject tasks, or any filtered view
+// This keeps the main tasksProvider clean and unmodified
+// ============================================================================
+final viewTasksProvider = StateNotifierProvider.autoDispose<TasksNotifier, TasksState>((ref) {
+  final repository = ref.watch(tasksRepositoryProvider);
+  return TasksNotifier(repository);
+});
+
+// Convenience providers for specific data from MAIN provider
 final tasksListProvider = Provider<List<Task>>((ref) {
   final state = ref.watch(tasksProvider);
   return state.tasks;
@@ -875,4 +888,15 @@ final tasksSelectedSubjectProvider = Provider<String?>((ref) {
 final tasksSelectedImportanceProvider = Provider<TaskImportance?>((ref) {
   final state = ref.watch(tasksProvider);
   return state.selectedImportance;
+});
+
+// Convenience providers for VIEW provider
+final viewTasksListProvider = Provider.autoDispose<List<Task>>((ref) {
+  final state = ref.watch(viewTasksProvider);
+  return state.tasks;
+});
+
+final viewFilteredTasksProvider = Provider.autoDispose<List<Task>>((ref) {
+  final state = ref.watch(viewTasksProvider);
+  return state.filteredTasks;
 });

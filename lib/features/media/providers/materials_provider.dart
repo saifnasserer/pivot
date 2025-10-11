@@ -27,6 +27,12 @@ class MaterialsState {
   final String? selectedSubjectId;
   final String? selectedDoctorId;
 
+  // Pagination fields
+  final bool isLoadingMore;
+  final bool hasMore;
+  final int currentPage;
+  final int pageSize;
+
   const MaterialsState({
     this.isLoading = false,
     this.error,
@@ -38,6 +44,10 @@ class MaterialsState {
     this.selectedLectureId,
     this.selectedSubjectId,
     this.selectedDoctorId,
+    this.isLoadingMore = false,
+    this.hasMore = true,
+    this.currentPage = 0,
+    this.pageSize = 20,
   });
 
   MaterialsState copyWith({
@@ -51,6 +61,10 @@ class MaterialsState {
     String? selectedLectureId,
     String? selectedSubjectId,
     String? selectedDoctorId,
+    bool? isLoadingMore,
+    bool? hasMore,
+    int? currentPage,
+    int? pageSize,
   }) {
     return MaterialsState(
       isLoading: isLoading ?? this.isLoading,
@@ -63,6 +77,10 @@ class MaterialsState {
       selectedLectureId: selectedLectureId ?? this.selectedLectureId,
       selectedSubjectId: selectedSubjectId ?? this.selectedSubjectId,
       selectedDoctorId: selectedDoctorId ?? this.selectedDoctorId,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      hasMore: hasMore ?? this.hasMore,
+      currentPage: currentPage ?? this.currentPage,
+      pageSize: pageSize ?? this.pageSize,
     );
   }
 }
@@ -109,6 +127,8 @@ class MaterialsNotifier extends StateNotifier<MaterialsState> {
       isLoading: true,
       error: null,
       selectedLectureId: lectureId,
+      currentPage: 0,
+      hasMore: true,
     );
     try {
       final materials = await _repository.getMaterialsByLectureId(lectureId);
@@ -116,9 +136,55 @@ class MaterialsNotifier extends StateNotifier<MaterialsState> {
         isLoading: false,
         materials: materials,
         filteredMaterials: materials,
+        hasMore: materials.length >= state.pageSize,
+        currentPage: 1,
       );
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
+  // Load more materials by lecture ID (pagination)
+  Future<void> loadMoreMaterialsByLectureId() async {
+    if (state.isLoadingMore ||
+        !state.hasMore ||
+        state.selectedLectureId == null) {
+      return;
+    }
+
+    state = state.copyWith(isLoadingMore: true, error: null);
+    try {
+      // Since the repository doesn't support pagination yet, we'll simulate it
+      // by slicing the existing materials list
+      final allMaterials = await _repository.getMaterialsByLectureId(
+        state.selectedLectureId!,
+      );
+
+      // Calculate what materials to show
+      final startIndex = state.currentPage * state.pageSize;
+      final endIndex = (state.currentPage + 1) * state.pageSize;
+
+      if (startIndex >= allMaterials.length) {
+        state = state.copyWith(isLoadingMore: false, hasMore: false);
+        return;
+      }
+
+      final newMaterials = allMaterials.sublist(
+        startIndex,
+        endIndex > allMaterials.length ? allMaterials.length : endIndex,
+      );
+
+      final updatedMaterials = [...state.materials, ...newMaterials];
+
+      state = state.copyWith(
+        isLoadingMore: false,
+        materials: updatedMaterials,
+        filteredMaterials: _applyFiltersToList(updatedMaterials),
+        currentPage: state.currentPage + 1,
+        hasMore: endIndex < allMaterials.length,
+      );
+    } catch (e) {
+      state = state.copyWith(isLoadingMore: false, error: e.toString());
     }
   }
 
@@ -366,6 +432,8 @@ class MaterialsNotifier extends StateNotifier<MaterialsState> {
       error: null,
       selectedSubjectId: subjectId,
       selectedDoctorId: assistantId, // Reusing this field for assistantId
+      currentPage: 0,
+      hasMore: true,
     );
     try {
       final materials = await _repository.getMaterialsBySubjectAndAssistant(
@@ -376,10 +444,84 @@ class MaterialsNotifier extends StateNotifier<MaterialsState> {
         isLoading: false,
         materials: materials,
         filteredMaterials: materials,
+        hasMore: materials.length >= state.pageSize,
+        currentPage: 1,
       );
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
+  }
+
+  // Load more materials by subject and assistant (pagination)
+  Future<void> loadMoreMaterialsBySubjectAndAssistant() async {
+    if (state.isLoadingMore ||
+        !state.hasMore ||
+        state.selectedSubjectId == null ||
+        state.selectedDoctorId == null) {
+      return;
+    }
+
+    state = state.copyWith(isLoadingMore: true, error: null);
+    try {
+      final allMaterials = await _repository.getMaterialsBySubjectAndAssistant(
+        state.selectedSubjectId!,
+        state.selectedDoctorId!,
+      );
+
+      final startIndex = state.currentPage * state.pageSize;
+      final endIndex = (state.currentPage + 1) * state.pageSize;
+
+      if (startIndex >= allMaterials.length) {
+        state = state.copyWith(isLoadingMore: false, hasMore: false);
+        return;
+      }
+
+      final newMaterials = allMaterials.sublist(
+        startIndex,
+        endIndex > allMaterials.length ? allMaterials.length : endIndex,
+      );
+
+      final updatedMaterials = [...state.materials, ...newMaterials];
+
+      state = state.copyWith(
+        isLoadingMore: false,
+        materials: updatedMaterials,
+        filteredMaterials: _applyFiltersToList(updatedMaterials),
+        currentPage: state.currentPage + 1,
+        hasMore: endIndex < allMaterials.length,
+      );
+    } catch (e) {
+      state = state.copyWith(isLoadingMore: false, error: e.toString());
+    }
+  }
+
+  // Helper method to apply current filters to a list
+  List<MaterialLink> _applyFiltersToList(List<MaterialLink> materials) {
+    List<MaterialLink> filtered = materials;
+
+    // Filter by search query
+    if (state.searchQuery.isNotEmpty) {
+      final lowercaseQuery = state.searchQuery.toLowerCase();
+      filtered =
+          filtered.where((material) {
+            return material.displayTitle.toLowerCase().contains(
+                  lowercaseQuery,
+                ) ||
+                material.url.toLowerCase().contains(lowercaseQuery) ||
+                (material.description?.toLowerCase().contains(lowercaseQuery) ??
+                    false);
+          }).toList();
+    }
+
+    // Filter by type
+    if (state.selectedType != null) {
+      filtered =
+          filtered
+              .where((material) => material.type == state.selectedType)
+              .toList();
+    }
+
+    return filtered;
   }
 
   // Add material to subject-assistant

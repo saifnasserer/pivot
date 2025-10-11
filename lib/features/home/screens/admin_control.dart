@@ -23,8 +23,9 @@ class _AdminControlState extends ConsumerState<AdminControl> {
   String _dateFilter = '';
   String _pinnedFilter = '';
   bool _showSearch = false;
-  bool _showFilters = false;
+  // bool _showFilters = false; // Removed - filters are always visible now
   final TextEditingController _searchController = TextEditingController();
+  int _rebuildCounter = 0; // Force rebuild counter
 
   final List<String> _departments = [
     '', // All
@@ -40,9 +41,28 @@ class _AdminControlState extends ConsumerState<AdminControl> {
     super.initState();
     // Fetch announcements when the widget is first created
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Force fresh fetch of all announcements
+      print(
+        '📥 AdminControl: Fetching all announcements (including scheduled & expired)',
+      );
       ref
           .read(announcementsProvider.notifier)
-          .fetchAnnouncements(includeScheduledAndExpired: true);
+          .fetchAnnouncements(includeScheduledAndExpired: true)
+          .then((_) {
+            // Get user's department and set as initial filter AFTER data loads
+            final userProfile =
+                ref.read(userProfileProvider).loggedInUserProfile;
+            if (userProfile != null &&
+                userProfile.department.isNotEmpty &&
+                mounted) {
+              setState(() {
+                _departmentFilter = userProfile.department;
+              });
+              print(
+                '🏢 AdminControl: Auto-filtered to department: ${userProfile.department}',
+              );
+            }
+          });
     });
   }
 
@@ -178,15 +198,129 @@ class _AdminControlState extends ConsumerState<AdminControl> {
     );
   }
 
-  Widget _buildFilterBar() {
-    if (!_showFilters) return const SizedBox.shrink();
-    final filterChipColor = Theme.of(
-      context,
-    ).colorScheme.primary.withOpacity(0.1);
+  Widget _buildClearButton() {
     return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(100),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: TextButton.icon(
+        onPressed: () {
+          setState(() {
+            _departmentFilter = '';
+            _dateFilter = '';
+            _pinnedFilter = '';
+            _rebuildCounter++;
+          });
+          print('🧹 AdminControl: Filters cleared - forcing rebuild');
+        },
+        icon: Icon(Icons.clear_all, color: Colors.grey.shade600, size: 16),
+        label: Text(
+          'مسح',
+          style: TextStyle(
+            color: Colors.grey.shade700,
+            fontSize: Responsive.text(context, size: TextSize.small),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        style: TextButton.styleFrom(
+          padding: EdgeInsets.symmetric(
+            horizontal: Responsive.space(context, size: Space.small),
+            vertical: Responsive.space(context, size: Space.tiny),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return Padding(
       padding: EdgeInsets.symmetric(
-        horizontal: Responsive.space(context, size: Space.small),
-        vertical: Responsive.space(context, size: Space.small),
+        horizontal: Responsive.space(context, size: Space.tiny),
+      ),
+      child: ChoiceChip(
+        label: Text(
+          label,
+          style: TextStyle(
+            fontSize: Responsive.text(context, size: TextSize.small),
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+          ),
+        ),
+        selected: isSelected,
+        onSelected: (_) => onTap(),
+        selectedColor: Colors.black,
+        backgroundColor: Colors.white,
+        side: BorderSide(
+          color: isSelected ? Colors.black : Colors.grey.shade300,
+          width: isSelected ? 2 : 1,
+        ),
+        labelStyle: TextStyle(
+          color: isSelected ? Colors.white : Colors.black87,
+          fontSize: Responsive.text(context, size: TextSize.small),
+        ),
+        padding: EdgeInsets.symmetric(
+          horizontal: Responsive.space(context, size: Space.medium),
+          vertical: Responsive.space(context, size: Space.small),
+        ),
+        elevation: isSelected ? 2 : 0,
+        shadowColor: Colors.black.withOpacity(0.3),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+      ),
+    );
+  }
+
+  Widget _buildFilterBar() {
+    // Filters are always visible now
+    // Separate active and inactive filters
+    final activeDepartments = <String>[];
+    final inactiveDepartments = <String>[];
+
+    for (var dep in _departments.where((dep) => dep.isNotEmpty)) {
+      if (_departmentFilter == dep) {
+        activeDepartments.add(dep);
+      } else {
+        inactiveDepartments.add(dep);
+      }
+    }
+
+    // Separate date filters
+    final dateOptions = [
+      {'label': 'اليوم', 'value': 'today'},
+      {'label': 'اخبار عامة', 'value': 'general'},
+    ];
+    final activeDateOptions =
+        dateOptions.where((d) => _dateFilter == d['value']).toList();
+    final inactiveDateOptions =
+        dateOptions.where((d) => _dateFilter != d['value']).toList();
+
+    // Separate pinned filters
+    final pinnedOptions = [
+      {'label': 'مثبت', 'value': 'pinned'},
+      {'label': 'غير مثبت', 'value': 'not_pinned'},
+    ];
+    final activePinnedOptions =
+        pinnedOptions.where((p) => _pinnedFilter == p['value']).toList();
+    final inactivePinnedOptions =
+        pinnedOptions.where((p) => _pinnedFilter != p['value']).toList();
+
+    return Container(
+      margin: EdgeInsets.only(
+        top: Responsive.space(context, size: Space.small),
+      ),
+      padding: EdgeInsets.symmetric(
+        horizontal: Responsive.space(context, size: Space.medium),
+        vertical: Responsive.space(context, size: Space.medium),
+      ),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        border: Border(
+          bottom: BorderSide(color: Colors.grey.shade200, width: 1),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -196,174 +330,120 @@ class _AdminControlState extends ConsumerState<AdminControl> {
             reverse: true,
             child: Row(
               children: [
-                // Department chips
-                ..._departments
-                    .where((dep) => dep.isNotEmpty)
-                    .map(
-                      (dep) => Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: Responsive.space(
-                            context,
-                            size: Space.tiny,
-                          ),
-                        ),
-                        child: ChoiceChip(
-                          label: Text(
-                            dep,
-                            style: TextStyle(
-                              fontSize: Responsive.text(
-                                context,
-                                size: TextSize.small,
-                              ),
-                            ),
-                          ),
-                          selected: _departmentFilter == dep,
-                          onSelected:
-                              (selected) => setState(
-                                () => _departmentFilter = selected ? dep : '',
-                              ),
-                          selectedColor: Colors.blue.shade100,
-                          backgroundColor: filterChipColor,
-                          labelStyle: TextStyle(
-                            color:
-                                _departmentFilter == dep
-                                    ? Colors.blue
-                                    : Colors.black,
-                            fontSize: Responsive.text(
-                              context,
-                              size: TextSize.small,
-                            ),
-                          ),
-                          padding: EdgeInsets.symmetric(
-                            horizontal: Responsive.space(
-                              context,
-                              size: Space.small,
-                            ),
-                            vertical: Responsive.space(
-                              context,
-                              size: Space.tiny,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                SizedBox(width: Responsive.space(context, size: Space.small)),
-                // Date chips
-                ...[
-                  {'label': 'اليوم', 'value': 'today'},
-                  {'label': 'اخبار عامة', 'value': 'general'},
-                ].map(
-                  (d) => Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: Responsive.space(context, size: Space.tiny),
-                    ),
-                    child: ChoiceChip(
-                      label: Text(
-                        d['label']!,
-                        style: TextStyle(
-                          fontSize: Responsive.text(
-                            context,
-                            size: TextSize.small,
-                          ),
-                        ),
-                      ),
-                      selected: _dateFilter == d['value'],
-                      onSelected:
-                          (selected) => setState(
-                            () => _dateFilter = selected ? d['value']! : '',
-                          ),
-                      selectedColor: Colors.green.shade100,
-                      backgroundColor: filterChipColor,
-                      labelStyle: TextStyle(
-                        color:
-                            _dateFilter == d['value']
-                                ? Colors.green
-                                : Colors.black,
-                        fontSize: Responsive.text(
-                          context,
-                          size: TextSize.small,
-                        ),
-                      ),
-                      padding: EdgeInsets.symmetric(
-                        horizontal: Responsive.space(
-                          context,
-                          size: Space.small,
-                        ),
-                        vertical: Responsive.space(context, size: Space.tiny),
-                      ),
-                    ),
+                // Inactive pinned chips
+                ...inactivePinnedOptions.map(
+                  (p) => _buildFilterChip(
+                    label: p['label']!,
+                    isSelected: false,
+                    onTap: () {
+                      setState(() {
+                        _pinnedFilter = p['value']!;
+                        _rebuildCounter++;
+                      });
+                      print(
+                        '📌 AdminControl: Pinned filter changed to: ${p['value']}',
+                      );
+                    },
                   ),
                 ),
-                SizedBox(width: Responsive.space(context, size: Space.small)),
-                // Pinned chips
-                ...[
-                  {'label': 'مثبت', 'value': 'pinned'},
-                  {'label': 'غير مثبت', 'value': 'not_pinned'},
-                ].map(
-                  (p) => Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: Responsive.space(context, size: Space.tiny),
-                    ),
-                    child: ChoiceChip(
-                      label: Text(
-                        p['label']!,
-                        style: TextStyle(
-                          fontSize: Responsive.text(
-                            context,
-                            size: TextSize.small,
-                          ),
-                        ),
-                      ),
-                      selected: _pinnedFilter == p['value'],
-                      onSelected:
-                          (selected) => setState(
-                            () => _pinnedFilter = selected ? p['value']! : '',
-                          ),
-                      selectedColor: Colors.orange.shade100,
-                      backgroundColor: filterChipColor,
-                      labelStyle: TextStyle(
-                        color:
-                            _pinnedFilter == p['value']
-                                ? Colors.orange
-                                : Colors.black,
-                        fontSize: Responsive.text(
-                          context,
-                          size: TextSize.small,
-                        ),
-                      ),
-                      padding: EdgeInsets.symmetric(
-                        horizontal: Responsive.space(
-                          context,
-                          size: Space.small,
-                        ),
-                        vertical: Responsive.space(context, size: Space.tiny),
-                      ),
-                    ),
+
+                // Active pinned chips
+                ...activePinnedOptions.map(
+                  (p) => _buildFilterChip(
+                    label: p['label']!,
+                    isSelected: true,
+                    onTap: () {
+                      setState(() {
+                        _pinnedFilter = '';
+                        _rebuildCounter++;
+                      });
+                      print('📌 AdminControl: Pinned filter cleared');
+                    },
                   ),
                 ),
-                SizedBox(width: Responsive.space(context, size: Space.small)),
-                // Clear button
+
+                if (pinnedOptions.isNotEmpty)
+                  SizedBox(width: Responsive.space(context, size: Space.small)),
+
+                // Inactive date chips
+                ...inactiveDateOptions.map(
+                  (d) => _buildFilterChip(
+                    label: d['label']!,
+                    isSelected: false,
+                    onTap: () {
+                      setState(() {
+                        _dateFilter = d['value']!;
+                        _rebuildCounter++;
+                      });
+                      print(
+                        '📅 AdminControl: Date filter changed to: ${d['value']}',
+                      );
+                    },
+                  ),
+                ),
+
+                // Active date chips
+                ...activeDateOptions.map(
+                  (d) => _buildFilterChip(
+                    label: d['label']!,
+                    isSelected: true,
+                    onTap: () {
+                      setState(() {
+                        _dateFilter = '';
+                        _rebuildCounter++;
+                      });
+                      print('📅 AdminControl: Date filter cleared');
+                    },
+                  ),
+                ),
+
+                if (dateOptions.isNotEmpty)
+                  SizedBox(width: Responsive.space(context, size: Space.small)),
+
+                // Inactive department chips
+                ...inactiveDepartments.map(
+                  (dep) => _buildFilterChip(
+                    label: dep,
+                    isSelected: false,
+                    onTap: () {
+                      setState(() {
+                        _departmentFilter = dep;
+                        _rebuildCounter++;
+                      });
+                      print(
+                        '🏢 AdminControl: Department filter changed to: $dep',
+                      );
+                    },
+                  ),
+                ),
+
+                // Active department chips (show at end/front in RTL)
+                ...activeDepartments.map(
+                  (dep) => _buildFilterChip(
+                    label: dep,
+                    isSelected: true,
+                    onTap: () {
+                      setState(() {
+                        _departmentFilter = '';
+                        _rebuildCounter++;
+                      });
+                      print('🏢 AdminControl: Department filter cleared');
+                    },
+                  ),
+                ),
+
                 if (_departmentFilter.isNotEmpty ||
                     _dateFilter.isNotEmpty ||
                     _pinnedFilter.isNotEmpty)
-                  TextButton(
-                    onPressed:
-                        () => setState(() {
-                          _departmentFilter = '';
-                          _dateFilter = '';
-                          _pinnedFilter = '';
-                        }),
-                    child: Text(
-                      'مسح',
-                      style: TextStyle(
-                        color: Colors.red,
-                        fontSize: Responsive.text(
-                          context,
-                          size: TextSize.small,
-                        ),
-                      ),
-                    ),
+                  SizedBox(
+                    width: Responsive.space(context, size: Space.medium),
                   ),
+
+                // Clear button at the very end (shows at start in RTL)
+                if (_departmentFilter.isNotEmpty ||
+                    _dateFilter.isNotEmpty ||
+                    _pinnedFilter.isNotEmpty)
+                  _buildClearButton(),
               ],
             ),
           ),
@@ -507,18 +587,36 @@ class _AdminControlState extends ConsumerState<AdminControl> {
 
   @override
   Widget build(BuildContext context) {
-    final userProfile = ref.read(userProfileProvider).userProfile;
     final announcementsState = ref.watch(announcementsProvider);
+
+    // Force recomputation of filtered announcements on every build
+    // This ensures filters are applied immediately
     final filteredAnnouncements = _filterAnnouncements(
       announcementsState.announcements,
     );
+
+    // Debug log to track filter changes and rebuilds
+    print(
+      '🔄 AdminControl BUILD #$_rebuildCounter: Filters - Dept: "$_departmentFilter", Date: "$_dateFilter", Pinned: "$_pinnedFilter"',
+    );
+    print(
+      '📊 AdminControl: ${announcementsState.announcements.length} total → ${filteredAnnouncements.length} filtered',
+    );
+
+    // Additional debug info
+    if (filteredAnnouncements.length !=
+        announcementsState.announcements.length) {
+      print('   ℹ️ Filters are active and reducing results');
+    } else {
+      print('   ℹ️ No active filters or all items match filters');
+    }
 
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         title: Text(
-          'المطبخ',
+          'إدارة الأخبار',
           style: TextStyle(
             fontSize: Responsive.text(context, size: TextSize.heading),
             fontWeight: FontWeight.bold,
@@ -634,80 +732,6 @@ class _AdminControlState extends ConsumerState<AdminControl> {
                         ),
                       ),
                     ),
-                    PopupMenuItem(
-                      value: 'filters',
-                      child: Container(
-                        padding: Responsive.paddingVertical(
-                          context,
-                          size: Space.small,
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    _showFilters ? 'إغلاق الفلاتر' : 'الفلاتر',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.black87,
-                                    ),
-                                  ),
-                                  Text(
-                                    _showFilters
-                                        ? 'إخفاء خيارات التصفية'
-                                        : 'تصفية الإعلانات',
-                                    style: TextStyle(
-                                      fontSize: Responsive.text(
-                                        context,
-                                        size: TextSize.small,
-                                      ),
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            SizedBox(
-                              width: Responsive.space(
-                                context,
-                                size: Space.small,
-                              ),
-                            ),
-                            Container(
-                              padding: Responsive.padding(
-                                context,
-                                size: Space.small,
-                              ),
-                              decoration: BoxDecoration(
-                                color:
-                                    _showFilters
-                                        ? Colors.green[100]
-                                        : Colors.grey[100],
-                                borderRadius: BorderRadius.circular(
-                                  Responsive.space(context, size: Space.large),
-                                ),
-                              ),
-
-                              child: Icon(
-                                _showFilters
-                                    ? Icons.filter_alt
-                                    : Icons.filter_alt_outlined,
-                                size: Responsive.space(
-                                  context,
-                                  size: Space.medium,
-                                ),
-                                color:
-                                    _showFilters
-                                        ? Colors.green[700]
-                                        : Colors.grey[700],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
                   ];
                   return items;
                 },
@@ -722,8 +746,6 @@ class _AdminControlState extends ConsumerState<AdminControl> {
                         _showSearch = true;
                       }
                     });
-                  } else if (value == 'filters') {
-                    setState(() => _showFilters = !_showFilters);
                   }
                 },
               ),
@@ -735,9 +757,8 @@ class _AdminControlState extends ConsumerState<AdminControl> {
         bottom: PreferredSize(
           preferredSize: Size.fromHeight(
             (_showSearch ? 56 : 0) +
-                (_showFilters
-                    ? (Responsive.space(context, size: Space.large) * 2)
-                    : 0),
+                // Filters are always shown now - fixed height
+                80,
           ),
           child: Column(
             children: [_buildAppBarSearchField(), _buildFilterBar()],
@@ -818,6 +839,10 @@ class _AdminControlState extends ConsumerState<AdminControl> {
                       else
                         Expanded(
                           child: ListView.builder(
+                            // Add key with rebuild counter to force rebuild when filters change
+                            key: ValueKey(
+                              'announcements_$_rebuildCounter-$_departmentFilter-$_dateFilter-$_pinnedFilter-${filteredAnnouncements.length}',
+                            ),
                             itemCount: filteredAnnouncements.length,
                             itemBuilder: (context, index) {
                               final announcement = filteredAnnouncements[index];

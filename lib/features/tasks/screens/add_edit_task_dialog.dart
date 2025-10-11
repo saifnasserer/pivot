@@ -1,17 +1,13 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart' as intl;
 import 'package:pivot/features/administration/providers/sections_provider.dart';
 import 'package:pivot/features/user/providers/user_profile_provider.dart';
-import 'package:pivot/widgets/custom_text_field.dart';
+import 'package:pivot/features/media/services/materials_service.dart';
+import 'package:pivot/models/material_link.dart';
 import 'package:pivot/screens/models/task.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:pivot/services/storage_optimization_service.dart';
-import 'package:image_picker/image_picker.dart';
 
 // Function to show the Add/Edit Task Dialog
 Future<void> showAddTaskDialog({
@@ -63,7 +59,7 @@ class _AddEditTaskDialogContentState
   late TaskImportance _selectedImportance;
   String? _selectedSubjectId;
   String? _selectedSectionId;
-  List<Map<String, String>> attachments = [];
+  List<Map<String, String>> selectedMaterials = [];
   bool _isEditing = false;
 
   final Map<TaskImportance, String> _importanceLabels = {
@@ -90,7 +86,9 @@ class _AddEditTaskDialogContentState
       _selectedSectionId = widget.initialSectionId;
     }
     if (_isEditing && widget.task?.attachments != null) {
-      attachments = List<Map<String, String>>.from(widget.task!.attachments!);
+      selectedMaterials = List<Map<String, String>>.from(
+        widget.task!.attachments!,
+      );
     }
     WidgetsBinding.instance.addPostFrameCallback((_) => _fetchInitialData());
   }
@@ -165,10 +163,165 @@ class _AddEditTaskDialogContentState
         assistantId:
             section
                 .assistantId, // Set the assistant ID to the section's assistant
-        attachments: attachments,
+        attachments: selectedMaterials,
       );
       widget.onSave(newTask);
       Navigator.of(context).pop();
+    }
+  }
+
+  Future<void> _showMaterialsSelectionDialog() async {
+    print('🎯 [AddTaskDialog] Materials selection button pressed');
+    print('   Selected Subject ID: $_selectedSubjectId');
+    print('   Selected Section ID: $_selectedSectionId');
+
+    if (_selectedSubjectId == null || _selectedSectionId == null) {
+      print('   ❌ Missing subject or section ID');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('يرجى اختيار المادة والسكشن أولاً'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // Get section to find assistant ID
+    final sectionsState = ref.read(sectionsProvider);
+    print('   📋 Total sections available: ${sectionsState.sections.length}');
+
+    final section = sectionsState.sections.firstWhere(
+      (s) => s.id == _selectedSectionId,
+      orElse: () => throw Exception('Section not found'),
+    );
+
+    print('   ✅ Found section: ${section.name}');
+    print('   👤 Assistant ID: ${section.assistantId}');
+
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (context) => Center(
+            child: Card(
+              child: Padding(
+                padding: Responsive.padding(context, size: Space.large),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(color: Colors.black),
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.medium),
+                    ),
+                    Text('جاري تحميل المواد...'),
+                  ],
+                ),
+              ),
+            ),
+          ),
+    );
+
+    try {
+      print('   🔄 Starting to load materials...');
+
+      // Use service directly to avoid AutoDispose issues
+      final materialsService = MaterialsService();
+      final availableMaterials = await materialsService
+          .getMaterialsBySubjectAndAssistant(
+            _selectedSubjectId!,
+            section.assistantId,
+          );
+
+      print('   ✅ Materials loaded successfully');
+
+      if (!mounted) {
+        print('   ⚠️ Widget not mounted, aborting');
+        Navigator.of(context).pop(); // Close loading
+        return;
+      }
+
+      print('   📚 Available materials count: ${availableMaterials.length}');
+      for (var i = 0; i < availableMaterials.length; i++) {
+        print(
+          '      [$i] ${availableMaterials[i].displayTitle} (${availableMaterials[i].type.name})',
+        );
+      }
+
+      // Close loading indicator
+      Navigator.of(context).pop();
+
+      if (!mounted) return;
+
+      if (availableMaterials.isEmpty) {
+        print('   ⚠️ No materials available, showing warning');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('لا توجد مواد متاحة لهذا السكشن'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      print('   📖 Opening material selection dialog...');
+
+      // Show selection dialog
+      final selected = await showDialog<List<MaterialLink>>(
+        context: context,
+        builder:
+            (context) => _MaterialSelectionDialog(
+              materials: availableMaterials,
+              alreadySelected:
+                  selectedMaterials.map((m) => m['url'] ?? '').toList(),
+            ),
+      );
+
+      if (selected != null && selected.isNotEmpty && mounted) {
+        print('   ✅ User selected ${selected.length} material(s):');
+        for (var material in selected) {
+          print('      - ${material.displayTitle}');
+        }
+
+        setState(() {
+          for (var material in selected) {
+            if (!selectedMaterials.any((m) => m['url'] == material.url)) {
+              selectedMaterials.add({
+                'title': material.displayTitle,
+                'url': material.url,
+              });
+              print('      ➕ Added: ${material.displayTitle}');
+            } else {
+              print(
+                '      ⏭️ Skipped (already added): ${material.displayTitle}',
+              );
+            }
+          }
+        });
+
+        print(
+          '   📊 Total materials now attached: ${selectedMaterials.length}',
+        );
+      } else {
+        print('   ❌ No materials selected or dialog cancelled');
+      }
+    } catch (e) {
+      print('   ❌ ERROR in material selection: $e');
+      print('   Stack trace: ${StackTrace.current}');
+
+      // Close loading indicator if still open
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('فشل في تحميل المواد: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -270,105 +423,340 @@ class _AddEditTaskDialogContentState
                 maxLines: 2,
               ),
               SizedBox(height: Responsive.space(context, size: Space.medium)),
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
+
+              // Due Date Field
+              InkWell(
+                onTap: () => _selectDate(context),
+                child: Container(
+                  padding: EdgeInsets.all(
+                    Responsive.space(context, size: Space.large),
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.blue.shade50, Colors.blue.shade100],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    border: Border.all(color: Colors.blue.shade200),
+                    borderRadius: BorderRadius.circular(
+                      Responsive.space(context, size: Space.large),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.blue.shade100,
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(
+                          Responsive.space(context, size: Space.small),
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade100,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.calendar_today_rounded,
+                          color: Colors.blue.shade700,
+                          size: Responsive.space(context, size: Space.medium),
+                        ),
+                      ),
+                      SizedBox(
+                        width: Responsive.space(context, size: Space.medium),
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'آخر ميعاد للتسليم',
+                              style: TextStyle(
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.small,
+                                ),
+                                color: Colors.blue.shade600,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              intl.DateFormat(
+                                'dd/MM/yyyy',
+                                'ar',
+                              ).format(_selectedDate),
+                              style: TextStyle(
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.medium,
+                                ),
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                              textAlign: TextAlign.right,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              SizedBox(height: Responsive.space(context, size: Space.medium)),
+
+              // Importance Field
+              Container(
+                padding: EdgeInsets.all(
+                  Responsive.space(context, size: Space.large),
+                ),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      _getImportanceColor(_selectedImportance).withOpacity(0.1),
+                      _getImportanceColor(_selectedImportance).withOpacity(0.2),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  border: Border.all(
+                    color: _getImportanceColor(
+                      _selectedImportance,
+                    ).withOpacity(0.3),
+                  ),
+                  borderRadius: BorderRadius.circular(
+                    Responsive.space(context, size: Space.large),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _getImportanceColor(
+                        _selectedImportance,
+                      ).withOpacity(0.2),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
                       children: [
-                        Text(
-                          'آخر ميعاد للتسليم:',
-                          style: labelStyle,
-                          textAlign: TextAlign.right,
+                        Container(
+                          padding: EdgeInsets.all(
+                            Responsive.space(context, size: Space.small),
+                          ),
+                          decoration: BoxDecoration(
+                            color: _getImportanceColor(
+                              _selectedImportance,
+                            ).withOpacity(0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.flag_rounded,
+                            color: _getImportanceColor(_selectedImportance),
+                            size: Responsive.space(context, size: Space.medium),
+                          ),
                         ),
                         SizedBox(
-                          height: Responsive.space(context, size: Space.small),
+                          width: Responsive.space(context, size: Space.medium),
                         ),
-                        InkWell(
-                          onTap: () => _selectDate(context),
-                          borderRadius: borderRadius,
-                          child: InputDecorator(
-                            decoration: commonDecoration,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    intl.DateFormat(
-                                      'dd/MM/yyyy',
-                                      'ar',
-                                    ).format(_selectedDate),
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.bodyLarge?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.black87,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                    textAlign: TextAlign.right,
-                                  ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'الأهمية',
+                              style: TextStyle(
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.small,
                                 ),
-                                Icon(
-                                  Icons.calendar_month_rounded,
-                                  color: Theme.of(context).primaryColor,
-                                ),
-                              ],
+                                color: _getImportanceColor(_selectedImportance),
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
-                          ),
+                            SizedBox(height: 2),
+                            Text(
+                              _importanceLabels[_selectedImportance] ?? 'N/A',
+                              style: TextStyle(
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.medium,
+                                ),
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ),
-                  SizedBox(
-                    width: Responsive.space(context, size: Space.medium),
-                  ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          'الأهمية:',
-                          style: labelStyle,
-                          textAlign: TextAlign.right,
-                        ),
-                        SizedBox(
-                          height: Responsive.space(context, size: Space.small),
-                        ),
-                        DropdownButtonFormField<TaskImportance>(
-                          initialValue: _selectedImportance,
-                          decoration: commonDecoration,
-                          items:
+                    PopupMenuButton<TaskImportance>(
+                      initialValue: _selectedImportance,
+                      onSelected: (TaskImportance value) {
+                        setState(() {
+                          _selectedImportance = value;
+                        });
+                      },
+                      icon: Icon(
+                        Icons.arrow_drop_down,
+                        color: _getImportanceColor(_selectedImportance),
+                        size: Responsive.space(context, size: Space.large),
+                      ),
+                      itemBuilder:
+                          (BuildContext context) =>
                               TaskImportance.values.map((
                                 TaskImportance importance,
                               ) {
-                                return DropdownMenuItem<TaskImportance>(
+                                return PopupMenuItem<TaskImportance>(
                                   value: importance,
-                                  child: Text(
-                                    _importanceLabels[importance] ?? 'N/A',
-                                    style:
-                                        Theme.of(context).textTheme.bodyLarge,
-                                    textAlign: TextAlign.right,
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.flag_rounded,
+                                        color: _getImportanceColor(importance),
+                                        size: 20,
+                                      ),
+                                      SizedBox(width: 12),
+                                      Text(
+                                        _importanceLabels[importance] ?? 'N/A',
+                                        style: TextStyle(
+                                          fontWeight:
+                                              importance == _selectedImportance
+                                                  ? FontWeight.bold
+                                                  : FontWeight.normal,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 );
                               }).toList(),
-                          onChanged: (TaskImportance? newValue) {
-                            if (newValue != null) {
-                              setState(() => _selectedImportance = newValue);
-                            }
-                          },
-                          isExpanded: true,
-                        ),
-                      ],
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               SizedBox(height: Responsive.space(context, size: Space.medium)),
-              _AttachmentSection(
-                attachments: attachments,
-                onAddAttachment: (att) => setState(() => attachments.add(att)),
-                onRemoveAttachment:
-                    (i) => setState(() => attachments.removeAt(i)),
+
+              // Materials Section
+              if (selectedMaterials.isNotEmpty) ...[
+                Container(
+                  padding: EdgeInsets.all(
+                    Responsive.space(context, size: Space.medium),
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(
+                      Responsive.space(context, size: Space.large),
+                    ),
+                    border: Border.all(color: Colors.grey[200]!),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.library_books,
+                            size: 18,
+                            color: Colors.blue[700],
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'المواد المرفقة:',
+                            style: TextStyle(
+                              fontSize: Responsive.text(
+                                context,
+                                size: TextSize.small,
+                              ),
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey[700],
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.small),
+                      ),
+                      ...selectedMaterials.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final material = entry.value;
+                        return Container(
+                          margin: EdgeInsets.only(
+                            bottom: Responsive.space(context, size: Space.tiny),
+                          ),
+                          padding: EdgeInsets.all(
+                            Responsive.space(context, size: Space.small),
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(
+                              Responsive.space(context, size: Space.small),
+                            ),
+                            border: Border.all(color: Colors.blue[100]!),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.link,
+                                size: 16,
+                                color: Colors.blue[600],
+                              ),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  material['title'] ?? '',
+                                  style: TextStyle(
+                                    fontSize: Responsive.text(
+                                      context,
+                                      size: TextSize.small,
+                                    ),
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              IconButton(
+                                icon: Icon(Icons.close, size: 16),
+                                color: Colors.red[400],
+                                onPressed: () {
+                                  setState(() {
+                                    selectedMaterials.removeAt(index);
+                                  });
+                                },
+                                padding: EdgeInsets.zero,
+                                constraints: BoxConstraints(),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+                SizedBox(height: Responsive.space(context, size: Space.medium)),
+              ],
+
+              // Add Materials Button
+              ElevatedButton.icon(
+                onPressed: _showMaterialsSelectionDialog,
+                icon: Icon(Icons.library_add),
+                label: Text('إضافة مرفقات من الماتيريال'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: Responsive.space(context, size: Space.large),
+                    vertical: Responsive.space(context, size: Space.medium),
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(
+                      Responsive.space(context, size: Space.large),
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
@@ -383,415 +771,208 @@ class _AddEditTaskDialogContentState
       onCancel: () => Navigator.of(context).pop(),
     );
   }
+
+  Color _getImportanceColor(TaskImportance importance) {
+    switch (importance) {
+      case TaskImportance.high:
+        return Colors.red.shade400;
+      case TaskImportance.mid:
+        return Colors.amber.shade600;
+      case TaskImportance.low:
+        return Colors.green.shade400;
+    }
+  }
 }
 
-class _AttachmentSection extends StatelessWidget {
-  final List<Map<String, String>> attachments;
-  final void Function(Map<String, String>) onAddAttachment;
-  final void Function(int) onRemoveAttachment;
-  const _AttachmentSection({
-    required this.attachments,
-    required this.onAddAttachment,
-    required this.onRemoveAttachment,
+// Material Selection Dialog
+class _MaterialSelectionDialog extends StatefulWidget {
+  final List<MaterialLink> materials;
+  final List<String> alreadySelected;
+
+  const _MaterialSelectionDialog({
+    required this.materials,
+    required this.alreadySelected,
   });
+
+  @override
+  State<_MaterialSelectionDialog> createState() =>
+      _MaterialSelectionDialogState();
+}
+
+class _MaterialSelectionDialogState extends State<_MaterialSelectionDialog> {
+  final Set<String> _selectedUrls = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedUrls.addAll(widget.alreadySelected);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (attachments.isNotEmpty) ...[
-          Text(
-            'المرفقات:',
-            style: const TextStyle(fontWeight: FontWeight.bold),
-            textAlign: TextAlign.right,
-          ),
-          SizedBox(height: Responsive.space(context, size: Space.small)),
-          Container(
-            constraints: const BoxConstraints(maxHeight: 120),
-            child: SingleChildScrollView(
-              child: Column(
-                children: List.generate(attachments.length, (index) {
-                  final att = attachments[index];
-                  return ListTile(
-                    dense: true,
-                    leading: const Icon(Icons.attach_file, size: 20),
-                    title: Text(
-                      att['title'] ?? '',
-                      style: TextStyle(
-                        fontSize: Responsive.text(
-                          context,
-                          size: TextSize.medium,
-                        ),
-                      ),
-                      textAlign: TextAlign.right,
-                    ),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.close, size: 18),
-                      onPressed: () => onRemoveAttachment(index),
-                    ),
-                    onTap: () async {
-                      final url = att['url'];
-                      if (url != null) {
-                        try {
-                          final uri = Uri.parse(url);
-                          if (await canLaunchUrl(uri)) {
-                            await launchUrl(
-                              uri,
-                              mode: LaunchMode.externalApplication,
-                            );
-                          } else {
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('تعذر فتح الملف'),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            }
-                          }
-                        } catch (e) {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('خطأ في فتح الملف: $e'),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                          }
-                        }
-                      }
-                    },
-                  );
-                }),
-              ),
-            ),
-          ),
-          SizedBox(height: Responsive.space(context, size: Space.small)),
-        ],
-        ElevatedButton.icon(
-          onPressed: () async {
-            final result = await FilePicker.platform.pickFiles(
-              type: FileType.any,
-              allowMultiple: false,
-            );
-            if (result != null && result.files.single.path != null) {
-              final file = File(result.files.single.path!);
-              final fileName = result.files.single.name;
-              showDialog(
-                context: context,
-                barrierDismissible: false,
-                builder:
-                    (context) => Directionality(
-                      textDirection: TextDirection.rtl,
-                      child: AlertDialog(
-                        content: Row(
-                          children: [
-                            CircularProgressIndicator(),
-                            SizedBox(
-                              width: Responsive.space(
-                                context,
-                                size: Space.medium,
-                              ),
-                            ),
-                            Text('جاري رفع الملف...'),
-                          ],
-                        ),
-                      ),
-                    ),
-              );
-              try {
-                final storageService = StorageOptimizationService();
-                final xFile = XFile(file.path);
-                final downloadUrl = await storageService.uploadFileOptimized(
-                  xFile,
-                  folder: 'tasks',
-                  usage: 'task',
-                  checkDuplicate: true,
-                );
-
-                if (downloadUrl != null) {
-                  Navigator.of(context).pop();
-                  String? linkTitle = await showDialog<String>(
-                    context: context,
-                    builder: (context) {
-                      String tempTitle = fileName;
-                      final TextEditingController controller =
-                          TextEditingController(text: fileName);
-                      return Dialog(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Container(
-                          padding: EdgeInsets.all(
-                            Responsive.space(context, size: Space.large),
-                          ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              // Header with icon
-                              Container(
-                                padding: EdgeInsets.all(
-                                  Responsive.space(context, size: Space.medium),
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.blue.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(15),
-                                ),
-                                child: Icon(
-                                  Icons.edit_note,
-                                  size:
-                                      Responsive.space(
-                                        context,
-                                        size: Space.large,
-                                      ) *
-                                      2,
-                                  color: Colors.blue[700],
-                                ),
-                              ),
-                              SizedBox(
-                                height: Responsive.space(
-                                  context,
-                                  size: Space.medium,
-                                ),
-                              ),
-
-                              // Title
-                              Text(
-                                'تعديل اسم الملف',
-                                style: TextStyle(
-                                  fontSize: Responsive.text(
-                                    context,
-                                    size: TextSize.heading,
-                                  ),
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                              SizedBox(
-                                height: Responsive.space(
-                                  context,
-                                  size: Space.small,
-                                ),
-                              ),
-
-                              // Subtitle
-                              Text(
-                                'أدخل اسم الملف كما تريد أن يظهر في التاسك',
-                                style: TextStyle(
-                                  fontSize: Responsive.text(
-                                    context,
-                                    size: TextSize.small,
-                                  ),
-                                  color: Colors.grey[600],
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                              SizedBox(
-                                height: Responsive.space(
-                                  context,
-                                  size: Space.large,
-                                ),
-                              ),
-
-                              // File info card
-                              Container(
-                                padding: EdgeInsets.all(
-                                  Responsive.space(context, size: Space.medium),
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[50],
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.grey[200]!),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.attach_file,
-                                      color: Colors.blue[600],
-                                      size: Responsive.space(
-                                        context,
-                                        size: Space.medium,
-                                      ),
-                                    ),
-                                    SizedBox(
-                                      width: Responsive.space(
-                                        context,
-                                        size: Space.small,
-                                      ),
-                                    ),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'الملف المرفوع:',
-                                            style: TextStyle(
-                                              fontSize: Responsive.text(
-                                                context,
-                                                size: TextSize.small,
-                                              ),
-                                              color: Colors.grey[600],
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                          Text(
-                                            fileName,
-                                            style: TextStyle(
-                                              fontSize: Responsive.text(
-                                                context,
-                                                size: TextSize.medium,
-                                              ),
-                                              fontWeight: FontWeight.w600,
-                                              color: Colors.black87,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              SizedBox(
-                                height: Responsive.space(
-                                  context,
-                                  size: Space.large,
-                                ),
-                              ),
-
-                              // Input field using CustomTextField
-                              CustomTextField(
-                                hint: 'أدخل اسم الملف الجديد',
-                                controller: controller,
-                                onChanged: (value) {
-                                  tempTitle = value;
-                                },
-                              ),
-                              SizedBox(
-                                height: Responsive.space(
-                                  context,
-                                  size: Space.large,
-                                ),
-                              ),
-
-                              // Action buttons
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: TextButton(
-                                      onPressed: () => Navigator.pop(context),
-                                      style: TextButton.styleFrom(
-                                        padding: EdgeInsets.symmetric(
-                                          vertical: Responsive.space(
-                                            context,
-                                            size: Space.medium,
-                                          ),
-                                        ),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            10,
-                                          ),
-                                        ),
-                                      ),
-                                      child: Text(
-                                        'إلغاء',
-                                        style: TextStyle(
-                                          fontSize: Responsive.text(
-                                            context,
-                                            size: TextSize.medium,
-                                          ),
-                                          color: Colors.grey[600],
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  SizedBox(
-                                    width: Responsive.space(
-                                      context,
-                                      size: Space.small,
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: ElevatedButton(
-                                      onPressed:
-                                          () =>
-                                              Navigator.pop(context, tempTitle),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.blue[600],
-                                        foregroundColor: Colors.white,
-                                        padding: EdgeInsets.symmetric(
-                                          vertical: Responsive.space(
-                                            context,
-                                            size: Space.medium,
-                                          ),
-                                        ),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            10,
-                                          ),
-                                        ),
-                                        elevation: 0,
-                                      ),
-                                      child: Text(
-                                        'حفظ',
-                                        style: TextStyle(
-                                          fontSize: Responsive.text(
-                                            context,
-                                            size: TextSize.medium,
-                                          ),
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  );
-                  onAddAttachment({
-                    'title': linkTitle ?? fileName,
-                    'url': downloadUrl,
-                  });
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('تم رفع الملف بنجاح'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                }
-              } catch (e) {
-                Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('فشل في رفع الملف: $e'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
-            }
-          },
-          icon: const Icon(Icons.attach_file),
-          label: const Text('إرفاق ملف/صورة'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blue,
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(
-                Responsive.space(context, size: Space.large),
-              ),
-            ),
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(
+            Responsive.space(context, size: Space.large),
           ),
         ),
-        SizedBox(height: Responsive.space(context, size: Space.medium)),
-      ],
+        child: Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.7,
+            maxWidth: Responsive.width(context) * 0.9,
+          ),
+          child: Column(
+            children: [
+              // Header
+              Container(
+                padding: Responsive.padding(context, size: Space.medium),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(
+                      Responsive.space(context, size: Space.large),
+                    ),
+                    topRight: Radius.circular(
+                      Responsive.space(context, size: Space.large),
+                    ),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.library_books, color: Colors.blue.shade700),
+                    SizedBox(
+                      width: Responsive.space(context, size: Space.small),
+                    ),
+                    Expanded(
+                      child: Text(
+                        'اختار المرفقات ',
+                        style: TextStyle(
+                          fontSize: Responsive.text(
+                            context,
+                            size: TextSize.heading,
+                          ),
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue.shade700,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.close),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Materials List
+              Expanded(
+                child: ListView.builder(
+                  padding: Responsive.padding(context, size: Space.medium),
+                  itemCount: widget.materials.length,
+                  itemBuilder: (context, index) {
+                    final material = widget.materials[index];
+                    final isSelected = _selectedUrls.contains(material.url);
+
+                    return Card(
+                      margin: EdgeInsets.only(
+                        bottom: Responsive.space(context, size: Space.small),
+                      ),
+                      child: CheckboxListTile(
+                        value: isSelected,
+                        onChanged: (bool? value) {
+                          setState(() {
+                            if (value == true) {
+                              _selectedUrls.add(material.url);
+                            } else {
+                              _selectedUrls.remove(material.url);
+                            }
+                          });
+                        },
+                        title: Text(
+                          material.displayTitle,
+                          style: TextStyle(
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.medium,
+                            ),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        subtitle:
+                            material.description != null
+                                ? Text(
+                                  material.description!,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: Responsive.text(
+                                      context,
+                                      size: TextSize.small,
+                                    ),
+                                  ),
+                                )
+                                : null,
+                        secondary: Icon(
+                          material.typeIcon,
+                          color: Colors.blue.shade600,
+                        ),
+                        activeColor: Colors.blue,
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+              // Action Buttons
+              Container(
+                padding: Responsive.padding(context, size: Space.medium),
+                decoration: BoxDecoration(
+                  border: Border(top: BorderSide(color: Colors.grey.shade200)),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: Text('إلغاء'),
+                      ),
+                    ),
+                    SizedBox(
+                      width: Responsive.space(context, size: Space.small),
+                    ),
+                    Expanded(
+                      flex: 2,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          final selected =
+                              widget.materials
+                                  .where((m) => _selectedUrls.contains(m.url))
+                                  .toList();
+                          Navigator.of(context).pop(selected);
+                        },
+                        icon: Icon(Icons.check),
+                        label: Text('إضافة (${_selectedUrls.length})'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                          padding: EdgeInsets.symmetric(
+                            vertical: Responsive.space(
+                              context,
+                              size: Space.medium,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

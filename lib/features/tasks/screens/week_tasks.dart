@@ -74,6 +74,18 @@ class _WeekTasksState extends ConsumerState<WeekTasks>
     final tasksState = ref.read(tasksProvider);
     final offlineService = ref.read(offlineServiceProvider);
 
+    // Ensure the main tasks provider has ALL tasks (not filtered by section/subject)
+    // The viewTasksProvider is used for viewing specific filtered tasks in other screens
+    final hasFiltersSet = tasksState.selectedSectionId != null || 
+                          tasksState.selectedSubjectId != null;
+    
+    if (hasFiltersSet) {
+      print('🔄 WeekTasks: Main provider has filters set - reloading all tasks');
+      // Reload all tasks to ensure we have the complete list
+      ref.read(tasksProvider.notifier).getAllTasks();
+      return; // Return early since getAllTasks will load the data
+    }
+
     // Check if we have cached data
     final hasSubjects = subjectsState.filteredSubjects.isNotEmpty;
     final hasSections = sectionsState.sections.isNotEmpty;
@@ -114,7 +126,7 @@ class _WeekTasksState extends ConsumerState<WeekTasks>
     }
 
     if (!hasTasks && !tasksState.isLoading) {
-      print('📦 WeekTasks: Fetching tasks...');
+      print('📦 WeekTasks: Fetching all tasks...');
       fetchFutures.add(ref.read(tasksProvider.notifier).getAllTasks());
     }
 
