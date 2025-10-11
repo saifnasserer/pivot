@@ -353,6 +353,113 @@ class MaterialsNotifier extends StateNotifier<MaterialsState> {
       rethrow;
     }
   }
+
+  // ============ ASSISTANT MATERIALS METHODS ============
+
+  // Get materials by subject and assistant
+  Future<void> getMaterialsBySubjectAndAssistant(
+    String subjectId,
+    String assistantId,
+  ) async {
+    state = state.copyWith(
+      isLoading: true,
+      error: null,
+      selectedSubjectId: subjectId,
+      selectedDoctorId: assistantId, // Reusing this field for assistantId
+    );
+    try {
+      final materials = await _repository.getMaterialsBySubjectAndAssistant(
+        subjectId,
+        assistantId,
+      );
+      state = state.copyWith(
+        isLoading: false,
+        materials: materials,
+        filteredMaterials: materials,
+      );
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
+  // Add material to subject-assistant
+  Future<bool> addMaterialToSubjectAssistant(
+    String subjectId,
+    String assistantId,
+    MaterialLink materialLink,
+  ) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final success = await _repository.addMaterialToSubjectAssistant(
+        subjectId,
+        assistantId,
+        materialLink,
+      );
+      if (success) {
+        // Refresh materials
+        await getMaterialsBySubjectAndAssistant(subjectId, assistantId);
+      }
+      state = state.copyWith(isLoading: false);
+      return success;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+      return false;
+    }
+  }
+
+  // Remove material from subject-assistant
+  Future<bool> removeMaterialFromSubjectAssistant(
+    String subjectId,
+    String assistantId,
+    MaterialLink materialLink,
+  ) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final success = await _repository.removeMaterialFromSubjectAssistant(
+        subjectId,
+        assistantId,
+        materialLink,
+      );
+      if (success) {
+        // Refresh materials
+        await getMaterialsBySubjectAndAssistant(subjectId, assistantId);
+      }
+      state = state.copyWith(isLoading: false);
+      return success;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+      return false;
+    }
+  }
+
+  // Rate material in subject-assistant context
+  Future<void> rateMaterialInSubjectAssistant(
+    String subjectId,
+    String assistantId,
+    MaterialLink material,
+    String userId,
+    double rating,
+  ) async {
+    try {
+      await _repository.rateMaterialInSubjectAssistant(
+        subjectId,
+        assistantId,
+        material,
+        userId,
+        rating,
+      );
+
+      // Refresh materials
+      if (mounted) {
+        await getMaterialsBySubjectAndAssistant(subjectId, assistantId);
+      }
+    } catch (e) {
+      if (mounted) {
+        state = state.copyWith(error: e.toString());
+      }
+      rethrow;
+    }
+  }
 }
 
 // Providers

@@ -100,4 +100,60 @@ class MaterialsRepository {
       rating,
     );
   }
+
+  // ============ ASSISTANT MATERIALS METHODS ============
+
+  // Get materials by subject and assistant
+  Future<List<MaterialLink>> getMaterialsBySubjectAndAssistant(
+    String subjectId,
+    String assistantId,
+  ) async {
+    return await _materialsService.getMaterialsBySubjectAndAssistant(
+      subjectId,
+      assistantId,
+    );
+  }
+
+  // Add material to subject-assistant
+  Future<bool> addMaterialToSubjectAssistant(
+    String subjectId,
+    String assistantId,
+    MaterialLink materialLink,
+  ) async {
+    return await _materialsService.addMaterialToSubjectAssistant(
+      subjectId,
+      assistantId,
+      materialLink,
+    );
+  }
+
+  // Remove material from subject-assistant
+  Future<bool> removeMaterialFromSubjectAssistant(
+    String subjectId,
+    String assistantId,
+    MaterialLink materialLink,
+  ) async {
+    return await _materialsService.removeMaterialFromSubjectAssistant(
+      subjectId,
+      assistantId,
+      materialLink,
+    );
+  }
+
+  // Rate material in subject-assistant context
+  Future<void> rateMaterialInSubjectAssistant(
+    String subjectId,
+    String assistantId,
+    MaterialLink material,
+    String userId,
+    double rating,
+  ) async {
+    return await _materialsService.rateMaterialInSubjectAssistant(
+      subjectId,
+      assistantId,
+      material,
+      userId,
+      rating,
+    );
+  }
 }

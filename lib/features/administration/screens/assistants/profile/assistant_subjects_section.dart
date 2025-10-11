@@ -4,6 +4,7 @@ import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/features/subjects/providers/subject_provider.dart';
 import 'package:pivot/features/administration/providers/sections_provider.dart';
+import 'package:pivot/features/media/screens/material_links_screen.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/models/section_card.dart';
 
@@ -248,6 +249,113 @@ class _AssistantSubjectsSectionState
     }
   }
 
+  Widget _buildMaterialsAccessCard(Subject subject) {
+    return Container(
+      margin: EdgeInsets.all(Responsive.space(context, size: Space.small)),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.blue.shade50, Colors.blue.shade100],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(
+          Responsive.space(context, size: Space.medium),
+        ),
+        border: Border.all(color: Colors.blue.shade200, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.blue.shade100.withOpacity(0.5),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(
+            Responsive.space(context, size: Space.medium),
+          ),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder:
+                    (context) => MaterialLinksScreen.forAssistant(
+                      subject: subject,
+                      assistantId: widget.userProfile.id,
+                      loggedInUser: widget.loggedInUser,
+                    ),
+              ),
+            );
+          },
+          child: Padding(
+            padding: Responsive.padding(context, size: Space.medium),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.arrow_back_ios_rounded,
+                  color: Colors.blue.shade700,
+                  size: Responsive.text(context, size: TextSize.medium),
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        'الماتيريال',
+                        style: TextStyle(
+                          fontSize: Responsive.text(
+                            context,
+                            size: TextSize.medium,
+                          ),
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue.shade900,
+                          fontFamily: 'NotoSansArabic',
+                        ),
+                      ),
+                      SizedBox(
+                        height: Responsive.space(context, size: Space.tiny),
+                      ),
+                      Text(
+                        'مشتركة لجميع السكاشن',
+                        style: TextStyle(
+                          fontSize: Responsive.text(
+                            context,
+                            size: TextSize.small,
+                          ),
+                          color: Colors.blue.shade700,
+                          fontFamily: 'NotoSansArabic',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(width: Responsive.space(context, size: Space.medium)),
+                Container(
+                  padding: EdgeInsets.all(
+                    Responsive.space(context, size: Space.small),
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade700,
+                    borderRadius: BorderRadius.circular(
+                      Responsive.space(context, size: Space.small),
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.library_books_rounded,
+                    color: Colors.white,
+                    size: Responsive.text(context, size: TextSize.medium) * 1.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildSubjectContent(Subject subject) {
     final sectionsState = ref.watch(sectionsProvider);
     final sections =
@@ -301,25 +409,36 @@ class _AssistantSubjectsSectionState
 
     if (sections.isEmpty) {
       print('   → Showing empty state');
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.class_outlined, size: 48, color: Colors.grey.shade400),
-            SizedBox(height: 16),
-            Text(
-              'لا توجد سكاشن في هذه المادة',
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
-              textAlign: TextAlign.center,
+      return Column(
+        children: [
+          _buildMaterialsAccessCard(subject),
+          Expanded(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.class_outlined,
+                    size: 48,
+                    color: Colors.grey.shade400,
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'لا توجد سكاشن في هذه المادة',
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'سيتم إضافة السكاشن قريباً',
+                    style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             ),
-            SizedBox(height: 8),
-            Text(
-              'سيتم إضافة السكاشن قريباً',
-              style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
+          ),
+        ],
       );
     }
 
@@ -330,9 +449,15 @@ class _AssistantSubjectsSectionState
         await _loadSectionsForSubject(_tabController.index);
       },
       child: ListView.builder(
-        itemCount: sections.length,
+        itemCount: sections.length + 1, // +1 for materials card
         itemBuilder: (context, index) {
-          final section = sections[index];
+          if (index == 0) {
+            // First item: Materials access card
+            return _buildMaterialsAccessCard(subject);
+          }
+
+          // Remaining items: Section cards
+          final section = sections[index - 1];
           // Extract section number from name (e.g., "سكاشن 1" -> "1")
           final sectionNumberFromName = section.name.split(' ').last;
           // Check if this section matches the logged-in user's section

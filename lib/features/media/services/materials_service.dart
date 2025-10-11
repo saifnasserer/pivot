@@ -352,4 +352,150 @@ class MaterialsService {
       throw Exception('Failed to rate material: $e');
     }
   }
+
+  // ============ ASSISTANT MATERIALS METHODS ============
+
+  String _getAssistantMaterialsDocId(String subjectId, String assistantId) {
+    return '${subjectId}_$assistantId';
+  }
+
+  // Get materials by subject and assistant
+  Future<List<MaterialLink>> getMaterialsBySubjectAndAssistant(
+    String subjectId,
+    String assistantId,
+  ) async {
+    try {
+      final docId = _getAssistantMaterialsDocId(subjectId, assistantId);
+      final doc =
+          await _firestore.collection('assistant_materials').doc(docId).get();
+
+      if (!doc.exists) {
+        return []; // No materials yet
+      }
+
+      final data = doc.data()!;
+      final links = data['links'] as List<dynamic>? ?? [];
+
+      return links.map((linkData) {
+        return MaterialLink.fromMap(Map<String, dynamic>.from(linkData));
+      }).toList();
+    } catch (e) {
+      throw Exception('Failed to fetch materials by subject and assistant: $e');
+    }
+  }
+
+  // Add material to subject-assistant
+  Future<bool> addMaterialToSubjectAssistant(
+    String subjectId,
+    String assistantId,
+    MaterialLink materialLink,
+  ) async {
+    try {
+      final docId = _getAssistantMaterialsDocId(subjectId, assistantId);
+      final docRef = _firestore.collection('assistant_materials').doc(docId);
+
+      // Check if document exists
+      final doc = await docRef.get();
+
+      if (!doc.exists) {
+        // Create new document
+        await docRef.set({
+          'subjectId': subjectId,
+          'assistantId': assistantId,
+          'links': [materialLink.toLegacyMap()],
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      } else {
+        // Update existing document
+        await docRef.update({
+          'links': FieldValue.arrayUnion([materialLink.toLegacyMap()]),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      return true;
+    } catch (e) {
+      throw Exception('Failed to add material to subject-assistant: $e');
+    }
+  }
+
+  // Remove material from subject-assistant
+  Future<bool> removeMaterialFromSubjectAssistant(
+    String subjectId,
+    String assistantId,
+    MaterialLink materialLink,
+  ) async {
+    try {
+      final docId = _getAssistantMaterialsDocId(subjectId, assistantId);
+      final docRef = _firestore.collection('assistant_materials').doc(docId);
+
+      await docRef.update({
+        'links': FieldValue.arrayRemove([materialLink.toLegacyMap()]),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      return true;
+    } catch (e) {
+      throw Exception('Failed to remove material from subject-assistant: $e');
+    }
+  }
+
+  // Rate material in subject-assistant context
+  Future<void> rateMaterialInSubjectAssistant(
+    String subjectId,
+    String assistantId,
+    MaterialLink material,
+    String userId,
+    double rating,
+  ) async {
+    try {
+      final docId = _getAssistantMaterialsDocId(subjectId, assistantId);
+      final docRef = _firestore.collection('assistant_materials').doc(docId);
+      final doc = await docRef.get();
+
+      if (!doc.exists) {
+        throw Exception('Assistant materials document not found');
+      }
+
+      final data = doc.data()!;
+      final links = List<Map<String, dynamic>>.from(data['links'] ?? []);
+
+      // Find the material in the links array
+      final materialIndex = links.indexWhere(
+        (link) => link['url'] == material.url,
+      );
+
+      if (materialIndex == -1) {
+        throw Exception('Material not found');
+      }
+
+      // Update the rating
+      final materialData = links[materialIndex];
+      final userRatings = Map<String, double>.from(
+        materialData['userRatings'] ?? {},
+      );
+      userRatings[userId] = rating;
+
+      // Calculate new average
+      final totalRatings = userRatings.length;
+      final sum = userRatings.values.reduce((a, b) => a + b);
+      final averageRating = sum / totalRatings;
+
+      // Update the material data
+      materialData['userRatings'] = userRatings;
+      materialData['totalRatings'] = totalRatings;
+      materialData['averageRating'] = averageRating;
+
+      links[materialIndex] = materialData;
+
+      // Update the document
+      await docRef.update({
+        'links': links,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      throw Exception('Failed to rate material: $e');
+    }
+  }
 }

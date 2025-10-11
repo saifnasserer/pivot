@@ -2,6 +2,7 @@ import 'package:flutter/material.dart' hide MaterialType;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/models/lecture_model.dart';
+import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/features/media/providers/materials_provider.dart';
 import 'material_card.dart';
@@ -11,14 +12,46 @@ import 'package:pivot/responsive.dart';
 import 'package:pivot/models/material_link.dart';
 
 class MaterialLinksScreen extends ConsumerStatefulWidget {
-  final Lecture lecture;
+  // Doctor mode (legacy)
+  final Lecture? lecture;
+
+  // Assistant mode (new)
+  final Subject? subject;
+  final String? assistantId;
+
   final UserProfile? loggedInUser;
 
   const MaterialLinksScreen({
     super.key,
-    required this.lecture,
+    this.lecture, // For doctors
+    this.subject, // For assistants
+    this.assistantId, // For assistants
     this.loggedInUser,
-  });
+  }) : assert(
+         (lecture != null) ^ (subject != null && assistantId != null),
+         'Provide either lecture OR (subject + assistantId)',
+       );
+
+  // Doctor mode constructor (legacy)
+  const MaterialLinksScreen.forLecture({
+    super.key,
+    required Lecture lecture,
+    UserProfile? loggedInUser,
+  }) : lecture = lecture,
+       subject = null,
+       assistantId = null,
+       loggedInUser = loggedInUser;
+
+  // Assistant mode constructor (new)
+  const MaterialLinksScreen.forAssistant({
+    super.key,
+    required Subject subject,
+    required String assistantId,
+    UserProfile? loggedInUser,
+  }) : lecture = null,
+       subject = subject,
+       assistantId = assistantId,
+       loggedInUser = loggedInUser;
 
   @override
   ConsumerState<MaterialLinksScreen> createState() =>
@@ -34,9 +67,20 @@ class _MaterialLinksScreenState extends ConsumerState<MaterialLinksScreen> {
     super.initState();
     // Fetch material links when screen initializes
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref
-          .read(materialsProvider.notifier)
-          .getMaterialsByLectureId(widget.lecture.id);
+      if (widget.lecture != null) {
+        // Doctor mode: fetch by lecture ID
+        ref
+            .read(materialsProvider.notifier)
+            .getMaterialsByLectureId(widget.lecture!.id);
+      } else if (widget.subject != null && widget.assistantId != null) {
+        // Assistant mode: fetch by subject and assistant
+        ref
+            .read(materialsProvider.notifier)
+            .getMaterialsBySubjectAndAssistant(
+              widget.subject!.id,
+              widget.assistantId!,
+            );
+      }
     });
   }
 
@@ -75,9 +119,21 @@ class _MaterialLinksScreenState extends ConsumerState<MaterialLinksScreen> {
     );
 
     if (result != null && mounted) {
-      await ref
-          .read(materialsProvider.notifier)
-          .addMaterialToLecture(widget.lecture.id, result);
+      if (widget.lecture != null) {
+        // Doctor mode: add to lecture
+        await ref
+            .read(materialsProvider.notifier)
+            .addMaterialToLecture(widget.lecture!.id, result);
+      } else if (widget.subject != null && widget.assistantId != null) {
+        // Assistant mode: add to subject-assistant
+        await ref
+            .read(materialsProvider.notifier)
+            .addMaterialToSubjectAssistant(
+              widget.subject!.id,
+              widget.assistantId!,
+              result,
+            );
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -101,6 +157,12 @@ class _MaterialLinksScreenState extends ConsumerState<MaterialLinksScreen> {
   }
 
   PreferredSizeWidget _buildAppBar() {
+    // Determine title based on mode
+    final String title =
+        widget.lecture != null
+            ? widget.lecture!.title
+            : 'ماتيريال سكشن: ${widget.subject!.name}';
+
     return AppBar(
       backgroundColor: Colors.white,
       elevation: 0,
@@ -109,7 +171,7 @@ class _MaterialLinksScreenState extends ConsumerState<MaterialLinksScreen> {
         onPressed: () => Navigator.of(context).pop(),
       ),
       title: Text(
-        widget.lecture.title,
+        title,
         style: TextStyle(
           color: Colors.black,
           fontSize: Responsive.text(context, size: TextSize.medium),
@@ -161,10 +223,21 @@ class _MaterialLinksScreenState extends ConsumerState<MaterialLinksScreen> {
                       ),
                       SizedBox(height: 16),
                       ElevatedButton(
-                        onPressed:
-                            () => ref
+                        onPressed: () {
+                          if (widget.lecture != null) {
+                            ref
                                 .read(materialsProvider.notifier)
-                                .getMaterialsByLectureId(widget.lecture.id),
+                                .getMaterialsByLectureId(widget.lecture!.id);
+                          } else if (widget.subject != null &&
+                              widget.assistantId != null) {
+                            ref
+                                .read(materialsProvider.notifier)
+                                .getMaterialsBySubjectAndAssistant(
+                                  widget.subject!.id,
+                                  widget.assistantId!,
+                                );
+                          }
+                        },
                         child: const Text('إعادة المحاولة'),
                       ),
                     ],
@@ -184,10 +257,21 @@ class _MaterialLinksScreenState extends ConsumerState<MaterialLinksScreen> {
                   _buildFilterChips(ref, materialsState),
                   Expanded(
                     child: RefreshIndicator(
-                      onRefresh:
-                          () => ref
+                      onRefresh: () async {
+                        if (widget.lecture != null) {
+                          await ref
                               .read(materialsProvider.notifier)
-                              .getMaterialsByLectureId(widget.lecture.id),
+                              .getMaterialsByLectureId(widget.lecture!.id);
+                        } else if (widget.subject != null &&
+                            widget.assistantId != null) {
+                          await ref
+                              .read(materialsProvider.notifier)
+                              .getMaterialsBySubjectAndAssistant(
+                                widget.subject!.id,
+                                widget.assistantId!,
+                              );
+                        }
+                      },
                       child: ListView.builder(
                         padding: EdgeInsets.all(
                           Responsive.space(context, size: Space.small),
@@ -421,32 +505,6 @@ class _MaterialLinksScreenState extends ConsumerState<MaterialLinksScreen> {
   //   );
   // }
 
-  Widget _buildStatItem({
-    required IconData icon,
-    required String label,
-    required String value,
-    required Color color,
-  }) {
-    return Column(
-      children: [
-        Icon(icon, color: color, size: 24),
-        SizedBox(height: 4),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
-        ),
-        Text(
-          label,
-          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-        ),
-      ],
-    );
-  }
-
   Widget _buildFilterChips(WidgetRef ref, MaterialsState materialsState) {
     // Calculate type counts from filtered materials
     final typeCounts = <MaterialType, int>{};
@@ -619,9 +677,21 @@ class _MaterialLinksScreenState extends ConsumerState<MaterialLinksScreen> {
 
     if (confirmed == true && mounted) {
       try {
-        await ref
-            .read(materialsProvider.notifier)
-            .removeMaterialFromLecture(widget.lecture.id, materialLink);
+        if (widget.lecture != null) {
+          // Doctor mode: remove from lecture
+          await ref
+              .read(materialsProvider.notifier)
+              .removeMaterialFromLecture(widget.lecture!.id, materialLink);
+        } else if (widget.subject != null && widget.assistantId != null) {
+          // Assistant mode: remove from subject-assistant
+          await ref
+              .read(materialsProvider.notifier)
+              .removeMaterialFromSubjectAssistant(
+                widget.subject!.id,
+                widget.assistantId!,
+                materialLink,
+              );
+        }
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -656,14 +726,28 @@ class _MaterialLinksScreenState extends ConsumerState<MaterialLinksScreen> {
     }
 
     try {
-      await ref
-          .read(materialsProvider.notifier)
-          .rateMaterial(
-            widget.lecture.id,
-            materialLink,
-            widget.loggedInUser!.id,
-            rating,
-          );
+      if (widget.lecture != null) {
+        // Doctor mode: rate in lecture context
+        await ref
+            .read(materialsProvider.notifier)
+            .rateMaterial(
+              widget.lecture!.id,
+              materialLink,
+              widget.loggedInUser!.id,
+              rating,
+            );
+      } else if (widget.subject != null && widget.assistantId != null) {
+        // Assistant mode: rate in subject-assistant context
+        await ref
+            .read(materialsProvider.notifier)
+            .rateMaterialInSubjectAssistant(
+              widget.subject!.id,
+              widget.assistantId!,
+              materialLink,
+              widget.loggedInUser!.id,
+              rating,
+            );
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

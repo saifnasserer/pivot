@@ -143,6 +143,12 @@ service cloud.firestore {
       allow write: if isProfessor();
     }
 
+    // Assistant materials (shared per subject for all sections)
+    match /assistant_materials/{materialId} {
+      allow read: if isSignedIn();
+      allow write: if isProfessor(); // miniProfessor and Professor can manage
+    }
+
     // ===== PHASE 10: TEAMS & TASKS =====
     match /team_members/{memberId} {
       allow read: if isSignedIn();
