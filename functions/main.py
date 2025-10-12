@@ -2,9 +2,19 @@ import firebase_functions
 from firebase_functions import https_fn
 from firebase_admin import initialize_app, messaging, exceptions, firestore, auth
 import json
+from datetime import datetime
 
 # Initialize Firebase app
 initialize_app()
+
+# Import Backblaze service (lazy import to avoid initialization issues)
+def get_b2_service():
+    """Lazy import and initialization of Backblaze service"""
+    try:
+        from backblaze_service import get_backblaze_service
+        return get_backblaze_service()
+    except Exception as e:
+        raise Exception(f"Failed to initialize Backblaze service: {str(e)}")
 
 @https_fn.on_request()
 def send_notification(req: https_fn.Request) -> https_fn.Response:
@@ -410,6 +420,641 @@ def get_profile_image_urls(req: https_fn.Request) -> https_fn.Response:
                 'success': True,
                 'profileImageUrls': profile_image_urls,
                 'count': len(profile_image_urls)
+            }),
+            status=200,
+            headers=headers
+        )
+        
+    except Exception as e:
+        return https_fn.Response(
+            json.dumps({'error': f'Internal server error: {str(e)}'}),
+            status=500,
+            headers=headers
+        )
+
+
+# ============================================================================
+# BACKBLAZE B2 FILE UPLOAD ENDPOINTS
+# ============================================================================
+
+def _get_cors_headers():
+    """Common CORS headers for all endpoints"""
+    return {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Max-Age': '3600'
+    }
+
+
+def _handle_cors_preflight(req: https_fn.Request) -> https_fn.Response:
+    """Handle CORS preflight requests"""
+    if req.method == 'OPTIONS':
+        return https_fn.Response('', status=204, headers=_get_cors_headers())
+    return None
+
+
+def _verify_firebase_token(id_token: str) -> tuple[bool, dict, str]:
+    """
+    Verify Firebase ID token and return user info
+    Returns: (success, user_info, error_message)
+    """
+    try:
+        decoded_token = auth.verify_id_token(id_token)
+        return True, decoded_token, ""
+    except auth.InvalidIdTokenError:
+        return False, {}, "Invalid ID token"
+    except auth.ExpiredIdTokenError:
+        return False, {}, "Expired ID token"
+    except Exception as e:
+        return False, {}, f"Token verification error: {str(e)}"
+
+
+def _verify_user_permissions(user_id: str, required_roles: list[str]) -> tuple[bool, str]:
+    """
+    Verify user has required permissions
+    Returns: (has_permission, error_message)
+    """
+    try:
+        db = firestore.client()
+        user_doc = db.collection('users').document(user_id).get()
+        
+        if not user_doc.exists:
+            return False, "User not found"
+        
+        user_data = user_doc.to_dict()
+        user_role = user_data.get('role', '')
+        
+        if user_role not in required_roles:
+            return False, f"Insufficient permissions. Required roles: {', '.join(required_roles)}"
+        
+        return True, ""
+        
+    except Exception as e:
+        return False, f"Permission check error: {str(e)}"
+
+
+@https_fn.on_request()
+def generate_upload_url(req: https_fn.Request) -> https_fn.Response:
+    """
+    Generate a presigned upload URL for direct client-side upload to Backblaze B2
+    
+    Request body:
+    {
+        "idToken": "firebase_id_token",
+        "title": "Material Title",
+        "fileName": "document.pdf",
+        "fileSize": 1024000,
+        "lectureId": "lecture123" (optional),
+        "subjectId": "subject123" (optional),
+        "assistantId": "assistant123" (optional)
+    }
+    
+    Response:
+    {
+        "success": true,
+        "uploadUrl": "https://...",
+        "authorizationToken": "...",
+        "filePath": "materials/user123/file.pdf",
+        "fileName": "file.pdf",
+        "contentType": "application/pdf"
+    }
+    """
+    # Handle CORS
+    cors_response = _handle_cors_preflight(req)
+    if cors_response:
+        return cors_response
+    
+    headers = _get_cors_headers()
+    
+    try:
+        # Only allow POST requests
+        if req.method != 'POST':
+            return https_fn.Response(
+                json.dumps({'error': 'Method not allowed'}),
+                status=405,
+                headers=headers
+            )
+        
+        # Parse request data
+        data = req.get_json()
+        if not data:
+            return https_fn.Response(
+                json.dumps({'error': 'No data provided'}),
+                status=400,
+                headers=headers
+            )
+        
+        # Verify Firebase token
+        id_token = data.get('idToken')
+        if not id_token:
+            return https_fn.Response(
+                json.dumps({'error': 'idToken is required'}),
+                status=400,
+                headers=headers
+            )
+        
+        success, user_info, error_msg = _verify_firebase_token(id_token)
+        if not success:
+            return https_fn.Response(
+                json.dumps({'error': error_msg}),
+                status=401,
+                headers=headers
+            )
+        
+        user_id = user_info.get('uid')
+        
+        # Check user permissions (only Doctor and Assistant can upload)
+        has_permission, error_msg = _verify_user_permissions(
+            user_id,
+            ['Doctor', 'Assistant', 'Admin', 'Super Admin']
+        )
+        if not has_permission:
+            return https_fn.Response(
+                json.dumps({'error': error_msg}),
+                status=403,
+                headers=headers
+            )
+        
+        # Validate required fields
+        title = data.get('title')
+        file_name = data.get('fileName')
+        file_size = data.get('fileSize')
+        
+        if not title or not file_name or file_size is None:
+            return https_fn.Response(
+                json.dumps({'error': 'title, fileName, and fileSize are required'}),
+                status=400,
+                headers=headers
+            )
+        
+        # Initialize Backblaze service
+        b2_service = get_b2_service()
+        
+        # Generate upload authorization
+        upload_data = b2_service.generate_upload_authorization(
+            user_id=user_id,
+            title=title,
+            original_filename=file_name,
+            file_size=file_size
+        )
+        
+        return https_fn.Response(
+            json.dumps({
+                'success': True,
+                **upload_data
+            }),
+            status=200,
+            headers=headers
+        )
+        
+    except ValueError as e:
+        # Validation errors (file size, type, etc.)
+        return https_fn.Response(
+            json.dumps({'error': str(e)}),
+            status=400,
+            headers=headers
+        )
+    except Exception as e:
+        return https_fn.Response(
+            json.dumps({'error': f'Internal server error: {str(e)}'}),
+            status=500,
+            headers=headers
+        )
+
+
+@https_fn.on_request()
+def confirm_material_upload(req: https_fn.Request) -> https_fn.Response:
+    """
+    Confirm successful upload and save material metadata to Firestore
+    Called after client successfully uploads file to B2
+    
+    Request body:
+    {
+        "idToken": "firebase_id_token",
+        "title": "Material Title",
+        "description": "Optional description",
+        "filePath": "materials/user123/file.pdf",
+        "fileName": "file.pdf",
+        "fileSize": 1024000,
+        "contentType": "application/pdf",
+        "lectureId": "lecture123" (optional, for doctor mode),
+        "subjectId": "subject123" (optional, for assistant mode),
+        "assistantId": "assistant123" (optional, for assistant mode)
+    }
+    
+    Response:
+    {
+        "success": true,
+        "materialId": "generated_material_id"
+    }
+    """
+    # Handle CORS
+    cors_response = _handle_cors_preflight(req)
+    if cors_response:
+        return cors_response
+    
+    headers = _get_cors_headers()
+    
+    try:
+        # Only allow POST requests
+        if req.method != 'POST':
+            return https_fn.Response(
+                json.dumps({'error': 'Method not allowed'}),
+                status=405,
+                headers=headers
+            )
+        
+        # Parse request data
+        data = req.get_json()
+        if not data:
+            return https_fn.Response(
+                json.dumps({'error': 'No data provided'}),
+                status=400,
+                headers=headers
+            )
+        
+        # Verify Firebase token
+        id_token = data.get('idToken')
+        if not id_token:
+            return https_fn.Response(
+                json.dumps({'error': 'idToken is required'}),
+                status=400,
+                headers=headers
+            )
+        
+        success, user_info, error_msg = _verify_firebase_token(id_token)
+        if not success:
+            return https_fn.Response(
+                json.dumps({'error': error_msg}),
+                status=401,
+                headers=headers
+            )
+        
+        user_id = user_info.get('uid')
+        
+        # Get required fields
+        title = data.get('title')
+        file_path = data.get('filePath')
+        file_name = data.get('fileName')
+        file_size = data.get('fileSize')
+        content_type = data.get('contentType')
+        
+        if not all([title, file_path, file_name, file_size, content_type]):
+            return https_fn.Response(
+                json.dumps({
+                    'error': 'title, filePath, fileName, fileSize, and contentType are required'
+                }),
+                status=400,
+                headers=headers
+            )
+        
+        # Optional fields
+        description = data.get('description', '')
+        lecture_id = data.get('lectureId')
+        subject_id = data.get('subjectId')
+        assistant_id = data.get('assistantId')
+        
+        # Initialize Backblaze service and verify file exists
+        b2_service = get_b2_service()
+        file_info = b2_service.get_file_info(file_path)
+        
+        if not file_info:
+            return https_fn.Response(
+                json.dumps({'error': 'File not found in storage'}),
+                status=404,
+                headers=headers
+            )
+        
+        # Generate download URL (24-hour expiry)
+        download_url = b2_service.generate_download_url(file_path)
+        
+        # Create material metadata
+        db = firestore.client()
+        material_data = {
+            'title': title,
+            'description': description,
+            'url': download_url,  # Store initial download URL
+            'filePath': file_path,  # Store B2 file path for regenerating URLs
+            'fileName': file_name,
+            'fileSize': file_size,
+            'contentType': content_type,
+            'isUploadedFile': True,  # Flag to distinguish from external links
+            'uploadedBy': user_id,
+            'uploadedAt': firestore.SERVER_TIMESTAMP,
+            'type': _determine_material_type(content_type),
+            'averageRating': 0.0,
+            'totalRatings': 0,
+            'ratings': {}
+        }
+        
+        # Add to appropriate collection
+        if lecture_id:
+            # Doctor mode: add to lecture's materials subcollection
+            material_ref = db.collection('lectures').document(lecture_id)\
+                             .collection('materials').document()
+            material_data['lectureId'] = lecture_id
+        elif subject_id and assistant_id:
+            # Assistant mode: add to subject-assistant materials
+            material_ref = db.collection('subjects').document(subject_id)\
+                             .collection('assistants').document(assistant_id)\
+                             .collection('materials').document()
+            material_data['subjectId'] = subject_id
+            material_data['assistantId'] = assistant_id
+        else:
+            return https_fn.Response(
+                json.dumps({
+                    'error': 'Either lectureId OR (subjectId + assistantId) is required'
+                }),
+                status=400,
+                headers=headers
+            )
+        
+        # Save to Firestore
+        material_ref.set(material_data)
+        
+        return https_fn.Response(
+            json.dumps({
+                'success': True,
+                'materialId': material_ref.id,
+                'downloadUrl': download_url
+            }),
+            status=200,
+            headers=headers
+        )
+        
+    except Exception as e:
+        return https_fn.Response(
+            json.dumps({'error': f'Internal server error: {str(e)}'}),
+            status=500,
+            headers=headers
+        )
+
+
+def _determine_material_type(content_type: str) -> str:
+    """Determine MaterialType from MIME type"""
+    if 'pdf' in content_type.lower():
+        return 'pdf'
+    elif 'image' in content_type.lower():
+        return 'image'
+    elif 'presentation' in content_type.lower() or 'powerpoint' in content_type.lower():
+        return 'document'
+    elif 'word' in content_type.lower() or 'document' in content_type.lower():
+        return 'document'
+    else:
+        return 'document'
+
+
+@https_fn.on_request()
+def refresh_download_url(req: https_fn.Request) -> https_fn.Response:
+    """
+    Refresh/regenerate download URL for an uploaded material
+    Download URLs expire after 24 hours, this endpoint generates a fresh one
+    
+    Request body:
+    {
+        "idToken": "firebase_id_token",
+        "filePath": "materials/user123/file.pdf"
+    }
+    
+    Response:
+    {
+        "success": true,
+        "downloadUrl": "https://..."
+    }
+    """
+    # Handle CORS
+    cors_response = _handle_cors_preflight(req)
+    if cors_response:
+        return cors_response
+    
+    headers = _get_cors_headers()
+    
+    try:
+        # Only allow POST requests
+        if req.method != 'POST':
+            return https_fn.Response(
+                json.dumps({'error': 'Method not allowed'}),
+                status=405,
+                headers=headers
+            )
+        
+        # Parse request data
+        data = req.get_json()
+        if not data:
+            return https_fn.Response(
+                json.dumps({'error': 'No data provided'}),
+                status=400,
+                headers=headers
+            )
+        
+        # Verify Firebase token (any authenticated user can download)
+        id_token = data.get('idToken')
+        if not id_token:
+            return https_fn.Response(
+                json.dumps({'error': 'idToken is required'}),
+                status=400,
+                headers=headers
+            )
+        
+        success, user_info, error_msg = _verify_firebase_token(id_token)
+        if not success:
+            return https_fn.Response(
+                json.dumps({'error': error_msg}),
+                status=401,
+                headers=headers
+            )
+        
+        # Get file path
+        file_path = data.get('filePath')
+        if not file_path:
+            return https_fn.Response(
+                json.dumps({'error': 'filePath is required'}),
+                status=400,
+                headers=headers
+            )
+        
+        # Initialize Backblaze service
+        b2_service = get_b2_service()
+        
+        # Generate new download URL
+        download_url = b2_service.generate_download_url(file_path)
+        
+        return https_fn.Response(
+            json.dumps({
+                'success': True,
+                'downloadUrl': download_url
+            }),
+            status=200,
+            headers=headers
+        )
+        
+    except ValueError as e:
+        return https_fn.Response(
+            json.dumps({'error': str(e)}),
+            status=404,
+            headers=headers
+        )
+    except Exception as e:
+        return https_fn.Response(
+            json.dumps({'error': f'Internal server error: {str(e)}'}),
+            status=500,
+            headers=headers
+        )
+
+
+@https_fn.on_request()
+def delete_material_file(req: https_fn.Request) -> https_fn.Response:
+    """
+    Delete a material file from Backblaze B2 and its metadata from Firestore
+    
+    Request body:
+    {
+        "idToken": "firebase_id_token",
+        "filePath": "materials/user123/file.pdf",
+        "materialId": "material123",
+        "lectureId": "lecture123" (optional, for doctor mode),
+        "subjectId": "subject123" (optional, for assistant mode),
+        "assistantId": "assistant123" (optional, for assistant mode)
+    }
+    
+    Response:
+    {
+        "success": true,
+        "message": "File deleted successfully"
+    }
+    """
+    # Handle CORS
+    cors_response = _handle_cors_preflight(req)
+    if cors_response:
+        return cors_response
+    
+    headers = _get_cors_headers()
+    
+    try:
+        # Only allow POST requests
+        if req.method != 'POST':
+            return https_fn.Response(
+                json.dumps({'error': 'Method not allowed'}),
+                status=405,
+                headers=headers
+            )
+        
+        # Parse request data
+        data = req.get_json()
+        if not data:
+            return https_fn.Response(
+                json.dumps({'error': 'No data provided'}),
+                status=400,
+                headers=headers
+            )
+        
+        # Verify Firebase token
+        id_token = data.get('idToken')
+        if not id_token:
+            return https_fn.Response(
+                json.dumps({'error': 'idToken is required'}),
+                status=400,
+                headers=headers
+            )
+        
+        success, user_info, error_msg = _verify_firebase_token(id_token)
+        if not success:
+            return https_fn.Response(
+                json.dumps({'error': error_msg}),
+                status=401,
+                headers=headers
+            )
+        
+        user_id = user_info.get('uid')
+        
+        # Check permissions (only Doctor, Assistant, or Admin can delete)
+        has_permission, error_msg = _verify_user_permissions(
+            user_id,
+            ['Doctor', 'Assistant', 'Admin', 'Super Admin']
+        )
+        if not has_permission:
+            return https_fn.Response(
+                json.dumps({'error': error_msg}),
+                status=403,
+                headers=headers
+            )
+        
+        # Get required fields
+        file_path = data.get('filePath')
+        material_id = data.get('materialId')
+        
+        if not file_path or not material_id:
+            return https_fn.Response(
+                json.dumps({'error': 'filePath and materialId are required'}),
+                status=400,
+                headers=headers
+            )
+        
+        # Get context (lecture or subject-assistant)
+        lecture_id = data.get('lectureId')
+        subject_id = data.get('subjectId')
+        assistant_id = data.get('assistantId')
+        
+        # Delete from Firestore
+        db = firestore.client()
+        
+        if lecture_id:
+            # Doctor mode
+            material_ref = db.collection('lectures').document(lecture_id)\
+                             .collection('materials').document(material_id)
+        elif subject_id and assistant_id:
+            # Assistant mode
+            material_ref = db.collection('subjects').document(subject_id)\
+                             .collection('assistants').document(assistant_id)\
+                             .collection('materials').document(material_id)
+        else:
+            return https_fn.Response(
+                json.dumps({
+                    'error': 'Either lectureId OR (subjectId + assistantId) is required'
+                }),
+                status=400,
+                headers=headers
+            )
+        
+        # Verify material exists and user has permission to delete
+        material_doc = material_ref.get()
+        if not material_doc.exists:
+            return https_fn.Response(
+                json.dumps({'error': 'Material not found'}),
+                status=404,
+                headers=headers
+            )
+        
+        material_data = material_doc.to_dict()
+        uploaded_by = material_data.get('uploadedBy', '')
+        
+        # Only the uploader or admin can delete
+        if uploaded_by != user_id:
+            # Check if user is admin
+            has_admin, _ = _verify_user_permissions(user_id, ['Admin', 'Super Admin'])
+            if not has_admin:
+                return https_fn.Response(
+                    json.dumps({'error': 'You can only delete materials you uploaded'}),
+                    status=403,
+                    headers=headers
+                )
+        
+        # Delete from Backblaze B2
+        b2_service = get_b2_service()
+        delete_success, delete_error = b2_service.delete_file(file_path)
+        
+        if not delete_success:
+            # Log error but continue with Firestore deletion
+            print(f"Warning: Failed to delete file from B2: {delete_error}")
+        
+        # Delete from Firestore
+        material_ref.delete()
+        
+        return https_fn.Response(
+            json.dumps({
+                'success': True,
+                'message': 'Material deleted successfully'
             }),
             status=200,
             headers=headers

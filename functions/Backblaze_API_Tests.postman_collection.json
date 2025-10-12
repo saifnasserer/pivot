@@ -1,0 +1,273 @@
+{
+  "info": {
+    "name": "Pivot - Backblaze B2 Material Upload API",
+    "description": "Test collection for Backblaze B2 file upload endpoints in Pivot educational platform",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://us-central1-pivot-28563.cloudfunctions.net",
+      "type": "string",
+      "description": "✅ DEPLOYED - Ready to test!"
+    },
+    {
+      "key": "firebase_id_token",
+      "value": "YOUR_FIREBASE_ID_TOKEN_HERE",
+      "type": "string"
+    },
+    {
+      "key": "test_user_id",
+      "value": "test_user_123",
+      "type": "string"
+    },
+    {
+      "key": "test_lecture_id",
+      "value": "lecture_123",
+      "type": "string"
+    },
+    {
+      "key": "test_subject_id",
+      "value": "subject_123",
+      "type": "string"
+    },
+    {
+      "key": "test_assistant_id",
+      "value": "assistant_123",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Generate Upload URL (Doctor Mode)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"idToken\": \"{{firebase_id_token}}\",\n  \"title\": \"Test Material - PDF Document\",\n  \"fileName\": \"test_document.pdf\",\n  \"fileSize\": 2048,\n  \"lectureId\": \"{{test_lecture_id}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/generate_upload_url",
+          "host": ["{{base_url}}"],
+          "path": ["generate_upload_url"]
+        },
+        "description": "Generate a presigned upload URL for a PDF file in doctor mode (lecture-based)"
+      },
+      "response": []
+    },
+    {
+      "name": "2. Generate Upload URL (Assistant Mode)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"idToken\": \"{{firebase_id_token}}\",\n  \"title\": \"Section Material - عرض تقديمي\",\n  \"fileName\": \"presentation.pptx\",\n  \"fileSize\": 5120,\n  \"subjectId\": \"{{test_subject_id}}\",\n  \"assistantId\": \"{{test_assistant_id}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/generate_upload_url",
+          "host": ["{{base_url}}"],
+          "path": ["generate_upload_url"]
+        },
+        "description": "Generate a presigned upload URL for a PowerPoint file in assistant mode (subject-based)"
+      },
+      "response": []
+    },
+    {
+      "name": "3. Generate Upload URL (Image)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"idToken\": \"{{firebase_id_token}}\",\n  \"title\": \"Diagram - مخطط توضيحي\",\n  \"fileName\": \"diagram.png\",\n  \"fileSize\": 1024,\n  \"lectureId\": \"{{test_lecture_id}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/generate_upload_url",
+          "host": ["{{base_url}}"],
+          "path": ["generate_upload_url"]
+        },
+        "description": "Generate a presigned upload URL for an image file"
+      },
+      "response": []
+    },
+    {
+      "name": "4. Test File Size Validation (Should Fail)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"idToken\": \"{{firebase_id_token}}\",\n  \"title\": \"Large File Test\",\n  \"fileName\": \"large_file.pdf\",\n  \"fileSize\": 25000000,\n  \"lectureId\": \"{{test_lecture_id}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/generate_upload_url",
+          "host": ["{{base_url}}"],
+          "path": ["generate_upload_url"]
+        },
+        "description": "Test file size validation - this should fail with 25MB file (limit is 20MB)"
+      },
+      "response": []
+    },
+    {
+      "name": "5. Test File Type Validation (Should Fail)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"idToken\": \"{{firebase_id_token}}\",\n  \"title\": \"Invalid File Type\",\n  \"fileName\": \"virus.exe\",\n  \"fileSize\": 1024,\n  \"lectureId\": \"{{test_lecture_id}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/generate_upload_url",
+          "host": ["{{base_url}}"],
+          "path": ["generate_upload_url"]
+        },
+        "description": "Test file type validation - this should fail with .exe file"
+      },
+      "response": []
+    },
+    {
+      "name": "6. Confirm Material Upload (Doctor Mode)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"idToken\": \"{{firebase_id_token}}\",\n  \"title\": \"Test Material - PDF Document\",\n  \"description\": \"This is a test PDF document for the course\",\n  \"filePath\": \"materials/test_user_123/Test_Material_abc123.pdf\",\n  \"fileName\": \"Test_Material_abc123.pdf\",\n  \"fileSize\": 2048,\n  \"contentType\": \"application/pdf\",\n  \"lectureId\": \"{{test_lecture_id}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/confirm_material_upload",
+          "host": ["{{base_url}}"],
+          "path": ["confirm_material_upload"]
+        },
+        "description": "Confirm successful upload and save metadata to Firestore (use actual filePath from step 1)"
+      },
+      "response": []
+    },
+    {
+      "name": "7. Confirm Material Upload (Assistant Mode)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"idToken\": \"{{firebase_id_token}}\",\n  \"title\": \"Section Material - عرض تقديمي\",\n  \"description\": \"عرض تقديمي للسكشن\",\n  \"filePath\": \"materials/test_user_123/Section_Material_xyz789.pptx\",\n  \"fileName\": \"Section_Material_xyz789.pptx\",\n  \"fileSize\": 5120,\n  \"contentType\": \"application/vnd.openxmlformats-officedocument.presentationml.presentation\",\n  \"subjectId\": \"{{test_subject_id}}\",\n  \"assistantId\": \"{{test_assistant_id}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/confirm_material_upload",
+          "host": ["{{base_url}}"],
+          "path": ["confirm_material_upload"]
+        },
+        "description": "Confirm successful upload for assistant mode"
+      },
+      "response": []
+    },
+    {
+      "name": "8. Refresh Download URL",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"idToken\": \"{{firebase_id_token}}\",\n  \"filePath\": \"materials/test_user_123/Test_Material_abc123.pdf\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/refresh_download_url",
+          "host": ["{{base_url}}"],
+          "path": ["refresh_download_url"]
+        },
+        "description": "Regenerate download URL for a file (URLs expire after 24 hours)"
+      },
+      "response": []
+    },
+    {
+      "name": "9. Delete Material File (Doctor Mode)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"idToken\": \"{{firebase_id_token}}\",\n  \"filePath\": \"materials/test_user_123/Test_Material_abc123.pdf\",\n  \"materialId\": \"material_doc_id_here\",\n  \"lectureId\": \"{{test_lecture_id}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/delete_material_file",
+          "host": ["{{base_url}}"],
+          "path": ["delete_material_file"]
+        },
+        "description": "Delete a material file from Backblaze and Firestore (use actual materialId from step 6)"
+      },
+      "response": []
+    },
+    {
+      "name": "10. Delete Material File (Assistant Mode)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"idToken\": \"{{firebase_id_token}}\",\n  \"filePath\": \"materials/test_user_123/Section_Material_xyz789.pptx\",\n  \"materialId\": \"material_doc_id_here\",\n  \"subjectId\": \"{{test_subject_id}}\",\n  \"assistantId\": \"{{test_assistant_id}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/delete_material_file",
+          "host": ["{{base_url}}"],
+          "path": ["delete_material_file"]
+        },
+        "description": "Delete a material file from assistant's subject"
+      },
+      "response": []
+    }
+  ]
+}
+
