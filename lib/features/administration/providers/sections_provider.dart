@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/models/section_model.dart';
 import 'package:pivot/services/section_service.dart';
 import 'package:pivot/services/cache_service.dart';
+import 'package:pivot/services/offline_service.dart';
 
 // Service Provider
 final sectionServiceProvider = Provider<SectionService>((ref) {
@@ -91,11 +93,42 @@ class SectionsNotifier extends StateNotifier<SectionsState> {
       }
     }
 
-    // Step 2: Fetch from Firestore
+    // Step 2: Check if offline before attempting Firestore fetch
+    final offlineService = OfflineService();
+    if (offlineService.isOffline) {
+      if (kDebugMode) {
+        print('   📴 Offline detected - using cache only');
+      }
+
+      final cachedSections = CacheService.instance.getCachedSections();
+      final filteredSections =
+          cachedSections
+              .where((s) => subjectIds.contains(s.subjectId))
+              .toList();
+
+      if (filteredSections.isEmpty) {
+        state = state.copyWith(
+          sections: [],
+          currentUserId: userId,
+          isLoading: false,
+          error: 'لا يوجد اتصال بالإنترنت - لا توجد بيانات محفوظة',
+        );
+      } else {
+        state = state.copyWith(
+          sections: filteredSections,
+          currentUserId: userId,
+          isLoading: false,
+          error: null,
+        );
+      }
+      return;
+    }
+
+    // Step 3: Fetch from Firestore (only when online)
     state = state.copyWith(isLoading: true, error: null, currentUserId: userId);
 
     try {
-      print('   🔄 Fetching sections from Firestore...');
+      print('   🔄 Online - Fetching sections from Firestore...');
       final sections = await _sectionService.getSectionsForSubjects(subjectIds);
 
       // Cache the results
@@ -139,6 +172,15 @@ class SectionsNotifier extends StateNotifier<SectionsState> {
   /// Force refresh sections from Firestore
   Future<void> refreshSections(String userId, List<String> subjectIds) async {
     print('🔄 [SectionsProvider] Force refresh sections');
+
+    // Check if offline before attempting refresh
+    final offlineService = OfflineService();
+    if (offlineService.isOffline) {
+      print('   📴 Cannot refresh while offline - using cached data');
+      await loadSectionsForUser(userId, subjectIds, forceRefresh: false);
+      return;
+    }
+
     await loadSectionsForUser(userId, subjectIds, forceRefresh: true);
   }
 
@@ -241,7 +283,11 @@ class SectionsNotifier extends StateNotifier<SectionsState> {
     print('👤 [SectionsProvider] Loading sections for assistant: $assistantId');
 
     if (assistantId.isEmpty) {
-      state = state.copyWith(sections: [], isLoading: false, currentUserId: null);
+      state = state.copyWith(
+        sections: [],
+        isLoading: false,
+        currentUserId: null,
+      );
       return;
     }
 

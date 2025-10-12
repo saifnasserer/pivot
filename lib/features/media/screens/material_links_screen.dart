@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart' hide MaterialType;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:pivot/models/lecture_model.dart';
 import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/features/media/providers/materials_provider.dart';
 import 'package:pivot/services/offline_service.dart';
+import 'package:pivot/widgets/unified_dialog.dart';
 import 'material_card.dart';
 import 'add_material_dialog.dart';
+import 'add_material_file_dialog.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/models/material_link.dart';
+import 'package:pivot/services/file_upload_service.dart';
 
 class MaterialLinksScreen extends ConsumerStatefulWidget {
   // Doctor mode (legacy)
@@ -62,6 +66,7 @@ class MaterialLinksScreen extends ConsumerStatefulWidget {
 class _MaterialLinksScreenState extends ConsumerState<MaterialLinksScreen> {
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final FileUploadService _uploadService = FileUploadService();
   bool _showSearch = false;
 
   @override
@@ -174,6 +179,103 @@ class _MaterialLinksScreenState extends ConsumerState<MaterialLinksScreen> {
             backgroundColor: Colors.green,
           ),
         );
+      }
+    }
+  }
+
+  void _showAddFileDialog() async {
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => const AddMaterialFileDialog(),
+    );
+
+    if (result != null && mounted) {
+      final title = result['title'] as String;
+      final description = result['description'] as String?;
+      final file = result['file'] as PickedFileInfo;
+
+      // Show upload progress dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder:
+            (context) => WillPopScope(
+              onWillPop: () async => false,
+              child: AlertDialog(
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 16),
+                      Text('جاري رفع الملف...'),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+      );
+
+      try {
+        // Upload file
+        final uploadResult = await _uploadService.uploadFile(
+          fileInfo: file,
+          title: title,
+          description: description,
+          lectureId: widget.lecture?.id,
+          subjectId: widget.subject?.id,
+          assistantId: widget.assistantId,
+          onProgress: (progress) {
+            // Update progress (for future enhancement)
+          },
+        );
+
+        // Close progress dialog
+        if (mounted) Navigator.of(context).pop();
+
+        if (uploadResult.success && mounted) {
+          // Refresh materials list
+          if (widget.lecture != null) {
+            await ref
+                .read(materialsProvider.notifier)
+                .getMaterialsByLectureId(widget.lecture!.id);
+          } else if (widget.subject != null && widget.assistantId != null) {
+            await ref
+                .read(materialsProvider.notifier)
+                .getMaterialsBySubjectAndAssistant(
+                  widget.subject!.id,
+                  widget.assistantId!,
+                );
+          }
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('تم رفع الملف بنجاح'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'فشل رفع الملف: ${uploadResult.error ?? "خطأ غير معروف"}',
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
+        // Close progress dialog
+        if (mounted) Navigator.of(context).pop();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('خطأ: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }
@@ -361,7 +463,11 @@ class _MaterialLinksScreenState extends ConsumerState<MaterialLinksScreen> {
                             materialLink: link,
                             canEdit: widget.loggedInUser?.role != 'Student',
                             loggedInUser: widget.loggedInUser,
-                            onTap: () => _launchURL(link.url),
+                            // Don't provide onTap for uploaded files - let MaterialCard handle it
+                            onTap:
+                                link.isUploadedFile
+                                    ? null
+                                    : () => _launchURL(link.url),
                             onDelete: () => _deleteMaterial(link),
                             onRate: (rating) => _rateMaterial(link, rating),
                           );
@@ -725,11 +831,61 @@ class _MaterialLinksScreenState extends ConsumerState<MaterialLinksScreen> {
 
     if (!canEdit) return const SizedBox.shrink();
 
-    return FloatingActionButton(
-      heroTag: 'material_links_fab',
-      onPressed: _showAddMaterialDialog,
+    return SpeedDial(
+      icon: Icons.add,
+      activeIcon: Icons.close,
       backgroundColor: Colors.black,
-      child: const Icon(Icons.add, color: Colors.white),
+      foregroundColor: Colors.white,
+      activeBackgroundColor: Colors.black,
+      activeForegroundColor: Colors.white,
+      visible: true,
+      closeManually: false,
+      curve: Curves.bounceIn,
+      overlayColor: Colors.black,
+      overlayOpacity: 0.5,
+      elevation: 8.0,
+      shape: const CircleBorder(),
+      direction: SpeedDialDirection.up,
+      children: [
+        SpeedDialChild(
+          child: const Icon(Icons.link, color: Colors.white),
+          backgroundColor: Colors.black,
+          foregroundColor: Colors.white,
+          label: 'إضافة رابط',
+          labelStyle: TextStyle(
+            fontSize: Responsive.text(context, size: TextSize.medium),
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
+            fontFamily: 'NotoSansArabic',
+          ),
+          labelBackgroundColor: Colors.white,
+          shape: const CircleBorder(),
+          elevation: 4.0,
+          onTap: () {
+            HapticFeedback.lightImpact();
+            _showAddMaterialDialog();
+          },
+        ),
+        SpeedDialChild(
+          child: const Icon(Icons.upload_file, color: Colors.white),
+          backgroundColor: Colors.black,
+          foregroundColor: Colors.white,
+          label: 'رفع ملف',
+          labelStyle: TextStyle(
+            fontSize: Responsive.text(context, size: TextSize.medium),
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
+            fontFamily: 'NotoSansArabic',
+          ),
+          labelBackgroundColor: Colors.white,
+          shape: const CircleBorder(),
+          elevation: 4.0,
+          onTap: () {
+            HapticFeedback.lightImpact();
+            _showAddFileDialog();
+          },
+        ),
+      ],
     );
   }
 
@@ -737,19 +893,15 @@ class _MaterialLinksScreenState extends ConsumerState<MaterialLinksScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder:
-          (context) => AlertDialog(
-            title: const Text('حذف المحتوى'),
-            content: const Text('هل أنت متأكد من رغبتك في حذف هذا المحتوى؟'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('إلغاء'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('حذف'),
-              ),
-            ],
+          (context) => UnifiedDialog(
+            title: 'حذف المحتوى',
+            subtitle: 'هل أنت متأكد من رغبتك في حذف هذا المحتوى؟',
+            content: const SizedBox.shrink(),
+            confirmText: 'حذف',
+            confirmIcon: Icons.delete,
+            cancelText: 'إلغاء',
+            onCancel: () => Navigator.of(context).pop(false),
+            onConfirm: () => Navigator.of(context).pop(true),
           ),
     );
 

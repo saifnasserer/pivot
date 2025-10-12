@@ -117,10 +117,13 @@ class NotificationTriggerService {
   }
 
   /// Send announcement notifications to specific users or all users
+  /// Can be filtered by department and/or level
   Future<void> sendAnnouncement(
     String title,
     String body, {
     List<String>? targetUserIds,
+    String? department,
+    String? level,
   }) async {
     try {
       if (targetUserIds != null && targetUserIds.isNotEmpty) {
@@ -137,6 +140,14 @@ class NotificationTriggerService {
             );
           }
         }
+      } else if (department != null || level != null) {
+        // Filter by department and/or level
+        await sendFilteredAnnouncement(
+          title,
+          body,
+          department: department,
+          level: level,
+        );
       } else {
         // Broadcast to all users
         final tokens = await _notificationService.getAllUserFCMTokens();
@@ -151,6 +162,81 @@ class NotificationTriggerService {
       }
     } catch (e) {
       print('❌ Error sending announcement: $e');
+    }
+  }
+
+  /// Send announcement filtered by department and/or level
+  Future<bool> sendFilteredAnnouncement(
+    String title,
+    String body, {
+    String? department,
+    String? level,
+  }) async {
+    try {
+      print(
+        '📱 Sending filtered announcement (department: $department, level: $level)',
+      );
+
+      // Build query to filter users
+      Query<Map<String, dynamic>> query = _firestore
+          .collection('users')
+          .where('fcmToken', isNotEqualTo: null)
+          .where('tokenStatus', isEqualTo: 'active');
+
+      // Add department filter if provided
+      if (department != null && department.isNotEmpty) {
+        query = query.where('department', isEqualTo: department);
+      }
+
+      // Add level filter if provided
+      if (level != null && level.isNotEmpty) {
+        query = query.where('level', isEqualTo: level);
+      }
+
+      final usersSnapshot = await query.get();
+
+      if (usersSnapshot.docs.isEmpty) {
+        print(
+          '⚠️ No users found matching criteria (department: $department, level: $level)',
+        );
+        return false;
+      }
+
+      final tokens =
+          usersSnapshot.docs
+              .map((doc) => doc.data()['fcmToken'] as String?)
+              .where((token) => token != null && token.isNotEmpty)
+              .cast<String>()
+              .toList();
+
+      if (tokens.isEmpty) {
+        print('⚠️ No valid tokens found');
+        return false;
+      }
+
+      print('📤 Sending to ${tokens.length} users...');
+
+      // Use batch notification sending for better error handling
+      final results = await _notificationService.sendBatchNotifications(
+        tokens: tokens,
+        title: title,
+        body: body,
+        data: {
+          'type': 'announcement',
+          if (department != null) 'department': department,
+          if (level != null) 'level': level,
+        },
+      );
+
+      final successCount = results['successCount'] as int;
+      final failureCount = results['failureCount'] as int;
+
+      print('✅ Sent: $successCount, ❌ Failed: $failureCount');
+
+      return successCount > 0;
+    } catch (e) {
+      print('❌ Error sending filtered announcement: $e');
+      return false;
     }
   }
 

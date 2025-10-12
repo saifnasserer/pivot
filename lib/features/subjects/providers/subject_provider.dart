@@ -4,6 +4,7 @@ import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/services/subject_service.dart';
 import 'package:pivot/services/cache_service.dart';
+import 'package:pivot/services/offline_service.dart';
 
 // State class for subjects
 class SubjectState {
@@ -160,6 +161,19 @@ class SubjectNotifier extends StateNotifier<SubjectState> {
         );
         return;
       }
+    }
+
+    // Check if offline before server fetch
+    final offlineService = OfflineService();
+    if (offlineService.isOffline) {
+      if (kDebugMode) {
+        print('📴 SubjectProvider: Offline - cannot fetch, using empty state');
+      }
+      state = state.copyWith(
+        isLoading: false,
+        error: null, // Don't show error, offline banner will show
+      );
+      return;
     }
 
     // Fetch from server (first time or force refresh)

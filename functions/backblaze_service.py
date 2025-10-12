@@ -7,9 +7,21 @@ import uuid
 import re
 from typing import Optional, Dict, Any
 from datetime import datetime, timedelta
-from b2sdk.v2 import InMemoryAccountInfo, B2Api
-from b2sdk.v2.exception import B2Error, BucketIdNotFound, FileNotPresent
+
+# Use v3 API for new Backblaze accounts (31-char keys)
+try:
+    from b2sdk.v3 import InMemoryAccountInfo, B2Api
+    from b2sdk.v3.exception import B2Error, BucketIdNotFound, FileNotPresent
+    SDK_VERSION = "v3"
+except ImportError:
+    # Fallback to v2 for older installations
+    from b2sdk.v2 import InMemoryAccountInfo, B2Api
+    from b2sdk.v2.exception import B2Error, BucketIdNotFound, FileNotPresent
+    SDK_VERSION = "v2"
+
 from config import BackblazeConfig
+
+print(f"Using B2 SDK: {SDK_VERSION}")
 
 
 class BackblazeService:
@@ -27,8 +39,16 @@ class BackblazeService:
         Initialize B2 API connection and get bucket
         Returns: (success, error_message)
         """
-        if self._initialized:
-            return True, None
+        # In serverless environments, we need to check if API is actually authorized
+        # not just if the flag is set
+        if self._initialized and self.api and self.bucket:
+            try:
+                # Verify authorization is still valid
+                _ = self.api.account_info.get_account_auth_token()
+                return True, None
+            except Exception as e:
+                print(f"DEBUG: Authorization expired or invalid: {e}. Re-initializing...")
+                self._initialized = False
         
         try:
             # Validate configuration
@@ -40,21 +60,50 @@ class BackblazeService:
             key_id = self.config.get_key_id()
             app_key = self.config.get_application_key()
             
+            # Debug logging
+            print(f"DEBUG: Attempting B2 authorization with Key ID: {key_id[:10] if key_id else 'None'}...")
+            print(f"DEBUG: App Key present: {bool(app_key)}")
+            
+            if not key_id or not app_key:
+                return False, f"Missing credentials: key_id={bool(key_id)}, app_key={bool(app_key)}"
+            
             # Initialize B2 API
             info = InMemoryAccountInfo()
             self.api = B2Api(info)
-            self.api.authorize_account("production", key_id, app_key)
+            
+            # Authorize account - v3 API uses simpler authorization
+            print(f"DEBUG: Authorizing with key_id={key_id}, app_key length={len(app_key)}")
+            
+            if SDK_VERSION == "v3":
+                # v3 API: No realm parameter needed, it auto-detects from the key
+                self.api.authorize_account(
+                    application_key_id=key_id,
+                    application_key=app_key
+                )
+            else:
+                # v2 API (legacy)
+                self.api.authorize_account("production", key_id, app_key)
+            
+            print(f"DEBUG: Authorization successful. Account ID: {self.api.account_info.get_account_id()}")
             
             # Get bucket
+            print(f"DEBUG: Getting bucket: {self.config.BUCKET_NAME}")
             self.bucket = self.api.get_bucket_by_name(self.config.BUCKET_NAME)
+            print(f"DEBUG: Bucket found. ID: {self.bucket.id_}, Name: {self.bucket.name}")
             
             self._initialized = True
             return True, None
             
         except B2Error as e:
-            return False, f"B2 API error: {str(e)}"
+            error_msg = f"B2 API error: {str(e)}"
+            print(f"ERROR: {error_msg}")
+            return False, error_msg
         except Exception as e:
-            return False, f"Initialization error: {str(e)}"
+            error_msg = f"Initialization error: {str(e)}"
+            print(f"ERROR: {error_msg}")
+            import traceback
+            traceback.print_exc()
+            return False, error_msg
     
     def _sanitize_filename(self, filename: str) -> str:
         """
@@ -138,8 +187,7 @@ class BackblazeService:
         file_path = self._generate_file_path(user_id, title, original_filename)
         
         # Get upload URL and authorization token from B2
-        # B2 SDK v2: We use the services layer to get upload URL
-        # The bucket uses an upload manager internally
+        # Use B2 SDK v3 API endpoint for new credentials
         
         import requests
         
@@ -147,9 +195,12 @@ class BackblazeService:
         auth_token = self.api.account_info.get_account_auth_token()
         api_url = self.api.account_info.get_api_url()
         
-        # Call b2_get_upload_url directly via REST API
+        # Determine API version based on SDK version
+        api_version = "v3" if SDK_VERSION == "v3" else "v2"
+        
+        # Call b2_get_upload_url with correct API version
         response = requests.post(
-            f'{api_url}/b2api/v2/b2_get_upload_url',
+            f'{api_url}/b2api/{api_version}/b2_get_upload_url',
             headers={'Authorization': auth_token},
             json={'bucketId': self.bucket.id_}
         )
@@ -171,39 +222,25 @@ class BackblazeService:
     
     def generate_download_url(self, file_path: str, expires_in_seconds: Optional[int] = None) -> str:
         """
-        Generate a temporary download URL for a file
+        Generate a download URL for a file
+        For private buckets, returns a simple URL that requires authentication
         
         Args:
             file_path: Path to file in bucket (e.g., "materials/user123/file.pdf")
-            expires_in_seconds: URL expiration time (default: 24 hours)
+            expires_in_seconds: URL expiration time (not used for simple URLs)
             
         Returns:
-            Signed download URL
+            Download URL
         """
-        if expires_in_seconds is None:
-            expires_in_seconds = self.config.DOWNLOAD_URL_EXPIRY
-        
         try:
-            # Get file info
+            # Get file info to verify it exists
             file_version = self.bucket.get_file_info_by_name(file_path)
             
-            # Generate download authorization
-            download_auth = self.api.get_download_authorization(
-                bucket_id=self.bucket.id_,
-                file_name_prefix=file_path,
-                valid_duration_in_seconds=expires_in_seconds
-            )
+            # Get the base download URL
+            # For private buckets, this will require Authorization header when accessing
+            download_url = self.bucket.get_download_url(file_path)
             
-            # Construct download URL with authorization
-            download_url = self.api.get_download_url_for_file_name(
-                bucket_name=self.config.BUCKET_NAME,
-                file_name=file_path
-            )
-            
-            # Add authorization token as query parameter
-            download_url_with_auth = f"{download_url}?Authorization={download_auth}"
-            
-            return download_url_with_auth
+            return download_url
             
         except FileNotPresent:
             raise ValueError(f"File not found: {file_path}")
@@ -303,14 +340,17 @@ def get_backblaze_service() -> BackblazeService:
     """
     Get or create the global Backblaze service instance
     This ensures we reuse the same authenticated connection
+    Always calls initialize() to handle serverless cold starts
     """
     global _backblaze_service
     
     if _backblaze_service is None:
         _backblaze_service = BackblazeService()
-        success, error = _backblaze_service.initialize()
-        if not success:
-            raise Exception(f"Failed to initialize Backblaze service: {error}")
+    
+    # Always try to initialize (it will check if already initialized)
+    success, error = _backblaze_service.initialize()
+    if not success:
+        raise Exception(f"Failed to initialize Backblaze service: {error}")
     
     return _backblaze_service
 

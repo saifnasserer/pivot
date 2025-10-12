@@ -1,103 +1,60 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pivot/services/offline_service.dart';
+import 'package:pivot/services/offline_sync_manager.dart';
 import 'package:pivot/services/offline_queue_service.dart';
 import 'dart:async';
 
-/// Manages automatic syncing of offline queue when connection is restored
+/// Legacy SyncManager - now wraps OfflineSyncManager
+/// Kept for backward compatibility with existing code
 class SyncManager {
   static final SyncManager _instance = SyncManager._internal();
   factory SyncManager() => _instance;
   SyncManager._internal();
 
-  bool _wasOffline = false;
-  DateTime? _lastSyncTime;
+  late final OfflineSyncManager _syncManager = OfflineSyncManager();
+  bool _initialized = false;
 
   /// Initialize sync manager to watch connectivity and auto-sync
   void initialize() {
-    print('🔄 Initializing SyncManager...');
+    if (_initialized) {
+      print('⚠️ SyncManager already initialized');
+      return;
+    }
 
-    // Watch connectivity changes using the OfflineService directly
-    OfflineService().isOnline.addListener(_handleConnectivityChange);
-
+    print('🔄 Initializing SyncManager (via OfflineSyncManager)...');
+    _syncManager.startListening();
+    _initialized = true;
     print('✅ SyncManager initialized');
-  }
-
-  void _handleConnectivityChange() {
-    final isOnline = OfflineService().hasConnection;
-
-    // If we just came back online and have queued operations, sync them
-    if (isOnline && _wasOffline) {
-      print('✅ Connection restored - triggering queue sync');
-      _triggerSync();
-    }
-
-    _wasOffline = !isOnline;
-  }
-
-  Future<void> _triggerSync() async {
-    try {
-      final queueService = OfflineQueueService();
-      final queueCount = queueService.getQueueCount();
-
-      if (queueCount == 0) {
-        print('✅ Queue is empty, nothing to sync');
-        return;
-      }
-
-      print('🔄 Syncing $queueCount queued operations...');
-
-      // Import and use the operation processor
-      final syncedCount = await queueService.processQueue(
-        processor: (operation) async {
-          // This will be called by the actual provider implementations
-          // For now, we just log it
-          print('📦 Processing operation: ${operation.type}');
-          // The actual processing will be done by providers
-          // that watch for connectivity and process their own operations
-        },
-      );
-
-      _lastSyncTime = DateTime.now();
-      print('✅ Synced $syncedCount operations successfully');
-    } catch (e) {
-      print('❌ Error during sync: $e');
-    }
   }
 
   /// Manually trigger sync (useful for pull-to-refresh)
   Future<int> manualSync({
-    required Future<void> Function(QueuedOperation) processor,
+    Future<void> Function(QueuedOperation)? processor,
   }) async {
     try {
       print('🔄 Manual sync triggered...');
-      final queueService = OfflineQueueService();
-
-      final syncedCount = await queueService.processQueue(
-        processor: processor,
-        onProgress: (completed, total) {
-          print('⏳ Sync progress: $completed/$total');
-        },
-      );
-
-      _lastSyncTime = DateTime.now();
-      return syncedCount;
+      await _syncManager.manualSync();
+      return _syncManager.syncedCount.value;
     } catch (e) {
       print('❌ Manual sync error: $e');
       return 0;
     }
   }
 
-  /// Get last sync time
-  DateTime? get lastSyncTime => _lastSyncTime;
-
   /// Get pending operations count
   int getPendingCount() {
-    return OfflineQueueService().getQueueCount();
+    return _syncManager.syncStatus['queueCount'] ?? 0;
   }
+
+  /// Get sync status
+  Map<String, dynamic> get syncStatus => _syncManager.syncStatus;
+
+  /// Check if currently syncing
+  bool get isSyncing => _syncManager.isSyncing.value;
 
   /// Dispose and cleanup
   void dispose() {
-    OfflineService().isOnline.removeListener(_handleConnectivityChange);
+    _syncManager.dispose();
+    _initialized = false;
     print('🔌 SyncManager disposed');
   }
 }

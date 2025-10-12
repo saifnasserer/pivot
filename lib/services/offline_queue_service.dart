@@ -3,13 +3,42 @@ import 'dart:convert';
 
 /// Types of operations that can be queued for offline sync
 enum OperationType {
+  // Task operations
   createTask,
   updateTask,
   deleteTask,
   addTaskNote,
   deleteTaskNote,
+
+  // Profile operations
   updateProfile,
-  // Add more operation types as needed
+  updateTeachingSubjects,
+
+  // Schedule operations
+  createScheduleItem,
+  updateScheduleItem,
+  deleteScheduleItem,
+  reorderScheduleItems,
+  toggleScheduleNotification,
+
+  // Material operations
+  addMaterial,
+  deleteMaterial,
+  rateMaterial,
+
+  // Section operations
+  createSection,
+  updateSection,
+  deleteSection,
+
+  // Bookmark operations
+  addBookmark,
+  removeBookmark,
+
+  // Lecture operations
+  addLecture,
+  deleteLecture,
+  updateLecture,
 }
 
 /// Represents a queued operation to be synced when online
@@ -97,14 +126,42 @@ class OfflineQueueService {
 
   /// Add operation to queue
   Future<void> queueOperation(QueuedOperation operation) async {
-    try {
-      if (!_initialized) await init();
+    print('🎯 [OfflineQueueService.queueOperation] Starting...');
+    print('   Operation ID: ${operation.id}');
+    print('   Operation Type: ${operation.type}');
+    print('   Data keys: ${operation.data.keys.toList()}');
 
+    try {
+      print('   Checking initialization: $_initialized');
+      if (!_initialized) {
+        print('   Not initialized, calling init()...');
+        await init();
+        print('   Init completed');
+      }
+
+      print('   Opening box: $_queueBoxName');
       final box = Hive.box(_queueBoxName);
-      await box.put(operation.id, jsonEncode(operation.toJson()));
-      print('📝 Queued operation: ${operation.type} (ID: ${operation.id})');
-    } catch (e) {
-      print('❌ Error queuing operation: $e');
+      print('   Box opened successfully');
+      print('   Box length before: ${box.length}');
+
+      final jsonData = jsonEncode(operation.toJson());
+      print('   JSON encoded, length: ${jsonData.length}');
+
+      await box.put(operation.id, jsonData);
+      print('   Data written to box');
+      print('   Box length after: ${box.length}');
+
+      // Verify it was saved
+      final saved = box.get(operation.id);
+      print('   Verification: ${saved != null ? "FOUND" : "NOT FOUND"}');
+
+      print(
+        '✅ [OfflineQueueService] Queued operation: ${operation.type} (ID: ${operation.id})',
+      );
+    } catch (e, stackTrace) {
+      print('❌ [OfflineQueueService] Error queuing operation: $e');
+      print('   Stack trace: $stackTrace');
+      rethrow; // Re-throw so caller knows it failed
     }
   }
 
@@ -175,10 +232,24 @@ class OfflineQueueService {
   /// Get queue count
   int getQueueCount() {
     try {
-      if (!_initialized) return 0;
+      if (!_initialized) {
+        print('⚠️ [getQueueCount] Not initialized, returning 0');
+        return 0;
+      }
 
       final box = Hive.box(_queueBoxName);
-      return box.length;
+      final count = box.length;
+      print('📊 [getQueueCount] Queue count: $count');
+
+      // Log queue contents for debugging
+      if (count > 0) {
+        print('   Queue contents:');
+        for (var key in box.keys) {
+          print('      - $key');
+        }
+      }
+
+      return count;
     } catch (e) {
       print('❌ Error getting queue count: $e');
       return 0;

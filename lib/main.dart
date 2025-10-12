@@ -50,6 +50,7 @@ import 'package:pivot/services/offline_service.dart';
 import 'package:pivot/services/session_persistence_service.dart';
 import 'package:pivot/services/offline_queue_service.dart';
 import 'package:pivot/services/sync_manager.dart';
+import 'package:pivot/services/firestore_network_manager.dart';
 import 'package:pivot/services/notification_controller.dart';
 import 'dart:async';
 import 'package:pivot/features/home/screens/adminstration/add_user_screen.dart'
@@ -211,6 +212,11 @@ void main() async {
   // Initialize offline queue service for syncing operations
   print('📦 Initializing OfflineQueueService...');
   await OfflineQueueService().init();
+
+  // Initialize Firestore network manager to reduce connection attempts when offline
+  print('🌐 Initializing FirestoreNetworkManager...');
+  final firestoreNetworkManager = FirestoreNetworkManager();
+  firestoreNetworkManager.startManagingNetwork();
 
   // Clean up old queued operations (older than 7 days)
   await OfflineQueueService().clearOldOperations(7);

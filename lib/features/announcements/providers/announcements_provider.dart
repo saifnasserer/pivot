@@ -4,6 +4,7 @@ import 'package:pivot/features/announcements/services/announcements_service.dart
 import 'package:pivot/features/home/screens/adminstration/models/announcement_data.dart';
 import 'package:pivot/models/comment_data.dart';
 import 'package:pivot/services/cache_service.dart';
+import 'package:pivot/services/offline_service.dart';
 
 final announcementsServiceProvider = Provider<AnnouncementsService>(
   (ref) => AnnouncementsService(),
@@ -110,7 +111,37 @@ class AnnouncementsNotifier extends StateNotifier<AnnouncementsState> {
     // Generate cache key based on filters
     final cacheKey = _generateCacheKey(department, timeFilter, userLevel);
 
-    // Check if we should use cache first
+    // Check if offline first
+    final offlineService = OfflineService();
+    if (offlineService.isOffline) {
+      print('📴 [AnnouncementsProvider] Offline - using cache only');
+
+      final cachedAnnouncements = _getCachedAnnouncements(cacheKey);
+
+      if (cachedAnnouncements.isEmpty) {
+        print('   ⚠️ No cached announcements');
+        state = state.copyWith(
+          announcements: [],
+          isLoading: false,
+          error: null, // Don't show error, just show offline banner
+          isFromCache: false,
+        );
+      } else {
+        print('   ✅ Using ${cachedAnnouncements.length} cached announcements');
+        state = state.copyWith(
+          announcements: cachedAnnouncements,
+          isLoading: false,
+          error: null,
+          currentDepartmentFilter: department,
+          currentTimeFilter: timeFilter,
+          currentUserLevel: userLevel,
+          isFromCache: true,
+        );
+      }
+      return;
+    }
+
+    // Check if we should use cache first (online)
     if (!forceRefresh) {
       final cachedAnnouncements = _getCachedAnnouncements(cacheKey);
       if (cachedAnnouncements.isNotEmpty) {
@@ -151,6 +182,7 @@ class AnnouncementsNotifier extends StateNotifier<AnnouncementsState> {
       isFromCache: false,
     );
     try {
+      print('🌐 [AnnouncementsProvider] Online - Fetching from Firestore...');
       final announcements = await _repo.fetchAnnouncements(
         department: department,
         timeFilter: timeFilter,

@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/features/subjects/providers/subjects_provider.dart';
+import 'package:pivot/services/offline_service.dart';
+import 'package:pivot/widgets/offline_banner.dart';
 import 'package:pivot/features/profile/screens/profile_widgets/subjects.dart';
 
 class SubjectsTab extends ConsumerStatefulWidget {
@@ -146,7 +148,27 @@ class _SubjectsTabState extends ConsumerState<SubjectsTab> {
         subjectsState.instructorsBySubject,
       );
 
-      return CustomScrollView(slivers: subjectSlivers);
+      return Column(
+        children: [
+          // Offline banner
+          Consumer(
+            builder: (context, ref, _) {
+              final connectivityStatus = ref.watch(connectivityStatusProvider);
+              return connectivityStatus.when(
+                data:
+                    (isOnline) =>
+                        isOnline
+                            ? const SizedBox.shrink()
+                            : const OfflineBanner(),
+                loading: () => const SizedBox.shrink(),
+                error: (_, __) => const SizedBox.shrink(),
+              );
+            },
+          ),
+          // Main content
+          Expanded(child: CustomScrollView(slivers: subjectSlivers)),
+        ],
+      );
     } catch (e) {
       print('❌ SubjectsTab: Error - $e');
       return const Center(child: Text('لا يمكن تحميل المواد حالياً'));

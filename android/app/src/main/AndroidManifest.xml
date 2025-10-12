@@ -11,14 +11,21 @@
     <!-- Media permissions for profile pictures -->
     <!-- For Android 13+ (API 33+) -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    
+    <!-- Storage permissions for downloading and caching files -->
     <!-- For Android 10-12 (API 29-32) -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
+    
+    <!-- Note: App-specific storage (used by path_provider) doesn't require permissions -->
     
     <!-- Notification permissions for academic reminders -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.VIBRATE"/>
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <!-- Exact alarm permission for precise scheduled notifications (Android 12+) -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
     
     <!-- Hardware acceleration for media playback -->
     <uses-feature android:name="android.hardware.audio.low_latency" android:required="false" />

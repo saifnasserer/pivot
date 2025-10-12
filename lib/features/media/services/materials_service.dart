@@ -46,19 +46,50 @@ class MaterialsService {
   // Get materials by lecture ID
   Future<List<MaterialLink>> getMaterialsByLectureId(String lectureId) async {
     try {
+      List<MaterialLink> materials = [];
+
+      // Get materials from the subcollection (new structure for uploaded files)
+      final materialsSnapshot =
+          await _firestore
+              .collection('lectures')
+              .doc(lectureId)
+              .collection('materials')
+              .get();
+
+      // Parse materials from subcollection
+      for (var doc in materialsSnapshot.docs) {
+        try {
+          final materialLink = MaterialLink.fromMap(doc.data());
+          materials.add(materialLink);
+        } catch (e) {
+          print('Error parsing material ${doc.id}: $e');
+          continue;
+        }
+      }
+
+      // Also get materials from legacy links array (for added links)
       final lectureDoc =
           await _firestore.collection('lectures').doc(lectureId).get();
 
-      if (!lectureDoc.exists) {
-        throw Exception('Lecture not found');
+      if (lectureDoc.exists) {
+        final data = lectureDoc.data()!;
+        final links = data['links'] as List<dynamic>? ?? [];
+
+        // Add links from array to materials list
+        for (var linkData in links) {
+          try {
+            final materialLink = MaterialLink.fromMap(
+              Map<String, dynamic>.from(linkData),
+            );
+            materials.add(materialLink);
+          } catch (e) {
+            print('Error parsing link: $e');
+            continue;
+          }
+        }
       }
 
-      final data = lectureDoc.data()!;
-      final links = data['links'] as List<dynamic>? ?? [];
-
-      return links.map((linkData) {
-        return MaterialLink.fromMap(Map<String, dynamic>.from(linkData));
-      }).toList();
+      return materials;
     } catch (e) {
       throw Exception('Failed to fetch materials by lecture ID: $e');
     }
@@ -205,11 +236,37 @@ class MaterialsService {
     MaterialLink materialLink,
   ) async {
     try {
-      final lectureRef = _firestore.collection('lectures').doc(lectureId);
+      // Check if this is an uploaded file (from materials subcollection)
+      if (materialLink.isUploadedFile) {
+        // Delete from materials subcollection
+        final materialsRef = _firestore
+            .collection('lectures')
+            .doc(lectureId)
+            .collection('materials');
 
-      await lectureRef.update({
-        'links': FieldValue.arrayRemove([materialLink.toLegacyMap()]),
-      });
+        // Try to find document by URL (which should be unique)
+        final querySnapshot =
+            await materialsRef.where('url', isEqualTo: materialLink.url).get();
+
+        // Delete all matching documents
+        for (var doc in querySnapshot.docs) {
+          await doc.reference.delete();
+        }
+
+        // If no documents found, the file might already be deleted
+        if (querySnapshot.docs.isEmpty) {
+          print(
+            'Warning: No material found in subcollection with URL: ${materialLink.url}',
+          );
+        }
+      } else {
+        // Delete from legacy links array
+        final lectureRef = _firestore.collection('lectures').doc(lectureId);
+
+        await lectureRef.update({
+          'links': FieldValue.arrayRemove([materialLink.toLegacyMap()]),
+        });
+      }
 
       return true;
     } catch (e) {
@@ -365,20 +422,53 @@ class MaterialsService {
     String assistantId,
   ) async {
     try {
+      List<MaterialLink> materials = [];
+
+      // Get materials from the subcollection (new structure for uploaded files)
+      final materialsSnapshot =
+          await _firestore
+              .collection('subjects')
+              .doc(subjectId)
+              .collection('assistants')
+              .doc(assistantId)
+              .collection('materials')
+              .get();
+
+      // Parse materials from subcollection
+      for (var doc in materialsSnapshot.docs) {
+        try {
+          final materialLink = MaterialLink.fromMap(doc.data());
+          materials.add(materialLink);
+        } catch (e) {
+          print('Error parsing material ${doc.id}: $e');
+          continue;
+        }
+      }
+
+      // Also get materials from legacy links array (for added links)
       final docId = _getAssistantMaterialsDocId(subjectId, assistantId);
       final doc =
           await _firestore.collection('assistant_materials').doc(docId).get();
 
-      if (!doc.exists) {
-        return []; // No materials yet
+      if (doc.exists) {
+        final data = doc.data()!;
+        final links = data['links'] as List<dynamic>? ?? [];
+
+        // Add links from array to materials list
+        for (var linkData in links) {
+          try {
+            final materialLink = MaterialLink.fromMap(
+              Map<String, dynamic>.from(linkData),
+            );
+            materials.add(materialLink);
+          } catch (e) {
+            print('Error parsing link: $e');
+            continue;
+          }
+        }
       }
 
-      final data = doc.data()!;
-      final links = data['links'] as List<dynamic>? ?? [];
-
-      return links.map((linkData) {
-        return MaterialLink.fromMap(Map<String, dynamic>.from(linkData));
-      }).toList();
+      return materials;
     } catch (e) {
       throw Exception('Failed to fetch materials by subject and assistant: $e');
     }
@@ -427,13 +517,41 @@ class MaterialsService {
     MaterialLink materialLink,
   ) async {
     try {
-      final docId = _getAssistantMaterialsDocId(subjectId, assistantId);
-      final docRef = _firestore.collection('assistant_materials').doc(docId);
+      // Check if this is an uploaded file (from materials subcollection)
+      if (materialLink.isUploadedFile) {
+        // Delete from materials subcollection
+        final materialsRef = _firestore
+            .collection('subjects')
+            .doc(subjectId)
+            .collection('assistants')
+            .doc(assistantId)
+            .collection('materials');
 
-      await docRef.update({
-        'links': FieldValue.arrayRemove([materialLink.toLegacyMap()]),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+        // Try to find document by URL (which should be unique)
+        final querySnapshot =
+            await materialsRef.where('url', isEqualTo: materialLink.url).get();
+
+        // Delete all matching documents
+        for (var doc in querySnapshot.docs) {
+          await doc.reference.delete();
+        }
+
+        // If no documents found, the file might already be deleted
+        if (querySnapshot.docs.isEmpty) {
+          print(
+            'Warning: No material found in subcollection with URL: ${materialLink.url}',
+          );
+        }
+      } else {
+        // Delete from legacy links array
+        final docId = _getAssistantMaterialsDocId(subjectId, assistantId);
+        final docRef = _firestore.collection('assistant_materials').doc(docId);
+
+        await docRef.update({
+          'links': FieldValue.arrayRemove([materialLink.toLegacyMap()]),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
 
       return true;
     } catch (e) {

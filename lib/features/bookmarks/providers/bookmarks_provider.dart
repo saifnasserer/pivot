@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/features/bookmarks/services/bookmarks_service.dart';
 import 'package:pivot/features/bookmarks/repositories/bookmarks_repository.dart';
+import 'package:pivot/services/offline_service.dart';
 
 // Services
 final bookmarksServiceProvider = Provider<BookmarksService>((ref) {
@@ -69,7 +70,26 @@ class BookmarksNotifier extends StateNotifier<BookmarksState> {
     if (!mounted) return;
 
     state = state.copyWith(isLoading: true, error: null);
+
+    // Check if offline
+    final offlineService = OfflineService();
+    if (offlineService.isOffline) {
+      print(
+        '📴 [BookmarksProvider] Offline - showing empty bookmarks (no cache yet)',
+      );
+      state = state.copyWith(
+        isLoading: false,
+        bookmarks: [],
+        hasBookmarks: false,
+        error: null,
+      );
+      return;
+    }
+
     try {
+      print(
+        '🌐 [BookmarksProvider] Online - Fetching bookmarks from Firestore...',
+      );
       final bookmarks = await _repository.getUserBookmarks();
 
       if (!mounted) return;
@@ -81,6 +101,7 @@ class BookmarksNotifier extends StateNotifier<BookmarksState> {
       );
     } catch (e) {
       if (!mounted) return;
+      print('❌ [BookmarksProvider] Error fetching bookmarks: $e');
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
@@ -88,10 +109,29 @@ class BookmarksNotifier extends StateNotifier<BookmarksState> {
   // Get bookmarked items with details
   Future<void> getBookmarkedItemsDetails() async {
     state = state.copyWith(isLoading: true, error: null);
+
+    // Check if offline
+    final offlineService = OfflineService();
+    if (offlineService.isOffline) {
+      print(
+        '📴 [BookmarksProvider] Offline - showing empty bookmark details (no cache yet)',
+      );
+      state = state.copyWith(
+        isLoading: false,
+        bookmarkedItems: [],
+        error: null,
+      );
+      return;
+    }
+
     try {
+      print(
+        '🌐 [BookmarksProvider] Online - Fetching bookmark details from Firestore...',
+      );
       final items = await _repository.getBookmarkedItemsDetails();
       state = state.copyWith(isLoading: false, bookmarkedItems: items);
     } catch (e) {
+      print('❌ [BookmarksProvider] Error fetching bookmark details: $e');
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }

@@ -29,6 +29,23 @@ class _SendNotificationScreenState
   final List<String> _selectedUserIds = [];
   List<Map<String, dynamic>> _users = [];
 
+  // Filtering options for announcements
+  String? _selectedDepartment;
+  String? _selectedLevel;
+  final List<String> _departments = [
+    'Computer Science',
+    'Information Systems',
+    'Information Technology',
+    'Artificial Intelligence',
+    'Software Engineering',
+    'علوم الحاسب',
+    'نظم المعلومات',
+    'تكنولوجيا المعلومات',
+    'الذكاء الاصطناعي',
+    'هندسة البرمجيات',
+  ];
+  final List<String> _levels = ['1', '2', '3', '4'];
+
   @override
   void initState() {
     super.initState();
@@ -160,13 +177,26 @@ class _SendNotificationScreenState
     Map<String, dynamic> result;
 
     if (_sendToAllUsers) {
-      // Send to all users
-      result = await ref
-          .read(notificationsProvider.notifier)
-          .sendNotificationToAllUsers(
-            title: _titleController.text,
-            body: _bodyController.text,
-          );
+      // Check if filtering by department or level
+      if (_selectedDepartment != null || _selectedLevel != null) {
+        // Send filtered announcement
+        result = await ref
+            .read(notificationsProvider.notifier)
+            .sendFilteredNotification(
+              title: _titleController.text,
+              body: _bodyController.text,
+              department: _selectedDepartment,
+              level: _selectedLevel,
+            );
+      } else {
+        // Send to all users
+        result = await ref
+            .read(notificationsProvider.notifier)
+            .sendNotificationToAllUsers(
+              title: _titleController.text,
+              body: _bodyController.text,
+            );
+      }
     } else {
       // Send to selected users
       result = await ref
@@ -519,6 +549,270 @@ class _SendNotificationScreenState
                 ),
 
                 SizedBox(height: Responsive.space(context, size: Space.large)),
+
+                // Department & Level Filters (if sending to all)
+                if (_sendToAllUsers) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: Responsive.padding(context, size: Space.large),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey[200]!),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'تصفية المستلمين (اختياري)',
+                          style: TextStyle(
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.heading,
+                            ),
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        SizedBox(
+                          height: Responsive.space(context, size: Space.small),
+                        ),
+                        Text(
+                          'اختر القسم أو المستوى لإرسال الإشعار لمجموعة محددة فقط',
+                          style: TextStyle(
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.small,
+                            ),
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        SizedBox(
+                          height: Responsive.space(context, size: Space.medium),
+                        ),
+
+                        // Department Dropdown
+                        Text(
+                          'القسم',
+                          style: TextStyle(
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.medium,
+                            ),
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        SizedBox(
+                          height: Responsive.space(context, size: Space.small),
+                        ),
+                        Container(
+                          width: double.infinity,
+                          padding: Responsive.padding(
+                            context,
+                            size: Space.medium,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey[300]!),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: _selectedDepartment,
+                              hint: Text(
+                                'الكل (بدون تصفية)',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.medium,
+                                  ),
+                                ),
+                              ),
+                              isExpanded: true,
+                              icon: Icon(
+                                Icons.arrow_drop_down,
+                                color: Colors.grey[600],
+                              ),
+                              items: [
+                                DropdownMenuItem<String>(
+                                  value: null,
+                                  child: Text(
+                                    'الكل (بدون تصفية)',
+                                    style: TextStyle(
+                                      fontSize: Responsive.text(
+                                        context,
+                                        size: TextSize.medium,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                ..._departments.map((dept) {
+                                  return DropdownMenuItem<String>(
+                                    value: dept,
+                                    child: Text(
+                                      dept,
+                                      style: TextStyle(
+                                        fontSize: Responsive.text(
+                                          context,
+                                          size: TextSize.medium,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                              ],
+                              onChanged: (value) {
+                                setState(() {
+                                  _selectedDepartment = value;
+                                });
+                              },
+                            ),
+                          ),
+                        ),
+
+                        SizedBox(
+                          height: Responsive.space(context, size: Space.medium),
+                        ),
+
+                        // Level Dropdown
+                        Text(
+                          'المستوى',
+                          style: TextStyle(
+                            fontSize: Responsive.text(
+                              context,
+                              size: TextSize.medium,
+                            ),
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        SizedBox(
+                          height: Responsive.space(context, size: Space.small),
+                        ),
+                        Container(
+                          width: double.infinity,
+                          padding: Responsive.padding(
+                            context,
+                            size: Space.medium,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey[300]!),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: _selectedLevel,
+                              hint: Text(
+                                'الكل (بدون تصفية)',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.medium,
+                                  ),
+                                ),
+                              ),
+                              isExpanded: true,
+                              icon: Icon(
+                                Icons.arrow_drop_down,
+                                color: Colors.grey[600],
+                              ),
+                              items: [
+                                DropdownMenuItem<String>(
+                                  value: null,
+                                  child: Text(
+                                    'الكل (بدون تصفية)',
+                                    style: TextStyle(
+                                      fontSize: Responsive.text(
+                                        context,
+                                        size: TextSize.medium,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                ..._levels.map((level) {
+                                  return DropdownMenuItem<String>(
+                                    value: level,
+                                    child: Text(
+                                      'المستوى $level',
+                                      style: TextStyle(
+                                        fontSize: Responsive.text(
+                                          context,
+                                          size: TextSize.medium,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                              ],
+                              onChanged: (value) {
+                                setState(() {
+                                  _selectedLevel = value;
+                                });
+                              },
+                            ),
+                          ),
+                        ),
+
+                        // Show preview of filter
+                        if (_selectedDepartment != null ||
+                            _selectedLevel != null) ...[
+                          SizedBox(
+                            height: Responsive.space(
+                              context,
+                              size: Space.medium,
+                            ),
+                          ),
+                          Container(
+                            padding: Responsive.padding(
+                              context,
+                              size: Space.medium,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.blue.shade200),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.info_outline,
+                                  color: Colors.blue.shade700,
+                                  size: 20,
+                                ),
+                                SizedBox(
+                                  width: Responsive.space(
+                                    context,
+                                    size: Space.small,
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Text(
+                                    'سيتم إرسال الإشعار فقط للمستخدمين في: ${_selectedDepartment ?? "جميع الأقسام"}${_selectedLevel != null ? " - المستوى $_selectedLevel" : ""}',
+                                    style: TextStyle(
+                                      fontSize: Responsive.text(
+                                        context,
+                                        size: TextSize.small,
+                                      ),
+                                      color: Colors.blue.shade700,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.large),
+                  ),
+                ],
 
                 // User Selection (if not sending to all)
                 if (!_sendToAllUsers) ...[

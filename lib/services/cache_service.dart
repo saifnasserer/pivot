@@ -17,6 +17,7 @@ class CacheService {
   static const String _scheduleBoxName = 'scheduleBox';
   static const String _announcementsBoxName = 'announcementsBox';
   static const String _cacheMetadataBoxName = 'cacheMetadataBox';
+  static const String _materialsBoxName = 'materialsBox'; // For material links
 
   bool _initialized = false;
 
@@ -26,6 +27,7 @@ class CacheService {
   static const int _subjectsCacheExpiry = 120; // 2 hours
   static const int _scheduleCacheExpiry = 15; // 15 minutes
   static const int _announcementsCacheExpiry = 10; // 10 minutes
+  static const int _materialsCacheExpiry = 30; // 30 minutes
 
   Future<void> init() async {
     if (_initialized) {
@@ -103,6 +105,9 @@ class CacheService {
       }
       if (!Hive.isBoxOpen(_cacheMetadataBoxName)) {
         await Hive.openBox<Map>(_cacheMetadataBoxName);
+      }
+      if (!Hive.isBoxOpen(_materialsBoxName)) {
+        await Hive.openBox(_materialsBoxName); // Dynamic box for JSON storage
       }
     } catch (e) {
       rethrow;
@@ -460,8 +465,16 @@ class CacheService {
       }
 
       // Clear schedule cache (user-specific)
-      await Hive.box<ScheduleItem>(_scheduleBoxName).clear();
-      print('   ✅ Schedule cache cleared');
+      if (Hive.isBoxOpen(_scheduleBoxName)) {
+        await Hive.box<ScheduleItem>(_scheduleBoxName).clear();
+        print('   ✅ Schedule cache cleared');
+      }
+
+      // Clear materials cache (user-specific)
+      if (Hive.isBoxOpen(_materialsBoxName)) {
+        await Hive.box(_materialsBoxName).clear();
+        print('   ✅ Materials cache cleared');
+      }
 
       // Optionally clear other caches depending on your app's needs
       // (Sections and subjects might be shared across users, so maybe keep them)
@@ -470,6 +483,94 @@ class CacheService {
     } catch (e) {
       print('❌ Error clearing user cache: $e');
       // Don't rethrow - allow logout to continue
+    }
+  }
+
+  // ===== Materials Caching =====
+
+  /// Cache materials for a specific lecture or assistant-subject combination
+  /// Key format: "lecture_{lectureId}" or "assistant_{subjectId}_{assistantId}"
+  Future<void> cacheMaterials(
+    String key,
+    List<Map<String, dynamic>> materials,
+  ) async {
+    try {
+      // Ensure box is open
+      if (!Hive.isBoxOpen(_materialsBoxName)) {
+        await Hive.openBox(_materialsBoxName);
+        print('📦 Opened materials box');
+      }
+
+      final box = Hive.box(_materialsBoxName);
+      await box.put(key, materials);
+      await _updateCacheTimestamp('$_materialsBoxName:$key', DateTime.now());
+      print('💾 Cached ${materials.length} materials for key: $key');
+    } catch (e) {
+      print('❌ Error caching materials: $e');
+    }
+  }
+
+  /// Get cached materials by key
+  List<Map<String, dynamic>> getCachedMaterials(String key) {
+    try {
+      // Check if box is open
+      if (!Hive.isBoxOpen(_materialsBoxName)) {
+        print('⚠️ Materials box not open, returning empty');
+        return [];
+      }
+
+      final box = Hive.box(_materialsBoxName);
+      final cached = box.get(key);
+
+      if (cached == null) {
+        return [];
+      }
+
+      // Check if cache is expired using existing method
+      if (!isCacheValid(
+        '$_materialsBoxName:$key',
+        customExpiryMinutes: _materialsCacheExpiry,
+      )) {
+        print('⏰ Materials cache expired for key: $key');
+        return [];
+      }
+
+      return List<Map<String, dynamic>>.from(cached);
+    } catch (e) {
+      print('❌ Error getting cached materials: $e');
+      return [];
+    }
+  }
+
+  /// Clear materials cache for specific key
+  Future<void> clearMaterialsCache(String key) async {
+    try {
+      if (!Hive.isBoxOpen(_materialsBoxName)) {
+        print('⚠️ Materials box not open');
+        return;
+      }
+
+      final box = Hive.box(_materialsBoxName);
+      await box.delete(key);
+      print('🗑️ Cleared materials cache for key: $key');
+    } catch (e) {
+      print('❌ Error clearing materials cache: $e');
+    }
+  }
+
+  /// Clear all materials cache
+  Future<void> clearAllMaterialsCache() async {
+    try {
+      if (!Hive.isBoxOpen(_materialsBoxName)) {
+        print('⚠️ Materials box not open');
+        return;
+      }
+
+      final box = Hive.box(_materialsBoxName);
+      await box.clear();
+      print('🗑️ Cleared all materials cache');
+    } catch (e) {
+      print('❌ Error clearing all materials cache: $e');
     }
   }
 

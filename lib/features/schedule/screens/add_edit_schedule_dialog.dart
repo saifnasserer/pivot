@@ -157,7 +157,7 @@ class _AddEditScheduleDialogState extends ConsumerState<AddEditScheduleDialog> {
     );
   }
 
-  void _submitForm() {
+  Future<void> _submitForm() async {
     // Validate time field
     if (_time.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -171,32 +171,101 @@ class _AddEditScheduleDialogState extends ConsumerState<AddEditScheduleDialog> {
     }
 
     if (_formKey.currentState!.validate()) {
-      if (_isEditing) {
-        final updatedItem = widget.itemToEdit!.copyWith(
-          title: _title,
-          location: _location,
-          time: _time,
-          type: _selectedType,
-          notificationEnabled: _notificationEnabled,
-          instructor: _instructor,
-        );
-        ref
-            .read(scheduleProvider.notifier)
-            .updateScheduleItem(widget.itemToEdit!.id, updatedItem);
-      } else {
-        final newItem = ScheduleItem(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          day: widget.day,
-          title: _title,
-          location: _location,
-          time: _time,
-          type: _selectedType,
-          notificationEnabled: _notificationEnabled,
-          instructor: _instructor,
-        );
-        ref.read(scheduleProvider.notifier).addScheduleItem(newItem);
+      try {
+        if (_isEditing) {
+          final updatedItem = widget.itemToEdit!.copyWith(
+            title: _title,
+            location: _location,
+            time: _time,
+            type: _selectedType,
+            notificationEnabled: _notificationEnabled,
+            instructor: _instructor,
+          );
+          await ref
+              .read(scheduleProvider.notifier)
+              .updateScheduleItem(widget.itemToEdit!.id, updatedItem);
+
+          if (mounted) {
+            Navigator.of(context).pop();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'تم تحديث العنصر بنجاح',
+                  textAlign: TextAlign.center,
+                ),
+                backgroundColor: Colors.green,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        } else {
+          final newItem = ScheduleItem(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            day: widget.day,
+            title: _title,
+            location: _location,
+            time: _time,
+            type: _selectedType,
+            notificationEnabled: _notificationEnabled,
+            instructor: _instructor,
+          );
+          await ref.read(scheduleProvider.notifier).addScheduleItem(newItem);
+
+          if (mounted) {
+            Navigator.of(context).pop();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'تم إضافة العنصر بنجاح',
+                  textAlign: TextAlign.center,
+                ),
+                backgroundColor: Colors.green,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        // Handle errors gracefully
+        if (mounted) {
+          Navigator.of(context).pop();
+
+          // Check if it's a network/Firebase error
+          final errorMessage = e.toString();
+          final isNetworkError =
+              errorMessage.contains('firebase') ||
+              errorMessage.contains('network') ||
+              errorMessage.contains('connection') ||
+              errorMessage.contains('offline');
+
+          if (isNetworkError) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'لا يوجد اتصال بالإنترنت. سيتم حفظ التعديلات وإرسالها عند الاتصال.',
+                ),
+                backgroundColor: Colors.orange,
+                duration: Duration(seconds: 4),
+                behavior: SnackBarBehavior.floating,
+                action: SnackBarAction(
+                  label: 'حسناً',
+                  textColor: Colors.white,
+                  onPressed: () {},
+                ),
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('حدث خطأ: $errorMessage'),
+                backgroundColor: Colors.red,
+                duration: Duration(seconds: 4),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        }
       }
-      Navigator.of(context).pop();
     }
   }
 

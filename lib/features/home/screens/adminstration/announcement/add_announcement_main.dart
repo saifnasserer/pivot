@@ -197,15 +197,19 @@ class _AddAnnouncementMainState extends ConsumerState<AddAnnouncementMain>
       barrierDismissible: false,
       builder: (BuildContext context) {
         return Dialog(
-          child: Padding(
-            padding: Responsive.padding(context, size: Space.large),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const CircularProgressIndicator(),
-                SizedBox(width: Responsive.space(context, size: Space.medium)),
-                const Text("جاري حفظ الإعلان..."),
-              ],
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: Responsive.padding(context, size: Space.large),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const CircularProgressIndicator(),
+                  SizedBox(
+                    width: Responsive.space(context, size: Space.medium),
+                  ),
+                  const Text("جاري حفظ الإعلان..."),
+                ],
+              ),
             ),
           ),
         );

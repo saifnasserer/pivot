@@ -12,7 +12,7 @@ import 'package:pivot/widgets/unified_dialog.dart';
 // Function to show the Add/Edit Task Dialog
 Future<void> showAddTaskDialog({
   required BuildContext context,
-  required Function(Task) onSave,
+  required Future<void> Function(Task) onSave,
   required String subjectId,
   String? initialSectionId,
   Task? task,
@@ -35,7 +35,7 @@ Future<void> showAddTaskDialog({
 }
 
 class _AddEditTaskDialogContent extends ConsumerStatefulWidget {
-  final Function(Task) onSave;
+  final Future<void> Function(Task) onSave;
   final Task? task;
   final String subjectId;
   final String? initialSectionId;
@@ -136,7 +136,7 @@ class _AddEditTaskDialogContentState
     }
   }
 
-  void _saveTask() {
+  Future<void> _saveTask() async {
     if (_formKey.currentState!.validate()) {
       if (_selectedSubjectId == null) {
         ScaffoldMessenger.of(
@@ -165,8 +165,55 @@ class _AddEditTaskDialogContentState
                 .assistantId, // Set the assistant ID to the section's assistant
         attachments: selectedMaterials,
       );
-      widget.onSave(newTask);
-      Navigator.of(context).pop();
+
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder:
+            (context) => WillPopScope(
+              onWillPop: () async => false,
+              child: Center(
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        CircularProgressIndicator(color: Colors.black),
+                        SizedBox(height: 16),
+                        Text('جاري الحفظ...'),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+      );
+
+      try {
+        // Wait for the save operation to complete before closing the dialog
+        await widget.onSave(newTask);
+
+        // Close loading indicator
+        if (mounted) Navigator.of(context).pop();
+
+        // Close the main dialog
+        if (mounted) Navigator.of(context).pop();
+      } catch (e) {
+        // Close loading indicator
+        if (mounted) Navigator.of(context).pop();
+
+        // Show error
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('فشل الحفظ: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
     }
   }
 

@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:pivot/features/home/screens/adminstration/models/announcement_data.dart';
-import 'package:pivot/features/announcements/providers/announcements_provider.dart';
 import 'package:pivot/services/permission_service.dart';
-import 'package:pivot/services/storage_optimization_service.dart';
+import 'package:pivot/services/backblaze_service.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/widgets/custom_text_field.dart';
 
@@ -71,26 +68,60 @@ class _AddAnnouncementSteppedDialogState
   DateTime? _publishAt;
   DateTime? _expireAt;
 
-  // Form validation
-  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  // Services
   final ImagePicker _picker = ImagePicker();
+  final BackblazeService _backblazeService = BackblazeService();
 
   Future<String> _uploadImage(XFile image) async {
     try {
-      // Use the optimized storage service
-      final storageService = StorageOptimizationService();
-      final downloadUrl = await storageService.uploadFileOptimized(
-        image,
-        folder: 'announcements',
-        usage: 'announcement',
-        checkDuplicate: true,
-      );
+      // Read file bytes
+      final bytes = await image.readAsBytes();
+      final fileName = image.name;
 
-      if (downloadUrl == null) {
-        throw Exception('Failed to get download URL');
+      // Validate file size
+      if (!BackblazeService.isValidFileSize(bytes.length)) {
+        throw Exception('حجم الملف كبير جداً. الحد الأقصى 20 ميجابايت');
       }
 
-      return downloadUrl;
+      // Generate upload URL
+      final uploadAuth = await _backblazeService.generateUploadUrl(
+        title: 'Announcement Image',
+        fileName: fileName,
+        fileSize: bytes.length,
+      );
+
+      if (uploadAuth == null) {
+        throw Exception('فشل في الحصول على رابط التحميل');
+      }
+
+      // Upload file to Backblaze
+      final uploadSuccess = await _backblazeService.uploadFile(
+        uploadUrl: uploadAuth['uploadUrl'],
+        authorizationToken: uploadAuth['authorizationToken'],
+        fileName: uploadAuth['filePath'],
+        contentType: BackblazeService.getContentType(fileName),
+        fileBytes: bytes,
+      );
+
+      if (!uploadSuccess) {
+        throw Exception('فشل في رفع الملف');
+      }
+
+      // Confirm upload and get download URL
+      final confirmResult = await _backblazeService.confirmUpload(
+        title: 'Announcement Image',
+        description: 'Image for announcement',
+        filePath: uploadAuth['filePath'],
+        fileName: uploadAuth['fileName'],
+        fileSize: bytes.length,
+        contentType: BackblazeService.getContentType(fileName),
+      );
+
+      if (confirmResult == null || confirmResult['downloadUrl'] == null) {
+        throw Exception('فشل في حفظ بيانات الملف');
+      }
+
+      return confirmResult['downloadUrl'];
     } catch (e) {
       throw Exception('Error uploading image: $e');
     }
@@ -125,7 +156,7 @@ class _AddAnnouncementSteppedDialogState
               .whereType<String>()
               .toList();
 
-      _links = List<Map<String, String>>.from(widget.announcement!.links ?? []);
+      _links = List<Map<String, String>>.from(widget.announcement!.links);
     }
   }
 
@@ -184,15 +215,19 @@ class _AddAnnouncementSteppedDialogState
       barrierDismissible: false,
       builder: (BuildContext context) {
         return Dialog(
-          child: Padding(
-            padding: Responsive.padding(context, size: Space.large),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const CircularProgressIndicator(),
-                SizedBox(width: Responsive.space(context, size: Space.medium)),
-                const Text("جاري حفظ الإعلان..."),
-              ],
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: Responsive.padding(context, size: Space.large),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const CircularProgressIndicator(),
+                  SizedBox(
+                    width: Responsive.space(context, size: Space.medium),
+                  ),
+                  const Text("جاري حفظ الإعلان..."),
+                ],
+              ),
             ),
           ),
         );
@@ -200,7 +235,6 @@ class _AddAnnouncementSteppedDialogState
     );
 
     try {
-      final announcementProvider = ref.read(announcementsProvider.notifier);
       List<String> imageUrls = [];
 
       // Start with existing images if editing
@@ -928,49 +962,85 @@ class _AddAnnouncementSteppedDialogState
         allowedExtensions: ['pdf'],
       );
 
-      if (result != null && result.files.single.path != null) {
-        // Show loading dialog
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder:
-              (context) => AlertDialog(
-                content: Row(
-                  children: [
-                    const CircularProgressIndicator(),
-                    SizedBox(
-                      width: Responsive.space(context, size: Space.medium),
-                    ),
-                    const Text('جاري رفع الملف...'),
-                  ],
-                ),
-              ),
-        );
-
-        final file = File(result.files.single.path!);
+      if (result != null && result.files.single.bytes != null) {
         final fileName = result.files.single.name;
-        final fileSize = await file.length();
+        final fileBytes = result.files.single.bytes!;
+        final fileSize = fileBytes.length;
 
-        if (fileSize > 10 * 1024 * 1024) {
-          Navigator.of(context).pop(); // Close loading dialog
+        // Validate file size
+        if (!BackblazeService.isValidFileSize(fileSize)) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('حجم الملف أكبر من 10 ميجابايت'),
+              content: Text('حجم الملف كبير جداً. الحد الأقصى 20 ميجابايت'),
               backgroundColor: Colors.red,
             ),
           );
           return;
         }
 
-        final storageRef = FirebaseStorage.instance.ref().child(
-          'announcements/attachments/${DateTime.now().millisecondsSinceEpoch}_$fileName',
+        // Show loading dialog
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder:
+              (context) => AlertDialog(
+                content: SingleChildScrollView(
+                  child: Row(
+                    children: [
+                      const CircularProgressIndicator(),
+                      SizedBox(
+                        width: Responsive.space(context, size: Space.medium),
+                      ),
+                      const Text('جاري رفع الملف...'),
+                    ],
+                  ),
+                ),
+              ),
         );
 
-        final uploadTask = storageRef.putFile(file);
-        final snapshot = await uploadTask.whenComplete(() {});
-        final downloadUrl = await snapshot.ref.getDownloadURL();
+        // Generate upload URL
+        final uploadAuth = await _backblazeService.generateUploadUrl(
+          title: 'Announcement PDF',
+          fileName: fileName,
+          fileSize: fileSize,
+        );
+
+        if (uploadAuth == null) {
+          Navigator.of(context).pop(); // Close loading dialog
+          throw Exception('فشل في الحصول على رابط التحميل');
+        }
+
+        // Upload file to Backblaze
+        final uploadSuccess = await _backblazeService.uploadFile(
+          uploadUrl: uploadAuth['uploadUrl'],
+          authorizationToken: uploadAuth['authorizationToken'],
+          fileName: uploadAuth['filePath'],
+          contentType: BackblazeService.getContentType(fileName),
+          fileBytes: fileBytes,
+        );
+
+        if (!uploadSuccess) {
+          Navigator.of(context).pop(); // Close loading dialog
+          throw Exception('فشل في رفع الملف');
+        }
+
+        // Confirm upload and get download URL
+        final confirmResult = await _backblazeService.confirmUpload(
+          title: 'Announcement PDF',
+          description: 'PDF attachment for announcement',
+          filePath: uploadAuth['filePath'],
+          fileName: uploadAuth['fileName'],
+          fileSize: fileSize,
+          contentType: BackblazeService.getContentType(fileName),
+        );
 
         Navigator.of(context).pop(); // Close loading dialog
+
+        if (confirmResult == null || confirmResult['downloadUrl'] == null) {
+          throw Exception('فشل في حفظ بيانات الملف');
+        }
+
+        final downloadUrl = confirmResult['downloadUrl'];
 
         // Get custom title for the file
         String? linkTitle = await _showFileTitleDialog(fileName);

@@ -141,9 +141,27 @@ service cloud.firestore {
     match /lectures/{lectureId} {
       allow read: if isSignedIn();
       allow write: if isProfessor();
+
+      // Materials subcollection for uploaded files
+      match /materials/{materialId} {
+        allow read: if isSignedIn();
+        allow write: if isProfessor();
+      }
     }
 
-    // Assistant materials (shared per subject for all sections)
+    // Subjects with nested assistants and materials
+    match /subjects/{subjectId}/assistants/{assistantId} {
+      allow read: if isSignedIn();
+      allow write: if isProfessor();
+
+      // Materials subcollection for assistant materials
+      match /materials/{materialId} {
+        allow read: if isSignedIn();
+        allow write: if isProfessor();
+      }
+    }
+
+    // Assistant materials (shared per subject for all sections - legacy)
     match /assistant_materials/{materialId} {
       allow read: if isSignedIn();
       allow write: if isProfessor(); // miniProfessor and Professor can manage

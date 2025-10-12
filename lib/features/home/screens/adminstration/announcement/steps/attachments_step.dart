@@ -2,10 +2,12 @@ import 'package:flutter/material.dart' hide MaterialType;
 import 'package:pivot/responsive.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:pivot/services/permission_service.dart';
+import 'package:pivot/services/backblaze_service.dart';
 import 'package:pivot/features/home/screens/adminstration/announcement/add_announcement_controller.dart';
 import 'package:pivot/models/material_link.dart';
 import 'package:pivot/features/home/screens/adminstration/announcement/steps/material_browser_bottom_sheet.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
+import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 
 class AttachmentsStep extends StatelessWidget {
@@ -237,6 +239,157 @@ class AttachmentsStep extends StatelessWidget {
     }
   }
 
+  Future<void> _pickPdfFile(BuildContext context) async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+      );
+
+      if (result != null && result.files.single.bytes != null) {
+        final fileName = result.files.single.name;
+        final fileBytes = result.files.single.bytes!;
+        final fileSize = fileBytes.length;
+
+        // Validate file size
+        if (!BackblazeService.isValidFileSize(fileSize)) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('حجم الملف كبير جداً. الحد الأقصى 20 ميجابايت'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+
+        // Show loading dialog
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder:
+              (context) => AlertDialog(
+                content: SingleChildScrollView(
+                  child: Row(
+                    children: [
+                      const CircularProgressIndicator(),
+                      SizedBox(
+                        width: Responsive.space(context, size: Space.medium),
+                      ),
+                      const Text('جاري رفع الملف...'),
+                    ],
+                  ),
+                ),
+              ),
+        );
+
+        final backblazeService = BackblazeService();
+
+        // Generate upload URL
+        final uploadAuth = await backblazeService.generateUploadUrl(
+          title: 'Announcement PDF',
+          fileName: fileName,
+          fileSize: fileSize,
+        );
+
+        if (uploadAuth == null) {
+          Navigator.of(context).pop(); // Close loading dialog
+          throw Exception('فشل في الحصول على رابط التحميل');
+        }
+
+        // Upload file to Backblaze
+        final uploadSuccess = await backblazeService.uploadFile(
+          uploadUrl: uploadAuth['uploadUrl'],
+          authorizationToken: uploadAuth['authorizationToken'],
+          fileName: uploadAuth['filePath'],
+          contentType: BackblazeService.getContentType(fileName),
+          fileBytes: fileBytes,
+        );
+
+        if (!uploadSuccess) {
+          Navigator.of(context).pop(); // Close loading dialog
+          throw Exception('فشل في رفع الملف');
+        }
+
+        // Confirm upload and get download URL
+        final confirmResult = await backblazeService.confirmUpload(
+          title: 'Announcement PDF',
+          description: 'PDF attachment for announcement',
+          filePath: uploadAuth['filePath'],
+          fileName: uploadAuth['fileName'],
+          fileSize: fileSize,
+          contentType: BackblazeService.getContentType(fileName),
+        );
+
+        Navigator.of(context).pop(); // Close loading dialog
+
+        if (confirmResult == null || confirmResult['downloadUrl'] == null) {
+          throw Exception('فشل في حفظ بيانات الملف');
+        }
+
+        final downloadUrl = confirmResult['downloadUrl'];
+
+        // Get custom title for the file
+        String? linkTitle = await _showFileTitleDialog(context, fileName);
+
+        final newLinks = List<Map<String, String>>.from(links);
+        if (!newLinks.any((l) => l['url'] == downloadUrl)) {
+          newLinks.add({
+            'title': linkTitle ?? fileName,
+            'url': downloadUrl,
+            'type': 'pdf',
+          });
+        }
+        onLinksChanged(newLinks);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تم رفع الملف بنجاح'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (Navigator.canPop(context)) {
+        Navigator.of(context).pop(); // Close loading dialog
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('فشل في رفع الملف: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<String?> _showFileTitleDialog(
+    BuildContext context,
+    String fileName,
+  ) async {
+    String tempTitle = fileName;
+    final TextEditingController controller = TextEditingController(
+      text: fileName,
+    );
+
+    return showDialog<String>(
+      context: context,
+      builder: (context) {
+        return UnifiedDialog(
+          title: 'تعديل اسم الملف',
+          content: UnifiedFormField(
+            controller: controller,
+            label: 'اسم الملف',
+            hint: 'أدخل اسم الملف كما تريد أن يظهر',
+            onChanged: (value) => tempTitle = value,
+          ),
+          confirmText: 'حفظ',
+          confirmIcon: Icons.save,
+          onCancel: () => Navigator.pop(context),
+          onConfirm: () => Navigator.pop(context, tempTitle),
+        );
+      },
+    );
+  }
+
   Future<void> _showMaterialBrowser(BuildContext context) async {
     final MaterialLink? materialLink = await showModalBottomSheet<MaterialLink>(
       context: context,
@@ -447,10 +600,10 @@ class AttachmentsStep extends StatelessWidget {
                           Expanded(
                             child: _buildAttachmentButton(
                               context,
-                              icon: Icons.add_link,
-                              label: 'رابط',
-                              color: Colors.orange,
-                              onTap: () => _showAddLinkDialog(context),
+                              icon: Icons.picture_as_pdf,
+                              label: 'ملف PDF',
+                              color: Colors.red,
+                              onTap: () => _pickPdfFile(context),
                             ),
                           ),
                         ],
@@ -464,8 +617,23 @@ class AttachmentsStep extends StatelessWidget {
                           Expanded(
                             child: _buildAttachmentButton(
                               context,
+                              icon: Icons.add_link,
+                              label: 'رابط',
+                              color: Colors.orange,
+                              onTap: () => _showAddLinkDialog(context),
+                            ),
+                          ),
+                          SizedBox(
+                            width: Responsive.space(
+                              context,
+                              size: Space.medium,
+                            ),
+                          ),
+                          Expanded(
+                            child: _buildAttachmentButton(
+                              context,
                               icon: Icons.search,
-                              label: 'اختيار من المواد',
+                              label: 'من الماتيريال',
                               color: Colors.blue,
                               onTap: () => _showMaterialBrowser(context),
                             ),
@@ -542,7 +710,7 @@ class AttachmentsStep extends StatelessWidget {
                                       height: 40,
                                       fit: BoxFit.cover,
                                     ),
-                                    title: Text(img.name ?? 'صورة'),
+                                    title: Text(img.name),
                                     trailing: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
@@ -555,7 +723,7 @@ class AttachmentsStep extends StatelessWidget {
                                             final newName =
                                                 await AddAnnouncementController.showEditImageNameDialog(
                                                   context,
-                                                  img.name ?? 'صورة',
+                                                  img.name,
                                                 );
                                             if (newName != null &&
                                                 newName.isNotEmpty) {

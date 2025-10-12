@@ -39,30 +39,36 @@ class _AdminControlState extends ConsumerState<AdminControl> {
   @override
   void initState() {
     super.initState();
-    // Fetch announcements when the widget is first created
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Force fresh fetch of all announcements
+
+    // Set initial department filter BEFORE fetching data
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Get user's department and set as initial filter FIRST
+      final userProfile = ref.read(userProfileProvider).loggedInUserProfile;
+      if (userProfile != null && userProfile.department.isNotEmpty && mounted) {
+        setState(() {
+          _departmentFilter = userProfile.department;
+        });
+        print(
+          '🏢 AdminControl: Initial filter set to department: ${userProfile.department}',
+        );
+      }
+
+      // Then fetch all announcements
       print(
         '📥 AdminControl: Fetching all announcements (including scheduled & expired)',
       );
-      ref
+      await ref
           .read(announcementsProvider.notifier)
-          .fetchAnnouncements(includeScheduledAndExpired: true)
-          .then((_) {
-            // Get user's department and set as initial filter AFTER data loads
-            final userProfile =
-                ref.read(userProfileProvider).loggedInUserProfile;
-            if (userProfile != null &&
-                userProfile.department.isNotEmpty &&
-                mounted) {
-              setState(() {
-                _departmentFilter = userProfile.department;
-              });
-              print(
-                '🏢 AdminControl: Auto-filtered to department: ${userProfile.department}',
-              );
-            }
-          });
+          .fetchAnnouncements(includeScheduledAndExpired: true);
+
+      print('✅ AdminControl: Fetch complete, data should be displayed');
+
+      // Force rebuild to ensure filtered data is shown
+      if (mounted) {
+        setState(() {
+          _rebuildCounter++;
+        });
+      }
     });
   }
 
@@ -453,138 +459,6 @@ class _AdminControlState extends ConsumerState<AdminControl> {
     );
   }
 
-  Widget _buildAnalyticsBar(List<AnnouncementData> announcements) {
-    final total = announcements.length;
-    final pinned = announcements.where((a) => a.pinned).length;
-    final now = DateTime.now();
-    final weekAgo = now.subtract(const Duration(days: 7));
-    final thisWeek =
-        announcements.where((a) => a.timestamp.isAfter(weekAgo)).length;
-    final Map<String, int> deptCounts = {
-      'SC': 0,
-      'AI': 0,
-      'CS': 0,
-      'IS': 0,
-      'General': 0,
-    };
-    for (final a in announcements) {
-      for (final d in deptCounts.keys) {
-        if (a.tags.any((tag) {
-          // Handle both old and new format
-          String cleanTag = tag;
-          if (tag.startsWith('اخبار قسم ')) {
-            cleanTag = tag.replaceFirst('اخبار قسم ', '');
-          }
-          return cleanTag == d;
-        })) {
-          deptCounts[d] = deptCounts[d]! + 1;
-        }
-      }
-    }
-    final stats = [
-      {
-        'label': 'الإجمالي',
-        'value': total,
-        'icon': Icons.campaign,
-        'color': Colors.blue,
-      },
-      {
-        'label': 'مثبت',
-        'value': pinned,
-        'icon': Icons.push_pin,
-        'color': Colors.orange,
-      },
-      {
-        'label': 'هذا الأسبوع',
-        'value': thisWeek,
-        'icon': Icons.calendar_today,
-        'color': Colors.green,
-      },
-      ...deptCounts.entries.map(
-        (e) => {
-          'label': e.key,
-          'value': e.value,
-          'icon': Icons.label,
-          'color': Colors.purple,
-        },
-      ),
-    ];
-
-    // Calculate responsive dimensions
-    final screenWidth = Responsive.width(context);
-    final isTablet = screenWidth >= 600;
-    final isDesktop = screenWidth >= 900;
-
-    // Adjust card width based on screen size
-    final cardWidth = isDesktop ? 140.0 : (isTablet ? 120.0 : 100.0);
-    final cardHeight = isDesktop ? 100.0 : (isTablet ? 90.0 : 80.0);
-    final iconSize = isDesktop ? 32.0 : (isTablet ? 28.0 : 24.0);
-    final valueFontSize = isDesktop ? 20.0 : (isTablet ? 18.0 : 16.0);
-    final labelFontSize = isDesktop ? 14.0 : (isTablet ? 13.0 : 12.0);
-
-    return Container(
-      height: cardHeight + Responsive.space(context, size: Space.medium),
-      padding: EdgeInsets.symmetric(
-        horizontal: Responsive.space(context, size: Space.small),
-        vertical: Responsive.space(context, size: Space.small),
-      ),
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        reverse: true, // RTL support
-        itemCount: stats.length,
-        separatorBuilder:
-            (_, __) =>
-                SizedBox(width: Responsive.space(context, size: Space.small)),
-        itemBuilder: (context, i) {
-          final s = stats[i];
-          return Container(
-            width: cardWidth,
-            height: cardHeight,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(
-                Responsive.space(context, size: Space.large),
-              ),
-              border: Border.all(color: Colors.grey[200]!),
-            ),
-            child: Padding(
-              padding: Responsive.padding(context, size: Space.small),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    s['icon'] as IconData,
-                    color: s['color'] as Color,
-                    size: iconSize,
-                  ),
-                  SizedBox(height: Responsive.space(context, size: Space.tiny)),
-                  Text(
-                    '${s['value']}',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: valueFontSize,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  Text(
-                    s['label'] as String,
-                    style: TextStyle(
-                      fontSize: labelFontSize,
-                      color: Colors.grey[600],
-                    ),
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final announcementsState = ref.watch(announcementsProvider);
@@ -866,12 +740,24 @@ class _AdminControlState extends ConsumerState<AdminControl> {
               bottom: Responsive.space(context),
               child: AnimatedAddButton(
                 onPressed: () {
-                  Navigator.of(context).push(
-                    AnimatedAddRoute(
-                      startPosition: Offset.zero,
-                      child: AddAnnouncementMain(),
-                    ),
-                  );
+                  Navigator.of(context)
+                      .push(
+                        AnimatedAddRoute(
+                          startPosition: Offset.zero,
+                          child: AddAnnouncementMain(),
+                        ),
+                      )
+                      .then((_) {
+                        // Refresh announcements after returning from add screen
+                        print(
+                          '🔄 AdminControl: Refreshing announcements after add',
+                        );
+                        ref
+                            .read(announcementsProvider.notifier)
+                            .fetchAnnouncements(
+                              includeScheduledAndExpired: true,
+                            );
+                      });
                 },
                 icon: Icons.add_rounded,
                 iconSizeMultiplier: 3,
@@ -884,12 +770,23 @@ class _AdminControlState extends ConsumerState<AdminControl> {
   }
 
   void _editAnnouncement(AnnouncementData announcement) {
-    Navigator.of(context).push(
-      AnimatedAddRoute(
-        startPosition: Offset.zero,
-        child: AddAnnouncementMain(isEditing: true, announcement: announcement),
-      ),
-    );
+    Navigator.of(context)
+        .push(
+          AnimatedAddRoute(
+            startPosition: Offset.zero,
+            child: AddAnnouncementMain(
+              isEditing: true,
+              announcement: announcement,
+            ),
+          ),
+        )
+        .then((_) {
+          // Refresh announcements after returning from edit screen
+          print('🔄 AdminControl: Refreshing announcements after edit');
+          ref
+              .read(announcementsProvider.notifier)
+              .fetchAnnouncements(includeScheduledAndExpired: true);
+        });
   }
 
   void _deleteAnnouncement(AnnouncementData announcement) {

@@ -6,6 +6,8 @@ import 'package:pivot/features/schedule/screens/schadule.dart';
 import 'package:pivot/features/schedule/providers/schedule_provider.dart';
 import 'package:pivot/features/schedule/widgets/share_schedule_dialog.dart';
 import 'package:pivot/features/schedule/widgets/import_schedule_dialog.dart';
+import 'package:pivot/services/offline_service.dart';
+import 'package:pivot/widgets/offline_banner.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/models/schedule_item.dart';
 import 'package:pivot/screens/models/schadule_card.dart';
@@ -30,13 +32,27 @@ class _ScheduleTabState extends ConsumerState<ScheduleTab>
   @override
   void initState() {
     super.initState();
-    // Provider loads from cache automatically on startup
-    // We just need to ensure correct day selection after data loads
+    // Provider loads from cache automatically on startup (zero server reads)
+    // Initialize day selection when data is available
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         final scheduleState = ref.read(scheduleProvider);
-        if (scheduleState.schedule.isNotEmpty) {
-          _ensureCorrectDaySelected();
+        if (scheduleState.schedule.isNotEmpty &&
+            scheduleState.days.isNotEmpty) {
+          // Select today's day or first day
+          final todayIndex = ScheduleCalendarBuilder.getTodayIndex(
+            scheduleState.days,
+          );
+          final targetIndex = todayIndex != -1 ? todayIndex : 0;
+
+          setState(() {
+            _selectedDayIndex = targetIndex;
+          });
+          widget.onDaySelected(targetIndex);
+
+          print(
+            '📅 ScheduleTab initialized: Selected day $_selectedDayIndex (${scheduleState.days[targetIndex]})',
+          );
         }
       }
     });
@@ -45,62 +61,19 @@ class _ScheduleTabState extends ConsumerState<ScheduleTab>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // The provider now loads from cache automatically on startup
-    // We only need to ensure the correct day is selected
+    // Check if we need to fetch data (only if cache is empty)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         final scheduleState = ref.read(scheduleProvider);
-        if (scheduleState.schedule.isNotEmpty) {
-          _ensureCorrectDaySelected();
-        } else if (scheduleState.schedule.isEmpty && !scheduleState.isLoading) {
-          // Only fetch if we have no data at all (first time)
-          print('📦 didChangeDependencies: No data, fetching from server...');
+        if (scheduleState.schedule.isEmpty && !scheduleState.isLoading) {
+          // Only fetch from server if no cached data exists (first time only)
+          print(
+            '📦 didChangeDependencies: No cached data, fetching from server...',
+          );
           ref.read(scheduleProvider.notifier).fetchSchedule();
         }
       }
     });
-  }
-
-  @override
-  void didUpdateWidget(ScheduleTab oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // Just ensure correct day is selected when widget updates
-    // Data changes are handled automatically by the provider
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        final scheduleState = ref.read(scheduleProvider);
-        if (scheduleState.schedule.isNotEmpty) {
-          _ensureCorrectDaySelected();
-        }
-      }
-    });
-  }
-
-  void _refreshScheduleData() {
-    final scheduleState = ref.read(scheduleProvider);
-
-    if (scheduleState.schedule.isNotEmpty) {
-      // We have data (from cache), use it immediately
-      print(
-        '✅ ScheduleTab: Using local schedule (${scheduleState.schedule.length} days) - Zero server reads',
-      );
-      // Ensure correct day is selected when using cached data
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          _ensureCorrectDaySelected();
-        }
-      });
-    } else if (scheduleState.schedule.isEmpty && !scheduleState.isLoading) {
-      // No data in cache, need to fetch from server (first time only)
-      print(
-        '📦 ScheduleTab: No local data - Fetching from server (first time)...',
-      );
-      try {
-        ref.read(scheduleProvider.notifier).fetchSchedule();
-      } catch (e) {
-        print('❌ ScheduleTab: Fetch error - $e');
-      }
-    }
   }
 
   void _autoSelectTodayIfAvailable() {
@@ -121,35 +94,6 @@ class _ScheduleTabState extends ConsumerState<ScheduleTab>
           widget.onDaySelected(targetIndex);
         }
       });
-    }
-  }
-
-  // Ensure the correct day is selected (called when app resumes or data loads)
-  void _ensureCorrectDaySelected() {
-    final scheduleState = ref.read(scheduleProvider);
-    final days = scheduleState.days;
-
-    if (days.isEmpty) return;
-
-    // Check if current selected index is valid
-    if (_selectedDayIndex < 0 || _selectedDayIndex >= days.length) {
-      // Invalid index, reset to today or first day
-      final todayIndex = ScheduleCalendarBuilder.getTodayIndex(days);
-      final targetIndex = todayIndex != -1 ? todayIndex : 0;
-
-      print(
-        '📅 ScheduleTab: Correcting invalid day index $_selectedDayIndex -> $targetIndex',
-      );
-      setState(() {
-        _selectedDayIndex = targetIndex;
-      });
-      widget.onDaySelected(targetIndex);
-    } else {
-      // Valid index, but make sure we notify the parent
-      print(
-        '📅 ScheduleTab: Day index $_selectedDayIndex is valid (${days[_selectedDayIndex]})',
-      );
-      widget.onDaySelected(_selectedDayIndex);
     }
   }
 
@@ -184,17 +128,108 @@ class _ScheduleTabState extends ConsumerState<ScheduleTab>
     widget.onDaySelected(index);
   }
 
-  void _handleDelete(String itemId) {
-    ref.read(scheduleProvider.notifier).deleteScheduleItem(itemId);
+  void _handleDelete(String itemId) async {
+    try {
+      await ref.read(scheduleProvider.notifier).deleteScheduleItem(itemId);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('تم حذف العنصر بنجاح'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      // Handle errors gracefully
+      if (mounted) {
+        final errorMessage = e.toString();
+        final isNetworkError =
+            errorMessage.contains('firebase') ||
+            errorMessage.contains('network') ||
+            errorMessage.contains('connection') ||
+            errorMessage.contains('offline');
+
+        if (isNetworkError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'لا يوجد اتصال بالإنترنت. سيتم حذف العنصر عند الاتصال.',
+              ),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 4),
+              behavior: SnackBarBehavior.floating,
+              action: SnackBarAction(
+                label: 'حسناً',
+                textColor: Colors.white,
+                onPressed: () {},
+              ),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('حدث خطأ أثناء الحذف: $errorMessage'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 4),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    }
   }
 
-  void _handleNotificationToggle(String itemId) {
+  void _handleNotificationToggle(String itemId) async {
     // Toggle notification for the schedule item
     try {
-      ref.read(scheduleProvider.notifier).toggleNotification(itemId);
+      await ref.read(scheduleProvider.notifier).toggleNotification(itemId);
       print('📱 ScheduleTab: Toggled notification for item $itemId');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('تم تحديث حالة التنبيه'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     } catch (e) {
       print('❌ ScheduleTab: Failed to toggle notification - $e');
+
+      if (mounted) {
+        final errorMessage = e.toString();
+        final isNetworkError =
+            errorMessage.contains('firebase') ||
+            errorMessage.contains('network') ||
+            errorMessage.contains('connection') ||
+            errorMessage.contains('offline');
+
+        if (isNetworkError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'لا يوجد اتصال بالإنترنت. سيتم تحديث التنبيه عند الاتصال.',
+              ),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 3),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('حدث خطأ: $errorMessage'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 3),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -313,14 +348,31 @@ class _ScheduleTabState extends ConsumerState<ScheduleTab>
 
     final validIndex = _selectedDayIndex.clamp(0, days.length - 1);
     final currentDay = days[validIndex];
-    final itemsForSelectedDay = ref
-        .read(scheduleProvider.notifier)
-        .getScheduleForDay(currentDay);
+
+    // Get items for the selected day from the schedule state
+    final itemsForSelectedDay = scheduleState.schedule[currentDay] ?? [];
 
     return Stack(
       children: [
         Column(
           children: [
+            // Offline banner
+            Consumer(
+              builder: (context, ref, _) {
+                final connectivityStatus = ref.watch(
+                  connectivityStatusProvider,
+                );
+                return connectivityStatus.when(
+                  data:
+                      (isOnline) =>
+                          isOnline
+                              ? const SizedBox.shrink()
+                              : const OfflineBanner(),
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, __) => const SizedBox.shrink(),
+                );
+              },
+            ),
             // Fixed header with day tabs
             _buildDayTabs(context, days, validIndex),
 

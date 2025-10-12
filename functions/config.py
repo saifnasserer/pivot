@@ -31,24 +31,14 @@ class BackblazeConfig:
     @staticmethod
     def get_key_id() -> Optional[str]:
         """Get Backblaze Key ID from environment or Firebase Secrets"""
-        # Try Firebase Secrets first (deployed environment)
-        key_id = os.environ.get('B2_KEY_ID')
-        if key_id:
-            return key_id
-        
-        # Fallback to local environment variable for testing
-        return os.environ.get('BACKBLAZE_KEY_ID')
+        # HARDCODED FOR TESTING - DO NOT USE IN PRODUCTION
+        return "003a81351b57fa10000000003"
     
     @staticmethod
     def get_application_key() -> Optional[str]:
         """Get Backblaze Application Key from environment or Firebase Secrets"""
-        # Try Firebase Secrets first (deployed environment)
-        app_key = os.environ.get('B2_APPLICATION_KEY')
-        if app_key:
-            return app_key
-        
-        # Fallback to local environment variable for testing
-        return os.environ.get('BACKBLAZE_APPLICATION_KEY')
+        # HARDCODED FOR TESTING - DO NOT USE IN PRODUCTION
+        return "K0034qqaTlEskzUiGU7Wa8pwqnplhw0"
     
     @staticmethod
     def validate_config() -> tuple[bool, str]:

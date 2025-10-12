@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart' hide MaterialType;
 import 'package:flutter/services.dart';
 import 'package:pivot/models/user_profile.dart';
@@ -8,6 +9,8 @@ import 'package:pivot/responsive.dart';
 import 'package:pivot/models/material_link.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:pivot/services/file_download_service.dart';
+import 'package:pivot/services/offline_service.dart';
 
 class MaterialCard extends StatefulWidget {
   final MaterialLink materialLink;
@@ -38,6 +41,12 @@ class _MaterialCardState extends State<MaterialCard>
   late Animation<double> _fadeAnimation;
   bool _isHovered = false;
 
+  // Download management
+  final FileDownloadService _downloadService = FileDownloadService();
+  bool _isDownloaded = false;
+  bool _isDownloading = false;
+  double _downloadProgress = 0.0;
+
   @override
   void initState() {
     super.initState();
@@ -52,8 +61,23 @@ class _MaterialCardState extends State<MaterialCard>
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
 
-    // Debug logging for user data
-    WidgetsBinding.instance.addPostFrameCallback((_) {});
+    // Check if uploaded file is already downloaded
+    if (widget.materialLink.isUploadedFile) {
+      _checkIfDownloaded();
+    }
+  }
+
+  Future<void> _checkIfDownloaded() async {
+    if (widget.materialLink.filePath != null) {
+      final isDownloaded = await _downloadService.isFileDownloaded(
+        widget.materialLink.filePath!,
+      );
+      if (mounted) {
+        setState(() {
+          _isDownloaded = isDownloaded;
+        });
+      }
+    }
   }
 
   @override
@@ -195,51 +219,6 @@ class _MaterialCardState extends State<MaterialCard>
             ),
           ),
       ],
-    );
-  }
-
-  Widget _buildMaterialTypeBadge(BuildContext context) {
-    final typeColors = {
-      MaterialType.video: Colors.red,
-      MaterialType.pdf: Colors.orange,
-      MaterialType.document: Colors.blue,
-      MaterialType.image: Colors.green,
-      MaterialType.link: Colors.purple,
-    };
-
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: Responsive.space(context, size: Space.small),
-        vertical: Responsive.space(context, size: Space.tiny),
-      ),
-      decoration: BoxDecoration(
-        color: typeColors[widget.materialLink.type]?.withOpacity(0.9),
-        borderRadius: BorderRadius.circular(
-          Responsive.space(context, size: Space.medium),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(widget.materialLink.typeIcon, size: 16, color: Colors.white),
-          SizedBox(width: 4),
-          Text(
-            widget.materialLink.typeDisplayName,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -391,54 +370,102 @@ class _MaterialCardState extends State<MaterialCard>
             ? widget.materialLink.getUserRating(widget.loggedInUser!.id)
             : null;
 
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Date and Rating in one row
-        Expanded(
-          child: Row(
-            children: [
-              // Date display
-              Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: Responsive.space(context, size: Space.small),
-                  vertical: Responsive.space(context, size: Space.tiny),
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(
-                    Responsive.space(context, size: Space.medium),
+        // File size badge for uploaded files
+        if (widget.materialLink.isUploadedFile &&
+            widget.materialLink.formattedFileSize != null) ...[
+          Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: Responsive.space(context, size: Space.small),
+              vertical: Responsive.space(context, size: Space.tiny),
+            ),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(
+                Responsive.space(context, size: Space.medium),
+              ),
+              border: Border.all(color: Colors.blue.shade200),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.cloud_upload, size: 14, color: Colors.blue.shade600),
+                SizedBox(width: 4),
+                Text(
+                  ' • ${widget.materialLink.formattedFileSize}',
+                  style: TextStyle(
+                    fontSize: Responsive.text(context, size: TextSize.small),
+                    color: Colors.blue.shade700,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.access_time,
-                      size: 14,
-                      color: Colors.grey.shade600,
-                    ),
-                    SizedBox(width: 4),
-                    Text(
-                      _formatDate(widget.materialLink.createdAt),
-                      style: TextStyle(
-                        fontSize: Responsive.text(
+              ],
+            ),
+          ),
+          SizedBox(height: Responsive.space(context, size: Space.small)),
+        ],
+
+        Row(
+          children: [
+            // Date and Rating in one row
+            Expanded(
+              child: Row(
+                children: [
+                  // Date display - flexible to prevent overflow
+                  Flexible(
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: Responsive.space(
                           context,
-                          size: TextSize.small,
+                          size: Space.small,
                         ),
-                        color: Colors.grey.shade600,
+                        vertical: Responsive.space(context, size: Space.tiny),
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(
+                          Responsive.space(context, size: Space.medium),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.access_time,
+                            size: 14,
+                            color: Colors.grey.shade600,
+                          ),
+                          SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              _formatDate(widget.materialLink.createdAt),
+                              style: TextStyle(
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.small,
+                                ),
+                                color: Colors.grey.shade600,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                  SizedBox(width: Responsive.space(context, size: Space.small)),
+                  // Clickable rating
+                  _buildClickableRating(context, userRating),
+                ],
               ),
-              SizedBox(width: Responsive.space(context, size: Space.small)),
-              // Clickable rating
-              _buildClickableRating(context, userRating),
-            ],
-          ),
+            ),
+            // Action buttons
+            _buildEnhancedActionButtons(context),
+          ],
         ),
-        // Action buttons
-        _buildEnhancedActionButtons(context),
       ],
     );
   }
@@ -640,13 +667,19 @@ class _MaterialCardState extends State<MaterialCard>
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _buildActionButton(
-          context,
-          icon: _getActionIcon(),
-          tooltip: _getActionTooltip(),
-          color: _getTypeColor(widget.materialLink.type),
-          onPressed: () => _handleTap(context),
-        ),
+        // For uploaded files, show download button only
+        if (widget.materialLink.isUploadedFile) ...[
+          _buildDownloadButton(context),
+        ] else ...[
+          // For external links, show open button
+          _buildActionButton(
+            context,
+            icon: _getActionIcon(),
+            tooltip: _getActionTooltip(),
+            color: _getTypeColor(widget.materialLink.type),
+            onPressed: () => _handleTap(context),
+          ),
+        ],
         SizedBox(width: Responsive.space(context, size: Space.small)),
         _buildActionButton(
           context,
@@ -666,6 +699,60 @@ class _MaterialCardState extends State<MaterialCard>
           ),
         ],
       ],
+    );
+  }
+
+  Widget _buildDownloadButton(BuildContext context) {
+    IconData icon;
+    String tooltip;
+    Color color;
+
+    if (_isDownloading) {
+      // Show progress indicator while downloading
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.blue.shade50,
+          borderRadius: BorderRadius.circular(
+            Responsive.space(context, size: Space.medium),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.blue.shade600),
+              value: _downloadProgress > 0 ? _downloadProgress : null,
+            ),
+          ),
+        ),
+      );
+    } else if (_isDownloaded) {
+      // Show checkmark if downloaded
+      icon = Icons.check_circle;
+      tooltip = 'تم التحميل';
+      color = Colors.green.shade600;
+    } else {
+      // Show download icon if not downloaded
+      icon = Icons.download;
+      tooltip = 'تحميل الملف';
+      color = Colors.blue.shade600;
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(
+          Responsive.space(context, size: Space.medium),
+        ),
+      ),
+      child: IconButton(
+        onPressed: _isDownloaded ? null : () => _downloadFile(context),
+        icon: Icon(icon, size: 20, color: color),
+        tooltip: tooltip,
+      ),
     );
   }
 
@@ -697,6 +784,12 @@ class _MaterialCardState extends State<MaterialCard>
   }
 
   IconData _getActionIcon() {
+    // For uploaded files, always show open icon (download is separate button)
+    if (widget.materialLink.isUploadedFile) {
+      return Icons.open_in_new;
+    }
+
+    // For external links, show type-specific icons
     switch (widget.materialLink.type) {
       case MaterialType.video:
         return Icons.play_circle_outline;
@@ -710,6 +803,12 @@ class _MaterialCardState extends State<MaterialCard>
   }
 
   String _getActionTooltip() {
+    // For uploaded files, show open tooltip
+    if (widget.materialLink.isUploadedFile) {
+      return 'فتح الملف';
+    }
+
+    // For external links, show type-specific tooltips
     switch (widget.materialLink.type) {
       case MaterialType.video:
         return 'تشغيل الفيديو';
@@ -765,12 +864,43 @@ class _MaterialCardState extends State<MaterialCard>
   }
 
   void _handleTap(BuildContext context) {
+    debugPrint('🔘 [HANDLE_TAP] Called');
+    debugPrint(
+      '🔘 [HANDLE_TAP] Is uploaded file: ${widget.materialLink.isUploadedFile}',
+    );
+
     if (widget.onTap != null) {
+      debugPrint('🔘 [HANDLE_TAP] Using custom onTap handler');
       widget.onTap!();
       return;
     }
 
-    // Enhanced content handling based on type
+    // Handle uploaded files differently - download and open locally
+    if (widget.materialLink.isUploadedFile) {
+      debugPrint('🔘 [HANDLE_TAP] Routing to _handleUploadedFileTap');
+      _handleUploadedFileTap(context);
+      return;
+    }
+
+    debugPrint(
+      '🔘 [HANDLE_TAP] Handling as external link, type: ${widget.materialLink.type}',
+    );
+
+    // Check if offline before attempting to open external content
+    final offlineService = OfflineService();
+    if (offlineService.isOffline) {
+      debugPrint('📴 [HANDLE_TAP] Offline - cannot open external content');
+      _showSnackBar(
+        context,
+        'لا يوجد اتصال بالإنترنت. هذا المحتوى يتطلب اتصال بالإنترنت.',
+        isError: true,
+      );
+      return;
+    }
+
+    // Enhanced content handling based on type for external links
+    HapticFeedback.lightImpact();
+
     switch (widget.materialLink.type) {
       case MaterialType.pdf:
         Navigator.of(context).push(
@@ -796,6 +926,235 @@ class _MaterialCardState extends State<MaterialCard>
         _launchURL(context, widget.materialLink.url);
         break;
     }
+  }
+
+  Future<void> _handleUploadedFileTap(BuildContext context) async {
+    debugPrint('📱 [TAP] Material card tapped');
+    debugPrint('📱 [TAP] File path: ${widget.materialLink.filePath}');
+    debugPrint('📱 [TAP] Is downloaded: $_isDownloaded');
+
+    if (widget.materialLink.filePath == null) {
+      _showSnackBar(context, 'خطأ: مسار الملف غير موجود');
+      return;
+    }
+
+    HapticFeedback.lightImpact();
+
+    // If file is already downloaded, open it locally
+    if (_isDownloaded) {
+      debugPrint('📱 [TAP] File is marked as downloaded, opening locally...');
+      await _openLocalFileWithFallback(context);
+      return;
+    }
+
+    // Check if offline before attempting download
+    final offlineService = OfflineService();
+    if (offlineService.isOffline) {
+      debugPrint('📴 [TAP] Offline - cannot download file');
+      _showSnackBar(
+        context,
+        'لا يوجد اتصال بالإنترنت. قم بتحميل الملف أولاً عند توفر الاتصال.',
+        isError: true,
+      );
+      return;
+    }
+
+    // If not downloaded and online, download first then open
+    debugPrint('📱 [TAP] File not downloaded, downloading first...');
+    await _downloadFile(context);
+
+    // After download completes, open the file
+    if (_isDownloaded) {
+      debugPrint('📱 [TAP] Download complete, opening locally...');
+      await _openLocalFileWithFallback(context);
+    }
+  }
+
+  /// Open file from local storage with fallback to external URL
+  Future<void> _openLocalFileWithFallback(BuildContext context) async {
+    debugPrint('📂 [OPEN] Starting _openLocalFileWithFallback');
+    try {
+      // Try to get local file path
+      final localPath = await _downloadService.getLocalFilePath(
+        widget.materialLink.filePath!,
+      );
+      debugPrint('📂 [OPEN] Local path: $localPath');
+
+      if (localPath != null) {
+        // Verify file still exists
+        final file = File(localPath);
+        final exists = await file.exists();
+        debugPrint('📂 [OPEN] File exists: $exists');
+
+        if (exists) {
+          // Try to open the file locally
+          debugPrint('📂 [OPEN] Opening file locally...');
+          await _downloadService.openFile(localPath);
+          debugPrint('✓ [OPEN] File opened successfully locally: $localPath');
+          return;
+        } else {
+          // File was deleted, mark as not downloaded
+          debugPrint('⚠ [OPEN] Local file missing, marking as not downloaded');
+          if (mounted) {
+            setState(() {
+              _isDownloaded = false;
+            });
+          }
+        }
+      } else {
+        debugPrint('⚠ [OPEN] Local path is null');
+      }
+
+      // Check if offline before falling back to external URL
+      final offlineService = OfflineService();
+      if (offlineService.isOffline) {
+        debugPrint('📴 [OPEN] Offline - cannot open external URL');
+        if (mounted) {
+          _showSnackBar(
+            context,
+            'الملف غير متاح دون اتصال. قم بتحميله أولاً عند توفر الاتصال.',
+            isError: true,
+          );
+        }
+        return;
+      }
+
+      // If we get here, local file is not available - fallback to external URL
+      debugPrint('⚠ [OPEN] Local file not available, opening external URL');
+      await _openExternalUrl(context);
+    } catch (e) {
+      // If any error occurs, try fallback to external URL only if online
+      debugPrint('✗ [OPEN] Error opening local file: $e');
+
+      final offlineService = OfflineService();
+      if (offlineService.isOffline) {
+        debugPrint('📴 [OPEN] Offline - cannot fallback to external URL');
+        if (mounted) {
+          _showSnackBar(
+            context,
+            'خطأ في فتح الملف. لا يمكن الوصول إليه دون اتصال.',
+            isError: true,
+          );
+        }
+        return;
+      }
+
+      debugPrint('✗ [OPEN] Falling back to external URL');
+      if (mounted) {
+        _showSnackBar(context, 'فتح الملف من الإنترنت...');
+      }
+
+      await _openExternalUrl(context);
+    }
+  }
+
+  /// Open file using external URL
+  Future<void> _openExternalUrl(BuildContext context) async {
+    // Check if offline before attempting to open external URL
+    final offlineService = OfflineService();
+    if (offlineService.isOffline) {
+      debugPrint('📴 [OPEN] Offline - cannot open external URL');
+      if (mounted) {
+        _showSnackBar(
+          context,
+          'لا يوجد اتصال بالإنترنت. الملف غير متاح دون اتصال.',
+          isError: true,
+        );
+      }
+      return;
+    }
+
+    try {
+      await _launchURL(context, widget.materialLink.url);
+    } catch (e) {
+      if (mounted) {
+        _showSnackBar(context, 'فشل فتح الملف: ${e.toString()}', isError: true);
+      }
+    }
+  }
+
+  Future<void> _downloadFile(BuildContext context) async {
+    if (widget.materialLink.filePath == null) {
+      _showSnackBar(context, 'خطأ: مسار الملف غير موجود');
+      return;
+    }
+
+    // Don't download if already downloading
+    if (_isDownloading) return;
+
+    // Check if offline before attempting download
+    final offlineService = OfflineService();
+    if (offlineService.isOffline) {
+      debugPrint('📴 [DOWNLOAD] Offline - cannot download file');
+      _showSnackBar(
+        context,
+        'لا يوجد اتصال بالإنترنت. لا يمكن تحميل الملفات دون اتصال.',
+        isError: true,
+      );
+      return;
+    }
+
+    HapticFeedback.lightImpact();
+
+    setState(() {
+      _isDownloading = true;
+      _downloadProgress = 0.0;
+    });
+
+    try {
+      final result = await _downloadService.downloadFile(
+        backblazeFilePath: widget.materialLink.filePath!,
+        downloadUrl: widget.materialLink.url,
+        onProgress: (progress) {
+          if (mounted) {
+            setState(() {
+              _downloadProgress = progress;
+            });
+          }
+        },
+      );
+
+      setState(() {
+        _isDownloading = false;
+        _isDownloaded = result.success;
+      });
+
+      if (result.success) {
+        if (mounted) {
+          _showSnackBar(context, 'تم تحميل الملف بنجاح ✓');
+        }
+      } else {
+        if (mounted) {
+          _showSnackBar(
+            context,
+            'فشل التحميل: ${result.error ?? "خطأ غير معروف"}',
+            isError: true,
+          );
+        }
+      }
+    } catch (e) {
+      setState(() {
+        _isDownloading = false;
+      });
+
+      if (mounted) {
+        _showSnackBar(context, 'خطأ: ${e.toString()}', isError: true);
+      }
+    }
+  }
+
+  void _showSnackBar(
+    BuildContext context,
+    String message, {
+    bool isError = false,
+  }) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.red : Colors.green,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   void _showImageFullScreen(BuildContext context) {

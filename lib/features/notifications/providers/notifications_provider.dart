@@ -179,6 +179,44 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
     }
   }
 
+  // Send filtered notification by department and/or level
+  Future<Map<String, dynamic>> sendFilteredNotification({
+    required String title,
+    required String body,
+    String? department,
+    String? level,
+    Map<String, String>? data,
+    String? icon,
+    String? color,
+    String? sound,
+    String? imageUrl,
+  }) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final result = await _repository.sendFilteredNotification(
+        title: title,
+        body: body,
+        department: department,
+        level: level,
+        data: data,
+        icon: icon,
+        color: color,
+        sound: sound,
+        imageUrl: imageUrl,
+      );
+      state = state.copyWith(isLoading: false);
+      return result;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+      return {
+        'success': false,
+        'sentCount': 0,
+        'totalCount': 0,
+        'error': e.toString(),
+      };
+    }
+  }
+
   // Create scheduled notification
   Future<bool> createScheduledNotification(
     ScheduledNotification notification,

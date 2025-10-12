@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/features/user/repositories/user_profile_repository.dart';
 import 'package:pivot/features/user/services/user_profile_service.dart';
 import 'package:pivot/models/user_profile.dart';
+import 'package:pivot/services/offline_service.dart';
+import 'package:pivot/services/cache_service.dart';
 
 final userProfileServiceProvider = Provider<UserProfileService>(
   (ref) => UserProfileService(),
@@ -97,22 +99,99 @@ class UserProfileNotifier extends StateNotifier<UserProfileState> {
   /// It keeps loggedInUserProfile constant and only updates userProfile
   Future<void> loadUserProfile(String userId) async {
     state = state.copyWith(isLoading: true, error: null);
+
+    // Check if offline before attempting fetch
+    final offlineService = OfflineService();
+    if (offlineService.isOffline) {
+      print('📴 [UserProfileProvider] Offline - using cached profile');
+
+      // Try to get from cache
+      final cachedProfile = CacheService.instance.getCachedUserProfile(userId);
+
+      if (cachedProfile != null) {
+        print('   ✅ Found cached profile for $userId');
+        state = state.copyWith(isLoading: false, userProfile: cachedProfile);
+      } else {
+        print('   ⚠️ No cached profile found for $userId');
+        state = state.copyWith(
+          isLoading: false,
+          error: 'لا يوجد اتصال بالإنترنت - لا توجد بيانات محفوظة',
+        );
+      }
+      return;
+    }
+
     try {
+      print(
+        '🌐 [UserProfileProvider] Online - Fetching profile from Firestore...',
+      );
       final profile = await _repo.getUserProfile(userId);
+
+      // Cache the profile if not null
+      if (profile != null) {
+        await CacheService.instance.cacheUserProfile(profile);
+      }
+
       // Always set userProfile as a separate instance, never share reference with loggedInUserProfile
       state = state.copyWith(isLoading: false, userProfile: profile);
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      print('❌ [UserProfileProvider] Error fetching profile: $e');
+
+      // Try cache as fallback
+      final cachedProfile = CacheService.instance.getCachedUserProfile(userId);
+      if (cachedProfile != null) {
+        print('   💡 Using cached profile as fallback');
+        state = state.copyWith(isLoading: false, userProfile: cachedProfile);
+      } else {
+        state = state.copyWith(isLoading: false, error: e.toString());
+      }
     }
   }
 
   Future<void> fetchAllUsers() async {
     state = state.copyWith(isLoading: true, error: null);
+
+    // Check if offline before attempting fetch
+    final offlineService = OfflineService();
+    if (offlineService.isOffline) {
+      print('📴 [UserProfileProvider] Offline - using cached users');
+
+      final cachedUsers = CacheService.instance.getCachedUsers();
+
+      if (cachedUsers.isNotEmpty) {
+        print('   ✅ Found ${cachedUsers.length} cached users');
+        state = state.copyWith(isLoading: false, allUsers: cachedUsers);
+      } else {
+        print('   ⚠️ No cached users found');
+        state = state.copyWith(
+          isLoading: false,
+          error: 'لا يوجد اتصال بالإنترنت - لا توجد بيانات محفوظة',
+        );
+      }
+      return;
+    }
+
     try {
+      print(
+        '🌐 [UserProfileProvider] Online - Fetching all users from Firestore...',
+      );
       final users = await _repo.getAllUsers();
+
+      // Cache the users
+      await CacheService.instance.cacheUsers(users);
+
       state = state.copyWith(isLoading: false, allUsers: users);
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      print('❌ [UserProfileProvider] Error fetching users: $e');
+
+      // Try cache as fallback
+      final cachedUsers = CacheService.instance.getCachedUsers();
+      if (cachedUsers.isNotEmpty) {
+        print('   💡 Using ${cachedUsers.length} cached users as fallback');
+        state = state.copyWith(isLoading: false, allUsers: cachedUsers);
+      } else {
+        state = state.copyWith(isLoading: false, error: e.toString());
+      }
     }
   }
 
@@ -417,10 +496,40 @@ class UserProfileNotifier extends StateNotifier<UserProfileState> {
 
   /// Get a user profile by ID (used for viewing other users' profiles)
   Future<UserProfile?> getUserProfileById(String userId) async {
+    // Check if offline before attempting fetch
+    final offlineService = OfflineService();
+    if (offlineService.isOffline) {
+      print(
+        '📴 [UserProfileProvider] Offline - checking cache for profile $userId',
+      );
+
+      // Try cache first
+      final cachedProfile = CacheService.instance.getCachedUserProfile(userId);
+      if (cachedProfile != null) {
+        print('   ✅ Found cached profile');
+        return cachedProfile;
+      }
+
+      // Try from existing cache in state
+      if (state.userProfilesCache.containsKey(userId)) {
+        print('   ✅ Found in userProfilesCache');
+        return state.userProfilesCache[userId];
+      }
+
+      print('   ⚠️ No cached profile found');
+      return null;
+    }
+
     try {
+      print(
+        '🌐 [UserProfileProvider] Online - Fetching profile $userId from Firestore...',
+      );
       final profile = await _repo.getUserProfile(userId);
+
       // Cache the profile for future use if not null
       if (profile != null) {
+        await CacheService.instance.cacheUserProfile(profile);
+
         final updatedCache = Map<String, UserProfile>.from(
           state.userProfilesCache,
         );
@@ -429,6 +538,15 @@ class UserProfileNotifier extends StateNotifier<UserProfileState> {
       }
       return profile;
     } catch (e) {
+      print('❌ [UserProfileProvider] Error fetching profile: $e');
+
+      // Try cache as fallback
+      final cachedProfile = CacheService.instance.getCachedUserProfile(userId);
+      if (cachedProfile != null) {
+        print('   💡 Using cached profile as fallback');
+        return cachedProfile;
+      }
+
       state = state.copyWith(error: e.toString());
       return null;
     }

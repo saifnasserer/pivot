@@ -6,6 +6,7 @@ import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/features/subjects/providers/subject_provider.dart';
 import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/services/doctor_subject_service.dart';
+import 'package:pivot/services/offline_service.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/features/administration/screens/doctor/add_lecture_dialog.dart';
 import 'package:pivot/features/administration/screens/doctor/doctor_categories.dart';
@@ -13,6 +14,7 @@ import 'package:pivot/features/administration/screens/doctor/profile/about_secti
 import 'package:pivot/features/administration/screens/doctor/profile/subjects_section.dart';
 import 'package:pivot/features/profile/screens/profile_widgets/Profile_options.dart';
 import 'package:pivot/features/subjects/screens/subject_selection_screen.dart';
+import 'package:pivot/widgets/offline_banner.dart';
 import 'package:pivot/widgets/no_internet_message.dart';
 
 class DoctorProfile extends ConsumerStatefulWidget {
@@ -488,33 +490,57 @@ class _DoctorProfileState extends ConsumerState<DoctorProfile>
                 : null,
         body: SafeArea(
           bottom: false,
-          child: Padding(
-            padding: Responsive.paddingHorizontal(context),
-            child: CustomScrollView(
-              controller: _scrollController,
-              slivers: [
-                SliverToBoxAdapter(
-                  child: SizedBox(
-                    height: Responsive.space(context, size: Space.small),
+          child: Column(
+            children: [
+              // Offline banner
+              Consumer(
+                builder: (context, ref, _) {
+                  final connectivityStatus = ref.watch(
+                    connectivityStatusProvider,
+                  );
+                  return connectivityStatus.when(
+                    data:
+                        (isOnline) =>
+                            isOnline
+                                ? const SizedBox.shrink()
+                                : const OfflineBanner(),
+                    loading: () => const SizedBox.shrink(),
+                    error: (_, __) => const SizedBox.shrink(),
+                  );
+                },
+              ),
+              // Main content
+              Expanded(
+                child: Padding(
+                  padding: Responsive.paddingHorizontal(context),
+                  child: CustomScrollView(
+                    controller: _scrollController,
+                    slivers: [
+                      SliverToBoxAdapter(
+                        child: SizedBox(
+                          height: Responsive.space(context, size: Space.small),
+                        ),
+                      ),
+                      SliverToBoxAdapter(
+                        child: DoctorCategories(
+                          onCategoryChanged: _onMainCategoryChanged,
+                          showBackButton: true,
+                          showEditButton: _shouldShowEditIcon(),
+                          showMenuButton: isOwnProfile,
+                          onBackPressed: _onBackPressed,
+                          onEditPressed: _editTeachingSubjects,
+                          onMenuPressed: () => profile_options(context, ref),
+                        ),
+                      ),
+                      const SliverToBoxAdapter(
+                        child: Divider(indent: 4, endIndent: 1),
+                      ),
+                      ..._getCategoryContentSlivers(context),
+                    ],
                   ),
                 ),
-                SliverToBoxAdapter(
-                  child: DoctorCategories(
-                    onCategoryChanged: _onMainCategoryChanged,
-                    showBackButton: true,
-                    showEditButton: _shouldShowEditIcon(),
-                    showMenuButton: isOwnProfile,
-                    onBackPressed: _onBackPressed,
-                    onEditPressed: _editTeachingSubjects,
-                    onMenuPressed: () => profile_options(context, ref),
-                  ),
-                ),
-                const SliverToBoxAdapter(
-                  child: Divider(indent: 4, endIndent: 1),
-                ),
-                ..._getCategoryContentSlivers(context),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

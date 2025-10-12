@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/features/media/services/materials_service.dart';
 import 'package:pivot/features/media/repositories/materials_repository.dart';
 import 'package:pivot/models/material_link.dart';
+import 'package:pivot/services/offline_service.dart';
+import 'package:pivot/services/cache_service.dart';
 
 // Services
 final materialsServiceProvider = Provider<MaterialsService>((ref) {
@@ -130,8 +132,55 @@ class MaterialsNotifier extends StateNotifier<MaterialsState> {
       currentPage: 0,
       hasMore: true,
     );
+
+    final cacheKey = 'lecture_$lectureId';
+
+    // Check if offline before attempting fetch
+    final offlineService = OfflineService();
+    if (offlineService.isOffline) {
+      print('📴 [MaterialsProvider] Offline - checking cache for materials');
+
+      // Try to load from cache
+      final cachedMaterialsJson = CacheService.instance.getCachedMaterials(
+        cacheKey,
+      );
+
+      if (cachedMaterialsJson.isEmpty) {
+        print('   ⚠️ No cached materials found');
+        state = state.copyWith(
+          isLoading: false,
+          materials: [],
+          filteredMaterials: [],
+          error: null, // Don't show error, just empty list with offline banner
+        );
+      } else {
+        print('   ✅ Found ${cachedMaterialsJson.length} cached materials');
+        final materials =
+            cachedMaterialsJson
+                .map((json) => MaterialLink.fromMap(json))
+                .toList();
+
+        state = state.copyWith(
+          isLoading: false,
+          materials: materials,
+          filteredMaterials: materials,
+          hasMore: false,
+          currentPage: 1,
+        );
+      }
+      return;
+    }
+
     try {
+      print(
+        '🌐 [MaterialsProvider] Online - Fetching materials from Firestore...',
+      );
       final materials = await _repository.getMaterialsByLectureId(lectureId);
+
+      // Cache the materials
+      final materialsJson = materials.map((m) => m.toLegacyMap()).toList();
+      await CacheService.instance.cacheMaterials(cacheKey, materialsJson);
+
       state = state.copyWith(
         isLoading: false,
         materials: materials,
@@ -140,7 +189,32 @@ class MaterialsNotifier extends StateNotifier<MaterialsState> {
         currentPage: 1,
       );
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      print('❌ [MaterialsProvider] Error fetching materials: $e');
+
+      // Try cache as fallback
+      final cachedMaterialsJson = CacheService.instance.getCachedMaterials(
+        cacheKey,
+      );
+      if (cachedMaterialsJson.isNotEmpty) {
+        print('   💡 Using cached materials as fallback');
+        final materials =
+            cachedMaterialsJson
+                .map((json) => MaterialLink.fromMap(json))
+                .toList();
+
+        state = state.copyWith(
+          isLoading: false,
+          materials: materials,
+          filteredMaterials: materials,
+        );
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          materials: [],
+          filteredMaterials: [],
+          error: e.toString(),
+        );
+      }
     }
   }
 
@@ -435,11 +509,58 @@ class MaterialsNotifier extends StateNotifier<MaterialsState> {
       currentPage: 0,
       hasMore: true,
     );
+
+    final cacheKey = 'assistant_${subjectId}_$assistantId';
+
+    // Check if offline before attempting fetch
+    final offlineService = OfflineService();
+    if (offlineService.isOffline) {
+      print('📴 [MaterialsProvider] Offline - checking cache for materials');
+
+      // Try to load from cache
+      final cachedMaterialsJson = CacheService.instance.getCachedMaterials(
+        cacheKey,
+      );
+
+      if (cachedMaterialsJson.isEmpty) {
+        print('   ⚠️ No cached materials found');
+        state = state.copyWith(
+          isLoading: false,
+          materials: [],
+          filteredMaterials: [],
+          error: null, // Don't show error, just empty list with offline banner
+        );
+      } else {
+        print('   ✅ Found ${cachedMaterialsJson.length} cached materials');
+        final materials =
+            cachedMaterialsJson
+                .map((json) => MaterialLink.fromMap(json))
+                .toList();
+
+        state = state.copyWith(
+          isLoading: false,
+          materials: materials,
+          filteredMaterials: materials,
+          hasMore: false,
+          currentPage: 1,
+        );
+      }
+      return;
+    }
+
     try {
+      print(
+        '🌐 [MaterialsProvider] Online - Fetching assistant materials from Firestore...',
+      );
       final materials = await _repository.getMaterialsBySubjectAndAssistant(
         subjectId,
         assistantId,
       );
+
+      // Cache the materials
+      final materialsJson = materials.map((m) => m.toLegacyMap()).toList();
+      await CacheService.instance.cacheMaterials(cacheKey, materialsJson);
+
       state = state.copyWith(
         isLoading: false,
         materials: materials,
@@ -448,7 +569,32 @@ class MaterialsNotifier extends StateNotifier<MaterialsState> {
         currentPage: 1,
       );
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      print('❌ [MaterialsProvider] Error fetching materials: $e');
+
+      // Try cache as fallback
+      final cachedMaterialsJson = CacheService.instance.getCachedMaterials(
+        cacheKey,
+      );
+      if (cachedMaterialsJson.isNotEmpty) {
+        print('   💡 Using cached materials as fallback');
+        final materials =
+            cachedMaterialsJson
+                .map((json) => MaterialLink.fromMap(json))
+                .toList();
+
+        state = state.copyWith(
+          isLoading: false,
+          materials: materials,
+          filteredMaterials: materials,
+        );
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          materials: [],
+          filteredMaterials: [],
+          error: e.toString(),
+        );
+      }
     }
   }
 

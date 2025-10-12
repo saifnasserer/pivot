@@ -147,6 +147,105 @@ class NotificationsService {
     };
   }
 
+  // Send filtered notification by department and/or level
+  Future<Map<String, dynamic>> sendFilteredNotification({
+    required String title,
+    required String body,
+    String? department,
+    String? level,
+    Map<String, String>? data,
+    String? icon,
+    String? color,
+    String? sound,
+    String? imageUrl,
+  }) async {
+    try {
+      // Build query to filter users
+      Query<Map<String, dynamic>> query = _firestore
+          .collection('users')
+          .where('fcmToken', isNotEqualTo: null)
+          .where('tokenStatus', isEqualTo: 'active');
+
+      // Add department filter if provided
+      if (department != null && department.isNotEmpty) {
+        query = query.where('department', isEqualTo: department);
+      }
+
+      // Add level filter if provided
+      if (level != null && level.isNotEmpty) {
+        query = query.where('level', isEqualTo: level);
+      }
+
+      final usersSnapshot = await query.get();
+
+      if (usersSnapshot.docs.isEmpty) {
+        return {
+          'success': false,
+          'sentCount': 0,
+          'totalCount': 0,
+          'error':
+              'No users found matching criteria (department: $department, level: $level)',
+        };
+      }
+
+      final tokens =
+          usersSnapshot.docs
+              .map((doc) => doc.data()['fcmToken'] as String?)
+              .where((token) => token != null && token.isNotEmpty)
+              .cast<String>()
+              .toList();
+
+      if (tokens.isEmpty) {
+        return {
+          'success': false,
+          'sentCount': 0,
+          'totalCount': 0,
+          'error': 'No valid FCM tokens found',
+        };
+      }
+
+      int successCount = 0;
+      List<String> errors = [];
+
+      for (String token in tokens) {
+        try {
+          final success = await _notificationService.sendNotification(
+            targetToken: token,
+            title: title,
+            body: body,
+            data: {
+              ...?data,
+              'type': 'announcement',
+              if (department != null) 'department': department,
+              if (level != null) 'level': level,
+            },
+            icon: icon,
+            color: color,
+            sound: sound,
+            imageUrl: imageUrl,
+          );
+          if (success) successCount++;
+        } catch (e) {
+          errors.add('Failed to send to token: $e');
+        }
+      }
+
+      return {
+        'success': successCount > 0,
+        'sentCount': successCount,
+        'totalCount': tokens.length,
+        'errors': errors,
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'sentCount': 0,
+        'totalCount': 0,
+        'error': e.toString(),
+      };
+    }
+  }
+
   // Create scheduled notification
   Future<bool> createScheduledNotification(
     ScheduledNotification notification,

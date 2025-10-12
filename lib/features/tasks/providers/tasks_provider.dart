@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/features/tasks/services/tasks_service.dart';
 import 'package:pivot/features/tasks/repositories/tasks_repository.dart';
 import 'package:pivot/screens/models/task.dart';
+import 'package:pivot/services/offline_service.dart';
+import 'package:pivot/services/offline_queue_service.dart';
 
 // Services
 final tasksServiceProvider = Provider<TasksService>((ref) {
@@ -85,6 +87,21 @@ class TasksNotifier extends StateNotifier<TasksState> {
 
   TasksNotifier(this._repository) : super(const TasksState());
 
+  // Helper method to execute operations with offline check
+  Future<T> _executeWithOfflineCheck<T>({
+    required Future<T> Function() operation,
+    required T emptyResult,
+  }) async {
+    final offlineService = OfflineService();
+    if (offlineService.isOffline) {
+      print('📴 [TasksProvider] Offline - returning empty result');
+      return emptyResult;
+    }
+
+    print('🌐 [TasksProvider] Online - executing operation');
+    return await operation();
+  }
+
   // Helper method to check if task should be shown in current view
   bool _shouldShowTaskInCurrentView(Task task) {
     // Check section filter
@@ -164,14 +181,20 @@ class TasksNotifier extends StateNotifier<TasksState> {
   // Get all tasks
   Future<void> getAllTasks() async {
     state = state.copyWith(isLoading: true, error: null);
+
     try {
-      final tasks = await _repository.getAllTasks();
+      final tasks = await _executeWithOfflineCheck(
+        operation: () => _repository.getAllTasks(),
+        emptyResult: <Task>[],
+      );
+
       state = state.copyWith(
         isLoading: false,
         tasks: tasks,
         filteredTasks: tasks,
       );
     } catch (e) {
+      print('❌ [TasksProvider] Error fetching tasks: $e');
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
@@ -184,7 +207,10 @@ class TasksNotifier extends StateNotifier<TasksState> {
       selectedSectionId: sectionId,
     );
     try {
-      final tasks = await _repository.getTasksBySection(sectionId);
+      final tasks = await _executeWithOfflineCheck(
+        operation: () => _repository.getTasksBySection(sectionId),
+        emptyResult: <Task>[],
+      );
       state = state.copyWith(
         isLoading: false,
         tasks: tasks,
@@ -203,7 +229,10 @@ class TasksNotifier extends StateNotifier<TasksState> {
       selectedSubjectId: subjectId,
     );
     try {
-      final tasks = await _repository.getTasksBySubject(subjectId);
+      final tasks = await _executeWithOfflineCheck(
+        operation: () => _repository.getTasksBySubject(subjectId),
+        emptyResult: <Task>[],
+      );
       state = state.copyWith(
         isLoading: false,
         tasks: tasks,
@@ -222,7 +251,10 @@ class TasksNotifier extends StateNotifier<TasksState> {
       selectedImportance: importance,
     );
     try {
-      final tasks = await _repository.getTasksByImportance(importance);
+      final tasks = await _executeWithOfflineCheck(
+        operation: () => _repository.getTasksByImportance(importance),
+        emptyResult: <Task>[],
+      );
       state = state.copyWith(
         isLoading: false,
         tasks: tasks,
@@ -241,7 +273,10 @@ class TasksNotifier extends StateNotifier<TasksState> {
       showPersonalOnly: true,
     );
     try {
-      final tasks = await _repository.getPersonalTasks();
+      final tasks = await _executeWithOfflineCheck(
+        operation: () => _repository.getPersonalTasks(),
+        emptyResult: <Task>[],
+      );
       state = state.copyWith(
         isLoading: false,
         tasks: tasks,
@@ -260,7 +295,10 @@ class TasksNotifier extends StateNotifier<TasksState> {
       showCompletedOnly: true,
     );
     try {
-      final tasks = await _repository.getCompletedTasks();
+      final tasks = await _executeWithOfflineCheck(
+        operation: () => _repository.getCompletedTasks(),
+        emptyResult: <Task>[],
+      );
       state = state.copyWith(
         isLoading: false,
         tasks: tasks,
@@ -275,7 +313,10 @@ class TasksNotifier extends StateNotifier<TasksState> {
   Future<void> getPendingTasks() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final tasks = await _repository.getPendingTasks();
+      final tasks = await _executeWithOfflineCheck(
+        operation: () => _repository.getPendingTasks(),
+        emptyResult: <Task>[],
+      );
       state = state.copyWith(
         isLoading: false,
         tasks: tasks,
@@ -290,7 +331,10 @@ class TasksNotifier extends StateNotifier<TasksState> {
   Future<void> getOverdueTasks() async {
     state = state.copyWith(isLoading: true, error: null, showOverdueOnly: true);
     try {
-      final tasks = await _repository.getOverdueTasks();
+      final tasks = await _executeWithOfflineCheck(
+        operation: () => _repository.getOverdueTasks(),
+        emptyResult: <Task>[],
+      );
       state = state.copyWith(
         isLoading: false,
         tasks: tasks,
@@ -305,7 +349,10 @@ class TasksNotifier extends StateNotifier<TasksState> {
   Future<void> getTasksDueToday() async {
     state = state.copyWith(isLoading: true, error: null, showTodayOnly: true);
     try {
-      final tasks = await _repository.getTasksDueToday();
+      final tasks = await _executeWithOfflineCheck(
+        operation: () => _repository.getTasksDueToday(),
+        emptyResult: <Task>[],
+      );
       state = state.copyWith(
         isLoading: false,
         tasks: tasks,
@@ -316,126 +363,214 @@ class TasksNotifier extends StateNotifier<TasksState> {
     }
   }
 
-  // Add task with optimistic update for instant UI response
+  // Add task - NO optimistic update for data integrity
   Future<bool> addTask(Task task) async {
-    try {
-      // OPTIMISTIC UPDATE: Add task to local state immediately
-      final updatedTasks = [...state.tasks, task];
-      final updatedFilteredTasks =
-          _shouldShowTaskInCurrentView(task)
-              ? [...state.filteredTasks, task]
-              : state.filteredTasks;
+    print('🎯 [TasksProvider.addTask] Starting...');
+    print('   Task ID: ${task.id}');
+    print('   Task Title: ${task.title}');
 
-      state = state.copyWith(
-        tasks: updatedTasks,
-        filteredTasks: updatedFilteredTasks,
+    // Check if offline first
+    final offlineService = OfflineService();
+    print(
+      '   Checking connectivity: ${offlineService.isOffline ? "OFFLINE" : "ONLINE"}',
+    );
+
+    if (offlineService.isOffline) {
+      print('📴 [TasksProvider] Offline - queueing task add operation');
+
+      try {
+        print('   Converting task to JSON-safe map...');
+        final taskData = task.toJsonMap(); // Use JSON-safe version!
+        print('   Task data keys: ${taskData.keys.toList()}');
+        print('   Task data values count: ${taskData.length}');
+
+        print('   Creating QueuedOperation...');
+        final operation = QueuedOperation(
+          id: 'task_add_${task.id}',
+          type: OperationType.createTask,
+          data: taskData,
+          timestamp: DateTime.now(),
+        );
+        print('   QueuedOperation created');
+
+        print('   Calling queueOperation...');
+        // Queue the operation for later sync
+        await OfflineQueueService().queueOperation(operation);
+
+        print('✅ [TasksProvider] Task add queued successfully');
+        // Return true to indicate queued (not showing error to user)
+        return true;
+      } catch (e, stackTrace) {
+        print('❌ [TasksProvider] Failed to queue task: $e');
+        print('   Stack trace: $stackTrace');
+        state = state.copyWith(error: e.toString());
+        return false;
+      }
+    }
+
+    // Online - save to Firebase first, THEN update UI
+    try {
+      print('🌐 [TasksProvider] Online - saving task to Firebase...');
+      print('   Current state tasks count: ${state.tasks.length}');
+      print(
+        '   Current state filtered tasks count: ${state.filteredTasks.length}',
       );
 
-      print('✅ TasksProvider: Optimistic add - UI updated instantly');
-
-      // Now sync to Firebase in background
       final success = await _repository.addTask(task);
+      print('   Repository addTask returned: $success');
 
-      if (!success) {
-        // Revert if failed
-        print('❌ TasksProvider: Add failed - reverting');
-        await _refreshCurrentView();
+      if (success) {
+        // Only update UI after confirmed save
+        final updatedTasks = [...state.tasks, task];
+        final updatedFilteredTasks =
+            _shouldShowTaskInCurrentView(task)
+                ? [...state.filteredTasks, task]
+                : state.filteredTasks;
+
+        print('   Updating state...');
+        print('   New tasks count: ${updatedTasks.length}');
+        print('   New filtered tasks count: ${updatedFilteredTasks.length}');
+        print(
+          '   Should show in current view: ${_shouldShowTaskInCurrentView(task)}',
+        );
+
+        state = state.copyWith(
+          tasks: updatedTasks,
+          filteredTasks: updatedFilteredTasks,
+        );
+
+        print('✅ [TasksProvider] Task saved and UI updated');
+        print('   Final state tasks count: ${state.tasks.length}');
+        print(
+          '   Final state filtered tasks count: ${state.filteredTasks.length}',
+        );
+      } else {
+        print('❌ [TasksProvider] Add failed - repository returned false');
       }
 
       return success;
     } catch (e) {
-      // Revert on error
-      print('❌ TasksProvider: Add error - reverting: $e');
-      await _refreshCurrentView();
+      print('❌ [TasksProvider] Add error: $e');
+      print('   Stack trace: ${StackTrace.current}');
       state = state.copyWith(error: e.toString());
       return false;
     }
   }
 
-  // Update task with optimistic update for instant UI response
+  // Update task - NO optimistic update for data integrity
   Future<bool> updateTask(Task task) async {
-    try {
-      // Store old state for rollback
-      final oldTasks = state.tasks;
-      final oldFilteredTasks = state.filteredTasks;
+    // Check if offline first
+    final offlineService = OfflineService();
+    if (offlineService.isOffline) {
+      print('📴 [TasksProvider] Offline - queueing task update operation');
 
-      // OPTIMISTIC UPDATE: Update task in local state immediately
-      final updatedTasks =
-          state.tasks.map((t) => t.id == task.id ? task : t).toList();
+      try {
+        // Queue the operation for later sync
+        await OfflineQueueService().queueOperation(
+          QueuedOperation(
+            id: 'task_update_${task.id}',
+            type: OperationType.updateTask,
+            data: task.toJsonMap(), // Use JSON-safe version!
+            timestamp: DateTime.now(),
+          ),
+        );
 
-      // Check if updated task should be in filtered view
-      final shouldShow = _shouldShowTaskInCurrentView(task);
-      final updatedFilteredTasks =
-          state.filteredTasks.where((t) => t.id != task.id).toList();
-      if (shouldShow) {
-        updatedFilteredTasks.add(task);
+        print('✅ [TasksProvider] Task update queued successfully');
+        return true;
+      } catch (e) {
+        print('❌ [TasksProvider] Failed to queue task update: $e');
+        state = state.copyWith(error: e.toString());
+        return false;
       }
+    }
 
-      state = state.copyWith(
-        tasks: updatedTasks,
-        filteredTasks: updatedFilteredTasks,
-      );
-
-      print('✅ TasksProvider: Optimistic update - UI updated instantly');
-
-      // Now sync to Firebase in background
+    // Online - save to Firebase first, THEN update UI
+    try {
+      print('🌐 [TasksProvider] Online - updating task in Firebase...');
       final success = await _repository.updateTask(task);
 
-      if (!success) {
-        // Revert if failed
-        print('❌ TasksProvider: Update failed - reverting');
+      if (success) {
+        // Only update UI after confirmed save
+        final updatedTasks =
+            state.tasks.map((t) => t.id == task.id ? task : t).toList();
+
+        // Check if updated task should be in filtered view
+        final shouldShow = _shouldShowTaskInCurrentView(task);
+        final updatedFilteredTasks =
+            state.filteredTasks.where((t) => t.id != task.id).toList();
+        if (shouldShow) {
+          updatedFilteredTasks.add(task);
+        }
+
         state = state.copyWith(
-          tasks: oldTasks,
-          filteredTasks: oldFilteredTasks,
+          tasks: updatedTasks,
+          filteredTasks: updatedFilteredTasks,
         );
+
+        print('✅ TasksProvider: Task updated and UI refreshed');
+      } else {
+        print('❌ TasksProvider: Update failed');
       }
 
       return success;
     } catch (e) {
-      // Revert on error
-      print('❌ TasksProvider: Update error - reverting: $e');
-      await _refreshCurrentView();
+      print('❌ TasksProvider: Update error: $e');
       state = state.copyWith(error: e.toString());
       return false;
     }
   }
 
-  // Delete task with optimistic update for instant UI response
+  // Delete task - NO optimistic update for data integrity
   Future<bool> deleteTask(String taskId) async {
+    // Check if offline first
+    final offlineService = OfflineService();
+    if (offlineService.isOffline) {
+      print('📴 [TasksProvider] Offline - queueing task delete operation');
+
+      try {
+        // Queue the operation for later sync
+        await OfflineQueueService().queueOperation(
+          QueuedOperation(
+            id: 'task_delete_$taskId',
+            type: OperationType.deleteTask,
+            data: {'id': taskId},
+            timestamp: DateTime.now(),
+          ),
+        );
+
+        print('✅ [TasksProvider] Task delete queued successfully');
+        return true;
+      } catch (e) {
+        print('❌ [TasksProvider] Failed to queue task delete: $e');
+        state = state.copyWith(error: e.toString());
+        return false;
+      }
+    }
+
+    // Online - delete from Firebase first, THEN update UI
     try {
-      // Store old state for rollback
-      final oldTasks = state.tasks;
-      final oldFilteredTasks = state.filteredTasks;
-
-      // OPTIMISTIC UPDATE: Remove task from local state immediately
-      final updatedTasks = state.tasks.where((t) => t.id != taskId).toList();
-      final updatedFilteredTasks =
-          state.filteredTasks.where((t) => t.id != taskId).toList();
-
-      state = state.copyWith(
-        tasks: updatedTasks,
-        filteredTasks: updatedFilteredTasks,
-      );
-
-      print('✅ TasksProvider: Optimistic delete - UI updated instantly');
-
-      // Now sync to Firebase in background
+      print('🌐 [TasksProvider] Online - deleting task from Firebase...');
       final success = await _repository.deleteTask(taskId);
 
-      if (!success) {
-        // Revert if failed
-        print('❌ TasksProvider: Delete failed - reverting');
+      if (success) {
+        // Only update UI after confirmed delete
+        final updatedTasks = state.tasks.where((t) => t.id != taskId).toList();
+        final updatedFilteredTasks =
+            state.filteredTasks.where((t) => t.id != taskId).toList();
+
         state = state.copyWith(
-          tasks: oldTasks,
-          filteredTasks: oldFilteredTasks,
+          tasks: updatedTasks,
+          filteredTasks: updatedFilteredTasks,
         );
+
+        print('✅ TasksProvider: Task deleted and UI updated');
+      } else {
+        print('❌ TasksProvider: Delete failed');
       }
 
       return success;
     } catch (e) {
-      // Revert on error
-      print('❌ TasksProvider: Delete error - reverting: $e');
-      await _refreshCurrentView();
+      print('❌ TasksProvider: Delete error: $e');
       state = state.copyWith(error: e.toString());
       return false;
     }

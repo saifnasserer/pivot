@@ -51,7 +51,7 @@ class _AboutMeWidgetState extends ConsumerState<AboutMeWidget> {
   @override
   Widget build(BuildContext context) {
     // Get the logged-in user to check permissions
-    final loggedInUser = ref.watch(userProfileProvider).userProfile;
+    final loggedInUser = ref.watch(userProfileProvider).loggedInUserProfile;
 
     // Edit icon should only appear for:
     // 1. The user themselves (isOwnProfile)

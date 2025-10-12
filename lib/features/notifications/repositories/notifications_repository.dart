@@ -81,6 +81,31 @@ class NotificationsRepository {
     );
   }
 
+  // Send filtered notification by department and/or level
+  Future<Map<String, dynamic>> sendFilteredNotification({
+    required String title,
+    required String body,
+    String? department,
+    String? level,
+    Map<String, String>? data,
+    String? icon,
+    String? color,
+    String? sound,
+    String? imageUrl,
+  }) async {
+    return await _notificationsService.sendFilteredNotification(
+      title: title,
+      body: body,
+      department: department,
+      level: level,
+      data: data,
+      icon: icon,
+      color: color,
+      sound: sound,
+      imageUrl: imageUrl,
+    );
+  }
+
   // Create scheduled notification
   Future<bool> createScheduledNotification(
     ScheduledNotification notification,

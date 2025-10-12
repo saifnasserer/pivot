@@ -556,7 +556,7 @@ class _WeekTasksState extends ConsumerState<WeekTasks>
             Icon(Icons.cloud_off, color: Colors.grey.shade600, size: 20),
             SizedBox(width: Responsive.space(context, size: Space.small)),
             Text(
-              'تعمل دلوقتي أوفلاين - بتستخدم البيانات المحفوظة',
+              'انت أوفلاين دلوقتي - بتستخدم البيانات المحفوظة',
               style: TextStyle(
                 color: Colors.grey.shade700,
                 fontSize: Responsive.text(context, size: TextSize.small),

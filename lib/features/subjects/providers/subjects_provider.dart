@@ -4,6 +4,8 @@ import 'package:pivot/features/subjects/services/subjects_service.dart';
 import 'package:pivot/models/subject_model.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/features/user/providers/user_profile_provider.dart';
+import 'package:pivot/services/offline_service.dart';
+import 'package:pivot/services/cache_service.dart';
 
 final subjectsServiceProvider = Provider<SubjectsService>(
   (ref) => SubjectsService(),
@@ -396,8 +398,58 @@ class SubjectsNotifier extends StateNotifier<SubjectsState> {
   // Fetch and filter subjects based on user profile
   Future<void> fetchAndFilterSubjects(dynamic userProfile) async {
     _checkDisposed();
+
+    // Check if offline before attempting Firestore fetch
+    final offlineService = OfflineService();
+    if (offlineService.isOffline) {
+      print('📴 [SubjectsProvider] Offline detected - using cached data only');
+
+      // Try to load from cache
+      final cachedSubjects = CacheService.instance.getCachedSubjects();
+      final cachedUsers = CacheService.instance.getCachedUsers();
+
+      if (cachedSubjects.isEmpty || cachedUsers.isEmpty) {
+        print('   ⚠️ No cached data available');
+        state = state.copyWith(
+          isLoading: false,
+          error: 'لا يوجد اتصال بالإنترنت - لا توجد بيانات محفوظة',
+        );
+        return;
+      }
+
+      print(
+        '   ✅ Using cached subjects: ${cachedSubjects.length}, users: ${cachedUsers.length}',
+      );
+
+      // Build instructors map from cached users
+      final instructorsBySubject = _buildInstructorsMap(cachedUsers);
+
+      // Filter based on user profile
+      List<Subject> filteredSubjects;
+      if (userProfile.enrolledSubjects != null &&
+          userProfile.enrolledSubjects.isNotEmpty) {
+        filteredSubjects =
+            cachedSubjects
+                .where((s) => userProfile.enrolledSubjects.contains(s.id))
+                .toList();
+      } else {
+        filteredSubjects = cachedSubjects;
+      }
+
+      state = state.copyWith(
+        isLoading: false,
+        subjects: cachedSubjects,
+        filteredSubjects: filteredSubjects,
+        instructorsBySubject: instructorsBySubject,
+        error: null,
+      );
+      return;
+    }
+
+    // Online - fetch from Firestore
     state = state.copyWith(isLoading: true, error: null);
     try {
+      print('🌐 [SubjectsProvider] Online - Fetching from Firestore...');
       // Load fresh data
       final subjects = await _repo.getAllSubjects();
       if (_disposed) return;

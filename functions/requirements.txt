@@ -4,4 +4,4 @@ firebase-admin>=6.0.0
 flask
 requests
 gunicorn
-b2sdk>=2.0.0
+b2sdk>=2.0.4

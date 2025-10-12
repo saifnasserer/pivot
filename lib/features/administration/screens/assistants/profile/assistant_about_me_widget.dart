@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'package:pivot/features/administration/screens/doctor/edit_about_route.dart';
+import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-
-class AssistantAboutMeWidget extends StatefulWidget {
+class AssistantAboutMeWidget extends ConsumerStatefulWidget {
   final UserProfile userProfile;
   final bool isOwnProfile;
   final Function(UserProfile)? onProfileUpdated;
@@ -18,10 +19,12 @@ class AssistantAboutMeWidget extends StatefulWidget {
   });
 
   @override
-  State<AssistantAboutMeWidget> createState() => _AssistantAboutMeWidgetState();
+  ConsumerState<AssistantAboutMeWidget> createState() =>
+      _AssistantAboutMeWidgetState();
 }
 
-class _AssistantAboutMeWidgetState extends State<AssistantAboutMeWidget> {
+class _AssistantAboutMeWidgetState
+    extends ConsumerState<AssistantAboutMeWidget> {
   Future<void> _showEditAboutScreen(BuildContext context) async {
     final result = await Navigator.push(
       context,
@@ -42,17 +45,23 @@ class _AssistantAboutMeWidgetState extends State<AssistantAboutMeWidget> {
         if (doc.exists) {
           final updatedProfile = UserProfile.fromJson(doc.data()!);
           widget.onProfileUpdated?.call(updatedProfile);
-        } else {
-        }
-      } catch (e) {
-      }
-    } else {
-    }
+        } else {}
+      } catch (e) {}
+    } else {}
   }
 
   @override
   Widget build(BuildContext context) {
-    final canEdit = widget.userProfile.role != 'student';
+    // Get the logged-in user to check permissions
+    final loggedInUser = ref.watch(userProfileProvider).loggedInUserProfile;
+
+    // Edit icon should only appear for:
+    // 1. The user themselves (isOwnProfile)
+    // 2. Admins and Super Admins
+    final canEdit =
+        widget.isOwnProfile ||
+        (loggedInUser?.role == 'Admin' || loggedInUser?.role == 'Super Admin');
+
     String displayTitle = widget.userProfile.name;
     if (widget.userProfile.role.toLowerCase() == 'professor') {
       String title =

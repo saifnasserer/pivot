@@ -742,6 +742,7 @@ def confirm_material_upload(req: https_fn.Request) -> https_fn.Response:
             'isUploadedFile': True,  # Flag to distinguish from external links
             'uploadedBy': user_id,
             'uploadedAt': firestore.SERVER_TIMESTAMP,
+            'createdAt': datetime.now().isoformat(),  # Add createdAt field for Flutter
             'type': _determine_material_type(content_type),
             'averageRating': 0.0,
             'totalRatings': 0,
@@ -754,6 +755,7 @@ def confirm_material_upload(req: https_fn.Request) -> https_fn.Response:
             material_ref = db.collection('lectures').document(lecture_id)\
                              .collection('materials').document()
             material_data['lectureId'] = lecture_id
+            print(f"DEBUG CONFIRM: Saving to lectures/{lecture_id}/materials/{material_ref.id}")
         elif subject_id and assistant_id:
             # Assistant mode: add to subject-assistant materials
             material_ref = db.collection('subjects').document(subject_id)\
@@ -761,6 +763,7 @@ def confirm_material_upload(req: https_fn.Request) -> https_fn.Response:
                              .collection('materials').document()
             material_data['subjectId'] = subject_id
             material_data['assistantId'] = assistant_id
+            print(f"DEBUG CONFIRM: Saving to subjects/{subject_id}/assistants/{assistant_id}/materials/{material_ref.id}")
         else:
             return https_fn.Response(
                 json.dumps({
@@ -771,7 +774,9 @@ def confirm_material_upload(req: https_fn.Request) -> https_fn.Response:
             )
         
         # Save to Firestore
+        print(f"DEBUG CONFIRM: Material data: {material_data}")
         material_ref.set(material_data)
+        print(f"DEBUG CONFIRM: Material saved successfully with ID: {material_ref.id}")
         
         return https_fn.Response(
             json.dumps({

@@ -109,6 +109,52 @@ class Task {
     };
   }
 
+  // Convert to JSON-safe map (for offline queueing)
+  Map<String, dynamic> toJsonMap() {
+    return {
+      'id': id,
+      'title': title,
+      'description': description,
+      'dueDate': dueDate.millisecondsSinceEpoch, // Convert to int for JSON
+      'importance':
+          importance.toString().split('.').last, // Store enum as string
+      'subjectId': subjectId,
+      'sectionId': sectionId,
+      'assistantId': assistantId,
+      'completedBy': completedBy,
+      'isPersonal': isPersonal,
+      'attachments': attachments,
+    };
+  }
+
+  // Create from JSON map
+  factory Task.fromJsonMap(Map<String, dynamic> json) {
+    return Task(
+      id: json['id'],
+      title: json['title'],
+      description: json['description'],
+      dueDate: DateTime.fromMillisecondsSinceEpoch(json['dueDate'] as int),
+      importance: TaskImportance.values.firstWhere(
+        (e) => e.toString().split('.').last == json['importance'],
+        orElse: () => TaskImportance.mid,
+      ),
+      subjectId: json['subjectId'],
+      sectionId: json['sectionId'],
+      assistantId: json['assistantId'],
+      completedBy: List<String>.from(json['completedBy'] ?? []),
+      isPersonal: json['isPersonal'] ?? false,
+      attachments:
+          json['attachments'] != null
+              ? List<Map<String, String>>.from(
+                (json['attachments'] as List).map(
+                  (item) => Map<String, String>.from(item),
+                ),
+              )
+              : null,
+      notes: [],
+    );
+  }
+
   // Create a Task object from a Firestore document
   factory Task.fromMap(Map<String, dynamic> map) {
     return Task(

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/features/notifications/services/user_notifications_service.dart';
 import 'package:pivot/features/notifications/repositories/user_notifications_repository.dart';
 import 'package:pivot/models/scheduled_notification.dart';
+import 'package:pivot/services/offline_service.dart';
 
 // Services
 final userNotificationsServiceProvider = Provider<UserNotificationsService>((
@@ -82,7 +83,26 @@ class UserNotificationsNotifier extends StateNotifier<UserNotificationsState> {
   // Get user notifications
   Future<void> getUserNotifications({int limit = 50}) async {
     state = state.copyWith(isLoading: true, error: null);
+
+    // Check if offline
+    final offlineService = OfflineService();
+    if (offlineService.isOffline) {
+      print(
+        '📴 [UserNotificationsProvider] Offline - showing empty notifications (no cache yet)',
+      );
+      state = state.copyWith(
+        isLoading: false,
+        notifications: [],
+        hasNotifications: false,
+        error: null,
+      );
+      return;
+    }
+
     try {
+      print(
+        '🌐 [UserNotificationsProvider] Online - Fetching notifications from Firestore...',
+      );
       final notifications = await _repository.getUserNotifications(
         limit: limit,
       );
@@ -92,6 +112,7 @@ class UserNotificationsNotifier extends StateNotifier<UserNotificationsState> {
         hasNotifications: notifications.isNotEmpty,
       );
     } catch (e) {
+      print('❌ [UserNotificationsProvider] Error fetching notifications: $e');
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }

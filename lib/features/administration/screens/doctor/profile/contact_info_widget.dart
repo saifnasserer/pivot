@@ -483,7 +483,7 @@ class ContactInfoWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final loggedInUser = ref.watch(userProfileProvider).userProfile;
+    final loggedInUser = ref.watch(userProfileProvider).loggedInUserProfile;
     final canEdit =
         isOwnProfile ||
         loggedInUser?.role == 'Admin' ||

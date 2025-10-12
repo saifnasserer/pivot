@@ -92,6 +92,22 @@ class MaterialLink extends HiveObject {
       );
     }
 
+    // Build metadata map including uploaded file info
+    Map<String, dynamic> metadata = map['metadata'] is Map
+        ? Map<String, dynamic>.from(map['metadata'])
+        : {};
+    
+    // Add uploaded file information to metadata if present
+    if (map['isUploadedFile'] == true) {
+      metadata['isUploadedFile'] = true;
+      if (map['filePath'] != null) metadata['filePath'] = map['filePath'];
+      if (map['fileName'] != null) metadata['fileName'] = map['fileName'];
+      if (map['fileSize'] != null) metadata['fileSize'] = map['fileSize'];
+      if (map['contentType'] != null) metadata['contentType'] = map['contentType'];
+      if (map['uploadedBy'] != null) metadata['uploadedBy'] = map['uploadedBy'];
+      if (map['uploadedAt'] != null) metadata['uploadedAt'] = map['uploadedAt'];
+    }
+
     // Handle new format with all fields
     return MaterialLink(
       title: map['title'] ?? '',
@@ -105,10 +121,7 @@ class MaterialLink extends HiveObject {
                 orElse: () => _detectType(map['url'] ?? ''),
               )
               : _detectType(map['url'] ?? ''),
-      metadata:
-          map['metadata'] is Map
-              ? Map<String, dynamic>.from(map['metadata'])
-              : {},
+      metadata: metadata,
       createdAt:
           map['createdAt'] != null
               ? DateTime.tryParse(map['createdAt']) ?? DateTime.now()
@@ -117,7 +130,7 @@ class MaterialLink extends HiveObject {
           map['lastAccessed'] != null
               ? DateTime.tryParse(map['lastAccessed'])
               : null,
-      userRatings: _parseUserRatings(map['userRatings']),
+      userRatings: _parseUserRatings(map['userRatings'] ?? map['ratings']),
       totalRatings:
           map['totalRatings'] is int
               ? map['totalRatings']
@@ -365,5 +378,54 @@ class MaterialLink extends HiveObject {
 
   bool hasUserRated(String userId) {
     return userRatings.containsKey(userId);
+  }
+
+  // Uploaded file helpers
+  bool get isUploadedFile {
+    return metadata['isUploadedFile'] == true;
+  }
+
+  String? get filePath {
+    return metadata['filePath'] as String?;
+  }
+
+  String? get fileName {
+    return metadata['fileName'] as String?;
+  }
+
+  int? get fileSize {
+    final size = metadata['fileSize'];
+    if (size is int) return size;
+    if (size is String) return int.tryParse(size);
+    return null;
+  }
+
+  String? get formattedFileSize {
+    final size = fileSize;
+    if (size == null) return null;
+    
+    if (size < 1024) {
+      return '$size B';
+    } else if (size < 1024 * 1024) {
+      return '${(size / 1024).toStringAsFixed(2)} KB';
+    } else {
+      return '${(size / (1024 * 1024)).toStringAsFixed(2)} MB';
+    }
+  }
+
+  String? get contentType {
+    return metadata['contentType'] as String?;
+  }
+
+  String? get uploadedBy {
+    return metadata['uploadedBy'] as String?;
+  }
+
+  DateTime? get uploadedAt {
+    final uploaded = metadata['uploadedAt'];
+    if (uploaded is String) {
+      return DateTime.tryParse(uploaded);
+    }
+    return null;
   }
 }
