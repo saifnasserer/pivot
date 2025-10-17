@@ -5,6 +5,7 @@ import 'package:intl/intl.dart' as intl;
 import 'package:pivot/features/administration/providers/sections_provider.dart';
 import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/features/media/services/materials_service.dart';
+import 'package:pivot/features/subjects/providers/subject_provider.dart';
 import 'package:pivot/models/material_link.dart';
 import 'package:pivot/models/section_model.dart';
 import 'package:pivot/screens/models/task.dart';
@@ -307,6 +308,22 @@ class _AddEditTaskScreenState extends ConsumerState<AddEditTaskScreen>
 
       final sectionNumber = Task.extractSectionNumber(section.name);
 
+      // Get subject name from subject provider
+      String? subjectName;
+      try {
+        final subjectState = ref.read(SubjectProviderProvider);
+        final subject = subjectState.allSubjects.firstWhere(
+          (s) => s.id == _selectedSubjectId!,
+          orElse: () => throw Exception('Subject not found'),
+        );
+        subjectName = subject.name;
+      } catch (e) {
+        if (kDebugMode) {
+          print('Error getting subject name: $e');
+        }
+        subjectName = 'مادة غير محددة';
+      }
+
       final newTask = Task(
         id: widget.task?.id,
         title: _titleController.text.trim(),
@@ -321,6 +338,7 @@ class _AddEditTaskScreenState extends ConsumerState<AddEditTaskScreen>
         attachments: selectedMaterials,
         assistantName: assistantName,
         sectionNumber: sectionNumber,
+        subjectName: subjectName,
       );
 
       try {

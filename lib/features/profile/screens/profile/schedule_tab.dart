@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
-import 'package:pivot/features/schedule/screens/add_edit_schedule_dialog.dart';
+import 'package:pivot/features/schedule/screens/add_edit_schedule_screen.dart';
 import 'package:pivot/features/schedule/screens/schadule.dart';
 import 'package:pivot/features/schedule/providers/schedule_provider.dart';
 import 'package:pivot/features/schedule/widgets/import_schedule_dialog.dart';
@@ -233,12 +233,11 @@ class _ScheduleTabState extends ConsumerState<ScheduleTab>
     }
   }
 
-  void _handleEditItem(ScheduleItem item) {
-    showDialog(
+  Future<void> _handleEditItem(ScheduleItem item) async {
+    await showAddEditScheduleScreen(
       context: context,
-      builder: (BuildContext context) {
-        return AddEditScheduleDialog(day: item.day, itemToEdit: item);
-      },
+      day: item.day,
+      itemToEdit: item,
     );
   }
 
@@ -314,13 +313,11 @@ class _ScheduleTabState extends ConsumerState<ScheduleTab>
     }
   }
 
-  void _showAddScheduleDialog(BuildContext context, String selectedDay) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AddEditScheduleDialog(day: selectedDay);
-      },
-    );
+  Future<void> _showAddScheduleDialog(
+    BuildContext context,
+    String selectedDay,
+  ) async {
+    await showAddEditScheduleScreen(context: context, day: selectedDay);
   }
 
   void _showImportScheduleDialog() async {

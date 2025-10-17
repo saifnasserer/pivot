@@ -1,14 +1,11 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pivot/features/guide/providers/guide_provider.dart';
 import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/features/subjects/providers/subject_provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:pivot/widgets/no_internet_message.dart';
-import 'dart:async';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/models/subject_model.dart';
+import 'dart:async';
 
 class SubjectSelectionScreen extends ConsumerStatefulWidget {
   final List<String> previouslySelectedIds;
@@ -36,8 +33,6 @@ class _SubjectSelectionScreenState
   bool _showEnglish = false; // Language toggle
   static const int maxHours = 18; // Maximum allowed hours
 
-  // Removed _isInitializing as it's now handled by Riverpod provider
-
   // Search functionality
   bool _isSearchMode = false;
   final TextEditingController _searchController = TextEditingController();
@@ -45,58 +40,17 @@ class _SubjectSelectionScreenState
   String _searchQuery = '';
   Timer? _searchDebounce;
 
-  // Filter functionality
-  int? _selectedYear;
-  List<int> _availableYears = [];
-
-  // Performance optimization
-  List<Subject>? _cachedFilteredSubjects;
-  String? _lastSearchQuery;
-  int? _lastSelectedYear;
-
-  // Prevent unnecessary rebuilds
-  String? _lastSubjectsHash;
-
   @override
   void initState() {
     super.initState();
 
     _selectedSubjectIds = Set<String>.from(widget.previouslySelectedIds);
 
-    // Provider now loads from cache automatically on startup
-    // We only need to ensure all subjects are loaded (not filtered)
+    // Load all subjects on initialization
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (kDebugMode) {
-        print('📚 [SubjectSelection] Initializing...');
-      }
-
-      final subjectState = ref.read(SubjectProviderProvider);
-
-      // Check if we already have all subjects loaded
-      if (subjectState.allSubjects.isNotEmpty) {
-        if (kDebugMode) {
-          print(
-            '✅ [SubjectSelection] Using cached subjects (${subjectState.allSubjects.length}) - Zero server reads',
-          );
-        }
-      } else {
-        // No data in cache, fetch from server (first time only)
-        if (kDebugMode) {
-          print(
-            '📦 [SubjectSelection] No cached data, fetching from server...',
-          );
-        }
-        ref.read(SubjectProviderProvider.notifier).fetchAllSubjects();
-      }
-
-      // Fetch guide content
-      ref.read(guideProvider.notifier).fetchGuideContent();
+      ref.read(SubjectProviderProvider.notifier).fetchAllSubjects();
     });
   }
-
-  // Removed _loadSubjectsAndData method as it's now handled by Riverpod provider
-
-  // Removed unused methods as they're now handled by Riverpod provider
 
   @override
   void dispose() {
@@ -126,93 +80,26 @@ class _SubjectSelectionScreenState
       if (mounted) {
         setState(() {
           _searchQuery = value;
-          // Clear cache when search changes
-          _cachedFilteredSubjects = null;
         });
       }
     });
   }
 
-  void _updateAvailableFilters(List<Subject> subjects) {
-    // Create a hash of the subjects list to detect changes
-    final subjectsHash = subjects.map((s) => s.id).join(',');
-
-    // Skip if we've already processed this exact list
-    if (_lastSubjectsHash == subjectsHash && _availableYears.isNotEmpty) {
-      return;
-    }
-
-    _lastSubjectsHash = subjectsHash;
-
-    final years = <int>{};
-
-    for (final subject in subjects) {
-      years.add(subject.year);
-    }
-
-    final newYears = years.toList()..sort();
-
-    // Only update state if the list has actually changed and is different
-    if (_availableYears.length != newYears.length &&
-        !_listEquals(_availableYears, newYears)) {
-      // Use post-frame callback to avoid setState during build
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          setState(() {
-            _availableYears = newYears;
-          });
-        }
-      });
-    }
-  }
-
-  bool _listEquals<T>(List<T> list1, List<T> list2) {
-    if (list1.length != list2.length) return false;
-    for (int i = 0; i < list1.length; i++) {
-      if (list1[i] != list2[i]) return false;
-    }
-    return true;
-  }
-
   List<Subject> _filterSubjects(List<Subject> subjects) {
-    // Check if we can use cached results
-    // No need to check user level anymore since fetching is level-aware
-    if (_cachedFilteredSubjects != null &&
-        _lastSearchQuery == _searchQuery &&
-        _lastSelectedYear == _selectedYear) {
-      return _cachedFilteredSubjects!;
+    if (_searchQuery.isEmpty) {
+      return subjects;
     }
 
-    var filtered =
-        subjects.where((subject) {
-          // Search filter
-          if (_searchQuery.isNotEmpty) {
-            final query = _searchQuery.toLowerCase();
-            final name =
-                _showEnglish
-                    ? subject.englishName.toLowerCase()
-                    : subject.name.toLowerCase();
-            final departments = subject.departments.join(' ').toLowerCase();
+    final query = _searchQuery.toLowerCase();
+    return subjects.where((subject) {
+      final name =
+          _showEnglish
+              ? subject.englishName.toLowerCase()
+              : subject.name.toLowerCase();
+      final departments = subject.departments.join(' ').toLowerCase();
 
-            if (!name.contains(query) && !departments.contains(query)) {
-              return false;
-            }
-          }
-
-          // Year filter
-          if (_selectedYear != null && subject.year != _selectedYear) {
-            return false;
-          }
-
-          return true;
-        }).toList();
-
-    // Cache the results
-    _cachedFilteredSubjects = filtered;
-    _lastSearchQuery = _searchQuery;
-    _lastSelectedYear = _selectedYear;
-
-    return filtered;
+      return name.contains(query) || departments.contains(query);
+    }).toList();
   }
 
   int _calculateTotalHours() {
@@ -220,7 +107,7 @@ class _SubjectSelectionScreenState
     int totalHours = 0;
 
     for (final subjectId in _selectedSubjectIds) {
-      final subject = subjectState.filteredSubjects.firstWhere(
+      final subject = subjectState.allSubjects.firstWhere(
         (s) => s.id == subjectId,
         orElse:
             () => Subject(
@@ -663,7 +550,6 @@ class _SubjectSelectionScreenState
       final userProfileState = ref.read(userProfileProvider);
       final userRole = userProfileState.loggedInUserProfile?.role;
 
-      // If targetUserId is provided, Super Admin is editing another user's subjects
       if (widget.targetUserId != null && userRole == 'Super Admin') {
         final targetUserRole = widget.targetUserRole;
 
@@ -691,7 +577,6 @@ class _SubjectSelectionScreenState
         await ref.read(SubjectProviderProvider.notifier).fetchAllSubjects();
         success = true;
       } else {
-        // Normal flow - user editing their own subjects
         if (userRole == 'Student' ||
             userRole == 'Admin' ||
             userRole == 'Super Admin') {
@@ -877,193 +762,17 @@ class _SubjectSelectionScreenState
     );
   }
 
-  Widget _buildGuideSection() {
-    return Consumer(
-      builder: (context, ref, child) {
-        final guideState = ref.watch(guideProvider);
-
-        if (guideState.isLoading && guideState.guideContent == null) {
-          return const SizedBox(
-            height: 200,
-            child: Center(child: CircularProgressIndicator()),
-          );
-        }
-
-        if (guideState.error != null) {
-          return SizedBox(
-            height: 200,
-            child: Center(child: Text('خطأ: ${guideState.error}')),
-          );
-        }
-
-        final guideContent = guideState.guideContent;
-        if (guideContent == null || guideContent.guidebooks.isEmpty) {
-          return const SizedBox(
-            height: 200,
-            child: Center(child: Text('لا يوجد دليل متاح حالياً.')),
-          );
-        }
-
-        return Container(
-          padding: Responsive.padding(context, size: Space.large),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.grey[200]!),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.withOpacity(0.1),
-                      spreadRadius: 1,
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Padding(
-                  padding: Responsive.padding(context, size: Space.large),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: Responsive.padding(
-                              context,
-                              size: Space.small,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.grey[100],
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(
-                              Icons.picture_as_pdf,
-                              color: Colors.black87,
-                              size: 24,
-                            ),
-                          ),
-                          SizedBox(
-                            width: Responsive.space(
-                              context,
-                              size: Space.medium,
-                            ),
-                          ),
-                          Text(
-                            'لائحة الكلية',
-                            style: TextStyle(
-                              fontSize: Responsive.text(
-                                context,
-                                size: TextSize.heading,
-                              ),
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87,
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(
-                        height: Responsive.space(context, size: Space.medium),
-                      ),
-                      ListView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: guideContent.guidebooks.length,
-                        itemBuilder: (context, index) {
-                          final guidebook = guideContent.guidebooks[index];
-                          return Container(
-                            margin: EdgeInsets.only(
-                              bottom: Responsive.space(
-                                context,
-                                size: Space.small,
-                              ),
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.grey[50],
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.grey[200]!),
-                            ),
-                            child: ListTile(
-                              leading: Container(
-                                padding: Responsive.padding(
-                                  context,
-                                  size: Space.small,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[100],
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: const Icon(
-                                  Icons.picture_as_pdf,
-                                  color: Colors.black87,
-                                  size: 20,
-                                ),
-                              ),
-                              title: Text(
-                                guidebook.name,
-                                style: TextStyle(
-                                  fontSize: Responsive.text(
-                                    context,
-                                    size: TextSize.medium,
-                                  ),
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black87,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              onTap: () async {
-                                final uri = Uri.parse(guidebook.url);
-                                if (await canLaunchUrl(uri)) {
-                                  await launchUrl(uri);
-                                }
-                              },
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   Future<void> _handleRefresh() async {
-    if (kDebugMode) {
-      print('🔄 [SubjectSelection] Manual refresh triggered');
-    }
-
-    // Get user profile to determine role
-    final userProfileState = ref.read(userProfileProvider);
-    final userRole = userProfileState.loggedInUserProfile?.role;
-
-    // For Super Admin editing other users, force fresh data to ensure all subjects are available
-    final isSuperAdminEditingOthers =
-        widget.targetUserId != null && userRole == 'Super Admin';
     await ref
         .read(SubjectProviderProvider.notifier)
-        .fetchAllSubjects(
-          forceRefresh: true,
-          userRole: userRole,
-          forceAllSubjects: isSuperAdminEditingOthers,
-        );
-
-    if (kDebugMode) {
-      print('✅ [SubjectSelection] Refresh complete');
-    }
+        .fetchAllSubjects(forceRefresh: true);
   }
 
   Widget _buildSubjectsList() {
     return Consumer(
       builder: (context, ref, child) {
         final subjectState = ref.watch(SubjectProviderProvider);
+
         if (subjectState.isLoading) {
           return Center(
             child: Column(
@@ -1082,6 +791,7 @@ class _SubjectSelectionScreenState
             ),
           );
         }
+
         if (subjectState.error != null) {
           return Center(
             child: Column(
@@ -1118,7 +828,8 @@ class _SubjectSelectionScreenState
             ),
           );
         }
-        if (subjectState.filteredSubjects.isEmpty) {
+
+        if (subjectState.allSubjects.isEmpty) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -1177,12 +888,7 @@ class _SubjectSelectionScreenState
           );
         }
 
-        final subjects = subjectState.filteredSubjects;
-
-        // Update available filters when subjects change (optimized)
-        _updateAvailableFilters(subjects);
-
-        // Use memoization for filtered subjects to avoid unnecessary recalculations
+        final subjects = subjectState.allSubjects;
         final filteredSubjects = _filterSubjects(subjects);
 
         if (_searchQuery.isNotEmpty && filteredSubjects.isEmpty) {
@@ -1215,7 +921,7 @@ class _SubjectSelectionScreenState
                 ),
                 SizedBox(height: Responsive.space(context, size: Space.small)),
                 Text(
-                  'جرب البحث بكلمات مختلفة أو تغيير الفلاتر',
+                  'جرب البحث بكلمات مختلفة',
                   style: TextStyle(
                     fontSize: Responsive.text(context, size: TextSize.small),
                     color: Colors.grey[500],
@@ -1228,11 +934,10 @@ class _SubjectSelectionScreenState
                     setState(() {
                       _searchQuery = '';
                       _searchController.clear();
-                      _selectedYear = null;
                     });
                   },
                   icon: const Icon(Icons.clear),
-                  label: const Text('مسح البحث والفلاتر'),
+                  label: const Text('مسح البحث'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue[600],
                     foregroundColor: Colors.white,
@@ -1490,7 +1195,6 @@ class _SubjectSelectionScreenState
                   tooltip: 'البحث في المواد',
                   onPressed: _toggleSearchMode,
                 ),
-
                 IconButton(
                   icon: Icon(_showEnglish ? Icons.language : Icons.translate),
                   tooltip: _showEnglish ? 'عرض بالعربية' : 'Show in English',
@@ -1498,37 +1202,6 @@ class _SubjectSelectionScreenState
                     setState(() {
                       _showEnglish = !_showEnglish;
                     });
-                  },
-                ),
-                Consumer(
-                  builder: (context, ref, child) {
-                    final guideState = ref.watch(guideProvider);
-                    final hasContent =
-                        guideState.guideContent != null &&
-                        guideState.guideContent!.guidebooks.isNotEmpty;
-                    return IconButton(
-                      icon: const Icon(Icons.menu_book_outlined),
-                      tooltip: 'عرض دليل الكلية',
-                      onPressed:
-                          !hasContent
-                              ? null
-                              : () {
-                                showModalBottomSheet(
-                                  context: context,
-                                  isScrollControlled: true,
-                                  shape: const RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.vertical(
-                                      top: Radius.circular(20),
-                                    ),
-                                  ),
-                                  builder:
-                                      (_) => Directionality(
-                                        textDirection: TextDirection.rtl,
-                                        child: _buildGuideSection(),
-                                      ),
-                                );
-                              },
-                    );
                   },
                 ),
               ],
@@ -1580,32 +1253,19 @@ class _SubjectSelectionScreenState
 
                           bool success = false;
                           try {
-                            print(
-                              '📚 [SubjectSelection] Starting save process...',
-                            );
                             final userProfileState = ref.read(
                               userProfileProvider,
                             );
-
                             final userRole =
                                 userProfileState.loggedInUserProfile?.role;
-                            print('📚 [SubjectSelection] User role: $userRole');
-                            print(
-                              '📚 [SubjectSelection] Selected subjects: ${_selectedSubjectIds.length}',
-                            );
 
                             // If targetUserId is provided, Super Admin is editing another user's subjects
                             if (widget.targetUserId != null &&
                                 userRole == 'Super Admin') {
-                              print('📚 [SubjectSelection] Super Admin mode');
-                              // Use the targetUserRole parameter instead of fetching from allUsers
                               final targetUserRole = widget.targetUserRole;
 
                               if (targetUserRole == 'Student' ||
                                   targetUserRole == 'Admin') {
-                                print(
-                                  '📚 [SubjectSelection] Updating enrolled subjects for target user',
-                                );
                                 await ref
                                     .read(userProfileProvider.notifier)
                                     .updateUserEnrolledSubjects(
@@ -1615,9 +1275,6 @@ class _SubjectSelectionScreenState
                               } else if (targetUserRole == 'Professor' ||
                                   targetUserRole == 'miniProfessor' ||
                                   targetUserRole == 'Doctor') {
-                                print(
-                                  '📚 [SubjectSelection] Updating teaching subjects for target user',
-                                );
                                 await ref
                                     .read(userProfileProvider.notifier)
                                     .updateUserTeachingSubjects(
@@ -1630,10 +1287,6 @@ class _SubjectSelectionScreenState
                                 );
                               }
 
-                              // Update the UI after Super Admin changes
-                              print(
-                                '📚 [SubjectSelection] Refreshing all users and subjects',
-                              );
                               await ref
                                   .read(userProfileProvider.notifier)
                                   .fetchAllUsers();
@@ -1641,19 +1294,11 @@ class _SubjectSelectionScreenState
                                   .read(SubjectProviderProvider.notifier)
                                   .fetchAllSubjects();
                               success = true;
-                              print(
-                                '✅ [SubjectSelection] Super Admin save successful',
-                              );
                             } else {
                               // Normal flow - user editing their own subjects
-                              print('📚 [SubjectSelection] Normal user mode');
-
                               if (userRole == 'Student' ||
                                   userRole == 'Admin' ||
                                   userRole == 'Super Admin') {
-                                print(
-                                  '📚 [SubjectSelection] Updating enrolled subjects',
-                                );
                                 await ref
                                     .read(userProfileProvider.notifier)
                                     .updateEnrolledSubjects(
@@ -1662,33 +1307,21 @@ class _SubjectSelectionScreenState
                               } else if (userRole == 'Professor' ||
                                   userRole == 'miniProfessor' ||
                                   userRole == 'Doctor') {
-                                print(
-                                  '📚 [SubjectSelection] Updating teaching subjects',
-                                );
                                 await ref
                                     .read(userProfileProvider.notifier)
                                     .updateTeachingSubjects(
                                       _selectedSubjectIds.toList(),
                                     );
                               } else {
-                                // Handle unknown role
-
                                 throw Exception('Unknown user role: $userRole');
                               }
 
-                              // After updating subjects, fetch the latest user profile to ensure
-                              // the UI reflects the changes upon returning to the previous screen.
-                              print(
-                                '📚 [SubjectSelection] Reloading user profile',
-                              );
                               await ref
                                   .read(userProfileProvider.notifier)
                                   .loadLoggedInUserProfile();
                               success = true;
-                              print('✅ [SubjectSelection] Save successful');
                             }
                           } catch (e) {
-                            print('❌ [SubjectSelection] Error during save: $e');
                             if (mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
@@ -1698,7 +1331,6 @@ class _SubjectSelectionScreenState
                                     label: 'إعادة المحاولة',
                                     textColor: Colors.white,
                                     onPressed: () {
-                                      // Retry the save operation
                                       _retrySave();
                                     },
                                   ),
@@ -1716,7 +1348,6 @@ class _SubjectSelectionScreenState
                                   const Duration(milliseconds: 800),
                                 );
                                 if (mounted) {
-                                  // Return true to indicate success, allowing the previous screen to react.
                                   Navigator.pop(context, true);
                                 }
                               } else {

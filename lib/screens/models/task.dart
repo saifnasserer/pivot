@@ -72,6 +72,7 @@ class Task {
   // Source information fields
   String? assistantName; // Assistant's name
   String? sectionNumber; // Section number extracted from section name
+  String? subjectName; // Subject name
 
   Task({
     String? id, // Make ID optional
@@ -88,6 +89,7 @@ class Task {
     List<TaskNote>? notes,
     this.assistantName,
     this.sectionNumber,
+    this.subjectName,
   }) : notes = notes ?? [],
        id = id ?? const Uuid().v4(); // Generate ID if null
 
@@ -98,12 +100,12 @@ class Task {
 
   // Helper method to get formatted source information
   String get sourceInfo {
-    if (assistantName != null && sectionNumber != null) {
-      return '$assistantName - سكشن $sectionNumber';
+    if (assistantName != null && subjectName != null) {
+      return '$assistantName - $subjectName';
     } else if (assistantName != null) {
       return assistantName!;
-    } else if (sectionNumber != null) {
-      return 'سكشن $sectionNumber';
+    } else if (subjectName != null) {
+      return subjectName!;
     } else {
       return 'مصدر غير محدد';
     }
@@ -140,6 +142,7 @@ class Task {
       'attachments': attachments,
       'assistantName': assistantName,
       'sectionNumber': sectionNumber,
+      'subjectName': subjectName,
       // Notes are stored separately in user-specific task_notes collection
     };
   }
@@ -161,6 +164,7 @@ class Task {
       'attachments': attachments,
       'assistantName': assistantName,
       'sectionNumber': sectionNumber,
+      'subjectName': subjectName,
     };
   }
 
@@ -191,6 +195,7 @@ class Task {
       notes: [],
       assistantName: json['assistantName'],
       sectionNumber: json['sectionNumber'],
+      subjectName: json['subjectName'],
     );
   }
 
@@ -222,6 +227,7 @@ class Task {
       notes: [],
       assistantName: map['assistantName'],
       sectionNumber: map['sectionNumber'],
+      subjectName: map['subjectName'],
     );
   }
 
@@ -241,6 +247,7 @@ class Task {
     List<TaskNote>? notes,
     String? assistantName,
     String? sectionNumber,
+    String? subjectName,
   }) {
     return Task(
       id: id ?? this.id,
@@ -257,6 +264,7 @@ class Task {
       notes: notes ?? this.notes,
       assistantName: assistantName ?? this.assistantName,
       sectionNumber: sectionNumber ?? this.sectionNumber,
+      subjectName: subjectName ?? this.subjectName,
     );
   }
 }

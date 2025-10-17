@@ -483,7 +483,7 @@ class _DoctorProfileState extends ConsumerState<DoctorProfile>
             _shouldShowAddLectureButton()
                 ? FloatingActionButton(
                   onPressed: _showAddLectureDialog,
-                  backgroundColor: Colors.green,
+                  backgroundColor: Colors.black,
                   foregroundColor: Colors.white,
                   child: const Icon(Icons.add),
                 )

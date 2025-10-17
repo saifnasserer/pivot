@@ -4,6 +4,7 @@ import 'package:pivot/features/tasks/repositories/tasks_repository.dart';
 import 'package:pivot/screens/models/task.dart';
 import 'package:pivot/services/offline_service.dart';
 import 'package:pivot/services/offline_queue_service.dart';
+import 'package:pivot/features/subjects/providers/subject_provider.dart';
 
 // Services
 final tasksServiceProvider = Provider<TasksService>((ref) {
@@ -205,10 +206,13 @@ class TasksNotifier extends StateNotifier<TasksState> {
         emptyResult: <Task>[],
       );
 
+      // Populate subject names for tasks that don't have them
+      final tasksWithSubjectNames = await _populateSubjectNames(tasks);
+
       state = state.copyWith(
         isLoading: false,
-        tasks: tasks,
-        filteredTasks: tasks,
+        tasks: tasksWithSubjectNames,
+        filteredTasks: tasksWithSubjectNames,
       );
     } catch (e) {
       print('❌ [TasksProvider] Error fetching tasks: $e');
@@ -981,6 +985,60 @@ class TasksNotifier extends StateNotifier<TasksState> {
     // Consider data stale if it's older than 5 minutes
     // This is a simple implementation - you could add timestamp tracking
     return state.tasks.isEmpty;
+  }
+
+  // Helper method to populate subject names for tasks that don't have them
+  Future<List<Task>> _populateSubjectNames(List<Task> tasks) async {
+    try {
+      final subjectState = _ref.read(SubjectProviderProvider);
+      final subjects = subjectState.allSubjects;
+
+      if (subjects.isEmpty) {
+        // If no subjects are loaded, return tasks as-is
+        return tasks;
+      }
+
+      final updatedTasks = <Task>[];
+      bool hasUpdates = false;
+
+      for (final task in tasks) {
+        if (task.subjectName == null && task.subjectId != null) {
+          // Find the subject name for this task
+          final subject = subjects.firstWhere(
+            (s) => s.id == task.subjectId,
+            orElse: () => throw Exception('Subject not found'),
+          );
+
+          // Create updated task with subject name
+          final updatedTask = task.copyWith(subjectName: subject.name);
+          updatedTasks.add(updatedTask);
+          hasUpdates = true;
+        } else {
+          updatedTasks.add(task);
+        }
+      }
+
+      // If we updated any tasks, save them back to the database
+      if (hasUpdates) {
+        for (final task in updatedTasks) {
+          if (task.subjectName != null &&
+              tasks.firstWhere((t) => t.id == task.id).subjectName == null) {
+            try {
+              await _repository.updateTask(task);
+            } catch (e) {
+              print(
+                '⚠️ Failed to update task ${task.id} with subject name: $e',
+              );
+            }
+          }
+        }
+      }
+
+      return updatedTasks;
+    } catch (e) {
+      print('⚠️ Error populating subject names: $e');
+      return tasks; // Return original tasks if there's an error
+    }
   }
 
   // Reset provider state (called on logout/account switch)

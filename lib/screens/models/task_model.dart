@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pivot/features/tasks/screens/screens.dart';
+import 'package:pivot/features/tasks/screens/task_details_screen.dart';
 import 'package:intl/intl.dart'; // For date formatting
 import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -195,11 +195,11 @@ class _TaskModelState extends ConsumerState<TaskModel>
                     Responsive.space(context, size: Space.large) * 1.2,
                   ),
                   onTap: () async {
-                    await showDialog(
+                    await showTaskDetailsScreen(
                       context: context,
-                      builder: (_) => TaskDetailsDialog(task: widget.task),
+                      task: widget.task,
                     );
-                    // Refresh notes status after dialog closes
+                    // Refresh notes status after screen closes
                     _checkForNotes();
                   },
                   onHover: (hovered) {

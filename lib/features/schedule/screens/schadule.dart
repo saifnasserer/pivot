@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pivot/screens/models/schadule_card.dart';
 import 'package:pivot/screens/models/schedule_item.dart';
-import 'package:pivot/features/schedule/screens/add_edit_schedule_dialog.dart';
+import 'package:pivot/features/schedule/screens/add_edit_schedule_screen.dart';
 import 'package:pivot/responsive.dart';
 
 /// Enhanced schedule calendar builder with better UX and performance
@@ -378,13 +378,11 @@ class ScheduleCalendarBuilder {
   }
 
   /// Shows the add schedule dialog
-  static void _showAddScheduleDialog(BuildContext context, String selectedDay) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AddEditScheduleDialog(day: selectedDay);
-      },
-    );
+  static Future<void> _showAddScheduleDialog(
+    BuildContext context,
+    String selectedDay,
+  ) async {
+    await showAddEditScheduleScreen(context: context, day: selectedDay);
   }
 
   /// Builds enhanced floating action button with better styling
