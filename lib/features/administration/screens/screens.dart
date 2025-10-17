@@ -1,5 +1,5 @@
 // Administration screens exports
-export 'assistants/add_edit_section_dialog.dart';
+export 'assistants/add_edit_section_screen.dart';
 export 'assistants/assistant_categories.dart';
 export 'assistants/assistant_profile.dart';
 export 'assistants/assistant_subjects.dart';

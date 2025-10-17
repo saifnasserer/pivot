@@ -8,7 +8,7 @@ import 'package:pivot/features/administration/providers/sections_provider.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/features/profile/screens/profile_widgets/Profile_options.dart';
 import 'package:pivot/features/subjects/screens/subject_selection_screen.dart';
-import '../add_edit_section_dialog.dart';
+import '../add_edit_section_screen.dart';
 import '../assistant_categories.dart';
 import 'assistant_about_section.dart';
 import 'assistant_subjects_section.dart';
@@ -282,34 +282,20 @@ class _AssistantProfileMainState extends ConsumerState<AssistantProfileMain>
     // Use _currentSubject if available, otherwise use the first subject
     final selectedSubject = _currentSubject ?? subjects.first;
 
-    final result = await showDialog<Map<String, dynamic>>(
+    await showAddSectionScreen(
       context: context,
-      builder:
-          (context) => AddEditSectionDialog(
-            subjects: subjects,
-            autoSelectedSubjectId: selectedSubject.id,
-            targetAssistantId: userProfile.id,
-          ),
+      subjects: subjects,
+      autoSelectedSubjectId: selectedSubject.id,
+      targetAssistantId: userProfile.id,
     );
 
-    if (result != null && mounted) {
+    if (mounted) {
       // Reload sections for the assistant
       await ref
           .read(sectionsProvider.notifier)
           .loadSectionsForAssistant(userProfile.id);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('تم إضافة السكاشن بنجاح'),
-          backgroundColor: Colors.green,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(
-              Responsive.space(context, size: Space.large),
-            ),
-          ),
-        ),
-      );
+      // The screen handles success messages internally, no need to show here
     }
   }
 

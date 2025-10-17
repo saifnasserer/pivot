@@ -10,7 +10,7 @@ import 'package:pivot/responsive.dart';
 import 'package:pivot/features/profile/screens/profile_widgets/Profile_options.dart';
 import 'package:pivot/features/subjects/screens/screens.dart';
 import 'package:pivot/widgets/offline_banner.dart';
-import '../add_edit_section_dialog.dart';
+import '../add_edit_section_screen.dart';
 import '../assistant_categories.dart';
 import 'assistant_about_section.dart';
 import 'assistant_subjects_section.dart';
@@ -280,37 +280,17 @@ class _AssistantProfileMainState extends ConsumerState<AssistantProfileMain>
       );
       return;
     }
-
-    // TODO: Migrate SubjectProvider to Riverpod
     final subjectProvider = ref.read(SubjectProviderProvider);
     final subjects = subjectProvider.filteredSubjects;
 
-    final result = await showDialog<Map<String, dynamic>>(
+    await showAddSectionScreen(
       context: context,
-      builder:
-          (context) => AddEditSectionDialog(
-            subjects: subjects,
-            autoSelectedSubjectId: _currentSubject!.id,
-            targetAssistantId: userProfile.id,
-          ),
+      subjects: subjects,
+      autoSelectedSubjectId: _currentSubject!.id,
+      targetAssistantId: userProfile.id,
     );
 
-    if (result != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'تم إضافة السكاشن إلى مادة "${_currentSubject!.name}" بنجاح',
-          ),
-          backgroundColor: Colors.green,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(
-              Responsive.space(context, size: Space.large),
-            ),
-          ),
-        ),
-      );
-    }
+    // The screen handles success messages internally, no need to show here
   }
 
   void _onBackPressed() async {

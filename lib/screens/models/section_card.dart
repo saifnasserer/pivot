@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/models/section_model.dart';
 import 'package:pivot/features/administration/providers/sections_provider.dart';
 import 'package:pivot/features/subjects/providers/subject_provider.dart';
-import 'package:pivot/features/administration/screens/assistants/add_edit_section_dialog.dart';
+import 'package:pivot/features/administration/screens/assistants/add_edit_section_screen.dart';
 import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:gradient_borders/gradient_borders.dart';
 import 'package:pivot/responsive.dart';
@@ -144,16 +144,12 @@ class SectionCard extends ConsumerWidget {
                   );
                 },
                 onLongPress: () {
-                  showDialog(
+                  showAddSectionScreen(
                     context: context,
-                    builder: (BuildContext context) {
-                      return AddEditSectionDialog(
-                        subjects: subjects,
-                        sectionToEdit: section,
-                        autoSelectedSubjectId: section.subjectId,
-                        targetAssistantId: section.assistantId,
-                      );
-                    },
+                    subjects: subjects,
+                    sectionToEdit: section,
+                    autoSelectedSubjectId: section.subjectId,
+                    targetAssistantId: section.assistantId,
                   );
                 },
                 child: Padding(

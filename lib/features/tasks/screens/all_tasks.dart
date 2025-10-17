@@ -9,7 +9,7 @@ import 'package:pivot/widgets/unified_dialog.dart';
 import 'package:pivot/services/offline_service.dart';
 import 'package:pivot/services/sync_manager.dart';
 
-import 'add_edit_task_dialog.dart';
+import 'add_edit_task_screen.dart';
 import 'package:pivot/responsive.dart';
 
 class TasksControl extends ConsumerStatefulWidget {
@@ -349,14 +349,14 @@ class _TasksControlState extends ConsumerState<TasksControl> {
       return;
     }
 
-    showAddTaskDialog(
+    showAddTaskScreen(
       context: context,
       task: task,
       subjectId: subjectId,
       initialSectionId: sectionId,
       onSave: (savedTask) async {
-        // The dialog handles the save internally, so we don't need to refresh here
-        // The viewTasksProvider will automatically update when the dialog saves
+        // The screen handles the save internally, so we don't need to refresh here
+        // The viewTasksProvider will automatically update when the screen saves
         // This prevents unnecessary refresh calls
       },
     );
