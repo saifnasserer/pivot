@@ -71,19 +71,30 @@ class _SectionsTabState extends ConsumerState<SectionsTab>
     print('   User: ${loggedInUser.name} (${loggedInUser.id})');
     print('   Enrolled subjects: ${loggedInUser.enrolledSubjects}');
 
-    // Load subjects first (needed for display)
-    ref.read(subjectsProvider.notifier).fetchAndFilterSubjects(loggedInUser);
+    // Load subjects and sections - delay to avoid lifecycle error
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (mounted) {
+        // Load subjects first (needed for display)
+        ref
+            .read(subjectsProvider.notifier)
+            .fetchAndFilterSubjects(loggedInUser);
 
-    // Load sections snapshot (cache-first)
-    await ref
-        .read(sectionsProvider.notifier)
-        .loadSectionsForUser(loggedInUser.id, loggedInUser.enrolledSubjects);
+        // Load sections snapshot (cache-first)
+        await ref
+            .read(sectionsProvider.notifier)
+            .loadSectionsForUser(
+              loggedInUser.id,
+              loggedInUser.enrolledSubjects,
+            );
 
-    if (mounted) {
-      setState(() {
-        _hasInitialized = true;
-      });
-    }
+        // Mark as initialized after loading is complete
+        if (mounted) {
+          setState(() {
+            _hasInitialized = true;
+          });
+        }
+      }
+    });
   }
 
   /// Refresh sections snapshot from Firestore

@@ -38,8 +38,8 @@ class _AssistantSubjectsSectionState
   @override
   void initState() {
     super.initState();
-    // Initialize with length 1 to prevent mismatch errors
-    _tabController = TabController(length: 1, vsync: this);
+    // Initialize with length 0, will be updated when subjects are loaded
+    _tabController = TabController(length: 0, vsync: this);
     _previousAssistantId = widget.userProfile.id;
   }
 
@@ -121,38 +121,32 @@ class _AssistantSubjectsSectionState
       _tabController.removeListener(_onTabChanged);
       _tabController.dispose();
 
-      // Ensure we have at least length 1 to prevent mismatch errors
-      final controllerLength = subjects.isEmpty ? 1 : subjects.length;
-
       // Determine initial index - prioritize preserved target subject if available
-      int initialIndex = 0; // Default to first tab
-      if (subjects.isNotEmpty) {
-        initialIndex = subjects.length - 1; // Default to last tab
-        if (_preservedTargetSubject != null) {
-          final targetIndex = subjects.indexWhere(
-            (subject) => subject.id == _preservedTargetSubject!.id,
+      int initialIndex = subjects.isNotEmpty ? subjects.length - 1 : 0;
+      if (_preservedTargetSubject != null) {
+        final targetIndex = subjects.indexWhere(
+          (subject) => subject.id == _preservedTargetSubject!.id,
+        );
+        if (targetIndex != -1) {
+          initialIndex = targetIndex;
+          print(
+            'Setting initial index to $targetIndex for preserved target subject',
           );
-          if (targetIndex != -1) {
-            initialIndex = targetIndex;
-            print(
-              'Setting initial index to $targetIndex for preserved target subject',
-            );
-          }
-        } else if (widget.targetSubject != null) {
-          final targetIndex = subjects.indexWhere(
-            (subject) => subject.id == widget.targetSubject!.id,
+        }
+      } else if (widget.targetSubject != null) {
+        final targetIndex = subjects.indexWhere(
+          (subject) => subject.id == widget.targetSubject!.id,
+        );
+        if (targetIndex != -1) {
+          initialIndex = targetIndex;
+          print(
+            'Setting initial index to $targetIndex for widget target subject',
           );
-          if (targetIndex != -1) {
-            initialIndex = targetIndex;
-            print(
-              'Setting initial index to $targetIndex for widget target subject',
-            );
-          }
         }
       }
 
       _tabController = TabController(
-        length: controllerLength,
+        length: subjects.length,
         vsync: this,
         initialIndex: initialIndex,
       );
@@ -173,7 +167,7 @@ class _AssistantSubjectsSectionState
           }
         });
       }
-    } else if (widget.targetSubject != null && subjects.isNotEmpty) {
+    } else if (widget.targetSubject != null) {
       // If subjects haven't changed but we have a target subject, switch to it
       final targetIndex = subjects.indexWhere(
         (subject) => subject.id == widget.targetSubject!.id,
@@ -229,16 +223,17 @@ class _AssistantSubjectsSectionState
     final subjectProvider = ref.read(SubjectProviderProvider);
     final subjects = subjectProvider.filteredSubjects;
 
-    // print(
-    //   '🔄 [AssistantSubjectsSection] Loading sections for subject at index $index',
-    // );
-    // print('   Total subjects: ${subjects.length}');
+    print(
+      '🔄 [AssistantSubjectsSection] Loading sections for subject at index $index',
+    );
+    print('   Total subjects: ${subjects.length}');
 
     if (subjects.isNotEmpty && index < subjects.length) {
       final assistantId = widget.userProfile.id;
+      final subject = subjects[index];
 
-      // print('   Subject: ${subject.name}');
-      // print('   Assistant ID: $assistantId');
+      print('   Subject: ${subject.name}');
+      print('   Assistant ID: $assistantId');
 
       try {
         // Use the SectionProvider to load sections for this assistant
@@ -246,7 +241,7 @@ class _AssistantSubjectsSectionState
             .read(sectionsProvider.notifier)
             .loadSectionsForAssistant(assistantId);
 
-        // print('   ✅ Sections loaded successfully');
+        print('   ✅ Sections loaded successfully');
       } catch (e) {
         print('   ❌ Error loading sections: $e');
       }
@@ -363,20 +358,19 @@ class _AssistantSubjectsSectionState
   }
 
   Widget _buildSubjectContent(Subject subject) {
-    // Use read instead of watch to prevent unnecessary rebuilds
-    final sectionsState = ref.read(sectionsProvider);
+    final sectionsState = ref.watch(sectionsProvider);
     final sections =
         sectionsState.sections
             .where((section) => section.subjectId == subject.id)
             .toList();
 
-    // print(
-    //   '🎨 [AssistantSubjectsSection] Building content for subject: ${subject.name}',
-    // );
-    // print('   isLoading: ${sectionsState.isLoading}');
-    // print('   All sections count: ${sectionsState.sections.length}');
-    // print('   Filtered sections for this subject: ${sections.length}');
-    // print('   Error: ${sectionsState.error}');
+    print(
+      '🎨 [AssistantSubjectsSection] Building content for subject: ${subject.name}',
+    );
+    print('   isLoading: ${sectionsState.isLoading}');
+    print('   All sections count: ${sectionsState.sections.length}');
+    print('   Filtered sections for this subject: ${sections.length}');
+    print('   Error: ${sectionsState.error}');
 
     if (sectionsState.isLoading) {
       print('   → Showing loading indicator');
@@ -449,7 +443,7 @@ class _AssistantSubjectsSectionState
       );
     }
 
-    // Showing ${sections.length} sections
+    print('   → Showing ${sections.length} sections');
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -486,8 +480,7 @@ class _AssistantSubjectsSectionState
 
   @override
   Widget build(BuildContext context) {
-    // Use read instead of watch to prevent unnecessary rebuilds from keyboard/UI changes
-    final subjectProvider = ref.read(SubjectProviderProvider);
+    final subjectProvider = ref.watch(SubjectProviderProvider);
     final subjects = subjectProvider.filteredSubjects;
 
     // Safety check: ensure TabController length matches subjects length
@@ -505,44 +498,6 @@ class _AssistantSubjectsSectionState
         return Center(
           child: CircularProgressIndicator(
             valueColor: AlwaysStoppedAnimation<Color>(Colors.green[600]!),
-          ),
-        );
-      }
-
-      // If subjects is empty and not loading, return empty state immediately
-      // This prevents the TabController mismatch error
-      if (subjects.isEmpty) {
-        return Padding(
-          padding: EdgeInsets.all(
-            Responsive.space(context, size: Space.medium),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.school_outlined,
-                size: 64,
-                color: Colors.grey.shade400,
-              ),
-              SizedBox(height: 16),
-              Text(
-                'لا توجد مواد متاحة',
-                style: TextStyle(
-                  fontSize: Responsive.text(context, size: TextSize.medium),
-                  color: Colors.grey.shade600,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              SizedBox(height: 8),
-              Text(
-                'يجب إضافة مواد للمعيد أولاً',
-                style: TextStyle(
-                  fontSize: Responsive.text(context, size: TextSize.small),
-                  color: Colors.grey.shade500,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
           ),
         );
       }
@@ -583,53 +538,67 @@ class _AssistantSubjectsSectionState
       child: Column(
         children: [
           // TabBar for subjects
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.grey.shade50,
-              borderRadius: BorderRadius.circular(
-                Responsive.space(context, size: Space.large),
-              ),
-              border: Border.all(color: Colors.grey.shade200, width: 1),
-            ),
-            child: TabBar(
-              controller: _tabController,
-              isScrollable: true,
-              indicator: BoxDecoration(
-                borderRadius: BorderRadius.circular(
-                  Responsive.space(context, size: Space.large),
+          _tabController.length == subjects.length
+              ? Container(
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(
+                    Responsive.space(context, size: Space.large),
+                  ),
+                  border: Border.all(color: Colors.grey.shade200, width: 1),
                 ),
-                color: Colors.black,
-              ),
-              indicatorSize: TabBarIndicatorSize.tab,
-              labelColor: Colors.white,
-              unselectedLabelColor: Colors.black,
-              labelStyle: TextStyle(
-                fontSize: Responsive.text(context, size: TextSize.medium),
-                fontWeight: FontWeight.w600,
-                fontFamily: 'NotoSansArabic',
-              ),
-              unselectedLabelStyle: TextStyle(
-                fontSize: Responsive.text(context, size: TextSize.medium),
-                fontWeight: FontWeight.w500,
-                fontFamily: 'NotoSansArabic',
-              ),
-              padding: EdgeInsets.symmetric(
-                horizontal: Responsive.space(context, size: Space.medium),
-              ),
-              tabs: subjects.map((subject) => Tab(text: subject.name)).toList(),
-            ),
-          ),
+                child: TabBar(
+                  controller: _tabController,
+                  isScrollable: true,
+                  indicator: BoxDecoration(
+                    borderRadius: BorderRadius.circular(
+                      Responsive.space(context, size: Space.large),
+                    ),
+                    color: Colors.black,
+                  ),
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  labelColor: Colors.white,
+                  unselectedLabelColor: Colors.black,
+                  labelStyle: TextStyle(
+                    fontSize: Responsive.text(context, size: TextSize.medium),
+                    fontWeight: FontWeight.w600,
+                    fontFamily: 'NotoSansArabic',
+                  ),
+                  unselectedLabelStyle: TextStyle(
+                    fontSize: Responsive.text(context, size: TextSize.medium),
+                    fontWeight: FontWeight.w500,
+                    fontFamily: 'NotoSansArabic',
+                  ),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: Responsive.space(context, size: Space.medium),
+                  ),
+                  tabs:
+                      subjects
+                          .map((subject) => Tab(text: subject.name))
+                          .toList(),
+                ),
+              )
+              : SizedBox.shrink(),
           SizedBox(height: Responsive.space(context, size: Space.medium)),
 
           // TabBarView for subject content
           Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children:
-                  subjects
-                      .map((subject) => _buildSubjectContent(subject))
-                      .toList(),
-            ),
+            child:
+                _tabController.length == subjects.length
+                    ? TabBarView(
+                      controller: _tabController,
+                      children:
+                          subjects
+                              .map((subject) => _buildSubjectContent(subject))
+                              .toList(),
+                    )
+                    : Center(
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          Colors.green[600]!,
+                        ),
+                      ),
+                    ),
           ),
         ],
       ),
