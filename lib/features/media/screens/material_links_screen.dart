@@ -805,7 +805,7 @@ class _MaterialLinksScreenState extends ConsumerState<MaterialLinksScreen> {
           Icon(Icons.menu_book_outlined, size: 64, color: Colors.grey.shade400),
           SizedBox(height: 16),
           Text(
-            'لا توجد مواد متاحة',
+            'لا توجد ماتيريال متاحة',
             style: TextStyle(
               color: Colors.grey.shade600,
               fontSize: Responsive.text(context, size: TextSize.medium),
@@ -814,7 +814,7 @@ class _MaterialLinksScreenState extends ConsumerState<MaterialLinksScreen> {
           ),
           SizedBox(height: 8),
           Text(
-            'اضغط على زر الإضافة لإنشاء مادة جديدة',
+            'اضغط على زر الإضافة لاضافة ماتيريال جديد',
             style: TextStyle(
               color: Colors.grey.shade500,
               fontSize: Responsive.text(context, size: TextSize.small),

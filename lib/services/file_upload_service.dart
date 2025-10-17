@@ -7,13 +7,12 @@ class FileUploadService {
   final BackblazeService _backblazeService = BackblazeService();
 
   /// Pick a file from device
-  /// 
+  ///
   /// Returns file info or null if cancelled
   Future<PickedFileInfo?> pickFile() async {
     try {
       final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['pdf', 'docx', 'pptx', 'jpg', 'jpeg', 'png'],
+        type: FileType.any, // Allow all file types
         withData: true, // Get file bytes
       );
 
@@ -22,7 +21,7 @@ class FileUploadService {
       }
 
       final file = result.files.first;
-      
+
       // Validate file
       if (file.name.isEmpty) {
         throw Exception('اسم الملف غير صالح');
@@ -33,16 +32,15 @@ class FileUploadService {
       }
 
       if (!BackblazeService.isValidFileSize(file.size)) {
-        throw Exception(
-          'حجم الملف كبير جداً. الحد الأقصى 20 ميجابايت',
-        );
+        throw Exception('حجم الملف كبير جداً. الحد الأقصى 20 ميجابايت');
       }
 
-      if (!BackblazeService.isAllowedFileType(file.name)) {
-        throw Exception(
-          'نوع الملف غير مدعوم. الأنواع المدعومة: PDF, DOCX, PPTX, JPG, PNG',
-        );
-      }
+      // File type validation removed - allow all file types
+      // if (!BackblazeService.isAllowedFileType(file.name)) {
+      //   throw Exception(
+      //     'نوع الملف غير مدعوم. الأنواع المدعومة: PDF, DOCX, PPTX, JPG, PNG',
+      //   );
+      // }
 
       // Get file bytes
       List<int>? bytes;
@@ -67,7 +65,7 @@ class FileUploadService {
   }
 
   /// Upload file to Backblaze with progress callback
-  /// 
+  ///
   /// Returns material info if successful
   Future<UploadResult> uploadFile({
     required PickedFileInfo fileInfo,
@@ -80,11 +78,13 @@ class FileUploadService {
   }) async {
     try {
       // Step 1: Generate upload URL
-      onProgress?.call(UploadProgress(
-        stage: UploadStage.generatingUrl,
-        progress: 0.1,
-        message: 'جاري التحضير...',
-      ));
+      onProgress?.call(
+        UploadProgress(
+          stage: UploadStage.generatingUrl,
+          progress: 0.1,
+          message: 'جاري التحضير...',
+        ),
+      );
 
       final uploadAuth = await _backblazeService.generateUploadUrl(
         title: title,
@@ -100,11 +100,13 @@ class FileUploadService {
       }
 
       // Step 2: Upload file to Backblaze
-      onProgress?.call(UploadProgress(
-        stage: UploadStage.uploading,
-        progress: 0.5,
-        message: 'جاري رفع الملف...',
-      ));
+      onProgress?.call(
+        UploadProgress(
+          stage: UploadStage.uploading,
+          progress: 0.5,
+          message: 'جاري رفع الملف...',
+        ),
+      );
 
       final uploadSuccess = await _backblazeService.uploadFile(
         uploadUrl: uploadAuth['uploadUrl'],
@@ -119,11 +121,13 @@ class FileUploadService {
       }
 
       // Step 3: Confirm upload and save metadata
-      onProgress?.call(UploadProgress(
-        stage: UploadStage.confirming,
-        progress: 0.9,
-        message: 'جاري الحفظ...',
-      ));
+      onProgress?.call(
+        UploadProgress(
+          stage: UploadStage.confirming,
+          progress: 0.9,
+          message: 'جاري الحفظ...',
+        ),
+      );
 
       final confirmResult = await _backblazeService.confirmUpload(
         title: title,
@@ -142,11 +146,13 @@ class FileUploadService {
       }
 
       // Step 4: Complete
-      onProgress?.call(UploadProgress(
-        stage: UploadStage.complete,
-        progress: 1.0,
-        message: 'تم الرفع بنجاح',
-      ));
+      onProgress?.call(
+        UploadProgress(
+          stage: UploadStage.complete,
+          progress: 1.0,
+          message: 'تم الرفع بنجاح',
+        ),
+      );
 
       return UploadResult(
         success: true,
@@ -157,17 +163,16 @@ class FileUploadService {
       );
     } catch (e) {
       print('Error uploading file: $e');
-      
-      onProgress?.call(UploadProgress(
-        stage: UploadStage.error,
-        progress: 0.0,
-        message: 'فشل الرفع: ${e.toString()}',
-      ));
 
-      return UploadResult(
-        success: false,
-        error: e.toString(),
+      onProgress?.call(
+        UploadProgress(
+          stage: UploadStage.error,
+          progress: 0.0,
+          message: 'فشل الرفع: ${e.toString()}',
+        ),
       );
+
+      return UploadResult(success: false, error: e.toString());
     }
   }
 }
@@ -203,13 +208,7 @@ class UploadProgress {
 }
 
 /// Stages of upload process
-enum UploadStage {
-  generatingUrl,
-  uploading,
-  confirming,
-  complete,
-  error,
-}
+enum UploadStage { generatingUrl, uploading, confirming, complete, error }
 
 /// Result of upload operation
 class UploadResult {
@@ -229,4 +228,3 @@ class UploadResult {
     this.error,
   });
 }
-

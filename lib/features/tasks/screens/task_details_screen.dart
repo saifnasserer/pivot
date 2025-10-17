@@ -8,6 +8,7 @@ import 'package:pivot/features/home/screens/adminstration/animated_route.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class TaskDetailsScreen extends ConsumerStatefulWidget {
   final Task task;
@@ -587,128 +588,7 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen>
           if (task.attachments != null && task.attachments!.isNotEmpty) ...[
             SizedBox(height: Responsive.space(context, size: Space.medium)),
             _buildSectionHeader('المرفقات', Icons.attach_file),
-            ...task.attachments!.map((attachment) {
-              return Container(
-                margin: EdgeInsets.only(
-                  bottom: Responsive.space(context, size: Space.small),
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.grey[50],
-                  borderRadius: BorderRadius.circular(
-                    Responsive.space(context, size: Space.large),
-                  ),
-                  border: Border.all(color: Colors.grey[200]!),
-                ),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(
-                    Responsive.space(context, size: Space.large),
-                  ),
-                  onTap: () async {
-                    final url = attachment['url'];
-                    if (url != null) {
-                      try {
-                        final uri = Uri.parse(url);
-                        if (await canLaunchUrl(uri)) {
-                          await launchUrl(
-                            uri,
-                            mode: LaunchMode.externalApplication,
-                          );
-                        } else {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('تعذر فتح الملف'),
-                                backgroundColor: Colors.red,
-                                behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(
-                                    Responsive.space(
-                                      context,
-                                      size: Space.large,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            );
-                          }
-                        }
-                      } catch (e) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('خطأ في فتح الملف: $e'),
-                              backgroundColor: Colors.red,
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(
-                                  Responsive.space(context, size: Space.large),
-                                ),
-                              ),
-                            ),
-                          );
-                        }
-                      }
-                    }
-                  },
-                  child: Padding(
-                    padding: EdgeInsets.all(
-                      Responsive.space(context, size: Space.medium),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Icon(
-                          Icons.open_in_new,
-                          color: headerColor,
-                          size: Responsive.space(context, size: Space.medium),
-                        ),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                attachment['title'] ?? 'ملف مرفق',
-                                style: TextStyle(
-                                  fontSize: Responsive.text(
-                                    context,
-                                    size: TextSize.medium,
-                                  ),
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.black87,
-                                ),
-                                textAlign: TextAlign.start,
-                              ),
-                              SizedBox(
-                                height: Responsive.space(
-                                  context,
-                                  size: Space.tiny,
-                                ),
-                              ),
-                              Text(
-                                'اضغط لفتح الملف',
-                                style: TextStyle(
-                                  fontSize: Responsive.text(
-                                    context,
-                                    size: TextSize.small,
-                                  ),
-                                  color: Colors.grey[600],
-                                ),
-                                textAlign: TextAlign.start,
-                              ),
-                            ],
-                          ),
-                        ),
-                        Icon(
-                          Icons.attach_file,
-                          color: headerColor,
-                          size: Responsive.space(context, size: Space.medium),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }),
+            _buildAttachmentsSection(task.attachments!, headerColor),
           ],
 
           // Notes Section
@@ -910,6 +790,266 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen>
     );
   }
 
+  Widget _buildAttachmentsSection(
+    List<Map<String, String>> attachments,
+    Color headerColor,
+  ) {
+    print(
+      '📎 [TaskDetails] Building attachments section with ${attachments.length} attachments',
+    );
+    for (var att in attachments) {
+      print(
+        '📎 [TaskDetails] Attachment: ${att['title']} - Type: ${att['type']} - URL: ${att['url']}',
+      );
+    }
+
+    // Separate images from other attachments
+    final images = attachments.where((att) => att['type'] == 'image').toList();
+    final otherAttachments =
+        attachments.where((att) => att['type'] != 'image').toList();
+
+    print(
+      '📎 [TaskDetails] Found ${images.length} images and ${otherAttachments.length} other attachments',
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Image Gallery (if there are images)
+        if (images.isNotEmpty) ...[
+          _buildImageGallery(images),
+          if (otherAttachments.isNotEmpty)
+            SizedBox(height: Responsive.space(context, size: Space.medium)),
+        ],
+
+        // Other Attachments (files, links, materials)
+        if (otherAttachments.isNotEmpty) ...[
+          ...otherAttachments.map((attachment) {
+            return Container(
+              margin: EdgeInsets.only(
+                bottom: Responsive.space(context, size: Space.small),
+              ),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(
+                  Responsive.space(context, size: Space.large),
+                ),
+                border: Border.all(color: Colors.grey[200]!),
+              ),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(
+                  Responsive.space(context, size: Space.large),
+                ),
+                onTap: () async {
+                  final url = attachment['url'];
+                  if (url != null) {
+                    try {
+                      final uri = Uri.parse(url);
+                      if (await canLaunchUrl(uri)) {
+                        await launchUrl(
+                          uri,
+                          mode: LaunchMode.externalApplication,
+                        );
+                      } else {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('تعذر فتح الملف'),
+                              backgroundColor: Colors.red,
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(
+                                  Responsive.space(context, size: Space.large),
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('خطأ في فتح الملف: $e'),
+                            backgroundColor: Colors.red,
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(
+                                Responsive.space(context, size: Space.large),
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+                    }
+                  }
+                },
+                child: Padding(
+                  padding: EdgeInsets.all(
+                    Responsive.space(context, size: Space.medium),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Icon(
+                        _getAttachmentIcon(attachment['type']),
+                        color: headerColor,
+                        size: Responsive.space(context, size: Space.medium),
+                      ),
+                      SizedBox(
+                        width: Responsive.space(context, size: Space.small),
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              attachment['title'] ?? 'ملف مرفق',
+                              style: TextStyle(
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.medium,
+                                ),
+                                fontWeight: FontWeight.w500,
+                                color: Colors.black87,
+                              ),
+                              textAlign: TextAlign.start,
+                            ),
+                            SizedBox(
+                              height: Responsive.space(
+                                context,
+                                size: Space.tiny,
+                              ),
+                            ),
+                            Text(
+                              'اضغط لفتح الملف',
+                              style: TextStyle(
+                                fontSize: Responsive.text(
+                                  context,
+                                  size: TextSize.small,
+                                ),
+                                color: Colors.grey[600],
+                              ),
+                              textAlign: TextAlign.start,
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(
+                        Icons.open_in_new,
+                        color: headerColor,
+                        size: Responsive.space(context, size: Space.medium),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildImageGallery(List<Map<String, String>> images) {
+    return Container(
+      height: Responsive.space(context, size: Space.large) * 2,
+      margin: EdgeInsets.only(
+        top: Responsive.space(context, size: Space.medium),
+      ),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: images.length,
+        itemBuilder: (context, index) {
+          final image = images[index];
+          final imageUrl = image['url'] ?? '';
+          return Padding(
+            padding: EdgeInsets.only(
+              left: Responsive.space(context, size: Space.small),
+            ),
+            child: GestureDetector(
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder:
+                        (context) => FullScreenImageViewer(imageUrl: imageUrl),
+                  ),
+                );
+              },
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(
+                  Responsive.space(context, size: Space.large),
+                ),
+                child: Hero(
+                  tag: imageUrl,
+                  child: CachedNetworkImage(
+                    imageUrl: imageUrl,
+                    width: Responsive.space(context, size: Space.large) * 2,
+                    height: Responsive.space(context, size: Space.large) * 2,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) {
+                      print('🖼️ [TaskDetails] Loading image: $url');
+                      return Container(
+                        width: Responsive.space(context, size: Space.large),
+                        height: Responsive.space(context, size: Space.large),
+                        color: Colors.grey[200],
+                        child: const Center(child: CircularProgressIndicator()),
+                      );
+                    },
+                    errorWidget: (context, url, error) {
+                      print(
+                        '❌ [TaskDetails] Error loading image: $url - Error: $error',
+                      );
+                      return Container(
+                        width: Responsive.space(context, size: Space.large) * 2,
+                        height:
+                            Responsive.space(context, size: Space.large) * 2,
+                        color: Colors.grey[200],
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.broken_image,
+                              color: Colors.grey,
+                              size: 24,
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'خطأ في تحميل الصورة',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.grey[600],
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  IconData _getAttachmentIcon(String? type) {
+    switch (type) {
+      case 'file':
+        return Icons.upload_file;
+      case 'link':
+        return Icons.link;
+      case 'image':
+        return Icons.image;
+      default:
+        return Icons.attach_file;
+    }
+  }
+
   Widget _buildSectionHeader(String title, IconData icon) {
     return Padding(
       padding: EdgeInsets.only(
@@ -956,6 +1096,150 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen>
       case TaskImportance.low:
         return 'منخفضة';
     }
+  }
+}
+
+class FullScreenImageViewer extends StatefulWidget {
+  final String imageUrl;
+
+  const FullScreenImageViewer({super.key, required this.imageUrl});
+
+  @override
+  _FullScreenImageViewerState createState() => _FullScreenImageViewerState();
+}
+
+class _FullScreenImageViewerState extends State<FullScreenImageViewer>
+    with SingleTickerProviderStateMixin {
+  late TransformationController _transformationController;
+  late AnimationController _animationController;
+  Animation<Offset>? _animation;
+  Offset _dragOffset = Offset.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _transformationController = TransformationController();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    );
+    _animationController.addListener(() {
+      if (_animation != null && mounted) {
+        setState(() {
+          _dragOffset = _animation!.value;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _transformationController.dispose();
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  void _onVerticalDragUpdate(DragUpdateDetails details) {
+    // Only allow dragging when not scaled
+    if (_transformationController.value.getMaxScaleOnAxis() <= 1.0 && mounted) {
+      setState(() {
+        _dragOffset += details.delta;
+      });
+    }
+  }
+
+  void _onVerticalDragEnd(DragEndDetails details) {
+    if (_transformationController.value.getMaxScaleOnAxis() > 1.0) {
+      return; // Don't dismiss if zoomed
+    }
+
+    final screenHeight = MediaQuery.of(context).size.height;
+    // Dismiss if dragged down far enough or with enough velocity
+    if ((details.primaryVelocity ?? 0) > 500 ||
+        _dragOffset.dy > screenHeight / 4) {
+      Navigator.of(context).pop();
+    } else {
+      // Animate back to center
+      _animation = Tween<Offset>(begin: _dragOffset, end: Offset.zero).animate(
+        CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+      );
+      _animationController.forward(from: 0);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Calculate background opacity based on drag distance
+    final double opacity = (1.0 -
+            (_dragOffset.dy.abs() / (MediaQuery.of(context).size.height / 2)))
+        .clamp(0.4, 1.0);
+
+    return Scaffold(
+      backgroundColor: Colors.black.withOpacity(opacity),
+      body: Stack(
+        children: [
+          GestureDetector(
+            onVerticalDragUpdate: _onVerticalDragUpdate,
+            onVerticalDragEnd: _onVerticalDragEnd,
+            child: Transform.translate(
+              offset: _dragOffset,
+              child: Center(
+                child: InteractiveViewer(
+                  transformationController: _transformationController,
+                  panEnabled: true,
+                  minScale: 0.5,
+                  maxScale: 4.0,
+                  child: Hero(
+                    tag: widget.imageUrl,
+                    child: CachedNetworkImage(
+                      imageUrl: widget.imageUrl,
+                      placeholder: (context, url) {
+                        print('🖼️ [FullScreen] Loading image: $url');
+                        return const Center(child: CircularProgressIndicator());
+                      },
+                      errorWidget: (context, url, error) {
+                        print(
+                          '❌ [FullScreen] Error loading image: $url - Error: $error',
+                        );
+                        return Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.error,
+                              size: 48,
+                              color: Colors.red,
+                            ),
+                            SizedBox(height: 16),
+                            Text('خطأ في تحميل الصورة'),
+                            Text('URL: $url'),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // Back button
+          Positioned(
+            top: Responsive.space(context, size: Space.medium),
+            left: Responsive.space(context, size: Space.medium),
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back_ios_new,
+                color: Colors.white,
+                size: 24.0,
+              ),
+              onPressed: () => Navigator.of(context).pop(),
+              style: IconButton.styleFrom(
+                backgroundColor: Colors.black.withOpacity(0.3),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

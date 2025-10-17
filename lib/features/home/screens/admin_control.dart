@@ -44,6 +44,9 @@ class _AdminControlState extends ConsumerState<AdminControl> {
   }
 
   Future<void> _initializeData() async {
+    // Delay provider modifications until after widget tree is built
+    await Future(() {});
+
     try {
       print('🚀 AdminControl: Starting initialization...');
 
@@ -905,11 +908,7 @@ class _AdminControlState extends ConsumerState<AdminControl> {
                         print(
                           '🔄 AdminControl: Refreshing announcements after add',
                         );
-                        ref
-                            .read(announcementsProvider.notifier)
-                            .fetchAnnouncements(
-                              includeScheduledAndExpired: true,
-                            );
+                        _refreshData();
                       });
                 },
                 icon: Icons.add_rounded,
@@ -936,9 +935,7 @@ class _AdminControlState extends ConsumerState<AdminControl> {
         .then((_) {
           // Refresh announcements after returning from edit screen
           print('🔄 AdminControl: Refreshing announcements after edit');
-          ref
-              .read(announcementsProvider.notifier)
-              .fetchAnnouncements(includeScheduledAndExpired: true);
+          _refreshData();
         });
   }
 
@@ -978,6 +975,13 @@ class _AdminControlState extends ConsumerState<AdminControl> {
       if (userProfile != null && userProfile.department.isNotEmpty && mounted) {
         setState(() {
           _departmentFilter = userProfile.department;
+          _rebuildCounter++;
+        });
+      }
+
+      // Force UI rebuild to show updated data
+      if (mounted) {
+        setState(() {
           _rebuildCounter++;
         });
       }

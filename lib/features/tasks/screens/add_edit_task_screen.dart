@@ -1,19 +1,24 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart' as intl;
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:pivot/features/administration/providers/sections_provider.dart';
 import 'package:pivot/features/user/providers/user_profile_provider.dart';
-import 'package:pivot/features/media/services/materials_service.dart';
 import 'package:pivot/features/subjects/providers/subject_provider.dart';
-import 'package:pivot/models/material_link.dart';
 import 'package:pivot/models/section_model.dart';
 import 'package:pivot/screens/models/task.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/features/auth/providers/auth_provider.dart';
 import 'package:pivot/features/tasks/providers/tasks_provider.dart';
 import 'package:pivot/services/offline_service.dart';
+import 'package:pivot/services/file_upload_service.dart';
 import 'package:pivot/features/home/screens/adminstration/animated_route.dart';
+
+// Import feature files
+import 'add_edit_task/features/file_upload_feature.dart';
+import 'add_edit_task/features/material_selection_feature.dart';
+import 'add_edit_task/features/form_fields_feature.dart';
+import 'add_edit_task/features/attachments_display_feature.dart';
 
 // Function to show the Add/Edit Task Screen
 Future<void> showAddTaskScreen({
@@ -26,7 +31,7 @@ Future<void> showAddTaskScreen({
   await Navigator.of(context).push(
     AnimatedAddRoute(
       startPosition: Offset.zero,
-      child: AddEditTaskScreen(
+      child: AddEditTaskScreenRefactored(
         onSave: onSave,
         task: task,
         subjectId: subjectId,
@@ -36,13 +41,13 @@ Future<void> showAddTaskScreen({
   );
 }
 
-class AddEditTaskScreen extends ConsumerStatefulWidget {
+class AddEditTaskScreenRefactored extends ConsumerStatefulWidget {
   final Future<void> Function(Task) onSave;
   final Task? task;
   final String subjectId;
   final String? initialSectionId;
 
-  const AddEditTaskScreen({
+  const AddEditTaskScreenRefactored({
     super.key,
     required this.onSave,
     this.task,
@@ -51,10 +56,12 @@ class AddEditTaskScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<AddEditTaskScreen> createState() => _AddEditTaskScreenState();
+  ConsumerState<AddEditTaskScreenRefactored> createState() =>
+      _AddEditTaskScreenRefactoredState();
 }
 
-class _AddEditTaskScreenState extends ConsumerState<AddEditTaskScreen>
+class _AddEditTaskScreenRefactoredState
+    extends ConsumerState<AddEditTaskScreenRefactored>
     with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _titleController;
@@ -64,20 +71,26 @@ class _AddEditTaskScreenState extends ConsumerState<AddEditTaskScreen>
   String? _selectedSubjectId;
   String? _selectedSectionId;
   List<Map<String, String>> selectedMaterials = [];
+  List<Map<String, String>> _uploadedFiles = [];
+  List<Map<String, String>> _uploadedImages = [];
+  List<Map<String, String>> _addedLinks = [];
   bool _isEditing = false;
   bool _isSaving = false;
+
+  // Feature instances
+  final FileUploadFeature _fileUploadFeature = FileUploadFeature();
+  final MaterialSelectionFeature _materialSelectionFeature =
+      MaterialSelectionFeature();
+  final FormFieldsFeature _formFieldsFeature = FormFieldsFeature();
+  final AttachmentsDisplayFeature _attachmentsDisplayFeature =
+      AttachmentsDisplayFeature();
+  final FileUploadService _fileUploadService = FileUploadService();
 
   // Animation controllers
   late AnimationController _fadeController;
   late AnimationController _slideController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
-
-  final Map<TaskImportance, String> _importanceLabels = {
-    TaskImportance.high: 'مهمه',
-    TaskImportance.mid: 'نص نص',
-    TaskImportance.low: 'عادي',
-  };
 
   @override
   void initState() {
@@ -197,6 +210,11 @@ class _AddEditTaskScreenState extends ConsumerState<AddEditTaskScreen>
 
   Future<void> _saveTask() async {
     if (_isSaving) return; // Prevent multiple saves
+
+    print('💾 [TaskCreation] Starting task save process...');
+    print('💾 [TaskCreation] Images to upload: ${_uploadedImages.length}');
+    print('💾 [TaskCreation] Files to upload: ${_uploadedFiles.length}');
+    print('💾 [TaskCreation] Links to add: ${_addedLinks.length}');
 
     if (_formKey.currentState!.validate()) {
       if (_selectedSubjectId == null) {
@@ -324,6 +342,121 @@ class _AddEditTaskScreenState extends ConsumerState<AddEditTaskScreen>
         subjectName = 'مادة غير محددة';
       }
 
+      // Upload local images and files first
+      List<Map<String, String>> processedAttachments = [
+        ...selectedMaterials,
+        ..._addedLinks,
+      ];
+
+      print('🔄 [TaskCreation] Starting image upload process...');
+      print('🔄 [TaskCreation] Processing ${_uploadedImages.length} images');
+
+      // Upload images that are marked as local
+      for (var imageData in _uploadedImages) {
+        print(
+          '🔄 [TaskCreation] Processing image: ${imageData['title']} - isLocal: ${imageData['isLocal']}',
+        );
+        if (imageData['isLocal'] == 'true') {
+          // Compress image before upload
+          try {
+            print('🔄 Compressing image: ${imageData['url']}');
+            final compressedImage = await FlutterImageCompress.compressWithFile(
+              imageData['url']!,
+              quality: 85,
+              minWidth: 800,
+              minHeight: 600,
+            );
+
+            if (compressedImage != null) {
+              print('✅ Image compressed successfully');
+
+              // Upload compressed image using Backblaze
+              print('🔄 [TaskCreation] Starting Backblaze upload...');
+              print('🔄 [TaskCreation] Subject ID: $_selectedSubjectId');
+              print('🔄 [TaskCreation] Assistant ID: ${section.assistantId}');
+
+              // Ensure the file has a proper extension
+              final fileName = '${imageData['title'] ?? 'image'}.jpg';
+              print('🔄 [TaskCreation] File name: $fileName');
+
+              final uploadResult = await _fileUploadService.uploadFile(
+                fileInfo: PickedFileInfo(
+                  name: fileName,
+                  size: compressedImage.length,
+                  bytes: compressedImage,
+                  extension: 'jpg',
+                ),
+                title: imageData['title'] ?? 'صورة مرفقة',
+                description: 'مرفق تاسك',
+                subjectId: _selectedSubjectId,
+                assistantId: section.assistantId,
+              );
+
+              print(
+                '🔄 [TaskCreation] Upload result: success=${uploadResult.success}',
+              );
+              print(
+                '🔄 [TaskCreation] Download URL: ${uploadResult.downloadUrl}',
+              );
+              print('🔄 [TaskCreation] Error: ${uploadResult.error}');
+              print(
+                '🔄 [TaskCreation] File info: name=$fileName, size=${compressedImage.length}, extension=jpg',
+              );
+
+              if (uploadResult.success && uploadResult.downloadUrl != null) {
+                final attachmentData = {
+                  'title': imageData['title'] ?? 'صورة مرفقة',
+                  'url': uploadResult.downloadUrl!,
+                  'type': 'image',
+                };
+                processedAttachments.add(attachmentData);
+                print('✅ Image uploaded successfully');
+                print('🔗 Image URL: ${uploadResult.downloadUrl}');
+                print('🔗 Attachment data: $attachmentData');
+              } else {
+                print('❌ Image upload failed - using local path as fallback');
+                print('❌ Local image data: $imageData');
+                processedAttachments.add(imageData);
+              }
+            } else {
+              print('❌ Image compression failed');
+              processedAttachments.add(imageData);
+            }
+          } catch (e) {
+            print('❌ Failed to upload image: $e');
+            // Keep original local data as fallback
+            processedAttachments.add(imageData);
+          }
+        } else {
+          // Already uploaded, add as is
+          processedAttachments.add(imageData);
+        }
+      }
+
+      // Upload files that are marked as local
+      for (var fileData in _uploadedFiles) {
+        if (fileData['isLocal'] == 'true') {
+          // For now, skip file upload since we don't have the file info
+          // This is a limitation of the current implementation
+          print('⚠️ File upload skipped - file info not available');
+          processedAttachments.add(fileData);
+        } else {
+          // Already uploaded, add as is
+          processedAttachments.add(fileData);
+        }
+      }
+
+      // Combine all attachments
+      final allAttachments = processedAttachments;
+      print(
+        '📎 [TaskCreation] Final attachments count: ${allAttachments.length}',
+      );
+      for (var att in allAttachments) {
+        print(
+          '📎 [TaskCreation] Final attachment: ${att['title']} - Type: ${att['type']} - URL: ${att['url']}',
+        );
+      }
+
       final newTask = Task(
         id: widget.task?.id,
         title: _titleController.text.trim(),
@@ -332,10 +465,8 @@ class _AddEditTaskScreenState extends ConsumerState<AddEditTaskScreen>
         importance: _selectedImportance,
         subjectId: _selectedSubjectId!,
         sectionId: _selectedSectionId!,
-        assistantId:
-            section
-                .assistantId, // Set the assistant ID to the section's assistant
-        attachments: selectedMaterials,
+        assistantId: section.assistantId,
+        attachments: allAttachments,
         assistantName: assistantName,
         sectionNumber: sectionNumber,
         subjectName: subjectName,
@@ -437,265 +568,8 @@ class _AddEditTaskScreenState extends ConsumerState<AddEditTaskScreen>
     }
   }
 
-  Future<void> _showMaterialsSelectionDialog() async {
-    if (kDebugMode) {
-      print('🎯 [AddTaskScreen] Materials selection button pressed');
-      print('   Selected Subject ID: $_selectedSubjectId');
-      print('   Selected Section ID: $_selectedSectionId');
-    }
-
-    if (_selectedSubjectId == null || _selectedSectionId == null) {
-      if (kDebugMode) {
-        print('   ❌ Missing subject or section ID');
-      }
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('يرجى اختيار المادة والسكشن أولاً'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-      }
-      return;
-    }
-
-    // Check if widget is still mounted before ref call
-    if (!mounted) return;
-
-    // Get section to find assistant ID
-    final sectionsState = ref.read(sectionsProvider);
-    if (kDebugMode) {
-      print('   📋 Total sections available: ${sectionsState.sections.length}');
-    }
-
-    // Safe section lookup without throwing exception
-    Section? section;
-    try {
-      section = sectionsState.sections.firstWhere(
-        (s) => s.id == _selectedSectionId,
-      );
-    } catch (e) {
-      section = null;
-    }
-
-    if (section == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('السكشن المحدد غير موجود'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-      return;
-    }
-
-    if (kDebugMode) {
-      print('   ✅ Found section: ${section.name}');
-      print('   👤 Assistant ID: ${section.assistantId}');
-    }
-
-    // Show loading indicator
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder:
-          (context) => Center(
-            child: Card(
-              child: Padding(
-                padding: Responsive.padding(context, size: Space.large),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(color: Colors.black),
-                    SizedBox(
-                      height: Responsive.space(context, size: Space.medium),
-                    ),
-                    Text('جاري تحميل المواد...'),
-                  ],
-                ),
-              ),
-            ),
-          ),
-    );
-
-    try {
-      if (kDebugMode) {
-        print('   🔄 Starting to load materials...');
-      }
-
-      // Use service directly to avoid AutoDispose issues
-      final materialsService = MaterialsService();
-      final availableMaterials = await materialsService
-          .getMaterialsBySubjectAndAssistant(
-            _selectedSubjectId!,
-            section.assistantId,
-          );
-
-      if (kDebugMode) {
-        print('   ✅ Materials loaded successfully');
-      }
-
-      if (!mounted) {
-        if (kDebugMode) {
-          print('   ⚠️ Widget not mounted, aborting');
-        }
-        Navigator.of(context).pop(); // Close loading
-        return;
-      }
-
-      if (kDebugMode) {
-        print('   📚 Available materials count: ${availableMaterials.length}');
-        for (var i = 0; i < availableMaterials.length; i++) {
-          print(
-            '      [$i] ${availableMaterials[i].displayTitle} (${availableMaterials[i].type.name})',
-          );
-        }
-      }
-
-      // Close loading indicator
-      Navigator.of(context).pop();
-
-      if (!mounted) return;
-
-      if (availableMaterials.isEmpty) {
-        if (kDebugMode) {
-          print('   ⚠️ No materials available, showing warning');
-        }
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('لا توجد مواد متاحة لهذا السكشن'),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        }
-        return;
-      }
-
-      if (kDebugMode) {
-        print('   📖 Opening material selection dialog...');
-      }
-
-      // Show selection dialog
-      final selected = await showDialog<List<MaterialLink>>(
-        context: context,
-        builder:
-            (context) => _MaterialSelectionDialog(
-              materials: availableMaterials,
-              alreadySelected:
-                  selectedMaterials.map((m) => m['url'] ?? '').toList(),
-            ),
-      );
-
-      if (selected != null && selected.isNotEmpty && mounted) {
-        if (kDebugMode) {
-          print('   ✅ User selected ${selected.length} material(s):');
-          for (var material in selected) {
-            print('      - ${material.displayTitle}');
-          }
-        }
-
-        if (mounted) {
-          setState(() {
-            for (var material in selected) {
-              if (!selectedMaterials.any((m) => m['url'] == material.url)) {
-                selectedMaterials.add({
-                  'title': material.displayTitle,
-                  'url': material.url,
-                });
-                if (kDebugMode) {
-                  print('      ➕ Added: ${material.displayTitle}');
-                }
-              } else {
-                if (kDebugMode) {
-                  print(
-                    '      ⏭️ Skipped (already added): ${material.displayTitle}',
-                  );
-                }
-              }
-            }
-          });
-        }
-
-        if (kDebugMode) {
-          print(
-            '   📊 Total materials now attached: ${selectedMaterials.length}',
-          );
-        }
-      } else {
-        if (kDebugMode) {
-          print('   ❌ No materials selected or dialog cancelled');
-        }
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('   ❌ ERROR in material selection: $e');
-        print('   Stack trace: ${StackTrace.current}');
-      }
-
-      // Close loading indicator if still open
-      if (Navigator.of(context).canPop()) {
-        Navigator.of(context).pop();
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('فشل في تحميل المواد: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final borderRadius = BorderRadius.circular(
-      Responsive.space(context, size: Space.large),
-    );
-    final commonDecoration = InputDecoration(
-      border: OutlineInputBorder(
-        borderRadius: borderRadius,
-        borderSide: BorderSide(color: Colors.grey.shade400),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: borderRadius,
-        borderSide: BorderSide(color: Colors.grey.shade400),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: borderRadius,
-        borderSide: BorderSide(
-          color: Theme.of(context).primaryColor,
-          width: 1.5,
-        ),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: borderRadius,
-        borderSide: const BorderSide(color: Colors.red, width: 1.5),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: borderRadius,
-        borderSide: const BorderSide(color: Colors.red, width: 1.5),
-      ),
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 16.0,
-        vertical: 12.0,
-      ),
-      fillColor: Colors.grey.shade100,
-      filled: true,
-      hintStyle: TextStyle(color: Colors.grey.shade500),
-      labelStyle: const TextStyle(
-        color: Colors.black54,
-        fontWeight: FontWeight.w500,
-      ),
-    );
-    final labelStyle = Theme.of(context).textTheme.titleSmall?.copyWith(
-      fontWeight: FontWeight.w600,
-      color: Colors.black87,
-    );
-
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
@@ -818,7 +692,7 @@ class _AddEditTaskScreenState extends ConsumerState<AddEditTaskScreen>
                                           ),
                                         ),
                                         Text(
-                                          'املأ جميع الحقول المطلوبة',
+                                          'ضيف كل التفاصيل المطلوبة',
                                           style: TextStyle(
                                             fontSize: Responsive.text(
                                               context,
@@ -840,23 +714,10 @@ class _AddEditTaskScreenState extends ConsumerState<AddEditTaskScreen>
                               ),
                             ),
 
-                            Text(
-                              'عنوان التاسك:',
-                              style: labelStyle,
-                              textAlign: TextAlign.right,
-                            ),
-                            SizedBox(
-                              height: Responsive.space(
-                                context,
-                                size: Space.small,
-                              ),
-                            ),
-                            TextFormField(
+                            // Form fields using feature
+                            _formFieldsFeature.buildTitleField(
+                              context: context,
                               controller: _titleController,
-                              decoration: commonDecoration.copyWith(
-                                hintText: 'اكتب اسم التاسك',
-                              ),
-                              textAlign: TextAlign.right,
                               validator:
                                   (value) =>
                                       (value == null || value.trim().isEmpty)
@@ -869,24 +730,9 @@ class _AddEditTaskScreenState extends ConsumerState<AddEditTaskScreen>
                                 size: Space.medium,
                               ),
                             ),
-                            Text(
-                              'تفاصيل التاسك:',
-                              style: labelStyle,
-                              textAlign: TextAlign.right,
-                            ),
-                            SizedBox(
-                              height: Responsive.space(
-                                context,
-                                size: Space.small,
-                              ),
-                            ),
-                            TextFormField(
+                            _formFieldsFeature.buildDescriptionField(
+                              context: context,
                               controller: _descriptionController,
-                              decoration: commonDecoration.copyWith(
-                                hintText: 'أى تفاصيل إضافية...',
-                              ),
-                              textAlign: TextAlign.right,
-                              maxLines: 2,
                             ),
                             SizedBox(
                               height: Responsive.space(
@@ -894,106 +740,24 @@ class _AddEditTaskScreenState extends ConsumerState<AddEditTaskScreen>
                                 size: Space.medium,
                               ),
                             ),
-
-                            // Due Date Field
-                            InkWell(
+                            _formFieldsFeature.buildDueDateField(
+                              context: context,
+                              selectedDate: _selectedDate,
                               onTap: () => _selectDate(context),
-                              child: Container(
-                                padding: EdgeInsets.all(
-                                  Responsive.space(context, size: Space.large),
-                                ),
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      Colors.blue.shade50,
-                                      Colors.blue.shade100,
-                                    ],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  ),
-                                  border: Border.all(
-                                    color: Colors.blue.shade200,
-                                  ),
-                                  borderRadius: BorderRadius.circular(
-                                    Responsive.space(
-                                      context,
-                                      size: Space.large,
-                                    ),
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.blue.shade100,
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      padding: EdgeInsets.all(
-                                        Responsive.space(
-                                          context,
-                                          size: Space.small,
-                                        ),
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.blue.shade100,
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: Icon(
-                                        Icons.calendar_today_rounded,
-                                        color: Colors.blue.shade700,
-                                        size: Responsive.space(
-                                          context,
-                                          size: Space.medium,
-                                        ),
-                                      ),
-                                    ),
-                                    SizedBox(
-                                      width: Responsive.space(
-                                        context,
-                                        size: Space.medium,
-                                      ),
-                                    ),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'آخر ميعاد للتسليم',
-                                            style: TextStyle(
-                                              fontSize: Responsive.text(
-                                                context,
-                                                size: TextSize.small,
-                                              ),
-                                              color: Colors.blue.shade600,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                          SizedBox(height: 2),
-                                          Text(
-                                            intl.DateFormat(
-                                              'dd/MM/yyyy',
-                                              'ar',
-                                            ).format(_selectedDate),
-                                            style: TextStyle(
-                                              fontSize: Responsive.text(
-                                                context,
-                                                size: TextSize.medium,
-                                              ),
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.black87,
-                                            ),
-                                            textAlign: TextAlign.right,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                            ),
+                            SizedBox(
+                              height: Responsive.space(
+                                context,
+                                size: Space.medium,
                               ),
+                            ),
+                            _formFieldsFeature.buildImportanceField(
+                              context: context,
+                              selectedImportance: _selectedImportance,
+                              onChanged:
+                                  (value) => setState(() {
+                                    _selectedImportance = value;
+                                  }),
                             ),
                             SizedBox(
                               height: Responsive.space(
@@ -1002,539 +766,134 @@ class _AddEditTaskScreenState extends ConsumerState<AddEditTaskScreen>
                               ),
                             ),
 
-                            // Importance Field
-                            Container(
-                              padding: EdgeInsets.all(
-                                Responsive.space(context, size: Space.large),
-                              ),
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [
-                                    _getImportanceColor(
-                                      _selectedImportance,
-                                    ).withOpacity(0.1),
-                                    _getImportanceColor(
-                                      _selectedImportance,
-                                    ).withOpacity(0.2),
-                                  ],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                border: Border.all(
-                                  color: _getImportanceColor(
-                                    _selectedImportance,
-                                  ).withOpacity(0.3),
-                                ),
-                                borderRadius: BorderRadius.circular(
-                                  Responsive.space(context, size: Space.large),
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: _getImportanceColor(
-                                      _selectedImportance,
-                                    ).withOpacity(0.2),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Container(
-                                        padding: EdgeInsets.all(
-                                          Responsive.space(
-                                            context,
-                                            size: Space.small,
-                                          ),
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: _getImportanceColor(
-                                            _selectedImportance,
-                                          ).withOpacity(0.2),
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: Icon(
-                                          Icons.flag_rounded,
-                                          color: _getImportanceColor(
-                                            _selectedImportance,
-                                          ),
-                                          size: Responsive.space(
-                                            context,
-                                            size: Space.medium,
-                                          ),
-                                        ),
-                                      ),
-                                      SizedBox(
-                                        width: Responsive.space(
-                                          context,
-                                          size: Space.medium,
-                                        ),
-                                      ),
-                                      Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'الأهمية',
-                                            style: TextStyle(
-                                              fontSize: Responsive.text(
-                                                context,
-                                                size: TextSize.small,
-                                              ),
-                                              color: _getImportanceColor(
-                                                _selectedImportance,
-                                              ),
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                          SizedBox(height: 2),
-                                          Text(
-                                            _importanceLabels[_selectedImportance] ??
-                                                'N/A',
-                                            style: TextStyle(
-                                              fontSize: Responsive.text(
-                                                context,
-                                                size: TextSize.medium,
-                                              ),
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.black87,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                  PopupMenuButton<TaskImportance>(
-                                    initialValue: _selectedImportance,
-                                    onSelected: (TaskImportance value) {
-                                      setState(() {
-                                        _selectedImportance = value;
-                                      });
-                                    },
-                                    icon: Icon(
-                                      Icons.arrow_drop_down,
-                                      color: _getImportanceColor(
-                                        _selectedImportance,
-                                      ),
-                                      size: Responsive.space(
-                                        context,
-                                        size: Space.large,
-                                      ),
-                                    ),
-                                    itemBuilder:
-                                        (BuildContext context) =>
-                                            TaskImportance.values.map((
-                                              TaskImportance importance,
-                                            ) {
-                                              return PopupMenuItem<
-                                                TaskImportance
-                                              >(
-                                                value: importance,
-                                                child: Row(
-                                                  children: [
-                                                    Icon(
-                                                      Icons.flag_rounded,
-                                                      color:
-                                                          _getImportanceColor(
-                                                            importance,
-                                                          ),
-                                                      size: 20,
-                                                    ),
-                                                    SizedBox(width: 12),
-                                                    Text(
-                                                      _importanceLabels[importance] ??
-                                                          'N/A',
-                                                      style: TextStyle(
-                                                        fontWeight:
-                                                            importance ==
-                                                                    _selectedImportance
-                                                                ? FontWeight
-                                                                    .bold
-                                                                : FontWeight
-                                                                    .normal,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              );
-                                            }).toList(),
-                                  ),
-                                ],
-                              ),
+                            // Attachments sections using features
+                            _attachmentsDisplayFeature.buildMaterialsSection(
+                              context: context,
+                              selectedMaterials: selectedMaterials,
+                              onRemoveMaterial:
+                                  (index) => setState(() {
+                                    selectedMaterials.removeAt(index);
+                                  }),
                             ),
-                            SizedBox(
-                              height: Responsive.space(
-                                context,
-                                size: Space.medium,
-                              ),
-                            ),
-
-                            // Materials Section
-                            if (selectedMaterials.isNotEmpty) ...[
-                              Container(
-                                padding: EdgeInsets.all(
-                                  Responsive.space(context, size: Space.medium),
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[50],
-                                  borderRadius: BorderRadius.circular(
-                                    Responsive.space(
-                                      context,
-                                      size: Space.large,
-                                    ),
-                                  ),
-                                  border: Border.all(color: Colors.grey[200]!),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Icon(
-                                          Icons.library_books,
-                                          size: 18,
-                                          color: Colors.blue[700],
-                                        ),
-                                        SizedBox(width: 8),
-                                        Text(
-                                          'المواد المرفقة:',
-                                          style: TextStyle(
-                                            fontSize: Responsive.text(
-                                              context,
-                                              size: TextSize.small,
-                                            ),
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.grey[700],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    SizedBox(
-                                      height: Responsive.space(
-                                        context,
-                                        size: Space.small,
-                                      ),
-                                    ),
-                                    ...selectedMaterials.asMap().entries.map((
-                                      entry,
-                                    ) {
-                                      final index = entry.key;
-                                      final material = entry.value;
-                                      return Container(
-                                        margin: EdgeInsets.only(
-                                          bottom: Responsive.space(
-                                            context,
-                                            size: Space.tiny,
-                                          ),
-                                        ),
-                                        padding: EdgeInsets.all(
-                                          Responsive.space(
-                                            context,
-                                            size: Space.small,
-                                          ),
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white,
-                                          borderRadius: BorderRadius.circular(
-                                            Responsive.space(
-                                              context,
-                                              size: Space.small,
-                                            ),
-                                          ),
-                                          border: Border.all(
-                                            color: Colors.blue[100]!,
-                                          ),
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            Icon(
-                                              Icons.link,
-                                              size: 16,
-                                              color: Colors.blue[600],
-                                            ),
-                                            SizedBox(width: 8),
-                                            Expanded(
-                                              child: Text(
-                                                material['title'] ?? '',
-                                                style: TextStyle(
-                                                  fontSize: Responsive.text(
-                                                    context,
-                                                    size: TextSize.small,
-                                                  ),
-                                                ),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                            IconButton(
-                                              icon: Icon(Icons.close, size: 16),
-                                              color: Colors.red[400],
-                                              onPressed: () {
-                                                setState(() {
-                                                  selectedMaterials.removeAt(
-                                                    index,
-                                                  );
-                                                });
-                                              },
-                                              padding: EdgeInsets.zero,
-                                              constraints: BoxConstraints(),
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                    }),
-                                  ],
-                                ),
-                              ),
+                            if (selectedMaterials.isNotEmpty)
                               SizedBox(
                                 height: Responsive.space(
                                   context,
                                   size: Space.medium,
                                 ),
                               ),
-                            ],
 
-                            // Add Materials Button
-                            ElevatedButton.icon(
-                              onPressed: _showMaterialsSelectionDialog,
-                              icon: Icon(Icons.library_add),
-                              label: Text('إضافة مرفقات من الماتيريال'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blue,
-                                foregroundColor: Colors.white,
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: Responsive.space(
-                                    context,
-                                    size: Space.large,
-                                  ),
-                                  vertical: Responsive.space(
-                                    context,
-                                    size: Space.medium,
-                                  ),
+                            _attachmentsDisplayFeature
+                                .buildNewAttachmentsSection(
+                                  context: context,
+                                  uploadedFiles: _uploadedFiles,
+                                  uploadedImages: _uploadedImages,
+                                  addedLinks: _addedLinks,
+                                  onRemoveFile:
+                                      (index) => setState(() {
+                                        _uploadedFiles.removeAt(index);
+                                      }),
+                                  onRemoveImage:
+                                      (index) => setState(() {
+                                        _uploadedImages.removeAt(index);
+                                      }),
+                                  onRemoveLink:
+                                      (index) => setState(() {
+                                        _addedLinks.removeAt(index);
+                                      }),
                                 ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(
-                                    Responsive.space(
-                                      context,
-                                      size: Space.large,
-                                    ),
-                                  ),
+                            if (_uploadedFiles.isNotEmpty ||
+                                _uploadedImages.isNotEmpty ||
+                                _addedLinks.isNotEmpty)
+                              SizedBox(
+                                height: Responsive.space(
+                                  context,
+                                  size: Space.medium,
                                 ),
                               ),
+
+                            // Action buttons using feature
+                            _attachmentsDisplayFeature.buildActionButtons(
+                              context: context,
+                              onAddMaterials:
+                                  () => _materialSelectionFeature
+                                      .showMaterialsSelectionDialog(
+                                        context,
+                                        selectedSubjectId: _selectedSubjectId,
+                                        selectedSectionId: _selectedSectionId,
+                                        alreadySelectedUrls:
+                                            selectedMaterials
+                                                .map((m) => m['url'] ?? '')
+                                                .toList(),
+                                        ref: ref,
+                                        onMaterialsSelected: (materials) {
+                                          setState(() {
+                                            for (var material in materials) {
+                                              if (!selectedMaterials.any(
+                                                (m) => m['url'] == material.url,
+                                              )) {
+                                                selectedMaterials.add({
+                                                  'title':
+                                                      material.displayTitle,
+                                                  'url': material.url,
+                                                });
+                                              }
+                                            }
+                                          });
+                                        },
+                                      ),
+                              onAddImage:
+                                  () => _fileUploadFeature
+                                      .pickAndUploadImageDirect(
+                                        context,
+                                        onImageUploaded: (imageData) {
+                                          setState(() {
+                                            _uploadedImages.add(imageData);
+                                          });
+                                        },
+                                      ),
+                              onAddFile:
+                                  () => _fileUploadFeature
+                                      .pickAndUploadFileDirect(
+                                        context,
+                                        onFileUploaded: (fileData) {
+                                          setState(() {
+                                            _uploadedFiles.add(fileData);
+                                          });
+                                        },
+                                        subjectId: _selectedSubjectId,
+                                        assistantId:
+                                            _selectedSectionId != null
+                                                ? ref
+                                                    .read(sectionsProvider)
+                                                    .sections
+                                                    .firstWhere(
+                                                      (s) =>
+                                                          s.id ==
+                                                          _selectedSectionId,
+                                                    )
+                                                    .assistantId
+                                                : null,
+                                      ),
+                              onAddLink:
+                                  () => _fileUploadFeature.showAddLinkDialogDirect(
+                                    context,
+                                    onLinkAdded: (linkData) {
+                                      print('🔗 Link added: $linkData');
+                                      setState(() {
+                                        _addedLinks.add(linkData);
+                                        print(
+                                          '🔗 Total links: ${_addedLinks.length}',
+                                        );
+                                      });
+                                    },
+                                  ),
                             ),
                           ],
                         ),
                       ),
                     ),
                   ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Color _getImportanceColor(TaskImportance importance) {
-    switch (importance) {
-      case TaskImportance.high:
-        return Colors.red.shade400;
-      case TaskImportance.mid:
-        return Colors.amber.shade600;
-      case TaskImportance.low:
-        return Colors.green.shade400;
-    }
-  }
-}
-
-// Material Selection Dialog
-class _MaterialSelectionDialog extends StatefulWidget {
-  final List<MaterialLink> materials;
-  final List<String> alreadySelected;
-
-  const _MaterialSelectionDialog({
-    required this.materials,
-    required this.alreadySelected,
-  });
-
-  @override
-  State<_MaterialSelectionDialog> createState() =>
-      _MaterialSelectionDialogState();
-}
-
-class _MaterialSelectionDialogState extends State<_MaterialSelectionDialog> {
-  final Set<String> _selectedUrls = {};
-
-  @override
-  void initState() {
-    super.initState();
-    _selectedUrls.addAll(widget.alreadySelected);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(
-            Responsive.space(context, size: Space.large),
-          ),
-        ),
-        child: Container(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.7,
-            maxWidth: Responsive.width(context) * 0.9,
-          ),
-          child: Column(
-            children: [
-              // Header
-              Container(
-                padding: Responsive.padding(context, size: Space.medium),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(
-                      Responsive.space(context, size: Space.large),
-                    ),
-                    topRight: Radius.circular(
-                      Responsive.space(context, size: Space.large),
-                    ),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.library_books, color: Colors.blue.shade700),
-                    SizedBox(
-                      width: Responsive.space(context, size: Space.small),
-                    ),
-                    Expanded(
-                      child: Text(
-                        'اختار المرفقات ',
-                        style: TextStyle(
-                          fontSize: Responsive.text(
-                            context,
-                            size: TextSize.heading,
-                          ),
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue.shade700,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.close),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Materials List
-              Expanded(
-                child: ListView.builder(
-                  padding: Responsive.padding(context, size: Space.medium),
-                  itemCount: widget.materials.length,
-                  itemBuilder: (context, index) {
-                    final material = widget.materials[index];
-                    final isSelected = _selectedUrls.contains(material.url);
-
-                    return Card(
-                      margin: EdgeInsets.only(
-                        bottom: Responsive.space(context, size: Space.small),
-                      ),
-                      child: CheckboxListTile(
-                        value: isSelected,
-                        onChanged: (bool? value) {
-                          setState(() {
-                            if (value == true) {
-                              _selectedUrls.add(material.url);
-                            } else {
-                              _selectedUrls.remove(material.url);
-                            }
-                          });
-                        },
-                        title: Text(
-                          material.displayTitle,
-                          style: TextStyle(
-                            fontSize: Responsive.text(
-                              context,
-                              size: TextSize.medium,
-                            ),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        subtitle:
-                            material.description != null
-                                ? Text(
-                                  material.description!,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: Responsive.text(
-                                      context,
-                                      size: TextSize.small,
-                                    ),
-                                  ),
-                                )
-                                : null,
-                        secondary: Icon(
-                          material.typeIcon,
-                          color: Colors.blue.shade600,
-                        ),
-                        activeColor: Colors.blue,
-                      ),
-                    );
-                  },
-                ),
-              ),
-
-              // Action Buttons
-              Container(
-                padding: Responsive.padding(context, size: Space.medium),
-                decoration: BoxDecoration(
-                  border: Border(top: BorderSide(color: Colors.grey.shade200)),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: Text('إلغاء'),
-                      ),
-                    ),
-                    SizedBox(
-                      width: Responsive.space(context, size: Space.small),
-                    ),
-                    Expanded(
-                      flex: 2,
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          final selected =
-                              widget.materials
-                                  .where((m) => _selectedUrls.contains(m.url))
-                                  .toList();
-                          Navigator.of(context).pop(selected);
-                        },
-                        icon: Icon(Icons.check),
-                        label: Text('إضافة (${_selectedUrls.length})'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
-                          padding: EdgeInsets.symmetric(
-                            vertical: Responsive.space(
-                              context,
-                              size: Space.medium,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
                 ),
               ),
             ],

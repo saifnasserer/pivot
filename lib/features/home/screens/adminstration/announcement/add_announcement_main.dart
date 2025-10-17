@@ -10,6 +10,8 @@ import 'package:pivot/features/home/screens/adminstration/announcement/steps/sty
 import 'package:pivot/features/home/screens/adminstration/announcement/steps/advanced_options_step.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:pivot/responsive.dart';
+import 'package:pivot/services/file_upload_service.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 
 class AddAnnouncementMain extends ConsumerStatefulWidget {
   final bool isEditing;
@@ -54,6 +56,9 @@ class _AddAnnouncementMainState extends ConsumerState<AddAnnouncementMain>
   bool _isPinned = false;
   DateTime? _publishAt;
   DateTime? _expireAt;
+
+  // File upload service
+  final FileUploadService _fileUploadService = FileUploadService();
 
   @override
   void initState() {
@@ -224,15 +229,69 @@ class _AddAnnouncementMainState extends ConsumerState<AddAnnouncementMain>
         imageUrls.addAll(widget.announcement!.imageUrls);
       }
 
-      // Upload new images
+      // Upload new images using Backblaze
       if (_pickedImages.isNotEmpty) {
-        print('📤 Uploading ${_pickedImages.length} images...');
-        final imagePaths = _pickedImages.map((img) => img.path).toList();
-        final uploadedUrls = await ref
-            .read(announcementsProvider.notifier)
-            .uploadAnnouncementImages(imagePaths);
-        imageUrls.addAll(uploadedUrls);
-        print('✅ Uploaded ${uploadedUrls.length} images');
+        print('📤 Uploading ${_pickedImages.length} images to Backblaze...');
+
+        for (int i = 0; i < _pickedImages.length; i++) {
+          final image = _pickedImages[i];
+          try {
+            print(
+              '🔄 [Announcement] Processing image ${i + 1}/${_pickedImages.length}: ${image.path}',
+            );
+
+            // Compress image before upload
+            final compressedImage = await FlutterImageCompress.compressWithFile(
+              image.path,
+              quality: 85,
+              minWidth: 800,
+              minHeight: 600,
+            );
+
+            if (compressedImage != null) {
+              print('✅ [Announcement] Image compressed successfully');
+
+              // Upload compressed image using Backblaze
+              final fileName =
+                  'announcement_image_${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
+              print('🔄 [Announcement] Uploading to Backblaze: $fileName');
+
+              final uploadResult = await _fileUploadService.uploadFile(
+                fileInfo: PickedFileInfo(
+                  name: fileName,
+                  size: compressedImage.length,
+                  bytes: compressedImage,
+                  extension: 'jpg',
+                ),
+                title: 'صورة إعلان',
+                description: 'مرفق إعلان',
+                // For announcements, use a special identifier
+                // We'll use a dummy subjectId to satisfy the Firebase Function requirement
+                subjectId: 'announcement_uploads',
+                assistantId: 'system',
+              );
+
+              if (uploadResult.success && uploadResult.downloadUrl != null) {
+                imageUrls.add(uploadResult.downloadUrl!);
+                print(
+                  '✅ [Announcement] Image ${i + 1} uploaded successfully: ${uploadResult.downloadUrl}',
+                );
+              } else {
+                print(
+                  '❌ [Announcement] Image ${i + 1} upload failed: ${uploadResult.error}',
+                );
+              }
+            } else {
+              print('❌ [Announcement] Image ${i + 1} compression failed');
+            }
+          } catch (e) {
+            print('❌ [Announcement] Failed to upload image ${i + 1}: $e');
+          }
+        }
+
+        print(
+          '✅ [Announcement] Uploaded ${imageUrls.length} images to Backblaze',
+        );
       }
 
       // Convert tags to full format
