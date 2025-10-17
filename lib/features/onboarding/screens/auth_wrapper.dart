@@ -38,7 +38,7 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> {
     // Check for offline cached session first
     final hasCachedSession =
         await SessionPersistenceService().hasCachedSession();
-    final isOnline = OfflineService().hasConnection;
+    final isOnline = ref.read(offlineServiceProvider).hasConnection;
 
     print('📡 Connection: ${isOnline ? "Online" : "Offline"}');
     print('💾 Cached session: ${hasCachedSession ? "Available" : "None"}');

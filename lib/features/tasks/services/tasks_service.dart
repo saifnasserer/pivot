@@ -181,9 +181,45 @@ class TasksService {
   // Add task
   Future<bool> addTask(Task task) async {
     try {
-      await _tasksCollection.doc(task.id).set(task.toMap());
+      print('🔥 [TasksService.addTask] Starting Firebase save...');
+      print('   Task ID: ${task.id}');
+      print('   Task Title: ${task.title}');
+
+      // Check if user is authenticated
+      final user = _auth.currentUser;
+      if (user == null) {
+        throw Exception('User not authenticated - cannot save task');
+      }
+
+      print('   User authenticated: ${user.uid}');
+      print('   Collection path: users/${user.uid}/tasks/${task.id}');
+
+      // Validate task data before saving
+      if (task.title.trim().isEmpty) {
+        throw Exception('Task title cannot be empty');
+      }
+
+      // Convert task to map and validate
+      final taskMap = task.toMap();
+      print('   Task map keys: ${taskMap.keys.toList()}');
+      print('   Task map values: ${taskMap.values.toList()}');
+
+      // Add timeout to prevent hanging in release mode
+      await _tasksCollection
+          .doc(task.id)
+          .set(taskMap)
+          .timeout(
+            Duration(seconds: 30),
+            onTimeout: () {
+              throw Exception('Task save operation timed out after 30 seconds');
+            },
+          );
+
+      print('✅ [TasksService.addTask] Task saved successfully to Firebase');
       return true;
     } catch (e) {
+      print('❌ [TasksService.addTask] Firebase save failed: $e');
+      print('   Stack trace: ${StackTrace.current}');
       throw Exception('Failed to add task: $e');
     }
   }

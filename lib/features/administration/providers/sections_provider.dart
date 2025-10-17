@@ -42,8 +42,10 @@ class SectionsState {
 // Simplified Notifier - Snapshot-based approach
 class SectionsNotifier extends StateNotifier<SectionsState> {
   final SectionService _sectionService;
+  final Ref _ref;
 
-  SectionsNotifier(this._sectionService) : super(const SectionsState());
+  SectionsNotifier(this._sectionService, this._ref)
+    : super(const SectionsState());
 
   /// Load sections for a user (snapshot approach)
   /// 1. Check Hive cache first
@@ -94,7 +96,7 @@ class SectionsNotifier extends StateNotifier<SectionsState> {
     }
 
     // Step 2: Check if offline before attempting Firestore fetch
-    final offlineService = OfflineService();
+    final offlineService = _ref.read(offlineServiceProvider);
     if (offlineService.isOffline) {
       if (kDebugMode) {
         print('   📴 Offline detected - using cache only');
@@ -174,7 +176,7 @@ class SectionsNotifier extends StateNotifier<SectionsState> {
     print('🔄 [SectionsProvider] Force refresh sections');
 
     // Check if offline before attempting refresh
-    final offlineService = OfflineService();
+    final offlineService = _ref.read(offlineServiceProvider);
     if (offlineService.isOffline) {
       print('   📴 Cannot refresh while offline - using cached data');
       await loadSectionsForUser(userId, subjectIds, forceRefresh: false);
@@ -334,7 +336,7 @@ class SectionsNotifier extends StateNotifier<SectionsState> {
 final sectionsProvider = StateNotifierProvider<SectionsNotifier, SectionsState>(
   (ref) {
     final service = ref.watch(sectionServiceProvider);
-    return SectionsNotifier(service);
+    return SectionsNotifier(service, ref);
   },
 );
 

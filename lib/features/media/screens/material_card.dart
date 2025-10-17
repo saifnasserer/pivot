@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart' hide MaterialType;
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/models/user_profile.dart';
 import 'pdf_viewer_screen.dart';
 import 'video_player_screen.dart';
@@ -12,7 +13,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:pivot/services/file_download_service.dart';
 import 'package:pivot/services/offline_service.dart';
 
-class MaterialCard extends StatefulWidget {
+class MaterialCard extends ConsumerStatefulWidget {
   final MaterialLink materialLink;
   final bool canEdit;
   final UserProfile? loggedInUser;
@@ -31,10 +32,10 @@ class MaterialCard extends StatefulWidget {
   });
 
   @override
-  State<MaterialCard> createState() => _MaterialCardState();
+  ConsumerState<MaterialCard> createState() => _MaterialCardState();
 }
 
-class _MaterialCardState extends State<MaterialCard>
+class _MaterialCardState extends ConsumerState<MaterialCard>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
@@ -887,7 +888,7 @@ class _MaterialCardState extends State<MaterialCard>
     );
 
     // Check if offline before attempting to open external content
-    final offlineService = OfflineService();
+    final offlineService = ref.read(offlineServiceProvider);
     if (offlineService.isOffline) {
       debugPrint('📴 [HANDLE_TAP] Offline - cannot open external content');
       _showSnackBar(
@@ -948,7 +949,7 @@ class _MaterialCardState extends State<MaterialCard>
     }
 
     // Check if offline before attempting download
-    final offlineService = OfflineService();
+    final offlineService = ref.read(offlineServiceProvider);
     if (offlineService.isOffline) {
       debugPrint('📴 [TAP] Offline - cannot download file');
       _showSnackBar(
@@ -1006,7 +1007,7 @@ class _MaterialCardState extends State<MaterialCard>
       }
 
       // Check if offline before falling back to external URL
-      final offlineService = OfflineService();
+      final offlineService = ref.read(offlineServiceProvider);
       if (offlineService.isOffline) {
         debugPrint('📴 [OPEN] Offline - cannot open external URL');
         if (mounted) {
@@ -1026,7 +1027,7 @@ class _MaterialCardState extends State<MaterialCard>
       // If any error occurs, try fallback to external URL only if online
       debugPrint('✗ [OPEN] Error opening local file: $e');
 
-      final offlineService = OfflineService();
+      final offlineService = ref.read(offlineServiceProvider);
       if (offlineService.isOffline) {
         debugPrint('📴 [OPEN] Offline - cannot fallback to external URL');
         if (mounted) {
@@ -1051,7 +1052,7 @@ class _MaterialCardState extends State<MaterialCard>
   /// Open file using external URL
   Future<void> _openExternalUrl(BuildContext context) async {
     // Check if offline before attempting to open external URL
-    final offlineService = OfflineService();
+    final offlineService = ref.read(offlineServiceProvider);
     if (offlineService.isOffline) {
       debugPrint('📴 [OPEN] Offline - cannot open external URL');
       if (mounted) {
@@ -1083,7 +1084,7 @@ class _MaterialCardState extends State<MaterialCard>
     if (_isDownloading) return;
 
     // Check if offline before attempting download
-    final offlineService = OfflineService();
+    final offlineService = ref.read(offlineServiceProvider);
     if (offlineService.isOffline) {
       debugPrint('📴 [DOWNLOAD] Offline - cannot download file');
       _showSnackBar(

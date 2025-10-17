@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart' as intl;
@@ -5,9 +6,13 @@ import 'package:pivot/features/administration/providers/sections_provider.dart';
 import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/features/media/services/materials_service.dart';
 import 'package:pivot/models/material_link.dart';
+import 'package:pivot/models/section_model.dart';
 import 'package:pivot/screens/models/task.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/widgets/unified_dialog.dart';
+import 'package:pivot/features/auth/providers/auth_provider.dart';
+import 'package:pivot/features/tasks/providers/tasks_provider.dart';
+import 'package:pivot/services/offline_service.dart';
 
 // Function to show the Add/Edit Task Dialog
 Future<void> showAddTaskDialog({
@@ -61,6 +66,7 @@ class _AddEditTaskDialogContentState
   String? _selectedSectionId;
   List<Map<String, String>> selectedMaterials = [];
   bool _isEditing = false;
+  bool _isSaving = false;
 
   final Map<TaskImportance, String> _importanceLabels = {
     TaskImportance.high: 'مهمه',
@@ -100,9 +106,14 @@ class _AddEditTaskDialogContentState
       // Get logged-in user for sections fetch
       final user = ref.read(userProfileProvider).loggedInUserProfile;
       if (user != null) {
-        await ref.read(sectionsProvider.notifier).loadSectionsForUser(user.id, [
-          _selectedSubjectId!,
-        ]);
+        // Check if sections are already loaded to prevent unnecessary operations
+        final sectionsState = ref.read(sectionsProvider);
+        if (sectionsState.sections.isEmpty) {
+          await ref.read(sectionsProvider.notifier).loadSectionsForUser(
+            user.id,
+            [_selectedSubjectId!],
+          );
+        }
       }
 
       if (!mounted) return;
@@ -118,7 +129,10 @@ class _AddEditTaskDialogContentState
         }
       }
     } catch (e) {
-      print('Error fetching initial data: $e');
+      if (kDebugMode) {
+        print('Error fetching initial data: $e');
+      }
+      // Don't re-throw to prevent widget disposal issues
     }
   }
 
@@ -137,20 +151,117 @@ class _AddEditTaskDialogContentState
   }
 
   Future<void> _saveTask() async {
+    if (_isSaving) return; // Prevent multiple saves
+
     if (_formKey.currentState!.validate()) {
       if (_selectedSubjectId == null) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('من فضلك اختر المادة')));
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('من فضلك اختر المادة')));
+        }
         return;
       }
 
+      // Validate required fields
+      if (_titleController.text.trim().isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('من فضلك أدخل عنوان التاسك')),
+          );
+        }
+        return;
+      }
+
+      if (_selectedSectionId == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('من فضلك اختر السكشن')));
+        }
+        return;
+      }
+
+      // Set loading state only if widget is still mounted
+      if (mounted) {
+        print('🔄 [AddTaskDialog] Setting loading state to true');
+        setState(() {
+          _isSaving = true;
+        });
+      }
+
+      // Check if widget is still mounted before ref calls
+      if (!mounted) return;
+
       // Get the section to find its assistant ID
       final sectionsState = ref.read(sectionsProvider);
-      final section = sectionsState.sections.firstWhere(
-        (s) => s.id == _selectedSectionId,
-        orElse: () => throw Exception('Section not found'),
-      );
+      if (sectionsState.sections.isEmpty) {
+        if (mounted) {
+          setState(() {
+            _isSaving = false;
+          });
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('لا توجد سكشنز متاحة')));
+        }
+        return;
+      }
+
+      // Safe section lookup without throwing exception
+      Section? section;
+      try {
+        section = sectionsState.sections.firstWhere(
+          (s) => s.id == _selectedSectionId,
+        );
+      } catch (e) {
+        section = null;
+      }
+
+      if (section == null) {
+        if (mounted) {
+          setState(() {
+            _isSaving = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('السكشن المحدد غير موجود')),
+          );
+        }
+        return;
+      }
+
+      // Get assistant name and section number for source info
+      String assistantName = 'غير محدد';
+      try {
+        // Check if widget is still mounted before ref call
+        if (!mounted) return;
+
+        // Get assistant profile from the section's assistantId
+        final authService = ref.read(authServiceProvider);
+        final assistantProfile = await authService.getUserProfile(
+          section.assistantId,
+        );
+
+        // Check if widget is still mounted after async operation
+        if (!mounted) return;
+
+        if (assistantProfile != null) {
+          // Apply title logic based on gender and role
+          String title = '';
+          if (assistantProfile.role.toLowerCase() == 'miniprofessor') {
+            title =
+                assistantProfile.gender == 'ذكر' ? 'البشمهندس ' : 'البشمهندسة ';
+          }
+          assistantName = '$title${assistantProfile.name}';
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('Error getting assistant profile: $e');
+        }
+        // Fallback to just the assistant ID or a default
+        assistantName = 'المعيد غير محدد';
+      }
+
+      final sectionNumber = Task.extractSectionNumber(section.name);
 
       final newTask = Task(
         id: widget.task?.id,
@@ -164,86 +275,163 @@ class _AddEditTaskDialogContentState
             section
                 .assistantId, // Set the assistant ID to the section's assistant
         attachments: selectedMaterials,
-      );
-
-      // Show loading indicator
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder:
-            (context) => WillPopScope(
-              onWillPop: () async => false,
-              child: Center(
-                child: Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: const [
-                        CircularProgressIndicator(color: Colors.black),
-                        SizedBox(height: 16),
-                        Text('جاري الحفظ...'),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
+        assistantName: assistantName,
+        sectionNumber: sectionNumber,
       );
 
       try {
-        // Wait for the save operation to complete before closing the dialog
-        await widget.onSave(newTask);
+        // Handle save operation directly in the dialog to avoid ref disposal issues
+        await _handleTaskSave(newTask);
 
-        // Close loading indicator
-        if (mounted) Navigator.of(context).pop();
-
-        // Close the main dialog
-        if (mounted) Navigator.of(context).pop();
+        // Close the main dialog only after successful save
+        if (mounted) {
+          print('✅ [AddTaskDialog] Save completed, closing dialog');
+          Navigator.of(context).pop();
+        }
       } catch (e) {
-        // Close loading indicator
-        if (mounted) Navigator.of(context).pop();
+        // Reset loading state on error
+        if (mounted) {
+          print('❌ [AddTaskDialog] Save failed, resetting loading state');
+          setState(() {
+            _isSaving = false;
+          });
+        }
 
-        // Show error
+        // Show error with more details
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('فشل الحفظ: $e'),
               backgroundColor: Colors.red,
+              duration: Duration(seconds: 5),
             ),
           );
         }
+
+        // Don't re-throw the error here to prevent the dialog from closing
+        // The error is already handled and shown to the user
+        return;
       }
     }
   }
 
-  Future<void> _showMaterialsSelectionDialog() async {
-    print('🎯 [AddTaskDialog] Materials selection button pressed');
-    print('   Selected Subject ID: $_selectedSubjectId');
-    print('   Selected Section ID: $_selectedSectionId');
+  Future<void> _handleTaskSave(Task task) async {
+    print('🔄 [AddTaskDialog] Starting save operation...');
 
-    if (_selectedSubjectId == null || _selectedSectionId == null) {
-      print('   ❌ Missing subject or section ID');
+    // Handle save operation directly in the dialog using ref
+    // This avoids the callback pattern that causes ref disposal issues
+    final viewTasksNotifier = ref.read(viewTasksProvider.notifier);
+
+    final offlineService = ref.read(offlineServiceProvider);
+    final isOffline = offlineService.isOffline;
+
+    final isEditing = widget.task != null;
+
+    print('   Is Editing: $isEditing');
+    print('   Is Offline: $isOffline');
+
+    if (isEditing) {
+      print('   📝 Updating existing task...');
+      // Only update the view provider to minimize operations
+      final success = await viewTasksNotifier.updateTask(task);
+
+      print('   viewTasksProvider.updateTask: $success');
+
+      if (!success) {
+        throw Exception('Failed to update task');
+      }
+    } else {
+      print('   ➕ Adding new task...');
+      // Only add to the view provider to minimize operations
+      final success = await viewTasksNotifier.addTask(task);
+
+      print('   viewTasksProvider.addTask: $success');
+
+      if (!success) {
+        throw Exception('Failed to add task');
+      }
+    }
+
+    print('✅ [AddTaskDialog] Save operation completed successfully');
+
+    // Show success message
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('يرجى اختيار المادة والسكشن أولاً'),
-          backgroundColor: Colors.orange,
+        SnackBar(
+          content: Center(
+            child: Text(
+              isOffline
+                  ? 'تم حفظ التاسك في قائمة الانتظار. سيتم إرسالها عند الاتصال.'
+                  : isEditing
+                  ? 'تم تحديث التاسك بنجاح!'
+                  : 'تم اضافة التاسك بنجاح!',
+            ),
+          ),
+          backgroundColor: isOffline ? Colors.orange : Colors.green,
+          duration: Duration(seconds: isOffline ? 4 : 2),
+          behavior: SnackBarBehavior.floating,
         ),
       );
+    }
+  }
+
+  Future<void> _showMaterialsSelectionDialog() async {
+    if (kDebugMode) {
+      print('🎯 [AddTaskDialog] Materials selection button pressed');
+      print('   Selected Subject ID: $_selectedSubjectId');
+      print('   Selected Section ID: $_selectedSectionId');
+    }
+
+    if (_selectedSubjectId == null || _selectedSectionId == null) {
+      if (kDebugMode) {
+        print('   ❌ Missing subject or section ID');
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('يرجى اختيار المادة والسكشن أولاً'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
       return;
     }
 
+    // Check if widget is still mounted before ref call
+    if (!mounted) return;
+
     // Get section to find assistant ID
     final sectionsState = ref.read(sectionsProvider);
-    print('   📋 Total sections available: ${sectionsState.sections.length}');
+    if (kDebugMode) {
+      print('   📋 Total sections available: ${sectionsState.sections.length}');
+    }
 
-    final section = sectionsState.sections.firstWhere(
-      (s) => s.id == _selectedSectionId,
-      orElse: () => throw Exception('Section not found'),
-    );
+    // Safe section lookup without throwing exception
+    Section? section;
+    try {
+      section = sectionsState.sections.firstWhere(
+        (s) => s.id == _selectedSectionId,
+      );
+    } catch (e) {
+      section = null;
+    }
 
-    print('   ✅ Found section: ${section.name}');
-    print('   👤 Assistant ID: ${section.assistantId}');
+    if (section == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('السكشن المحدد غير موجود'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
+    if (kDebugMode) {
+      print('   ✅ Found section: ${section.name}');
+      print('   👤 Assistant ID: ${section.assistantId}');
+    }
 
     // Show loading indicator
     showDialog(
@@ -270,7 +458,9 @@ class _AddEditTaskDialogContentState
     );
 
     try {
-      print('   🔄 Starting to load materials...');
+      if (kDebugMode) {
+        print('   🔄 Starting to load materials...');
+      }
 
       // Use service directly to avoid AutoDispose issues
       final materialsService = MaterialsService();
@@ -280,19 +470,25 @@ class _AddEditTaskDialogContentState
             section.assistantId,
           );
 
-      print('   ✅ Materials loaded successfully');
+      if (kDebugMode) {
+        print('   ✅ Materials loaded successfully');
+      }
 
       if (!mounted) {
-        print('   ⚠️ Widget not mounted, aborting');
+        if (kDebugMode) {
+          print('   ⚠️ Widget not mounted, aborting');
+        }
         Navigator.of(context).pop(); // Close loading
         return;
       }
 
-      print('   📚 Available materials count: ${availableMaterials.length}');
-      for (var i = 0; i < availableMaterials.length; i++) {
-        print(
-          '      [$i] ${availableMaterials[i].displayTitle} (${availableMaterials[i].type.name})',
-        );
+      if (kDebugMode) {
+        print('   📚 Available materials count: ${availableMaterials.length}');
+        for (var i = 0; i < availableMaterials.length; i++) {
+          print(
+            '      [$i] ${availableMaterials[i].displayTitle} (${availableMaterials[i].type.name})',
+          );
+        }
       }
 
       // Close loading indicator
@@ -301,17 +497,23 @@ class _AddEditTaskDialogContentState
       if (!mounted) return;
 
       if (availableMaterials.isEmpty) {
-        print('   ⚠️ No materials available, showing warning');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('لا توجد مواد متاحة لهذا السكشن'),
-            backgroundColor: Colors.orange,
-          ),
-        );
+        if (kDebugMode) {
+          print('   ⚠️ No materials available, showing warning');
+        }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('لا توجد مواد متاحة لهذا السكشن'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
         return;
       }
 
-      print('   📖 Opening material selection dialog...');
+      if (kDebugMode) {
+        print('   📖 Opening material selection dialog...');
+      }
 
       // Show selection dialog
       final selected = await showDialog<List<MaterialLink>>(
@@ -325,36 +527,50 @@ class _AddEditTaskDialogContentState
       );
 
       if (selected != null && selected.isNotEmpty && mounted) {
-        print('   ✅ User selected ${selected.length} material(s):');
-        for (var material in selected) {
-          print('      - ${material.displayTitle}');
+        if (kDebugMode) {
+          print('   ✅ User selected ${selected.length} material(s):');
+          for (var material in selected) {
+            print('      - ${material.displayTitle}');
+          }
         }
 
-        setState(() {
-          for (var material in selected) {
-            if (!selectedMaterials.any((m) => m['url'] == material.url)) {
-              selectedMaterials.add({
-                'title': material.displayTitle,
-                'url': material.url,
-              });
-              print('      ➕ Added: ${material.displayTitle}');
-            } else {
-              print(
-                '      ⏭️ Skipped (already added): ${material.displayTitle}',
-              );
+        if (mounted) {
+          setState(() {
+            for (var material in selected) {
+              if (!selectedMaterials.any((m) => m['url'] == material.url)) {
+                selectedMaterials.add({
+                  'title': material.displayTitle,
+                  'url': material.url,
+                });
+                if (kDebugMode) {
+                  print('      ➕ Added: ${material.displayTitle}');
+                }
+              } else {
+                if (kDebugMode) {
+                  print(
+                    '      ⏭️ Skipped (already added): ${material.displayTitle}',
+                  );
+                }
+              }
             }
-          }
-        });
+          });
+        }
 
-        print(
-          '   📊 Total materials now attached: ${selectedMaterials.length}',
-        );
+        if (kDebugMode) {
+          print(
+            '   📊 Total materials now attached: ${selectedMaterials.length}',
+          );
+        }
       } else {
-        print('   ❌ No materials selected or dialog cancelled');
+        if (kDebugMode) {
+          print('   ❌ No materials selected or dialog cancelled');
+        }
       }
     } catch (e) {
-      print('   ❌ ERROR in material selection: $e');
-      print('   Stack trace: ${StackTrace.current}');
+      if (kDebugMode) {
+        print('   ❌ ERROR in material selection: $e');
+        print('   Stack trace: ${StackTrace.current}');
+      }
 
       // Close loading indicator if still open
       if (Navigator.of(context).canPop()) {
@@ -425,397 +641,422 @@ class _AddEditTaskDialogContentState
       color: Colors.black87,
     );
 
-    return UnifiedDialog(
-      title: _isEditing ? 'تعديل التاسك' : 'اضافة تاسك جديد',
-      subtitle:
-          _isEditing ? 'تعديل معلومات التاسك' : 'أدخل معلومات التاسك الجديد',
-      content: SingleChildScrollView(
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              Text(
-                'عنوان التاسك:',
-                style: labelStyle,
-                textAlign: TextAlign.right,
-              ),
-              SizedBox(height: Responsive.space(context, size: Space.small)),
-              TextFormField(
-                controller: _titleController,
-                decoration: commonDecoration.copyWith(
-                  hintText: 'اكتب اسم التاسك',
+    return WillPopScope(
+      onWillPop: () async => !_isSaving, // Allow closing only when not saving
+      child: UnifiedDialog(
+        title: _isEditing ? 'تعديل التاسك' : 'اضافة تاسك جديد',
+        subtitle:
+            _isEditing ? 'تعديل معلومات التاسك' : 'أدخل معلومات التاسك الجديد',
+        content: SingleChildScrollView(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Text(
+                  'عنوان التاسك:',
+                  style: labelStyle,
+                  textAlign: TextAlign.right,
                 ),
-                textAlign: TextAlign.right,
-                validator:
-                    (value) =>
-                        (value == null || value.trim().isEmpty)
-                            ? 'اكتب اسم التاسك'
-                            : null,
-              ),
-              SizedBox(height: Responsive.space(context, size: Space.medium)),
-              Text(
-                'تفاصيل التاسك:',
-                style: labelStyle,
-                textAlign: TextAlign.right,
-              ),
-              SizedBox(height: Responsive.space(context, size: Space.small)),
-              TextFormField(
-                controller: _descriptionController,
-                decoration: commonDecoration.copyWith(
-                  hintText: 'أى تفاصيل إضافية...',
-                ),
-                textAlign: TextAlign.right,
-                maxLines: 2,
-              ),
-              SizedBox(height: Responsive.space(context, size: Space.medium)),
-
-              // Due Date Field
-              InkWell(
-                onTap: () => _selectDate(context),
-                child: Container(
-                  padding: EdgeInsets.all(
-                    Responsive.space(context, size: Space.large),
+                SizedBox(height: Responsive.space(context, size: Space.small)),
+                TextFormField(
+                  controller: _titleController,
+                  decoration: commonDecoration.copyWith(
+                    hintText: 'اكتب اسم التاسك',
                   ),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Colors.blue.shade50, Colors.blue.shade100],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    border: Border.all(color: Colors.blue.shade200),
-                    borderRadius: BorderRadius.circular(
+                  textAlign: TextAlign.right,
+                  validator:
+                      (value) =>
+                          (value == null || value.trim().isEmpty)
+                              ? 'اكتب اسم التاسك'
+                              : null,
+                ),
+                SizedBox(height: Responsive.space(context, size: Space.medium)),
+                Text(
+                  'تفاصيل التاسك:',
+                  style: labelStyle,
+                  textAlign: TextAlign.right,
+                ),
+                SizedBox(height: Responsive.space(context, size: Space.small)),
+                TextFormField(
+                  controller: _descriptionController,
+                  decoration: commonDecoration.copyWith(
+                    hintText: 'أى تفاصيل إضافية...',
+                  ),
+                  textAlign: TextAlign.right,
+                  maxLines: 2,
+                ),
+                SizedBox(height: Responsive.space(context, size: Space.medium)),
+
+                // Due Date Field
+                InkWell(
+                  onTap: () => _selectDate(context),
+                  child: Container(
+                    padding: EdgeInsets.all(
                       Responsive.space(context, size: Space.large),
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.blue.shade100,
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Colors.blue.shade50, Colors.blue.shade100],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: EdgeInsets.all(
-                          Responsive.space(context, size: Space.small),
-                        ),
-                        decoration: BoxDecoration(
+                      border: Border.all(color: Colors.blue.shade200),
+                      borderRadius: BorderRadius.circular(
+                        Responsive.space(context, size: Space.large),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
                           color: Colors.blue.shade100,
-                          shape: BoxShape.circle,
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
                         ),
-                        child: Icon(
-                          Icons.calendar_today_rounded,
-                          color: Colors.blue.shade700,
-                          size: Responsive.space(context, size: Space.medium),
-                        ),
-                      ),
-                      SizedBox(
-                        width: Responsive.space(context, size: Space.medium),
-                      ),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'آخر ميعاد للتسليم',
-                              style: TextStyle(
-                                fontSize: Responsive.text(
-                                  context,
-                                  size: TextSize.small,
-                                ),
-                                color: Colors.blue.shade600,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            SizedBox(height: 2),
-                            Text(
-                              intl.DateFormat(
-                                'dd/MM/yyyy',
-                                'ar',
-                              ).format(_selectedDate),
-                              style: TextStyle(
-                                fontSize: Responsive.text(
-                                  context,
-                                  size: TextSize.medium,
-                                ),
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87,
-                              ),
-                              textAlign: TextAlign.right,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              SizedBox(height: Responsive.space(context, size: Space.medium)),
-
-              // Importance Field
-              Container(
-                padding: EdgeInsets.all(
-                  Responsive.space(context, size: Space.large),
-                ),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      _getImportanceColor(_selectedImportance).withOpacity(0.1),
-                      _getImportanceColor(_selectedImportance).withOpacity(0.2),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  border: Border.all(
-                    color: _getImportanceColor(
-                      _selectedImportance,
-                    ).withOpacity(0.3),
-                  ),
-                  borderRadius: BorderRadius.circular(
-                    Responsive.space(context, size: Space.large),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: _getImportanceColor(
-                        _selectedImportance,
-                      ).withOpacity(0.2),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
+                      ],
                     ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
+                    child: Row(
                       children: [
                         Container(
                           padding: EdgeInsets.all(
                             Responsive.space(context, size: Space.small),
                           ),
                           decoration: BoxDecoration(
-                            color: _getImportanceColor(
-                              _selectedImportance,
-                            ).withOpacity(0.2),
+                            color: Colors.blue.shade100,
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
-                            Icons.flag_rounded,
-                            color: _getImportanceColor(_selectedImportance),
+                            Icons.calendar_today_rounded,
+                            color: Colors.blue.shade700,
                             size: Responsive.space(context, size: Space.medium),
                           ),
                         ),
                         SizedBox(
                           width: Responsive.space(context, size: Space.medium),
                         ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'آخر ميعاد للتسليم',
+                                style: TextStyle(
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.small,
+                                  ),
+                                  color: Colors.blue.shade600,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                intl.DateFormat(
+                                  'dd/MM/yyyy',
+                                  'ar',
+                                ).format(_selectedDate),
+                                style: TextStyle(
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.medium,
+                                  ),
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
+                                textAlign: TextAlign.right,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                SizedBox(height: Responsive.space(context, size: Space.medium)),
+
+                // Importance Field
+                Container(
+                  padding: EdgeInsets.all(
+                    Responsive.space(context, size: Space.large),
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        _getImportanceColor(
+                          _selectedImportance,
+                        ).withOpacity(0.1),
+                        _getImportanceColor(
+                          _selectedImportance,
+                        ).withOpacity(0.2),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    border: Border.all(
+                      color: _getImportanceColor(
+                        _selectedImportance,
+                      ).withOpacity(0.3),
+                    ),
+                    borderRadius: BorderRadius.circular(
+                      Responsive.space(context, size: Space.large),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: _getImportanceColor(
+                          _selectedImportance,
+                        ).withOpacity(0.2),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: EdgeInsets.all(
+                              Responsive.space(context, size: Space.small),
+                            ),
+                            decoration: BoxDecoration(
+                              color: _getImportanceColor(
+                                _selectedImportance,
+                              ).withOpacity(0.2),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.flag_rounded,
+                              color: _getImportanceColor(_selectedImportance),
+                              size: Responsive.space(
+                                context,
+                                size: Space.medium,
+                              ),
+                            ),
+                          ),
+                          SizedBox(
+                            width: Responsive.space(
+                              context,
+                              size: Space.medium,
+                            ),
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'الأهمية',
+                                style: TextStyle(
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.small,
+                                  ),
+                                  color: _getImportanceColor(
+                                    _selectedImportance,
+                                  ),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                _importanceLabels[_selectedImportance] ?? 'N/A',
+                                style: TextStyle(
+                                  fontSize: Responsive.text(
+                                    context,
+                                    size: TextSize.medium,
+                                  ),
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      PopupMenuButton<TaskImportance>(
+                        initialValue: _selectedImportance,
+                        onSelected: (TaskImportance value) {
+                          setState(() {
+                            _selectedImportance = value;
+                          });
+                        },
+                        icon: Icon(
+                          Icons.arrow_drop_down,
+                          color: _getImportanceColor(_selectedImportance),
+                          size: Responsive.space(context, size: Space.large),
+                        ),
+                        itemBuilder:
+                            (BuildContext context) =>
+                                TaskImportance.values.map((
+                                  TaskImportance importance,
+                                ) {
+                                  return PopupMenuItem<TaskImportance>(
+                                    value: importance,
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.flag_rounded,
+                                          color: _getImportanceColor(
+                                            importance,
+                                          ),
+                                          size: 20,
+                                        ),
+                                        SizedBox(width: 12),
+                                        Text(
+                                          _importanceLabels[importance] ??
+                                              'N/A',
+                                          style: TextStyle(
+                                            fontWeight:
+                                                importance ==
+                                                        _selectedImportance
+                                                    ? FontWeight.bold
+                                                    : FontWeight.normal,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: Responsive.space(context, size: Space.medium)),
+
+                // Materials Section
+                if (selectedMaterials.isNotEmpty) ...[
+                  Container(
+                    padding: EdgeInsets.all(
+                      Responsive.space(context, size: Space.medium),
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(
+                        Responsive.space(context, size: Space.large),
+                      ),
+                      border: Border.all(color: Colors.grey[200]!),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
                           children: [
+                            Icon(
+                              Icons.library_books,
+                              size: 18,
+                              color: Colors.blue[700],
+                            ),
+                            SizedBox(width: 8),
                             Text(
-                              'الأهمية',
+                              'المواد المرفقة:',
                               style: TextStyle(
                                 fontSize: Responsive.text(
                                   context,
                                   size: TextSize.small,
                                 ),
-                                color: _getImportanceColor(_selectedImportance),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            SizedBox(height: 2),
-                            Text(
-                              _importanceLabels[_selectedImportance] ?? 'N/A',
-                              style: TextStyle(
-                                fontSize: Responsive.text(
-                                  context,
-                                  size: TextSize.medium,
-                                ),
                                 fontWeight: FontWeight.bold,
-                                color: Colors.black87,
+                                color: Colors.grey[700],
                               ),
                             ),
                           ],
                         ),
-                      ],
-                    ),
-                    PopupMenuButton<TaskImportance>(
-                      initialValue: _selectedImportance,
-                      onSelected: (TaskImportance value) {
-                        setState(() {
-                          _selectedImportance = value;
-                        });
-                      },
-                      icon: Icon(
-                        Icons.arrow_drop_down,
-                        color: _getImportanceColor(_selectedImportance),
-                        size: Responsive.space(context, size: Space.large),
-                      ),
-                      itemBuilder:
-                          (BuildContext context) =>
-                              TaskImportance.values.map((
-                                TaskImportance importance,
-                              ) {
-                                return PopupMenuItem<TaskImportance>(
-                                  value: importance,
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        Icons.flag_rounded,
-                                        color: _getImportanceColor(importance),
-                                        size: 20,
-                                      ),
-                                      SizedBox(width: 12),
-                                      Text(
-                                        _importanceLabels[importance] ?? 'N/A',
-                                        style: TextStyle(
-                                          fontWeight:
-                                              importance == _selectedImportance
-                                                  ? FontWeight.bold
-                                                  : FontWeight.normal,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              }).toList(),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(height: Responsive.space(context, size: Space.medium)),
-
-              // Materials Section
-              if (selectedMaterials.isNotEmpty) ...[
-                Container(
-                  padding: EdgeInsets.all(
-                    Responsive.space(context, size: Space.medium),
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[50],
-                    borderRadius: BorderRadius.circular(
-                      Responsive.space(context, size: Space.large),
-                    ),
-                    border: Border.all(color: Colors.grey[200]!),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.library_books,
-                            size: 18,
-                            color: Colors.blue[700],
-                          ),
-                          SizedBox(width: 8),
-                          Text(
-                            'المواد المرفقة:',
-                            style: TextStyle(
-                              fontSize: Responsive.text(
+                        SizedBox(
+                          height: Responsive.space(context, size: Space.small),
+                        ),
+                        ...selectedMaterials.asMap().entries.map((entry) {
+                          final index = entry.key;
+                          final material = entry.value;
+                          return Container(
+                            margin: EdgeInsets.only(
+                              bottom: Responsive.space(
                                 context,
-                                size: TextSize.small,
+                                size: Space.tiny,
                               ),
-                              fontWeight: FontWeight.bold,
-                              color: Colors.grey[700],
                             ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(
-                        height: Responsive.space(context, size: Space.small),
-                      ),
-                      ...selectedMaterials.asMap().entries.map((entry) {
-                        final index = entry.key;
-                        final material = entry.value;
-                        return Container(
-                          margin: EdgeInsets.only(
-                            bottom: Responsive.space(context, size: Space.tiny),
-                          ),
-                          padding: EdgeInsets.all(
-                            Responsive.space(context, size: Space.small),
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(
+                            padding: EdgeInsets.all(
                               Responsive.space(context, size: Space.small),
                             ),
-                            border: Border.all(color: Colors.blue[100]!),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.link,
-                                size: 16,
-                                color: Colors.blue[600],
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(
+                                Responsive.space(context, size: Space.small),
                               ),
-                              SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  material['title'] ?? '',
-                                  style: TextStyle(
-                                    fontSize: Responsive.text(
-                                      context,
-                                      size: TextSize.small,
-                                    ),
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                              border: Border.all(color: Colors.blue[100]!),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.link,
+                                  size: 16,
+                                  color: Colors.blue[600],
                                 ),
-                              ),
-                              IconButton(
-                                icon: Icon(Icons.close, size: 16),
-                                color: Colors.red[400],
-                                onPressed: () {
-                                  setState(() {
-                                    selectedMaterials.removeAt(index);
-                                  });
-                                },
-                                padding: EdgeInsets.zero,
-                                constraints: BoxConstraints(),
-                              ),
-                            ],
-                          ),
-                        );
-                      }),
-                    ],
+                                SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    material['title'] ?? '',
+                                    style: TextStyle(
+                                      fontSize: Responsive.text(
+                                        context,
+                                        size: TextSize.small,
+                                      ),
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: Icon(Icons.close, size: 16),
+                                  color: Colors.red[400],
+                                  onPressed: () {
+                                    setState(() {
+                                      selectedMaterials.removeAt(index);
+                                    });
+                                  },
+                                  padding: EdgeInsets.zero,
+                                  constraints: BoxConstraints(),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
                   ),
-                ),
-                SizedBox(height: Responsive.space(context, size: Space.medium)),
-              ],
+                  SizedBox(
+                    height: Responsive.space(context, size: Space.medium),
+                  ),
+                ],
 
-              // Add Materials Button
-              ElevatedButton.icon(
-                onPressed: _showMaterialsSelectionDialog,
-                icon: Icon(Icons.library_add),
-                label: Text('إضافة مرفقات من الماتيريال'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(
-                    horizontal: Responsive.space(context, size: Space.large),
-                    vertical: Responsive.space(context, size: Space.medium),
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(
-                      Responsive.space(context, size: Space.large),
+                // Add Materials Button
+                ElevatedButton.icon(
+                  onPressed: _showMaterialsSelectionDialog,
+                  icon: Icon(Icons.library_add),
+                  label: Text('إضافة مرفقات من الماتيريال'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: Responsive.space(context, size: Space.large),
+                      vertical: Responsive.space(context, size: Space.medium),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(
+                        Responsive.space(context, size: Space.large),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
+        confirmText: _isEditing ? 'حفظ التعديلات' : 'إضافة التاسك',
+        confirmIcon:
+            _isEditing
+                ? Icons.save_alt_rounded
+                : Icons.add_circle_outline_rounded,
+        isLoading: _isSaving,
+        onConfirm: _saveTask,
+        onCancel: _isSaving ? null : () => Navigator.of(context).pop(),
       ),
-      confirmText: _isEditing ? 'حفظ التعديلات' : 'إضافة التاسك',
-      confirmIcon:
-          _isEditing
-              ? Icons.save_alt_rounded
-              : Icons.add_circle_outline_rounded,
-      onConfirm: _saveTask,
-      onCancel: () => Navigator.of(context).pop(),
     );
   }
 

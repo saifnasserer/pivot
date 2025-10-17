@@ -1,4 +1,3 @@
-import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pivot/features/tasks/screens/screens.dart';
@@ -163,11 +162,6 @@ class _TaskModelState extends ConsumerState<TaskModel>
             ? Colors.red.shade400
             : (widget.task.isPersonal ? Colors.blue.shade400 : importanceColor);
 
-    final IconData checkboxIcon =
-        isCompleted
-            ? Icons.check_circle_rounded
-            : Icons.radio_button_unchecked_rounded;
-
     // Reduce size for completed tasks
     final double cardPadding =
         isCompleted
@@ -191,13 +185,14 @@ class _TaskModelState extends ConsumerState<TaskModel>
                 vertical: Responsive.space(context, size: Space.small),
               ),
               child: Material(
-                elevation: _isHovered ? 6 : 2,
+                elevation: _isHovered ? 8 : 3,
                 borderRadius: BorderRadius.circular(
-                  Responsive.space(context, size: Space.large),
+                  Responsive.space(context, size: Space.large) * 1.2,
                 ),
+                shadowColor: borderColor.withOpacity(0.2),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(
-                    Responsive.space(context, size: Space.large),
+                    Responsive.space(context, size: Space.large) * 1.2,
                   ),
                   onTap: () async {
                     await showDialog(
@@ -220,20 +215,34 @@ class _TaskModelState extends ConsumerState<TaskModel>
                   child: Container(
                     width: double.infinity,
                     decoration: BoxDecoration(
-                      color:
+                      gradient:
                           isCompleted
-                              ? Colors.grey.shade50
-                              : _isHovered
-                              ? Colors.grey.shade100
-                              : Colors.white,
+                              ? LinearGradient(
+                                colors: [
+                                  Colors.grey.shade50,
+                                  Colors.grey.shade100,
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              )
+                              : LinearGradient(
+                                colors:
+                                    _isHovered
+                                        ? [Colors.white, Colors.grey.shade50]
+                                        : [Colors.white, Colors.white],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
                       borderRadius: BorderRadius.circular(
-                        Responsive.space(context, size: Space.large),
+                        Responsive.space(context, size: Space.large) * 1.2,
                       ),
                       border: Border.all(
                         color:
-                            _isHovered
+                            isOverdue
+                                ? Colors.red.shade400
+                                : _isHovered
                                 ? borderColor
-                                : borderColor.withOpacity(0.6),
+                                : borderColor.withOpacity(0.3),
                         width:
                             isOverdue
                                 ? 2.5
@@ -244,10 +253,11 @@ class _TaskModelState extends ConsumerState<TaskModel>
                       boxShadow: [
                         BoxShadow(
                           color: borderColor.withOpacity(
-                            _isHovered ? 0.3 : 0.1,
+                            _isHovered ? 0.25 : 0.1,
                           ),
-                          blurRadius: _isHovered ? 12 : 6,
-                          offset: const Offset(0, 2),
+                          blurRadius: _isHovered ? 16 : 8,
+                          offset: Offset(0, _isHovered ? 4 : 2),
+                          spreadRadius: _isHovered ? 1 : 0,
                         ),
                       ],
                     ),
@@ -259,77 +269,68 @@ class _TaskModelState extends ConsumerState<TaskModel>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Main content row
+                          // Header row with RTL layout: checkbox (right) -> content (center) -> indicator (left)
                           Row(
                             children: [
-                              // Enhanced checkbox with glow effect
-                              Container(
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color:
-                                      isCompleted
-                                          ? Colors.green.shade500
-                                          : borderColor,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: (isCompleted
-                                              ? Colors.green
-                                              : borderColor)
-                                          .withOpacity(0.4),
-                                      blurRadius: _isHovered ? 15 : 8,
-                                      spreadRadius: _isHovered ? 2 : 1,
-                                    ),
-                                  ],
-                                  border: Border.all(
+                              // Modern checkbox (right side for RTL)
+                              GestureDetector(
+                                onTap: widget.onStatusChanged,
+                                child: Container(
+                                  width: 28,
+                                  height: 28,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
                                     color:
-                                        _isHovered
-                                            ? borderColor
-                                            : Colors.grey.shade300,
-                                    width: 2,
-                                  ),
-                                ),
-                                child: IconButton(
-                                  onPressed: widget.onStatusChanged,
-                                  icon: Icon(
-                                    checkboxIcon,
-                                    color: Colors.white,
-                                    size: 20,
-                                  ),
-                                  tooltip:
-                                      isCompleted
-                                          ? 'إلغاء الإكمال'
-                                          : 'إكمال التاسك',
-                                  style: IconButton.styleFrom(
-                                    padding: EdgeInsets.all(
-                                      Responsive.space(
-                                        context,
-                                        size: Space.small,
-                                      ),
+                                        isCompleted
+                                            ? Colors.green.shade500
+                                            : Colors.transparent,
+                                    border: Border.all(
+                                      color:
+                                          isCompleted
+                                              ? Colors.green.shade500
+                                              : borderColor,
+                                      width: 2.5,
                                     ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: (isCompleted
+                                                ? Colors.green.shade500
+                                                : borderColor)
+                                            .withOpacity(0.3),
+                                        blurRadius: _isHovered ? 8 : 4,
+                                        offset: Offset(0, 2),
+                                      ),
+                                    ],
                                   ),
+                                  child:
+                                      isCompleted
+                                          ? Icon(
+                                            Icons.check_rounded,
+                                            color: Colors.white,
+                                            size: 18,
+                                          )
+                                          : null,
                                 ),
                               ),
 
                               SizedBox(
                                 width: Responsive.space(
                                   context,
-                                  size: Space.small,
+                                  size: Space.medium,
                                 ),
                               ),
 
-                              // Task content
+                              // Task content (expanded center)
                               Expanded(
                                 child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.end, // RTL alignment
                                   children: [
-                                    // Task title
-                                    AutoSizeText(
+                                    // Task title (right aligned for RTL)
+                                    Text(
                                       widget.task.title,
-                                      minFontSize: Responsive.text(
-                                        context,
-                                        size: TextSize.small,
-                                      ),
-                                      textAlign: TextAlign.right,
+                                      textAlign:
+                                          TextAlign.right, // RTL text alignment
                                       maxLines: isCompleted ? 1 : 2,
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
@@ -341,8 +342,9 @@ class _TaskModelState extends ConsumerState<TaskModel>
                                         fontWeight:
                                             isCompleted
                                                 ? FontWeight.w400
-                                                : FontWeight.w600,
+                                                : FontWeight.w700,
                                         color: textColor,
+                                        height: 1.3,
                                       ),
                                     ),
 
@@ -354,62 +356,62 @@ class _TaskModelState extends ConsumerState<TaskModel>
                                         ),
                                       ),
 
-                                      // Task info chips (only for non-completed tasks)
-                                      Wrap(
-                                        spacing: Responsive.space(
-                                          context,
-                                          size: Space.tiny,
-                                        ),
-                                        runSpacing: Responsive.space(
-                                          context,
-                                          size: Space.tiny,
-                                        ),
-                                        alignment: WrapAlignment.end,
+                                      // Due date row (RTL aligned)
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment
+                                                .end, // RTL alignment
                                         children: [
-                                          // Importance chip (hidden for personal tasks)
-                                          if (!widget.task.isPersonal)
-                                            _buildInfoChip(
-                                              _getImportanceLabel(
-                                                widget.task.importance,
+                                          Text(
+                                            fullFormattedDate,
+                                            style: TextStyle(
+                                              fontSize: Responsive.text(
+                                                context,
+                                                size: TextSize.small,
                                               ),
-                                              importanceColor,
-                                              Icons.priority_high,
+                                              color:
+                                                  isOverdue
+                                                      ? Colors.red.shade600
+                                                      : Colors.grey.shade600,
+                                              fontWeight: FontWeight.w500,
                                             ),
-
-                                          // Personal task indicator
-                                          if (widget.task.isPersonal)
-                                            _buildInfoChip(
-                                              'شخصية',
-                                              Colors.blue.shade400,
-                                              Icons.person,
-                                            ),
-
-                                          // Overdue indicator
-                                          if (isOverdue)
-                                            _buildInfoChip(
-                                              'متأخرة',
-                                              Colors.red.shade400,
-                                              Icons.warning,
-                                            ),
-
-                                          // Notes indicator
-                                          if (_hasNotes && !_isCheckingNotes)
-                                            _buildInfoChip(
-                                              'ملاحظات',
-                                              Colors.purple.shade400,
-                                              Icons.notes,
-                                            ),
-
-                                          // Notes loading indicator
-                                          if (_isCheckingNotes)
-                                            _buildInfoChip(
-                                              'جاري التحقق...',
-                                              Colors.grey.shade400,
-                                              Icons.hourglass_empty,
-                                            ),
+                                          ),
+                                          SizedBox(width: 4),
+                                          Icon(
+                                            Icons.schedule_rounded,
+                                            size: 16,
+                                            color: Colors.grey.shade600,
+                                          ),
                                         ],
                                       ),
                                     ],
+                                  ],
+                                ),
+                              ),
+
+                              SizedBox(
+                                width: Responsive.space(
+                                  context,
+                                  size: Space.medium,
+                                ),
+                              ),
+
+                              // Importance indicator (left side for RTL)
+                              Container(
+                                width: 4,
+                                height: isCompleted ? 30 : 40,
+                                decoration: BoxDecoration(
+                                  color:
+                                      isOverdue
+                                          ? Colors.red.shade400
+                                          : borderColor,
+                                  borderRadius: BorderRadius.circular(2),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: borderColor.withOpacity(0.3),
+                                      blurRadius: 4,
+                                      offset: Offset(0, 1),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -417,65 +419,58 @@ class _TaskModelState extends ConsumerState<TaskModel>
                           ),
 
                           if (!isCompleted) ...[
-                            SizedBox(
-                              height: Responsive.space(
-                                context,
-                                size: Space.medium,
-                              ),
-                            ),
-
-                            // Due date section (only for non-completed tasks)
-                            Container(
-                              width: double.infinity,
-                              padding: EdgeInsets.symmetric(
-                                horizontal: Responsive.space(
+                            // Only show tags row if there are tags to display
+                            if (widget.task.isPersonal ||
+                                isOverdue ||
+                                (_hasNotes && !_isCheckingNotes)) ...[
+                              SizedBox(
+                                height: Responsive.space(
                                   context,
                                   size: Space.medium,
                                 ),
-                                vertical: Responsive.space(
-                                  context,
-                                  size: Space.small,
-                                ),
                               ),
-                              decoration: BoxDecoration(
-                                color: Colors.grey.shade50,
-                                borderRadius: BorderRadius.circular(
-                                  Responsive.space(context, size: Space.medium),
-                                ),
-                                border: Border.all(
-                                  color: borderColor.withOpacity(0.3),
-                                  width: 1,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.end,
+
+                              // Modern info tags row (RTL layout)
+                              Row(
                                 children: [
-                                  Icon(
-                                    Icons.schedule,
-                                    color: borderColor,
-                                    size: 16,
-                                  ),
-                                  SizedBox(
-                                    width: Responsive.space(
-                                      context,
-                                      size: Space.tiny,
-                                    ),
-                                  ),
-                                  Text(
-                                    'آخر موعد للتسليم: $fullFormattedDate',
-                                    textAlign: TextAlign.right,
-                                    style: TextStyle(
-                                      fontSize: Responsive.text(
-                                        context,
-                                        size: TextSize.small,
-                                      ),
-                                      fontWeight: FontWeight.w500,
-                                      color: Colors.grey.shade700,
+                                  // Status tags aligned to the right (RTL)
+                                  Expanded(
+                                    child: Wrap(
+                                      spacing: 6,
+                                      runSpacing: 6,
+                                      alignment:
+                                          WrapAlignment
+                                              .end, // RTL alignment - tags on right
+                                      children: [
+                                        // Personal task indicator
+                                        // if (widget.task.isPersonal)
+                                        //   _buildModernTag(
+                                        //     'شخصية',
+                                        //     Colors.blue.shade600,
+                                        //     Icons.person,
+                                        //   ),
+
+                                        // Overdue indicator
+                                        if (isOverdue)
+                                          _buildModernTag(
+                                            'متأخرة',
+                                            Colors.red.shade600,
+                                            Icons.warning_rounded,
+                                          ),
+
+                                        // Notes indicator
+                                        if (_hasNotes && !_isCheckingNotes)
+                                          _buildModernTag(
+                                            'ملاحظات',
+                                            Colors.purple.shade600,
+                                            Icons.notes_rounded,
+                                          ),
+                                      ],
                                     ),
                                   ),
                                 ],
                               ),
-                            ),
+                            ],
                           ],
 
                           // Admin actions
@@ -589,6 +584,33 @@ class _TaskModelState extends ConsumerState<TaskModel>
         style: IconButton.styleFrom(
           padding: EdgeInsets.all(Responsive.space(context, size: Space.tiny)),
         ),
+      ),
+    );
+  }
+
+  // Modern tag widget for info display
+  Widget _buildModernTag(String label, Color color, IconData icon) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3), width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 12),
+          SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
       ),
     );
   }

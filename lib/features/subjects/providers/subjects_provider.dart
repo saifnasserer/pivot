@@ -400,7 +400,7 @@ class SubjectsNotifier extends StateNotifier<SubjectsState> {
     _checkDisposed();
 
     // Check if offline before attempting Firestore fetch
-    final offlineService = OfflineService();
+    final offlineService = _ref.read(offlineServiceProvider);
     if (offlineService.isOffline) {
       print('📴 [SubjectsProvider] Offline detected - using cached data only');
 

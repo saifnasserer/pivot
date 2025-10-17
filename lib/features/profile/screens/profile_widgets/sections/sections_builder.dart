@@ -17,9 +17,12 @@ class SectionsBuilder {
     WidgetRef ref, {
     bool enableAnimations = true,
   }) {
+    // Only watch providers that actually need to trigger rebuilds
     final userProfileState = ref.watch(userProfileProvider);
     final sectionsState = ref.watch(sectionsProvider);
-    final subjectsState = ref.watch(subjectsProvider);
+
+    // Use read for subjects since they don't change frequently
+    final subjectsState = ref.read(subjectsProvider);
 
     // Show loading state
     if (userProfileState.isLoading || sectionsState.isLoading) {
@@ -30,10 +33,7 @@ class SectionsBuilder {
     final allSections = sectionsState.sections; // Snapshot data
     final enrolledSubjects = subjectsState.filteredSubjects;
 
-    print('🔍 [SectionsBuilder] Building sections UI');
-    print('   User: ${loggedInUser?.name} (${loggedInUser?.id})');
-    print('   Total sections in snapshot: ${allSections.length}');
-    print('   Enrolled subjects: ${enrolledSubjects.length}');
+    // Building sections UI
 
     // Show error state if error and no sections
     if (sectionsState.error != null && allSections.isEmpty) {
@@ -66,7 +66,6 @@ class SectionsBuilder {
     }
 
     final enrolledSubjectIds = loggedInUser.enrolledSubjects.toSet();
-    print('   User enrolled subject IDs: $enrolledSubjectIds');
 
     // Check if user has no enrolled subjects
     if (enrolledSubjectIds.isEmpty) {
@@ -74,20 +73,21 @@ class SectionsBuilder {
     }
 
     // Filter sections by enrolled subjects
-    final userRelevantSections = allSections.where((section) {
-      return enrolledSubjectIds.contains(section.subjectId);
-    }).toList();
+    final userRelevantSections =
+        allSections.where((section) {
+          return enrolledSubjectIds.contains(section.subjectId);
+        }).toList();
 
-    print('   Filtered sections: ${userRelevantSections.length}');
+    // Filtered sections: ${userRelevantSections.length}
 
     // Filter subjects by enrolled
-    final registeredSubjects = enrolledSubjects
-        .where((s) => enrolledSubjectIds.contains(s.id))
-        .toList();
+    final registeredSubjects =
+        enrolledSubjects
+            .where((s) => enrolledSubjectIds.contains(s.id))
+            .toList();
 
     // If subjects not loaded yet, show loading
     if (registeredSubjects.isEmpty && enrolledSubjectIds.isNotEmpty) {
-      print('   ⏳ Subjects not loaded yet');
       return [_buildLoadingState(context)];
     }
 
@@ -178,33 +178,30 @@ class SectionsBuilder {
         vertical: Responsive.space(context, size: Space.small),
       ),
       sliver: SliverList(
-        delegate: SliverChildBuilderDelegate(
-          (context, index) {
-            final subject = subjects[index];
+        delegate: SliverChildBuilderDelegate((context, index) {
+          final subject = subjects[index];
 
-            // Find sections for this subject
-            final subjectSections = allSections
-                .where((section) => section.subjectId == subject.id)
-                .toList();
+          // Find sections for this subject
+          final subjectSections =
+              allSections
+                  .where((section) => section.subjectId == subject.id)
+                  .toList();
 
-            print(
-              '   Subject: ${subject.name} → ${subjectSections.length} sections',
-            );
+          // Subject: ${subject.name} → ${subjectSections.length} sections
 
-            return AnimatedContainer(
-              duration: enableAnimations
-                  ? Duration(milliseconds: 300 + (index * 50))
-                  : Duration.zero,
-              curve: Curves.easeInOut,
-              child: EnhancedSectionListItem(
-                subject: subject,
-                sections: subjectSections,
-                index: index,
-              ),
-            );
-          },
-          childCount: subjects.length,
-        ),
+          return AnimatedContainer(
+            duration:
+                enableAnimations
+                    ? Duration(milliseconds: 300 + (index * 50))
+                    : Duration.zero,
+            curve: Curves.easeInOut,
+            child: EnhancedSectionListItem(
+              subject: subject,
+              sections: subjectSections,
+              index: index,
+            ),
+          );
+        }, childCount: subjects.length),
       ),
     );
   }

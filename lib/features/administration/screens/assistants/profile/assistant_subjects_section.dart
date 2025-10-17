@@ -38,7 +38,8 @@ class _AssistantSubjectsSectionState
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 0, vsync: this);
+    // Initialize with length 1 to prevent mismatch errors
+    _tabController = TabController(length: 1, vsync: this);
     _previousAssistantId = widget.userProfile.id;
   }
 
@@ -120,32 +121,38 @@ class _AssistantSubjectsSectionState
       _tabController.removeListener(_onTabChanged);
       _tabController.dispose();
 
+      // Ensure we have at least length 1 to prevent mismatch errors
+      final controllerLength = subjects.isEmpty ? 1 : subjects.length;
+
       // Determine initial index - prioritize preserved target subject if available
-      int initialIndex = subjects.isNotEmpty ? subjects.length - 1 : 0;
-      if (_preservedTargetSubject != null) {
-        final targetIndex = subjects.indexWhere(
-          (subject) => subject.id == _preservedTargetSubject!.id,
-        );
-        if (targetIndex != -1) {
-          initialIndex = targetIndex;
-          print(
-            'Setting initial index to $targetIndex for preserved target subject',
+      int initialIndex = 0; // Default to first tab
+      if (subjects.isNotEmpty) {
+        initialIndex = subjects.length - 1; // Default to last tab
+        if (_preservedTargetSubject != null) {
+          final targetIndex = subjects.indexWhere(
+            (subject) => subject.id == _preservedTargetSubject!.id,
           );
-        }
-      } else if (widget.targetSubject != null) {
-        final targetIndex = subjects.indexWhere(
-          (subject) => subject.id == widget.targetSubject!.id,
-        );
-        if (targetIndex != -1) {
-          initialIndex = targetIndex;
-          print(
-            'Setting initial index to $targetIndex for widget target subject',
+          if (targetIndex != -1) {
+            initialIndex = targetIndex;
+            print(
+              'Setting initial index to $targetIndex for preserved target subject',
+            );
+          }
+        } else if (widget.targetSubject != null) {
+          final targetIndex = subjects.indexWhere(
+            (subject) => subject.id == widget.targetSubject!.id,
           );
+          if (targetIndex != -1) {
+            initialIndex = targetIndex;
+            print(
+              'Setting initial index to $targetIndex for widget target subject',
+            );
+          }
         }
       }
 
       _tabController = TabController(
-        length: subjects.length,
+        length: controllerLength,
         vsync: this,
         initialIndex: initialIndex,
       );
@@ -166,7 +173,7 @@ class _AssistantSubjectsSectionState
           }
         });
       }
-    } else if (widget.targetSubject != null) {
+    } else if (widget.targetSubject != null && subjects.isNotEmpty) {
       // If subjects haven't changed but we have a target subject, switch to it
       final targetIndex = subjects.indexWhere(
         (subject) => subject.id == widget.targetSubject!.id,
@@ -222,17 +229,16 @@ class _AssistantSubjectsSectionState
     final subjectProvider = ref.read(SubjectProviderProvider);
     final subjects = subjectProvider.filteredSubjects;
 
-    print(
-      '🔄 [AssistantSubjectsSection] Loading sections for subject at index $index',
-    );
-    print('   Total subjects: ${subjects.length}');
+    // print(
+    //   '🔄 [AssistantSubjectsSection] Loading sections for subject at index $index',
+    // );
+    // print('   Total subjects: ${subjects.length}');
 
     if (subjects.isNotEmpty && index < subjects.length) {
       final assistantId = widget.userProfile.id;
-      final subject = subjects[index];
 
-      print('   Subject: ${subject.name}');
-      print('   Assistant ID: $assistantId');
+      // print('   Subject: ${subject.name}');
+      // print('   Assistant ID: $assistantId');
 
       try {
         // Use the SectionProvider to load sections for this assistant
@@ -240,7 +246,7 @@ class _AssistantSubjectsSectionState
             .read(sectionsProvider.notifier)
             .loadSectionsForAssistant(assistantId);
 
-        print('   ✅ Sections loaded successfully');
+        // print('   ✅ Sections loaded successfully');
       } catch (e) {
         print('   ❌ Error loading sections: $e');
       }
@@ -357,19 +363,20 @@ class _AssistantSubjectsSectionState
   }
 
   Widget _buildSubjectContent(Subject subject) {
-    final sectionsState = ref.watch(sectionsProvider);
+    // Use read instead of watch to prevent unnecessary rebuilds
+    final sectionsState = ref.read(sectionsProvider);
     final sections =
         sectionsState.sections
             .where((section) => section.subjectId == subject.id)
             .toList();
 
-    print(
-      '🎨 [AssistantSubjectsSection] Building content for subject: ${subject.name}',
-    );
-    print('   isLoading: ${sectionsState.isLoading}');
-    print('   All sections count: ${sectionsState.sections.length}');
-    print('   Filtered sections for this subject: ${sections.length}');
-    print('   Error: ${sectionsState.error}');
+    // print(
+    //   '🎨 [AssistantSubjectsSection] Building content for subject: ${subject.name}',
+    // );
+    // print('   isLoading: ${sectionsState.isLoading}');
+    // print('   All sections count: ${sectionsState.sections.length}');
+    // print('   Filtered sections for this subject: ${sections.length}');
+    // print('   Error: ${sectionsState.error}');
 
     if (sectionsState.isLoading) {
       print('   → Showing loading indicator');
@@ -442,7 +449,7 @@ class _AssistantSubjectsSectionState
       );
     }
 
-    print('   → Showing ${sections.length} sections');
+    // Showing ${sections.length} sections
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -479,7 +486,8 @@ class _AssistantSubjectsSectionState
 
   @override
   Widget build(BuildContext context) {
-    final subjectProvider = ref.watch(SubjectProviderProvider);
+    // Use read instead of watch to prevent unnecessary rebuilds from keyboard/UI changes
+    final subjectProvider = ref.read(SubjectProviderProvider);
     final subjects = subjectProvider.filteredSubjects;
 
     // Safety check: ensure TabController length matches subjects length
@@ -490,12 +498,54 @@ class _AssistantSubjectsSectionState
         }
       });
 
-      // Return loading indicator while TabController is being updated
-      return Center(
-        child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(Colors.green[600]!),
-        ),
-      );
+      // Only show loading if we're actually loading subjects from server
+      // If subjects is empty and not loading, show empty state immediately
+      final subjectProvider = ref.read(SubjectProviderProvider);
+      if (subjectProvider.isLoading) {
+        return Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.green[600]!),
+          ),
+        );
+      }
+
+      // If subjects is empty and not loading, return empty state immediately
+      // This prevents the TabController mismatch error
+      if (subjects.isEmpty) {
+        return Padding(
+          padding: EdgeInsets.all(
+            Responsive.space(context, size: Space.medium),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.school_outlined,
+                size: 64,
+                color: Colors.grey.shade400,
+              ),
+              SizedBox(height: 16),
+              Text(
+                'لا توجد مواد متاحة',
+                style: TextStyle(
+                  fontSize: Responsive.text(context, size: TextSize.medium),
+                  color: Colors.grey.shade600,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: 8),
+              Text(
+                'يجب إضافة مواد للمعيد أولاً',
+                style: TextStyle(
+                  fontSize: Responsive.text(context, size: TextSize.small),
+                  color: Colors.grey.shade500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        );
+      }
     }
 
     if (subjects.isEmpty) {

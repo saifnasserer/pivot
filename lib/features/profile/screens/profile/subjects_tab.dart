@@ -80,8 +80,9 @@ class _SubjectsTabState extends ConsumerState<SubjectsTab> {
 
   @override
   Widget build(BuildContext context) {
-    final subjectsState = ref.watch(subjectsProvider);
-    final userProfileState = ref.watch(userProfileProvider);
+    // Use read instead of watch to prevent unnecessary rebuilds from keyboard/UI changes
+    final subjectsState = ref.read(subjectsProvider);
+    final userProfileState = ref.read(userProfileProvider);
 
     try {
       // Get the correct profile to use
@@ -132,9 +133,7 @@ class _SubjectsTabState extends ConsumerState<SubjectsTab> {
               .toList();
 
       // Debug logging for instructors
-      print(
-        '📚 SubjectsTab: Building UI with ${registeredSubjects.length} subjects and ${subjectsState.instructorsBySubject.length} instructor mappings',
-      );
+      // Building UI with ${registeredSubjects.length} subjects and ${subjectsState.instructorsBySubject.length} instructor mappings
       if (subjectsState.instructorsBySubject.isEmpty &&
           registeredSubjects.isNotEmpty) {
         print(

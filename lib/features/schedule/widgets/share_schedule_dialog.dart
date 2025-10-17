@@ -157,6 +157,11 @@ class _ShareScheduleDialogState extends ConsumerState<ShareScheduleDialog> {
           ),
           SizedBox(height: Responsive.space(context, size: Space.large)),
 
+          // Schedule statistics
+          _buildScheduleStats(),
+
+          SizedBox(height: Responsive.space(context, size: Space.large)),
+
           // Title field
           UnifiedFormField(
             controller: _titleController,
@@ -257,7 +262,7 @@ class _ShareScheduleDialogState extends ConsumerState<ShareScheduleDialog> {
                               ),
                             ),
                           )
-                          : Text('إنشاء معرف'),
+                          : Text('إنشاء مفتاح'),
                 ),
               ),
             ],
@@ -300,7 +305,7 @@ class _ShareScheduleDialogState extends ConsumerState<ShareScheduleDialog> {
           ),
           SizedBox(height: Responsive.space(context, size: Space.small)),
           Text(
-            'يمكن للآخرين استيراد هذا الجدول باستخدام المعرف التالي',
+            'يمكن للآخرين استيراد هذا الجدول باستخدام المفتاح التالي',
             style: TextStyle(
               fontSize: Responsive.text(context, size: TextSize.small),
               color: Colors.grey.shade600,
@@ -330,7 +335,7 @@ class _ShareScheduleDialogState extends ConsumerState<ShareScheduleDialog> {
                       width: Responsive.space(context, size: Space.small),
                     ),
                     Text(
-                      'معرف الجدول',
+                      'مفتاح الجدول',
                       style: TextStyle(
                         fontSize: Responsive.text(
                           context,
@@ -359,7 +364,7 @@ class _ShareScheduleDialogState extends ConsumerState<ShareScheduleDialog> {
                   child: OutlinedButton.icon(
                     onPressed: _copyToClipboard,
                     icon: Icon(Icons.copy, size: 18),
-                    label: Text('نسخ المعرف'),
+                    label: Text('نسخ المفتاح'),
                     style: OutlinedButton.styleFrom(
                       padding: EdgeInsets.symmetric(vertical: 12),
                     ),
@@ -410,12 +415,158 @@ class _ShareScheduleDialogState extends ConsumerState<ShareScheduleDialog> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('تم نسخ المعرف إلى الحافظة'),
+            content: Text('تم نسخ المفتاح إلى الحافظة'),
             backgroundColor: Colors.black,
             duration: Duration(seconds: 2),
           ),
         );
       }
     }
+  }
+
+  Widget _buildScheduleStats() {
+    final totalItems = widget.schedule.values.fold<int>(
+      0,
+      (sum, items) => sum + items.length,
+    );
+    final itemsWithNotifications =
+        widget.schedule.values
+            .expand((items) => items)
+            .where((item) => item.notificationEnabled)
+            .length;
+    final totalDays = widget.schedule.keys.length;
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(Responsive.space(context, size: Space.medium)),
+      decoration: BoxDecoration(
+        color: Colors.green.shade50,
+        borderRadius: BorderRadius.circular(
+          Responsive.space(context, size: Space.medium),
+        ),
+        border: Border.all(color: Colors.green.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.analytics,
+                color: Colors.green.shade700,
+                size: Responsive.text(context, size: TextSize.medium),
+              ),
+              SizedBox(width: Responsive.space(context, size: Space.small)),
+              Text(
+                'إحصائيات الجدول',
+                style: TextStyle(
+                  fontSize: Responsive.text(context, size: TextSize.medium),
+                  fontWeight: FontWeight.w600,
+                  color: Colors.green.shade800,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: Responsive.space(context, size: Space.small)),
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatItem(
+                  icon: Icons.schedule,
+                  label: 'إجمالي العناصر',
+                  value: '$totalItems',
+                  color: Colors.green.shade700,
+                ),
+              ),
+              Expanded(
+                child: _buildStatItem(
+                  icon: Icons.notifications,
+                  label: 'مع تنبيهات',
+                  value: '$itemsWithNotifications',
+                  color: Colors.orange.shade700,
+                ),
+              ),
+              Expanded(
+                child: _buildStatItem(
+                  icon: Icons.calendar_today,
+                  label: 'عدد الأيام',
+                  value: '$totalDays',
+                  color: Colors.blue.shade700,
+                ),
+              ),
+            ],
+          ),
+          if (itemsWithNotifications > 0) ...[
+            SizedBox(height: Responsive.space(context, size: Space.small)),
+            Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: Responsive.space(context, size: Space.small),
+                vertical: Responsive.space(context, size: Space.tiny),
+              ),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade100,
+                borderRadius: BorderRadius.circular(
+                  Responsive.space(context, size: Space.small),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    size: 14,
+                    color: Colors.orange.shade700,
+                  ),
+                  SizedBox(width: Responsive.space(context, size: Space.tiny)),
+                  Text(
+                    'سيتم الحفاظ على إعدادات التنبيهات عند الاستيراد',
+                    style: TextStyle(
+                      fontSize:
+                          Responsive.text(context, size: TextSize.small) * 0.9,
+                      color: Colors.orange.shade800,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatItem({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Column(
+      children: [
+        Icon(
+          icon,
+          color: color,
+          size: Responsive.text(context, size: TextSize.medium),
+        ),
+        SizedBox(height: Responsive.space(context, size: Space.tiny)),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: Responsive.text(context, size: TextSize.medium),
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: Responsive.text(context, size: TextSize.small) * 0.9,
+            color: Colors.grey.shade600,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
   }
 }

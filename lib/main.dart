@@ -133,13 +133,27 @@ void main() async {
 
   // Early check for iOS/Android web - show landing screen immediately without initialization
   if (kIsWeb) {
+    print('🌐 [Platform Check] Starting web platform detection...');
+
     // Check if user explicitly wants to skip platform check (from "Continue on Web" button)
     final skipPlatformCheck =
         Uri.base.queryParameters['skip_platform_check'] == 'true';
 
+    if (skipPlatformCheck) {
+      print(
+        '⏭️ [Platform Check] Skipping platform check (skip_platform_check=true)',
+      );
+    }
+
     if (!skipPlatformCheck) {
+      print('🔍 [Platform Check] Checking platform...');
+
       // Check platform early to avoid unnecessary initialization
-      if (PlatformService.isIOSWeb()) {
+      final isIOS = PlatformService.isIOSWeb();
+      print('🍎 [Platform Check] iOS detected: $isIOS');
+
+      if (isIOS) {
+        print('✅ [Platform Check] Showing iOS install screen - EXITING EARLY');
         runApp(
           const MaterialApp(
             home: IOSInstallInstructionsScreen(),
@@ -147,7 +161,15 @@ void main() async {
           ),
         );
         return; // Exit early, no need for Firebase initialization
-      } else if (PlatformService.isAndroidWeb()) {
+      }
+
+      final isAndroid = PlatformService.isAndroidWeb();
+      print('🤖 [Platform Check] Android detected: $isAndroid');
+
+      if (isAndroid) {
+        print(
+          '✅ [Platform Check] Showing Android landing screen - EXITING EARLY',
+        );
         runApp(
           const MaterialApp(
             home: AndroidLandingScreen(),
@@ -156,20 +178,43 @@ void main() async {
         );
         return; // Exit early, no need for Firebase initialization
       }
+
+      print(
+        '💻 [Platform Check] Desktop browser detected - continuing with full initialization',
+      );
     }
 
     // For other web platforms (desktop) or skip_platform_check=true, show loading indicator
+    print('⏳ [Platform Check] Showing loading indicator while initializing...');
     runApp(
       const MaterialApp(
         home: Scaffold(
           backgroundColor: Colors.white,
           body: Center(child: CircularProgressIndicator()),
         ),
+        debugShowCheckedModeBanner: false,
       ),
     );
   }
 
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  print('🔥 [Firebase] Starting Firebase initialization...');
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    ).timeout(
+      const Duration(seconds: 5),
+      onTimeout: () {
+        print('⏱️ [Firebase] Initialization timeout - continuing anyway');
+        throw TimeoutException('Firebase initialization timeout');
+      },
+    );
+    print('✅ [Firebase] Firebase initialized successfully');
+  } catch (e) {
+    print('❌ [Firebase] Firebase initialization error: $e');
+    if (e is! TimeoutException) {
+      rethrow;
+    }
+  }
 
   // Register FCM background message handler (must be called before runApp)
   if (!kIsWeb) {
@@ -184,10 +229,17 @@ void main() async {
   }
 
   // Enable Firestore offline persistence for better performance
-  FirebaseFirestore.instance.settings = const Settings(
-    persistenceEnabled: true,
-    cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
-  );
+  print('💾 [Firestore] Configuring persistence settings...');
+  try {
+    FirebaseFirestore.instance.settings = Settings(
+      persistenceEnabled: !kIsWeb, // Disable for web to improve performance
+      cacheSizeBytes:
+          kIsWeb ? 40000000 : Settings.CACHE_SIZE_UNLIMITED, // 40MB for web
+    );
+    print('✅ [Firestore] Persistence configured');
+  } catch (e) {
+    print('⚠️ [Firestore] Could not configure persistence: $e');
+  }
 
   // Configure Firebase Auth settings
   await _configureFirebaseAuth();
@@ -203,27 +255,55 @@ void main() async {
   await initializeDateFormatting('ar');
 
   // Initialize cache service for offline data storage
-  await CacheService.instance.init();
+  if (!kIsWeb) {
+    print('💾 [Cache] Initializing cache service...');
+    await CacheService.instance.init();
+    print('✅ [Cache] Cache service initialized');
+  } else {
+    print('⏭️ [Cache] Skipping cache service on web');
+  }
 
   // Initialize offline service for connectivity monitoring
   print('🔌 Initializing OfflineService...');
   await OfflineService().initialize();
+  print('✅ [OfflineService] Initialized');
 
   // Initialize offline queue service for syncing operations
-  print('📦 Initializing OfflineQueueService...');
-  await OfflineQueueService().init();
+  if (!kIsWeb) {
+    print('📦 Initializing OfflineQueueService...');
+    await OfflineQueueService().init();
+    print('✅ [OfflineQueueService] Initialized');
+  } else {
+    print('⏭️ [OfflineQueueService] Skipping on web');
+  }
 
   // Initialize Firestore network manager to reduce connection attempts when offline
-  print('🌐 Initializing FirestoreNetworkManager...');
-  final firestoreNetworkManager = FirestoreNetworkManager();
-  firestoreNetworkManager.startManagingNetwork();
+  if (!kIsWeb) {
+    print('🌐 Initializing FirestoreNetworkManager...');
+    final firestoreNetworkManager = FirestoreNetworkManager();
+    firestoreNetworkManager.startManagingNetwork();
+    print('✅ [FirestoreNetworkManager] Started');
+  } else {
+    print('⏭️ [FirestoreNetworkManager] Skipping on web');
+  }
 
   // Clean up old queued operations (older than 7 days)
-  await OfflineQueueService().clearOldOperations(7);
+  if (!kIsWeb) {
+    print('🧹 [Cleanup] Clearing old operations...');
+    await OfflineQueueService().clearOldOperations(7);
+    print('✅ [Cleanup] Old operations cleared');
+  }
 
-  // Check and clear expired sessions
+  // Check and clear expired sessions with error handling
   print('🔐 Checking session persistence...');
-  await SessionPersistenceService().clearExpiredSession();
+  try {
+    await SessionPersistenceService().clearExpiredSession();
+    print('✅ [Session] Session checked');
+  } catch (e) {
+    print('⚠️ [Session] Session check failed (continuing): $e');
+    // Continue app startup even if session check fails
+    // This ensures the app never crashes during initialization
+  }
 
   runApp(const ProviderScope(child: PivotWithNotifications()));
 

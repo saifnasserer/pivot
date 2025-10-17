@@ -37,7 +37,7 @@ class _TasksControlState extends ConsumerState<TasksControl> {
       }
 
       // Initialize offline state
-      _wasOffline = OfflineService().isOffline;
+      _wasOffline = ref.read(offlineServiceProvider).isOffline;
     });
   }
 
@@ -65,14 +65,12 @@ class _TasksControlState extends ConsumerState<TasksControl> {
       print('✅ Sync completed! Refreshing tasks...');
     }
 
-    // Refresh tasks
+    // Refresh tasks - only refresh the view provider to avoid double operations
     if (mounted) {
       if (sectionId != null) {
         await ref.read(viewTasksProvider.notifier).getTasksBySection(sectionId);
-        await ref.read(tasksProvider.notifier).getTasksBySection(sectionId);
       } else {
         await ref.read(viewTasksProvider.notifier).getAllTasks();
-        await ref.read(tasksProvider.notifier).getAllTasks();
       }
       print('✅ [TasksControl] Tasks refreshed after sync');
 
@@ -94,10 +92,10 @@ class _TasksControlState extends ConsumerState<TasksControl> {
   Widget build(BuildContext context) {
     final sectionId = ModalRoute.of(context)?.settings.arguments as String?;
 
-    // Watch connectivity status
+    // Watch connectivity status only when needed
     final connectivityStatus = ref.watch(connectivityStatusProvider);
 
-    // Refresh tasks when coming back online
+    // Refresh tasks when coming back online (only once per transition)
     connectivityStatus.whenData((isOnline) {
       if (_wasOffline && isOnline) {
         print(
@@ -126,8 +124,10 @@ class _TasksControlState extends ConsumerState<TasksControl> {
 
     // Use viewTasksProvider for viewing specific section tasks
     final tasksState = ref.watch(viewTasksProvider);
-    final sectionsState = ref.watch(sectionsProvider);
-    final userProfileState = ref.watch(userProfileProvider);
+
+    // Use read for providers that don't need to trigger rebuilds
+    final sectionsState = ref.read(sectionsProvider);
+    final userProfileState = ref.read(userProfileProvider);
     final userProfile = userProfileState.loggedInUserProfile;
 
     final userRole = userProfile?.role ?? '';
@@ -191,13 +191,9 @@ class _TasksControlState extends ConsumerState<TasksControl> {
                       }
                     },
                     onStatusChanged: () {
-                      // Use viewTasksProvider for this view
+                      // Only update the view provider since this is a view-specific action
                       ref
                           .read(viewTasksProvider.notifier)
-                          .markTaskCompleted(task.id);
-                      // Also update main provider to keep it in sync
-                      ref
-                          .read(tasksProvider.notifier)
                           .markTaskCompleted(task.id);
                     },
                   );
@@ -274,34 +270,31 @@ class _TasksControlState extends ConsumerState<TasksControl> {
     );
 
     if (confirmed == true && mounted) {
-      final offlineService = OfflineService();
+      final offlineService = ref.read(offlineServiceProvider);
       final isOffline = offlineService.isOffline;
       final sectionId = ModalRoute.of(context)?.settings.arguments as String?;
 
       try {
-        // Use viewTasksProvider for this view
-        final success1 = await ref
-            .read(viewTasksProvider.notifier)
-            .deleteTask(task.id);
-        // Also update main provider to keep them in sync
-        final success2 = await ref
-            .read(tasksProvider.notifier)
-            .deleteTask(task.id);
+        // Capture provider references before any async operations
+        // This prevents "ref disposed" errors
+        final viewTasksNotifier = ref.read(viewTasksProvider.notifier);
+        final currentContext = context;
 
-        // Refresh list if online and successful to remove the deleted task
-        if (!isOffline && (success1 || success2) && mounted) {
+        // Use viewTasksProvider for this view
+        final success = await viewTasksNotifier.deleteTask(task.id);
+
+        // Only refresh if the delete was successful and we're online
+        if (!isOffline && success && mounted) {
           print('🔄 Refreshing tasks after online delete...');
           if (sectionId != null) {
-            await ref
-                .read(viewTasksProvider.notifier)
-                .getTasksBySection(sectionId);
+            await viewTasksNotifier.getTasksBySection(sectionId);
           } else {
-            await ref.read(viewTasksProvider.notifier).getAllTasks();
+            await viewTasksNotifier.getAllTasks();
           }
         }
 
-        if (mounted && (success1 || success2)) {
-          ScaffoldMessenger.of(context).showSnackBar(
+        if (mounted && success) {
+          ScaffoldMessenger.of(currentContext).showSnackBar(
             SnackBar(
               content: Center(
                 child: Text(
@@ -334,7 +327,6 @@ class _TasksControlState extends ConsumerState<TasksControl> {
   }
 
   void _showAddEditTaskDialog(BuildContext context, {Task? task}) {
-    final bool isEditing = task != null;
     final sectionsState = ref.read(sectionsProvider);
 
     // Get sectionId from the task or from the current screen
@@ -363,128 +355,9 @@ class _TasksControlState extends ConsumerState<TasksControl> {
       subjectId: subjectId,
       initialSectionId: sectionId,
       onSave: (savedTask) async {
-        print('🎬 [AllTasks.onSave] Callback triggered');
-        print('   Task ID: ${savedTask.id}');
-        print('   Task Title: ${savedTask.title}');
-        print('   Is Editing: $isEditing');
-
-        final offlineService = OfflineService();
-        final isOffline = offlineService.isOffline;
-        print('   Is Offline: $isOffline');
-
-        try {
-          if (isEditing) {
-            print('   📝 Updating existing task...');
-            // Update in both providers to keep them in sync
-            final success1 = await ref
-                .read(viewTasksProvider.notifier)
-                .updateTask(savedTask);
-            print('   viewTasksProvider.updateTask returned: $success1');
-
-            final success2 = await ref
-                .read(tasksProvider.notifier)
-                .updateTask(savedTask);
-            print('   tasksProvider.updateTask returned: $success2');
-
-            // Refresh list if online and successful
-            if (!isOffline && (success1 || success2) && mounted) {
-              print('🔄 Refreshing tasks after online update...');
-              if (sectionId != null) {
-                await ref
-                    .read(viewTasksProvider.notifier)
-                    .getTasksBySection(sectionId);
-              } else {
-                await ref.read(viewTasksProvider.notifier).getAllTasks();
-              }
-              print('✅ Refresh completed');
-            }
-
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Center(
-                    child: Text(
-                      isOffline
-                          ? 'تم حفظ التاسك في قائمة الانتظار. سيتم إرسالها عند الاتصال.'
-                          : 'تم تحديث التاسك بنجاح!',
-                    ),
-                  ),
-                  backgroundColor: isOffline ? Colors.orange : Colors.green,
-                  duration: Duration(seconds: isOffline ? 4 : 2),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            }
-          } else {
-            print('   ➕ Adding new task...');
-            // Add to both providers to keep them in sync
-            final success1 = await ref
-                .read(viewTasksProvider.notifier)
-                .addTask(savedTask);
-            print('   viewTasksProvider.addTask returned: $success1');
-
-            final success2 = await ref
-                .read(tasksProvider.notifier)
-                .addTask(savedTask);
-            print('   tasksProvider.addTask returned: $success2');
-
-            // Refresh list if online and successful to show the newly added task
-            if (!isOffline && (success1 || success2) && mounted) {
-              print('🔄 Refreshing tasks after online add...');
-              print('   Section ID: $sectionId');
-              print('   Mounted: $mounted');
-
-              if (sectionId != null) {
-                print('   Calling getTasksBySection($sectionId)...');
-                await ref
-                    .read(viewTasksProvider.notifier)
-                    .getTasksBySection(sectionId);
-              } else {
-                print('   Calling getAllTasks()...');
-                await ref.read(viewTasksProvider.notifier).getAllTasks();
-              }
-              print('✅ Refresh completed');
-            } else {
-              print('⚠️ Skipping refresh:');
-              print('   isOffline: $isOffline');
-              print('   success1 || success2: ${success1 || success2}');
-              print('   mounted: $mounted');
-            }
-
-            if (mounted) {
-              print('   Showing snackbar...');
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Center(
-                    child: Text(
-                      isOffline
-                          ? 'تم حفظ التاسك في قائمة الانتظار. سيتم إضافتها عند الاتصال.'
-                          : 'تم اضافة التاسك بنجاح!',
-                    ),
-                  ),
-                  backgroundColor: isOffline ? Colors.orange : Colors.green,
-                  duration: Duration(seconds: isOffline ? 4 : 2),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            }
-          }
-          print('✅ [AllTasks.onSave] Completed successfully');
-        } catch (e) {
-          print('❌ [AllTasks.onSave] Error: $e');
-          print('   Stack trace: ${StackTrace.current}');
-
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Center(child: Text('فشل حفظ التاسك: $e')),
-                backgroundColor: Colors.red,
-                duration: Duration(seconds: 4),
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-          }
-        }
+        // The dialog handles the save internally, so we don't need to refresh here
+        // The viewTasksProvider will automatically update when the dialog saves
+        // This prevents unnecessary refresh calls
       },
     );
   }

@@ -179,8 +179,11 @@ class UserProfile extends HiveObject {
     }
 
     return UserProfile(
-      id: json['id'] as String,
-      name: json['name'] as String,
+      id: json['id'] as String? ?? json['uid'] as String? ?? '',
+      name:
+          json['name'] as String? ??
+          json['displayName'] as String? ??
+          'مستخدم غير محدد',
       email: json['email'] as String?,
       department: json['department'] as String? ?? 'غير محدد',
       level: json['level'] as String? ?? 'غير محدد',

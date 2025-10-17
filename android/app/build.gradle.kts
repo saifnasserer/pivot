@@ -88,8 +88,9 @@ dependencies {
   implementation("com.google.firebase:firebase-analytics")
   
   // Google Play Services for proper API access
-  implementation("com.google.android.gms:play-services-base:18.2.0")
-  implementation("com.google.android.gms:play-services-auth:20.7.0")
+  implementation("com.google.android.gms:play-services-base:18.5.0")
+  implementation("com.google.android.gms:play-services-auth:21.2.0")
+  implementation("com.google.android.gms:play-services-identity:18.0.1")
 
   // Add the dependencies for any other desired Firebase products
   // https://firebase.google.com/docs/android/setup#available-libraries

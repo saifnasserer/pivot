@@ -57,26 +57,38 @@ class _EnhancedSectionListItemState
     final instructors =
         subjectsState.instructorsBySubject[widget.subject.id] ?? [];
 
-    print('🎯 EnhancedSectionListItem: Clicked ${widget.subject.name}');
-    print(
-      '📊 EnhancedSectionListItem: Found ${instructors.length} instructors',
-    );
-
     // Filter assistants for configuration
     final assistants =
         instructors.where((prof) => prof.role == 'miniProfessor').toList();
-
-    print('📊 EnhancedSectionListItem: Found ${assistants.length} assistants');
 
     // If there are instructors, show InstructorsGate dialog
     if (instructors.isNotEmpty) {
       _showInstructorsGateDialog(instructors, assistants);
     } else {
       // Show a simple dialog for subjects without instructors
-      print(
-        '⚠️ EnhancedSectionListItem: No instructors found, showing placeholder',
-      );
       _showNoInstructorsDialog();
+    }
+  }
+
+  /// Memoized method to get the display section based on user preferences
+  Section? _getDisplaySection(UserProfile? currentUser) {
+    if (widget.sections.isEmpty) return null;
+
+    final preferredAssistantId =
+        currentUser?.assistantPreferences[widget.subject.id];
+
+    if (preferredAssistantId != null) {
+      try {
+        return widget.sections.firstWhere(
+          (section) => section.assistantId == preferredAssistantId,
+        );
+      } catch (e) {
+        // If preferred assistant not found, fall back to first section
+        return widget.sections.first;
+      }
+    } else {
+      // No preference set, use first section
+      return widget.sections.first;
     }
   }
 
@@ -86,38 +98,8 @@ class _EnhancedSectionListItemState
     final userProfileState = ref.watch(userProfileProvider);
     final currentUser = userProfileState.loggedInUserProfile;
 
-    // Get the preferred section to display based on user's assistant preference
-    Section? displaySection;
-
-    print('🎯 [EnhancedSectionItem] Subject: ${widget.subject.name}');
-    print('   Available sections: ${widget.sections.length}');
-    for (var s in widget.sections) {
-      print('   - ${s.name} (Assistant: ${s.assistantId})');
-    }
-
-    if (widget.sections.isNotEmpty) {
-      final preferredAssistantId =
-          currentUser?.assistantPreferences[widget.subject.id];
-
-      print('   User preferred assistant: $preferredAssistantId');
-
-      // If user has a preferred assistant, find their section
-      if (preferredAssistantId != null) {
-        displaySection = widget.sections.firstWhere(
-          (section) => section.assistantId == preferredAssistantId,
-          orElse: () => widget.sections.first,
-        );
-        print(
-          '   → Selected section: ${displaySection.name} (matched preference)',
-        );
-      } else {
-        // No preference set, use first section
-        displaySection = widget.sections.first;
-        print(
-          '   → Selected section: ${displaySection.name} (no preference, using first)',
-        );
-      }
-    }
+    // Memoize the display section calculation to prevent unnecessary rebuilds
+    final displaySection = _getDisplaySection(currentUser);
 
     return AnimatedBuilder(
       animation: _scaleAnimation,
@@ -350,7 +332,7 @@ class _EnhancedSectionListItemState
               });
         }
       } catch (e) {
-        print('⚠️ Failed to auto-save single assistant preference: $e');
+        // Failed to auto-save single assistant preference
       }
     }
 
@@ -409,7 +391,7 @@ class _EnhancedSectionListItemState
       );
     } catch (e) {
       saveFailed = true;
-      print('❌ Failed to save assistant preference: $e');
+      // Failed to save assistant preference
     }
 
     // Show feedback after dialog closes

@@ -1,10 +1,11 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async';
 
 /// Service to monitor internet connectivity and manage offline state
-class OfflineService {
+class OfflineService with WidgetsBindingObserver {
   static final OfflineService _instance = OfflineService._internal();
   factory OfflineService() => _instance;
   OfflineService._internal();
@@ -17,7 +18,9 @@ class OfflineService {
       ValueNotifier<List<ConnectivityResult>>([ConnectivityResult.none]);
 
   bool _initialized = false;
+  bool _isAppInForeground = true;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+  Timer? _connectivityCheckTimer;
 
   /// Initialize the offline service and start monitoring connectivity
   Future<void> initialize() async {
@@ -27,6 +30,9 @@ class OfflineService {
     }
 
     try {
+      // Add app lifecycle observer
+      WidgetsBinding.instance.addObserver(this);
+
       // Check initial connectivity
       final result = await _connectivity.checkConnectivity();
       connectivityStatus.value = result;
@@ -36,24 +42,11 @@ class OfflineService {
         '📡 OfflineService initialized - Connection: ${isOnline.value ? "✅ Online" : "❌ Offline"}',
       );
 
-      // Listen for connectivity changes
-      _connectivitySubscription = _connectivity.onConnectivityChanged.listen(
-        (List<ConnectivityResult> result) {
-          final previousStatus = isOnline.value;
-          connectivityStatus.value = result;
-          isOnline.value = _hasConnection(result);
+      // Start connectivity monitoring
+      _startConnectivityMonitoring();
 
-          // Log connectivity changes
-          if (previousStatus != isOnline.value) {
-            print(
-              '📡 Connectivity changed: ${isOnline.value ? "✅ Back Online" : "❌ Went Offline"}',
-            );
-          }
-        },
-        onError: (error) {
-          print('❌ OfflineService connectivity error: $error');
-        },
-      );
+      // Start periodic connectivity check (every 30 seconds when app is in foreground)
+      _startPeriodicConnectivityCheck();
 
       _initialized = true;
     } catch (e) {
@@ -61,6 +54,95 @@ class OfflineService {
       // Default to online if initialization fails
       isOnline.value = true;
       _initialized = false;
+    }
+  }
+
+  /// Start monitoring connectivity changes
+  void _startConnectivityMonitoring() {
+    _connectivitySubscription?.cancel();
+    _connectivitySubscription = _connectivity.onConnectivityChanged.listen(
+      (List<ConnectivityResult> result) {
+        final previousStatus = isOnline.value;
+        connectivityStatus.value = result;
+        isOnline.value = _hasConnection(result);
+
+        // Log connectivity changes
+        if (previousStatus != isOnline.value) {
+          print(
+            '📡 Connectivity changed: ${isOnline.value ? "✅ Back Online" : "❌ Went Offline"}',
+          );
+        }
+      },
+      onError: (error) {
+        print('❌ OfflineService connectivity error: $error');
+        // Restart monitoring after error
+        Future.delayed(Duration(seconds: 5), () {
+          if (_initialized) {
+            _startConnectivityMonitoring();
+          }
+        });
+      },
+    );
+  }
+
+  /// Start periodic connectivity check
+  void _startPeriodicConnectivityCheck() {
+    _connectivityCheckTimer?.cancel();
+    _connectivityCheckTimer = Timer.periodic(Duration(seconds: 30), (timer) {
+      if (_isAppInForeground && _initialized) {
+        _performConnectivityCheck();
+      }
+    });
+  }
+
+  /// Perform a manual connectivity check
+  Future<void> _performConnectivityCheck() async {
+    try {
+      final result = await _connectivity.checkConnectivity();
+      final hasConnection = _hasConnection(result);
+      
+      if (connectivityStatus.value != result || isOnline.value != hasConnection) {
+        connectivityStatus.value = result;
+        isOnline.value = hasConnection;
+        print(
+          '📡 Periodic check - Connection: ${isOnline.value ? "✅ Online" : "❌ Offline"}',
+        );
+      }
+    } catch (e) {
+      print('❌ Error during periodic connectivity check: $e');
+    }
+  }
+
+  /// Handle app lifecycle changes
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    
+    switch (state) {
+      case AppLifecycleState.resumed:
+        _isAppInForeground = true;
+        print('📱 App resumed - checking connectivity...');
+        // Immediately check connectivity when app resumes
+        _performConnectivityCheck();
+        // Restart connectivity monitoring in case it was interrupted
+        if (_initialized) {
+          _startConnectivityMonitoring();
+        }
+        break;
+      case AppLifecycleState.paused:
+        _isAppInForeground = false;
+        print('📱 App paused');
+        break;
+      case AppLifecycleState.inactive:
+        // App is transitioning between foreground and background
+        break;
+      case AppLifecycleState.detached:
+        // App is being terminated
+        _isAppInForeground = false;
+        break;
+      case AppLifecycleState.hidden:
+        _isAppInForeground = false;
+        break;
     }
   }
 
@@ -94,21 +176,32 @@ class OfflineService {
   Future<bool> checkConnectivity() async {
     try {
       final result = await _connectivity.checkConnectivity();
+      final hasConnection = _hasConnection(result);
       connectivityStatus.value = result;
-      isOnline.value = _hasConnection(result);
-      return isOnline.value;
+      isOnline.value = hasConnection;
+      print('📡 Manual connectivity check: ${hasConnection ? "✅ Online" : "❌ Offline"}');
+      return hasConnection;
     } catch (e) {
       print('❌ Error checking connectivity: $e');
       return isOnline.value; // Return last known state
     }
   }
 
+  /// Force refresh connectivity status (useful when app resumes)
+  Future<void> forceRefreshConnectivity() async {
+    print('🔄 Force refreshing connectivity...');
+    await _performConnectivityCheck();
+  }
+
   /// Dispose and cleanup
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _connectivitySubscription?.cancel();
+    _connectivityCheckTimer?.cancel();
     isOnline.dispose();
     connectivityStatus.dispose();
     _initialized = false;
+    _isAppInForeground = false;
     print('🔌 OfflineService disposed');
   }
 }
@@ -119,9 +212,15 @@ class OfflineService {
 final offlineServiceProvider = Provider<OfflineService>((ref) {
   final service = OfflineService();
 
+  // Initialize the service if not already initialized
+  if (!service._initialized) {
+    service.initialize();
+  }
+
   // Cleanup when provider is disposed
   ref.onDispose(() {
-    service.dispose();
+    // Don't dispose the singleton service here as it might be used elsewhere
+    // The service will be disposed when the app is terminated
   });
 
   return service;
@@ -153,4 +252,10 @@ final connectivityStatusProvider = StreamProvider<bool>((ref) async* {
     final isOnline = await service.checkConnectivity();
     yield isOnline;
   }
+});
+
+/// Provider that provides a method to force refresh connectivity
+final connectivityRefreshProvider = Provider<Future<void> Function()>((ref) {
+  final service = ref.watch(offlineServiceProvider);
+  return () => service.forceRefreshConnectivity();
 });

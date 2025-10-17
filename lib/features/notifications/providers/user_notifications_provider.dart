@@ -76,8 +76,9 @@ class UserNotificationsState {
 // Notifier
 class UserNotificationsNotifier extends StateNotifier<UserNotificationsState> {
   final UserNotificationsRepository _repository;
+  final Ref _ref;
 
-  UserNotificationsNotifier(this._repository)
+  UserNotificationsNotifier(this._repository, this._ref)
     : super(const UserNotificationsState());
 
   // Get user notifications
@@ -85,7 +86,7 @@ class UserNotificationsNotifier extends StateNotifier<UserNotificationsState> {
     state = state.copyWith(isLoading: true, error: null);
 
     // Check if offline
-    final offlineService = OfflineService();
+    final offlineService = _ref.read(offlineServiceProvider);
     if (offlineService.isOffline) {
       print(
         '📴 [UserNotificationsProvider] Offline - showing empty notifications (no cache yet)',
@@ -428,7 +429,7 @@ final userNotificationsProvider = AutoDisposeStateNotifierProvider<
   UserNotificationsState
 >((ref) {
   final repository = ref.watch(userNotificationsRepositoryProvider);
-  return UserNotificationsNotifier(repository);
+  return UserNotificationsNotifier(repository, ref);
 });
 
 // Convenience providers for specific data

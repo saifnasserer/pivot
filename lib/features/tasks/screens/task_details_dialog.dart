@@ -475,6 +475,43 @@ class _TaskDetailsDialogState extends ConsumerState<TaskDetailsDialog> {
               ),
             ),
 
+            // Source information section
+            if (task.sourceInfo.isNotEmpty &&
+                task.sourceInfo != 'مصدر غير محدد') ...[
+              SizedBox(height: Responsive.space(context, size: Space.medium)),
+              Container(
+                padding: EdgeInsets.all(
+                  Responsive.space(context, size: Space.medium),
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(
+                    Responsive.space(context, size: Space.large),
+                  ),
+                  border: Border.all(color: Colors.grey[200]!),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        task.sourceInfo,
+                        style: TextStyle(
+                          fontSize: Responsive.text(
+                            context,
+                            size: TextSize.medium,
+                          ),
+                          color: Colors.green.shade700,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        textAlign: TextAlign.start,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
             // Attachments Section
             if (task.attachments != null && task.attachments!.isNotEmpty) ...[
               SizedBox(height: Responsive.space(context, size: Space.medium)),

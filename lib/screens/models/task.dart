@@ -69,6 +69,10 @@ class Task {
   List<Map<String, String>>? attachments;
   final List<TaskNote> notes; // List of notes for the task
 
+  // Source information fields
+  String? assistantName; // Assistant's name
+  String? sectionNumber; // Section number extracted from section name
+
   Task({
     String? id, // Make ID optional
     required this.title,
@@ -82,12 +86,41 @@ class Task {
     this.isPersonal = false,
     this.attachments,
     List<TaskNote>? notes,
+    this.assistantName,
+    this.sectionNumber,
   }) : notes = notes ?? [],
        id = id ?? const Uuid().v4(); // Generate ID if null
 
   // Helper method to check if the task is completed by a specific user
   bool isCompletedFor(String userId) {
     return completedBy.contains(userId);
+  }
+
+  // Helper method to get formatted source information
+  String get sourceInfo {
+    if (assistantName != null && sectionNumber != null) {
+      return '$assistantName - سكشن $sectionNumber';
+    } else if (assistantName != null) {
+      return assistantName!;
+    } else if (sectionNumber != null) {
+      return 'سكشن $sectionNumber';
+    } else {
+      return 'مصدر غير محدد';
+    }
+  }
+
+  // Helper method to extract section number from section name
+  static String extractSectionNumber(String sectionName) {
+    // Extract number from section name (e.g., "سكشن 1" -> "1")
+    final parts = sectionName.split(' ');
+    if (parts.length > 1) {
+      final lastPart = parts.last;
+      // Check if it's a number
+      if (RegExp(r'^\d+$').hasMatch(lastPart)) {
+        return lastPart;
+      }
+    }
+    return '';
   }
 
   // Convert a Task object into a Map for Firestore
@@ -105,6 +138,8 @@ class Task {
       'completedBy': completedBy,
       'isPersonal': isPersonal,
       'attachments': attachments,
+      'assistantName': assistantName,
+      'sectionNumber': sectionNumber,
       // Notes are stored separately in user-specific task_notes collection
     };
   }
@@ -124,6 +159,8 @@ class Task {
       'completedBy': completedBy,
       'isPersonal': isPersonal,
       'attachments': attachments,
+      'assistantName': assistantName,
+      'sectionNumber': sectionNumber,
     };
   }
 
@@ -152,6 +189,8 @@ class Task {
               )
               : null,
       notes: [],
+      assistantName: json['assistantName'],
+      sectionNumber: json['sectionNumber'],
     );
   }
 
@@ -181,6 +220,8 @@ class Task {
               : null,
       // Notes are not stored in task document, fetched separately from task_notes collection
       notes: [],
+      assistantName: map['assistantName'],
+      sectionNumber: map['sectionNumber'],
     );
   }
 
@@ -198,6 +239,8 @@ class Task {
     bool? isPersonal,
     List<Map<String, String>>? attachments,
     List<TaskNote>? notes,
+    String? assistantName,
+    String? sectionNumber,
   }) {
     return Task(
       id: id ?? this.id,
@@ -212,6 +255,8 @@ class Task {
       isPersonal: isPersonal ?? this.isPersonal,
       attachments: attachments ?? this.attachments,
       notes: notes ?? this.notes,
+      assistantName: assistantName ?? this.assistantName,
+      sectionNumber: sectionNumber ?? this.sectionNumber,
     );
   }
 }

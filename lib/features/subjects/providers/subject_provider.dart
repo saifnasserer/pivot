@@ -42,8 +42,9 @@ class SubjectState {
 // StateNotifier
 class SubjectNotifier extends StateNotifier<SubjectState> {
   final SubjectService _subjectService = SubjectService();
+  final Ref _ref;
 
-  SubjectNotifier() : super(SubjectState()) {
+  SubjectNotifier(this._ref) : super(SubjectState()) {
     // Load from cache on startup (local-first)
     _loadFromCacheOnly();
   }
@@ -164,7 +165,7 @@ class SubjectNotifier extends StateNotifier<SubjectState> {
     }
 
     // Check if offline before server fetch
-    final offlineService = OfflineService();
+    final offlineService = _ref.read(offlineServiceProvider);
     if (offlineService.isOffline) {
       if (kDebugMode) {
         print('📴 SubjectProvider: Offline - cannot fetch, using empty state');
@@ -318,7 +319,10 @@ class SubjectNotifier extends StateNotifier<SubjectState> {
     }
 
     if (userSubjectIds.isEmpty) {
-      state = state.copyWith(filteredSubjects: []);
+      state = state.copyWith(
+        filteredSubjects: [],
+        isLoading: false, // Important: Set loading to false when no subjects
+      );
       return;
     }
 
@@ -517,5 +521,5 @@ class SubjectNotifier extends StateNotifier<SubjectState> {
 // Riverpod Provider
 final SubjectProviderProvider =
     StateNotifierProvider<SubjectNotifier, SubjectState>((ref) {
-      return SubjectNotifier();
+      return SubjectNotifier(ref);
     });

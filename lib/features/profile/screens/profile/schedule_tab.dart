@@ -4,8 +4,8 @@ import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:pivot/features/schedule/screens/add_edit_schedule_dialog.dart';
 import 'package:pivot/features/schedule/screens/schadule.dart';
 import 'package:pivot/features/schedule/providers/schedule_provider.dart';
-import 'package:pivot/features/schedule/widgets/share_schedule_dialog.dart';
 import 'package:pivot/features/schedule/widgets/import_schedule_dialog.dart';
+import 'package:pivot/services/schedule_sharing_service.dart';
 import 'package:pivot/services/offline_service.dart';
 import 'package:pivot/widgets/offline_banner.dart';
 import 'package:pivot/responsive.dart';
@@ -242,7 +242,7 @@ class _ScheduleTabState extends ConsumerState<ScheduleTab>
     );
   }
 
-  void _handleShareSchedule() {
+  Future<void> _handleShareSchedule() async {
     final scheduleState = ref.read(scheduleProvider);
     if (scheduleState.schedule.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -254,12 +254,64 @@ class _ScheduleTabState extends ConsumerState<ScheduleTab>
       return;
     }
 
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return ShareScheduleDialog(schedule: scheduleState.schedule);
-      },
+    // Show loading indicator
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ),
+            SizedBox(width: 16),
+            Text('جاري إنشاء المفتاح...'),
+          ],
+        ),
+        backgroundColor: Colors.black,
+        duration: Duration(seconds: 3),
+      ),
     );
+
+    try {
+      // Auto-create shareable link with 7-day expiration
+      final sharingService = ScheduleSharingService();
+      final shareId = await sharingService.createShareableLink(
+        title: 'جدولي الدراسي',
+        description: 'جدول دراسي مشترك',
+        schedule: scheduleState.schedule,
+        expiresAt: DateTime.now().add(
+          Duration(days: 7),
+        ), // Always expires in 7 days
+      );
+
+      if (shareId != null) {
+        // Close loading snackbar
+        ScaffoldMessenger.of(context).clearSnackBars();
+
+        // Share the link directly
+        await sharingService.shareScheduleLink(shareId);
+      } else {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('فشل في إنشاء مفتاح المشاركة'),
+            backgroundColor: Colors.red.shade600,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('حدث خطأ: $e'),
+          backgroundColor: Colors.red.shade600,
+        ),
+      );
+    }
   }
 
   void _showAddScheduleDialog(BuildContext context, String selectedDay) {

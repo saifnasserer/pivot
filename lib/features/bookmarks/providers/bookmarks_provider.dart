@@ -62,8 +62,10 @@ class BookmarksState {
 // Notifier
 class BookmarksNotifier extends StateNotifier<BookmarksState> {
   final BookmarksRepository _repository;
+  final Ref _ref;
 
-  BookmarksNotifier(this._repository) : super(const BookmarksState());
+  BookmarksNotifier(this._repository, this._ref)
+    : super(const BookmarksState());
 
   // Get user bookmarks
   Future<void> getUserBookmarks() async {
@@ -72,7 +74,7 @@ class BookmarksNotifier extends StateNotifier<BookmarksState> {
     state = state.copyWith(isLoading: true, error: null);
 
     // Check if offline
-    final offlineService = OfflineService();
+    final offlineService = _ref.read(offlineServiceProvider);
     if (offlineService.isOffline) {
       print(
         '📴 [BookmarksProvider] Offline - showing empty bookmarks (no cache yet)',
@@ -111,7 +113,7 @@ class BookmarksNotifier extends StateNotifier<BookmarksState> {
     state = state.copyWith(isLoading: true, error: null);
 
     // Check if offline
-    final offlineService = OfflineService();
+    final offlineService = _ref.read(offlineServiceProvider);
     if (offlineService.isOffline) {
       print(
         '📴 [BookmarksProvider] Offline - showing empty bookmark details (no cache yet)',
@@ -393,7 +395,7 @@ class BookmarksNotifier extends StateNotifier<BookmarksState> {
 final bookmarksProvider =
     AutoDisposeStateNotifierProvider<BookmarksNotifier, BookmarksState>((ref) {
       final repository = ref.watch(bookmarksRepositoryProvider);
-      return BookmarksNotifier(repository);
+      return BookmarksNotifier(repository, ref);
     });
 
 // Simple initialization provider - just watches auth state without auto-loading

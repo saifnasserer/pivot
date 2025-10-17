@@ -101,7 +101,7 @@ class UserProfileNotifier extends StateNotifier<UserProfileState> {
     state = state.copyWith(isLoading: true, error: null);
 
     // Check if offline before attempting fetch
-    final offlineService = OfflineService();
+    final offlineService = _ref.read(offlineServiceProvider);
     if (offlineService.isOffline) {
       print('📴 [UserProfileProvider] Offline - using cached profile');
 
@@ -152,7 +152,7 @@ class UserProfileNotifier extends StateNotifier<UserProfileState> {
     state = state.copyWith(isLoading: true, error: null);
 
     // Check if offline before attempting fetch
-    final offlineService = OfflineService();
+    final offlineService = _ref.read(offlineServiceProvider);
     if (offlineService.isOffline) {
       print('📴 [UserProfileProvider] Offline - using cached users');
 
@@ -497,7 +497,7 @@ class UserProfileNotifier extends StateNotifier<UserProfileState> {
   /// Get a user profile by ID (used for viewing other users' profiles)
   Future<UserProfile?> getUserProfileById(String userId) async {
     // Check if offline before attempting fetch
-    final offlineService = OfflineService();
+    final offlineService = _ref.read(offlineServiceProvider);
     if (offlineService.isOffline) {
       print(
         '📴 [UserProfileProvider] Offline - checking cache for profile $userId',

@@ -90,8 +90,10 @@ class MaterialsState {
 // Notifier
 class MaterialsNotifier extends StateNotifier<MaterialsState> {
   final MaterialsRepository _repository;
+  final Ref _ref;
 
-  MaterialsNotifier(this._repository) : super(const MaterialsState());
+  MaterialsNotifier(this._repository, this._ref)
+    : super(const MaterialsState());
 
   // Get all materials
   Future<void> getAllMaterials() async {
@@ -136,7 +138,7 @@ class MaterialsNotifier extends StateNotifier<MaterialsState> {
     final cacheKey = 'lecture_$lectureId';
 
     // Check if offline before attempting fetch
-    final offlineService = OfflineService();
+    final offlineService = _ref.read(offlineServiceProvider);
     if (offlineService.isOffline) {
       print('📴 [MaterialsProvider] Offline - checking cache for materials');
 
@@ -513,7 +515,7 @@ class MaterialsNotifier extends StateNotifier<MaterialsState> {
     final cacheKey = 'assistant_${subjectId}_$assistantId';
 
     // Check if offline before attempting fetch
-    final offlineService = OfflineService();
+    final offlineService = _ref.read(offlineServiceProvider);
     if (offlineService.isOffline) {
       print('📴 [MaterialsProvider] Offline - checking cache for materials');
 
@@ -754,7 +756,7 @@ class MaterialsNotifier extends StateNotifier<MaterialsState> {
 final materialsProvider =
     AutoDisposeStateNotifierProvider<MaterialsNotifier, MaterialsState>((ref) {
       final repository = ref.watch(materialsRepositoryProvider);
-      return MaterialsNotifier(repository);
+      return MaterialsNotifier(repository, ref);
     });
 
 // Convenience providers for specific data

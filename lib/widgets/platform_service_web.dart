@@ -7,16 +7,50 @@ class PlatformServiceWeb {
 
     try {
       final userAgent = html.window.navigator.userAgent.toLowerCase();
-      final isIOS = userAgent.contains('iphone') || userAgent.contains('ipad');
-      final isStandalone =
-          html.window.matchMedia('(display-mode: standalone)').matches ||
-          _hasStandaloneTrue(html.window.navigator);
-      // print('UserAgent: $userAgent');
-      // print('isIOS: $isIOS');
-      // print('isStandalone: $isStandalone');
-      // print('Should show install screen: ${isIOS && !isStandalone}');
-      return isIOS && !isStandalone;
+      final platform = html.window.navigator.platform?.toLowerCase() ?? '';
+
+      // More comprehensive iOS detection
+      final isIOS =
+          userAgent.contains('iphone') ||
+          userAgent.contains('ipad') ||
+          userAgent.contains('ipod') ||
+          platform.contains('iphone') ||
+          platform.contains('ipad') ||
+          platform.contains('ipod') ||
+          // Safari on iOS detection
+          (userAgent.contains('safari') &&
+              userAgent.contains('mobile') &&
+              !userAgent.contains('chrome') &&
+              !userAgent.contains('android'));
+
+      // Check standalone mode more efficiently
+      bool isStandalone = false;
+      try {
+        isStandalone =
+            html.window.matchMedia('(display-mode: standalone)').matches;
+      } catch (_) {
+        // Fallback if matchMedia fails
+        try {
+          isStandalone = _hasStandaloneTrue(html.window.navigator);
+        } catch (_) {
+          isStandalone = false;
+        }
+      }
+
+      final shouldShowIOSScreen = isIOS && !isStandalone;
+
+      // ALWAYS print for iOS detection (not just debug mode)
+      print('🍎 [iOS Detection]');
+      print('   UserAgent: $userAgent');
+      print('   Platform: $platform');
+      print('   isIOS: $isIOS');
+      print('   isStandalone: $isStandalone');
+      print('   Should show iOS screen: $shouldShowIOSScreen');
+
+      return shouldShowIOSScreen;
     } catch (e) {
+      print('❌ [iOS Detection] Error: $e');
+      print('   Stack trace: ${StackTrace.current}');
       return false;
     }
   }

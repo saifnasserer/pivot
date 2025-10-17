@@ -21,6 +21,7 @@ class _ImportScheduleDialogState extends ConsumerState<ImportScheduleDialog> {
 
   bool _isLoading = false;
   SharedSchedule? _previewSchedule;
+  bool _preserveNotifications = true; // Default to preserving notifications
 
   @override
   void dispose() {
@@ -31,7 +32,7 @@ class _ImportScheduleDialogState extends ConsumerState<ImportScheduleDialog> {
   Future<void> _loadPreview() async {
     final input = _linkController.text.trim();
     if (input.isEmpty) {
-      _showError('يرجى إدخال معرف الجدول');
+      _showError('يرجى إدخال مفتاح الجدول');
       return;
     }
 
@@ -40,7 +41,7 @@ class _ImportScheduleDialogState extends ConsumerState<ImportScheduleDialog> {
         ScheduleSharingService.extractShareIdFromUrl(input) ?? input;
 
     if (!ScheduleSharingService.isValidShareId(shareId)) {
-      _showError('معرف الجدول غير صحيح. تأكد من نسخ المعرف بالكامل.');
+      _showError('مفتاح الجدول غير صحيح. تأكد من نسخ المفتاح بالكامل.');
       return;
     }
 
@@ -77,7 +78,10 @@ class _ImportScheduleDialogState extends ConsumerState<ImportScheduleDialog> {
     });
 
     try {
-      final success = await _sharingService.importSharedSchedule(shareId);
+      final success = await _sharingService.importSharedSchedule(
+        shareId,
+        preserveNotifications: _preserveNotifications,
+      );
 
       if (success) {
         if (mounted) {
@@ -178,11 +182,11 @@ class _ImportScheduleDialogState extends ConsumerState<ImportScheduleDialog> {
 
         // Description
         UnifiedSectionHeader(
-          title: 'أدخل معرف الجدول المشترك',
+          title: 'أدخل مفتاح الجدول المشترك',
           icon: Icons.key,
         ),
         Text(
-          'يمكنك لصق المعرف الذي حصلت عليه من صديقك',
+          'يمكنك لصق المفتاح الذي حصلت عليه من صديقك',
           style: TextStyle(
             fontSize: Responsive.text(context, size: TextSize.small),
             color: Colors.grey.shade600,
@@ -193,7 +197,7 @@ class _ImportScheduleDialogState extends ConsumerState<ImportScheduleDialog> {
         // ID input field
         UnifiedFormField(
           controller: _linkController,
-          label: 'معرف الجدول',
+          label: 'مفتاح الجدول',
           hint: 'مثال: 4b98fa66-518b-4d10-96ef-f690691e3227',
           prefixIcon: Icon(Icons.key),
           maxLines: 2,
@@ -420,6 +424,11 @@ class _ImportScheduleDialogState extends ConsumerState<ImportScheduleDialog> {
 
           SizedBox(height: Responsive.space(context, size: Space.large)),
 
+          // Notification settings
+          _buildNotificationSettings(),
+
+          SizedBox(height: Responsive.space(context, size: Space.medium)),
+
           // Warning notice
           Container(
             width: double.infinity,
@@ -497,6 +506,114 @@ class _ImportScheduleDialogState extends ConsumerState<ImportScheduleDialog> {
                     padding: EdgeInsets.symmetric(vertical: 12),
                   ),
                 ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNotificationSettings() {
+    final schedule = _previewSchedule!;
+    final itemsWithNotifications =
+        schedule.items.where((item) => item.notificationEnabled).length;
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(Responsive.space(context, size: Space.medium)),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(
+          Responsive.space(context, size: Space.medium),
+        ),
+        border: Border.all(color: Colors.blue.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.notifications,
+                color: Colors.blue.shade700,
+                size: Responsive.text(context, size: TextSize.medium),
+              ),
+              SizedBox(width: Responsive.space(context, size: Space.small)),
+              Text(
+                'إعدادات التنبيهات',
+                style: TextStyle(
+                  fontSize: Responsive.text(context, size: TextSize.medium),
+                  fontWeight: FontWeight.w600,
+                  color: Colors.blue.shade800,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: Responsive.space(context, size: Space.small)),
+          Text(
+            'هذا الجدول يحتوي على $itemsWithNotifications عنصر مع تنبيهات مفعلة',
+            style: TextStyle(
+              fontSize: Responsive.text(context, size: TextSize.small),
+              color: Colors.blue.shade700,
+            ),
+          ),
+          SizedBox(height: Responsive.space(context, size: Space.medium)),
+
+          // Notification options
+          Column(
+            children: [
+              RadioListTile<bool>(
+                value: true,
+                groupValue: _preserveNotifications,
+                onChanged: (value) {
+                  setState(() {
+                    _preserveNotifications = value!;
+                  });
+                },
+                title: Text(
+                  'الحفاظ على إعدادات التنبيهات الأصلية',
+                  style: TextStyle(
+                    fontSize: Responsive.text(context, size: TextSize.small),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                subtitle: Text(
+                  'ستتم إعادة تفعيل التنبيهات للعناصر التي كانت مفعلة',
+                  style: TextStyle(
+                    fontSize:
+                        Responsive.text(context, size: TextSize.small) * 0.9,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                activeColor: Colors.blue.shade700,
+                contentPadding: EdgeInsets.zero,
+              ),
+              RadioListTile<bool>(
+                value: false,
+                groupValue: _preserveNotifications,
+                onChanged: (value) {
+                  setState(() {
+                    _preserveNotifications = value!;
+                  });
+                },
+                title: Text(
+                  'تعطيل جميع التنبيهات',
+                  style: TextStyle(
+                    fontSize: Responsive.text(context, size: TextSize.small),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                subtitle: Text(
+                  'لن يتم تفعيل أي تنبيهات للعناصر المستوردة',
+                  style: TextStyle(
+                    fontSize:
+                        Responsive.text(context, size: TextSize.small) * 0.9,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                activeColor: Colors.blue.shade700,
+                contentPadding: EdgeInsets.zero,
               ),
             ],
           ),

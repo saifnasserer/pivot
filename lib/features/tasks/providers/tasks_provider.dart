@@ -84,15 +84,17 @@ class TasksState {
 // Notifier
 class TasksNotifier extends StateNotifier<TasksState> {
   final TasksRepository _repository;
+  final Ref _ref;
+  DateTime? _lastRefreshTime;
 
-  TasksNotifier(this._repository) : super(const TasksState());
+  TasksNotifier(this._repository, this._ref) : super(const TasksState());
 
   // Helper method to execute operations with offline check
   Future<T> _executeWithOfflineCheck<T>({
     required Future<T> Function() operation,
     required T emptyResult,
   }) async {
-    final offlineService = OfflineService();
+    final offlineService = _ref.read(offlineServiceProvider);
     if (offlineService.isOffline) {
       print('📴 [TasksProvider] Offline - returning empty result');
       return emptyResult;
@@ -156,6 +158,21 @@ class TasksNotifier extends StateNotifier<TasksState> {
 
   // Helper method to refresh current view context
   Future<void> _refreshCurrentView() async {
+    // Only refresh if not already loading to prevent multiple simultaneous calls
+    if (state.isLoading) {
+      print('⚠️ [TasksProvider] Already loading, skipping refresh');
+      return;
+    }
+
+    // Debounce: Only refresh if last refresh was more than 1 second ago
+    final now = DateTime.now();
+    if (_lastRefreshTime != null &&
+        now.difference(_lastRefreshTime!).inSeconds < 1) {
+      print('⚠️ [TasksProvider] Refresh too soon, skipping (debounced)');
+      return;
+    }
+    _lastRefreshTime = now;
+
     // Determine which view to refresh based on current state
     if (state.selectedSectionId != null) {
       await getTasksBySection(state.selectedSectionId!);
@@ -370,7 +387,7 @@ class TasksNotifier extends StateNotifier<TasksState> {
     print('   Task Title: ${task.title}');
 
     // Check if offline first
-    final offlineService = OfflineService();
+    final offlineService = _ref.read(offlineServiceProvider);
     print(
       '   Checking connectivity: ${offlineService.isOffline ? "OFFLINE" : "ONLINE"}',
     );
@@ -404,7 +421,8 @@ class TasksNotifier extends StateNotifier<TasksState> {
         print('❌ [TasksProvider] Failed to queue task: $e');
         print('   Stack trace: $stackTrace');
         state = state.copyWith(error: e.toString());
-        return false;
+        // Re-throw the error to ensure it's not silently ignored
+        rethrow;
       }
     }
 
@@ -446,6 +464,7 @@ class TasksNotifier extends StateNotifier<TasksState> {
         );
       } else {
         print('❌ [TasksProvider] Add failed - repository returned false');
+        throw Exception('Repository returned false for task add operation');
       }
 
       return success;
@@ -453,14 +472,15 @@ class TasksNotifier extends StateNotifier<TasksState> {
       print('❌ [TasksProvider] Add error: $e');
       print('   Stack trace: ${StackTrace.current}');
       state = state.copyWith(error: e.toString());
-      return false;
+      // Re-throw the error to ensure it's not silently ignored
+      rethrow;
     }
   }
 
   // Update task - NO optimistic update for data integrity
   Future<bool> updateTask(Task task) async {
     // Check if offline first
-    final offlineService = OfflineService();
+    final offlineService = _ref.read(offlineServiceProvider);
     if (offlineService.isOffline) {
       print('📴 [TasksProvider] Offline - queueing task update operation');
 
@@ -523,7 +543,7 @@ class TasksNotifier extends StateNotifier<TasksState> {
   // Delete task - NO optimistic update for data integrity
   Future<bool> deleteTask(String taskId) async {
     // Check if offline first
-    final offlineService = OfflineService();
+    final offlineService = _ref.read(offlineServiceProvider);
     if (offlineService.isOffline) {
       print('📴 [TasksProvider] Offline - queueing task delete operation');
 
@@ -976,7 +996,7 @@ class TasksNotifier extends StateNotifier<TasksState> {
 // ============================================================================
 final tasksProvider = StateNotifierProvider<TasksNotifier, TasksState>((ref) {
   final repository = ref.watch(tasksRepositoryProvider);
-  return TasksNotifier(repository);
+  return TasksNotifier(repository, ref);
 });
 
 // ============================================================================
@@ -987,7 +1007,7 @@ final tasksProvider = StateNotifierProvider<TasksNotifier, TasksState>((ref) {
 final viewTasksProvider =
     StateNotifierProvider.autoDispose<TasksNotifier, TasksState>((ref) {
       final repository = ref.watch(tasksRepositoryProvider);
-      return TasksNotifier(repository);
+      return TasksNotifier(repository, ref);
     });
 
 // Convenience providers for specific data from MAIN provider

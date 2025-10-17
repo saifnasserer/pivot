@@ -7,6 +7,7 @@ import 'package:pivot/features/home/screens/adminstration/animated_route.dart';
 import 'package:pivot/features/announcements/providers/announcements_provider.dart';
 import 'package:pivot/features/user/providers/user_profile_provider.dart';
 import 'package:pivot/features/home/screens/adminstration/models/announcement_data.dart';
+import 'package:pivot/models/user_profile.dart';
 import 'package:lottie/lottie.dart';
 
 class AdminControl extends ConsumerStatefulWidget {
@@ -39,29 +40,53 @@ class _AdminControlState extends ConsumerState<AdminControl> {
   @override
   void initState() {
     super.initState();
+    _initializeData();
+  }
 
-    // Set initial department filter BEFORE fetching data
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // Get user's department and set as initial filter FIRST
-      final userProfile = ref.read(userProfileProvider).loggedInUserProfile;
+  Future<void> _initializeData() async {
+    try {
+      print('🚀 AdminControl: Starting initialization...');
+
+      // First ensure user profile is loaded
+      final userProfileState = ref.read(userProfileProvider);
+      UserProfile? userProfile = userProfileState.loggedInUserProfile;
+
+      // If user profile is not loaded, wait for it
+      if (userProfile == null && !userProfileState.isLoading) {
+        print('👤 AdminControl: User profile not loaded, fetching...');
+        await ref.read(userProfileProvider.notifier).loadLoggedInUserProfile();
+
+        // Re-read the state after loading
+        final updatedState = ref.read(userProfileProvider);
+        userProfile = updatedState.loggedInUserProfile;
+      }
+
+      // Set department filter if user profile is available
       if (userProfile != null && userProfile.department.isNotEmpty && mounted) {
+        final department = userProfile.department;
         setState(() {
-          _departmentFilter = userProfile.department;
+          _departmentFilter = department;
         });
+        print('🏢 AdminControl: Initial filter set to department: $department');
+      } else {
         print(
-          '🏢 AdminControl: Initial filter set to department: ${userProfile.department}',
+          '⚠️ AdminControl: No department found for user, using all departments',
         );
       }
 
-      // Then fetch all announcements
+      // Force refresh announcements with proper error handling
       print(
         '📥 AdminControl: Fetching all announcements (including scheduled & expired)',
       );
+
       await ref
           .read(announcementsProvider.notifier)
-          .fetchAnnouncements(includeScheduledAndExpired: true);
+          .fetchAnnouncements(
+            includeScheduledAndExpired: true,
+            forceRefresh: true, // Force refresh for initial load
+          );
 
-      print('✅ AdminControl: Fetch complete, data should be displayed');
+      print('✅ AdminControl: Initial fetch complete');
 
       // Force rebuild to ensure filtered data is shown
       if (mounted) {
@@ -69,7 +94,19 @@ class _AdminControlState extends ConsumerState<AdminControl> {
           _rebuildCounter++;
         });
       }
-    });
+    } catch (e) {
+      print('❌ AdminControl: Initialization error: $e');
+      if (mounted) {
+        // Still try to fetch announcements even if user profile failed
+        try {
+          await ref
+              .read(announcementsProvider.notifier)
+              .fetchAnnouncements(includeScheduledAndExpired: true);
+        } catch (fetchError) {
+          print('❌ AdminControl: Failed to fetch announcements: $fetchError');
+        }
+      }
+    }
   }
 
   @override
@@ -462,6 +499,11 @@ class _AdminControlState extends ConsumerState<AdminControl> {
   @override
   Widget build(BuildContext context) {
     final announcementsState = ref.watch(announcementsProvider);
+    final userProfileState = ref.watch(userProfileProvider);
+
+    // Show loading if either announcements or user profile is loading
+    final isLoading =
+        announcementsState.isLoading || userProfileState.isLoading;
 
     // Force recomputation of filtered announcements on every build
     // This ensures filters are applied immediately
@@ -475,6 +517,9 @@ class _AdminControlState extends ConsumerState<AdminControl> {
     );
     print(
       '📊 AdminControl: ${announcementsState.announcements.length} total → ${filteredAnnouncements.length} filtered',
+    );
+    print(
+      '🔄 AdminControl: Loading states - Announcements: ${announcementsState.isLoading}, UserProfile: ${userProfileState.isLoading}',
     );
 
     // Additional debug info
@@ -497,6 +542,16 @@ class _AdminControlState extends ConsumerState<AdminControl> {
           ),
         ),
         actions: [
+          // Refresh button
+          IconButton(
+            icon: Icon(
+              Icons.refresh,
+              color: Colors.black87,
+              size: Responsive.space(context, size: Space.medium),
+            ),
+            onPressed: _refreshData,
+            tooltip: 'تحديث',
+          ),
           Directionality(
             textDirection: TextDirection.rtl,
             child: Container(
@@ -642,7 +697,7 @@ class _AdminControlState extends ConsumerState<AdminControl> {
       body: SafeArea(
         child: Stack(
           children: [
-            announcementsState.isLoading
+            isLoading
                 ? Center(
                   child: Lottie.asset(
                     'assets/animation/update.json',
@@ -659,7 +714,90 @@ class _AdminControlState extends ConsumerState<AdminControl> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      if (filteredAnnouncements.isEmpty)
+                      // Show error message if there's an error
+                      if (announcementsState.error != null)
+                        Container(
+                          margin: EdgeInsets.only(
+                            bottom: Responsive.space(
+                              context,
+                              size: Space.medium,
+                            ),
+                          ),
+                          padding: EdgeInsets.all(
+                            Responsive.space(context, size: Space.medium),
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(
+                              Responsive.space(context, size: Space.medium),
+                            ),
+                            border: Border.all(color: Colors.red.shade200),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.error_outline,
+                                color: Colors.red.shade600,
+                                size: Responsive.space(
+                                  context,
+                                  size: Space.large,
+                                ),
+                              ),
+                              SizedBox(
+                                width: Responsive.space(
+                                  context,
+                                  size: Space.small,
+                                ),
+                              ),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'خطأ في تحميل البيانات',
+                                      style: TextStyle(
+                                        fontSize: Responsive.text(
+                                          context,
+                                          size: TextSize.medium,
+                                        ),
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.red.shade700,
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      height: Responsive.space(
+                                        context,
+                                        size: Space.tiny,
+                                      ),
+                                    ),
+                                    Text(
+                                      announcementsState.error!,
+                                      style: TextStyle(
+                                        fontSize: Responsive.text(
+                                          context,
+                                          size: TextSize.small,
+                                        ),
+                                        color: Colors.red.shade600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: _refreshData,
+                                child: Text(
+                                  'إعادة المحاولة',
+                                  style: TextStyle(
+                                    color: Colors.red.shade700,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (filteredAnnouncements.isEmpty &&
+                          announcementsState.error == null)
                         Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -707,6 +845,21 @@ class _AdminControlState extends ConsumerState<AdminControl> {
                                 color: Colors.grey[500],
                               ),
                               textAlign: TextAlign.center,
+                            ),
+                            SizedBox(
+                              height: Responsive.space(
+                                context,
+                                size: Space.medium,
+                              ),
+                            ),
+                            ElevatedButton.icon(
+                              onPressed: _refreshData,
+                              icon: Icon(Icons.refresh),
+                              label: Text('تحديث البيانات'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.black,
+                                foregroundColor: Colors.white,
+                              ),
                             ),
                           ],
                         )
@@ -803,5 +956,35 @@ class _AdminControlState extends ConsumerState<AdminControl> {
 
   void _unpinAnnouncement(AnnouncementData announcement) {
     ref.read(announcementsProvider.notifier).unpinAnnouncement(announcement);
+  }
+
+  /// Manually refresh data - useful for pull-to-refresh or retry scenarios
+  Future<void> _refreshData() async {
+    print('🔄 AdminControl: Manual refresh triggered');
+    try {
+      // Force refresh both user profile and announcements
+      await Future.wait([
+        ref.read(userProfileProvider.notifier).loadLoggedInUserProfile(),
+        ref
+            .read(announcementsProvider.notifier)
+            .fetchAnnouncements(
+              includeScheduledAndExpired: true,
+              forceRefresh: true,
+            ),
+      ]);
+
+      // Update department filter if user profile changed
+      final userProfile = ref.read(userProfileProvider).loggedInUserProfile;
+      if (userProfile != null && userProfile.department.isNotEmpty && mounted) {
+        setState(() {
+          _departmentFilter = userProfile.department;
+          _rebuildCounter++;
+        });
+      }
+
+      print('✅ AdminControl: Manual refresh complete');
+    } catch (e) {
+      print('❌ AdminControl: Manual refresh failed: $e');
+    }
   }
 }

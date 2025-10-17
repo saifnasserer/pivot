@@ -41,9 +41,11 @@ class _FirstLandingScreenState extends ConsumerState<FirstLandingScreen> {
   /// Check if biometric authentication is available
   Future<void> _checkBiometricAvailability() async {
     if (kIsWeb) {
-      setState(() {
-        _isBiometricAvailable = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isBiometricAvailable = false;
+        });
+      }
       return;
     }
 
@@ -53,9 +55,11 @@ class _FirstLandingScreenState extends ConsumerState<FirstLandingScreen> {
       final hasCredentials = storedEmail != null && storedPassword != null;
 
       if (!hasCredentials) {
-        setState(() {
-          _isBiometricAvailable = false;
-        });
+        if (mounted) {
+          setState(() {
+            _isBiometricAvailable = false;
+          });
+        }
         return;
       }
 
@@ -63,25 +67,31 @@ class _FirstLandingScreenState extends ConsumerState<FirstLandingScreen> {
       final isDisabled = prefs.getBool('isBiometricEnabled') == false;
 
       if (isDisabled) {
-        setState(() {
-          _isBiometricAvailable = false;
-        });
+        if (mounted) {
+          setState(() {
+            _isBiometricAvailable = false;
+          });
+        }
         return;
       }
 
       final isSupported = await _localAuthService.isBiometricSupported();
       final isEnrolled = await _localAuthService.isBiometricEnrolled();
 
-      setState(() {
-        _isBiometricAvailable = isSupported && isEnrolled && hasCredentials;
-      });
+      if (mounted) {
+        setState(() {
+          _isBiometricAvailable = isSupported && isEnrolled && hasCredentials;
+        });
+      }
 
       print('🔐 [BiometricCheck] Biometric available: $_isBiometricAvailable');
     } catch (e) {
       print('🔐 [BiometricCheck] Error checking availability: $e');
-      setState(() {
-        _isBiometricAvailable = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isBiometricAvailable = false;
+        });
+      }
     }
   }
 
@@ -137,9 +147,11 @@ class _FirstLandingScreenState extends ConsumerState<FirstLandingScreen> {
   Future<void> _handleLogin() async {
     if (_isLoggingIn) return;
 
-    setState(() {
-      _isLoggingIn = true;
-    });
+    if (mounted) {
+      setState(() {
+        _isLoggingIn = true;
+      });
+    }
 
     try {
       if (kIsWeb) {

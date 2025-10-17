@@ -97,7 +97,10 @@ class ScheduleSharingService {
   }
 
   /// Import a shared schedule to current user's schedule (replaces existing schedule)
-  Future<bool> importSharedSchedule(String shareId) async {
+  Future<bool> importSharedSchedule(
+    String shareId, {
+    bool preserveNotifications = true,
+  }) async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -114,6 +117,14 @@ class ScheduleSharingService {
       print('  - User ID: ${user.uid}');
       print('  - Share ID: $shareId');
       print('  - Items to import: ${sharedSchedule.items.length}');
+      print('  - Preserve notifications: $preserveNotifications');
+
+      // Count items with notifications enabled in original schedule
+      final itemsWithNotifications =
+          sharedSchedule.items.where((item) => item.notificationEnabled).length;
+      print(
+        '  - Items with notifications in original: $itemsWithNotifications',
+      );
 
       // Import items with new IDs to avoid conflicts
       final List<ScheduleItem> itemsToImport =
@@ -126,8 +137,13 @@ class ScheduleSharingService {
               day: item.day,
               type: item.type,
               notificationEnabled:
-                  false, // Disable notifications for imported items
+                  preserveNotifications
+                      ? item
+                          .notificationEnabled // Preserve original notification settings
+                      : false, // Disable all notifications if user chooses
               order: item.order,
+              instructor:
+                  item.instructor, // Also preserve instructor information
             );
           }).toList();
 
@@ -149,9 +165,17 @@ class ScheduleSharingService {
       // Set the new schedule data
       await scheduleRef.set(groupedItems);
 
+      // Count final items with notifications enabled
+      final finalItemsWithNotifications =
+          itemsToImport.where((item) => item.notificationEnabled).length;
+
       print(
         '✅ Successfully replaced schedule with ${itemsToImport.length} imported items',
       );
+      print(
+        '  - Items with notifications enabled after import: $finalItemsWithNotifications',
+      );
+
       return true;
     } catch (e) {
       print('❌ Error importing shared schedule: $e');
@@ -228,10 +252,10 @@ class ScheduleSharingService {
     try {
       // For now, share the schedule ID with instructions
       final shareText = '''
-🔗 معرف الجدول المشترك:
+🔗 مفتاح الجدول المشترك:
 $shareId
 
-📝 ملاحظة: لاستيراد هذا الجدول، استخدم خاصية "استيراد جدول" في التطبيق وأدخل المعرف أعلاه.
+📝 ملاحظة: لاستيراد هذا الجدول، استخدم خاصية "استيراد جدول" في التطبيق وأدخل المفتاح أعلاه.
 
 مشارك عبر تطبيق Pivot 🎓
 ''';

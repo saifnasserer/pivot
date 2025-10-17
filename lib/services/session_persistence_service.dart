@@ -7,13 +7,21 @@ class SessionPersistenceService {
   static final SessionPersistenceService _instance =
       SessionPersistenceService._internal();
   factory SessionPersistenceService() => _instance;
-  SessionPersistenceService._internal();
+  SessionPersistenceService._internal() {
+    // Initialize secure storage with fallback options
+    try {
+      _secureStorage = const FlutterSecureStorage(
+        aOptions: AndroidOptions(encryptedSharedPreferences: true),
+        iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
+      );
+    } catch (e) {
+      // Fallback to basic secure storage if initialization fails
+      _secureStorage = const FlutterSecureStorage();
+    }
+  }
 
-  // Using secure storage for sensitive data
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
-    iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
-  );
+  // Using secure storage for sensitive data with fallback options
+  late final FlutterSecureStorage _secureStorage;
 
   // Storage keys
   static const String _userIdKey = 'cached_user_id';
@@ -115,6 +123,8 @@ class SessionPersistenceService {
       return false;
     } catch (e) {
       print('❌ Error checking cached session: $e');
+      // If there's an encryption error, the storage might be corrupted
+      // Return false to indicate no valid session
       return false;
     }
   }
@@ -201,7 +211,8 @@ class SessionPersistenceService {
       return isExpired;
     } catch (e) {
       print('❌ Error checking session expiry: $e');
-      return true; // Assume expired on error
+      // If there's an encryption error, assume session is expired/invalid
+      return true;
     }
   }
 
@@ -258,10 +269,24 @@ class SessionPersistenceService {
 
   /// Clear expired sessions
   Future<void> clearExpiredSession() async {
-    final isExpired = await isSessionExpired();
-    if (isExpired) {
-      await clearSession();
-      print('🗑️ Cleared expired session');
+    try {
+      final isExpired = await isSessionExpired();
+      if (isExpired) {
+        await clearSession();
+        print('🗑️ Cleared expired session');
+      }
+    } catch (e) {
+      print('❌ Error checking/clearing expired session: $e');
+      // If there's an encryption error (like BadPaddingException),
+      // it means the storage is corrupted or incompatible
+      // Clear all data to start fresh
+      try {
+        await clearSession();
+        print('🗑️ Cleared corrupted session data');
+      } catch (clearError) {
+        print('❌ Error clearing corrupted session: $clearError');
+        // If we can't clear, we'll just continue - the app should still work
+      }
     }
   }
 }

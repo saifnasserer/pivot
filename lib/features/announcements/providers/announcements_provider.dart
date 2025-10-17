@@ -112,7 +112,7 @@ class AnnouncementsNotifier extends StateNotifier<AnnouncementsState> {
     final cacheKey = _generateCacheKey(department, timeFilter, userLevel);
 
     // Check if offline first
-    final offlineService = OfflineService();
+    final offlineService = _ref.read(offlineServiceProvider);
     if (offlineService.isOffline) {
       print('📴 [AnnouncementsProvider] Offline - using cache only');
 

@@ -56,7 +56,7 @@ class _UserManagementPageState extends ConsumerState<UserManagementPage> {
             snapshot.docs
                 .map((doc) => UserProfile.fromJson(doc.data()))
                 .toList();
-      } else if (currentUser != null) {
+      } else if (currentUser != null && currentUser.id.isNotEmpty) {
         // Regular user: fetch only their own document
         final doc =
             await FirebaseFirestore.instance
@@ -89,13 +89,14 @@ class _UserManagementPageState extends ConsumerState<UserManagementPage> {
     setState(() {
       _filteredUsers =
           _allUsers.where((user) {
-            final userName = user.name.toLowerCase();
-            final userEmail = user.email?.toLowerCase() ?? '';
+            final userName = (user.name ?? '').toLowerCase();
+            final userEmail = (user.email ?? '').toLowerCase();
+            final userRole = user.role ?? 'Student';
             final matchesSearch =
                 userName.contains(query) || userEmail.contains(query);
 
             if (_selectedRoleFilter == 'الكل') return matchesSearch;
-            return matchesSearch && user.role == _selectedRoleFilter;
+            return matchesSearch && userRole == _selectedRoleFilter;
           }).toList();
     });
   }
@@ -855,7 +856,7 @@ class _UserManagementPageState extends ConsumerState<UserManagementPage> {
                               final selectedRole = _selectedRoles[user.id];
                               final hasChanged =
                                   selectedRole != null &&
-                                  selectedRole != user.role;
+                                  selectedRole != (user.role ?? 'Student');
                               final isSelected = _selectedUsers.contains(
                                 user.id,
                               );
@@ -932,12 +933,14 @@ class _UserManagementPageState extends ConsumerState<UserManagementPage> {
                             width: 50,
                             height: 50,
                             decoration: BoxDecoration(
-                              color: _getRoleColor(user.role).withOpacity(0.1),
+                              color: _getRoleColor(
+                                user.role ?? 'Student',
+                              ).withOpacity(0.1),
                               borderRadius: BorderRadius.circular(25),
                             ),
                             child: Icon(
-                              _getRoleIcon(user.role),
-                              color: _getRoleColor(user.role),
+                              _getRoleIcon(user.role ?? 'Student'),
+                              color: _getRoleColor(user.role ?? 'Student'),
                               size: 24,
                             ),
                           ),
@@ -952,7 +955,7 @@ class _UserManagementPageState extends ConsumerState<UserManagementPage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  user.name,
+                                  user.name ?? 'مستخدم غير محدد',
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: Responsive.text(
@@ -989,16 +992,20 @@ class _UserManagementPageState extends ConsumerState<UserManagementPage> {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: _getRoleColor(user.role).withOpacity(0.1),
+                        color: _getRoleColor(
+                          user.role ?? 'Student',
+                        ).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: _getRoleColor(user.role).withOpacity(0.3),
+                          color: _getRoleColor(
+                            user.role ?? 'Student',
+                          ).withOpacity(0.3),
                         ),
                       ),
                       child: Text(
-                        user.role,
+                        user.role ?? 'Student',
                         style: TextStyle(
-                          color: _getRoleColor(user.role),
+                          color: _getRoleColor(user.role ?? 'Student'),
                           fontWeight: FontWeight.bold,
                           fontSize: Responsive.text(
                             context,
@@ -1014,7 +1021,7 @@ class _UserManagementPageState extends ConsumerState<UserManagementPage> {
 
                 // Role selection dropdown
                 DropdownButtonFormField<String>(
-                  initialValue: selectedRole ?? user.role,
+                  initialValue: selectedRole ?? user.role ?? 'Student',
                   decoration: InputDecoration(
                     labelText: 'تغيير الدور',
                     border: OutlineInputBorder(
