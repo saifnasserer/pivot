@@ -161,7 +161,7 @@ class _AssistantProfileMainState extends ConsumerState<AssistantProfileMain>
     switch (_currentCategory) {
       case 'المواد':
         return [
-          SliverToBoxAdapter(
+          SliverFillRemaining(
             child: AssistantSubjectsSection(
               userProfile: userProfile,
               loggedInUser: loggedInUser,
@@ -364,6 +364,7 @@ class _AssistantProfileMainState extends ConsumerState<AssistantProfileMain>
                   child: const Icon(Icons.add),
                 )
                 : null,
+        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
         body: SafeArea(
           bottom: false,
           child: Column(
@@ -412,6 +413,15 @@ class _AssistantProfileMainState extends ConsumerState<AssistantProfileMain>
                         child: Divider(indent: 4, endIndent: 1),
                       ),
                       ..._getCategoryContentSlivers(context),
+                      // Additional bottom padding
+                      SliverToBoxAdapter(
+                        child: SizedBox(
+                          height:
+                              _shouldShowAddSectionButton()
+                                  ? 100.0 // Extra space for FAB
+                                  : 40.0, // Normal bottom padding
+                        ),
+                      ),
                     ],
                   ),
                 ),

@@ -533,75 +533,70 @@ class _AssistantSubjectsSectionState
       );
     }
 
-    return SizedBox(
-      height: MediaQuery.of(context).size.height * 0.7,
-      child: Column(
-        children: [
-          // TabBar for subjects
-          _tabController.length == subjects.length
-              ? Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
+    return Column(
+      children: [
+        // TabBar for subjects
+        _tabController.length == subjects.length
+            ? Container(
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(
+                  Responsive.space(context, size: Space.large),
+                ),
+                border: Border.all(color: Colors.grey.shade200, width: 1),
+              ),
+              child: TabBar(
+                controller: _tabController,
+                isScrollable: true,
+                indicator: BoxDecoration(
                   borderRadius: BorderRadius.circular(
                     Responsive.space(context, size: Space.large),
                   ),
-                  border: Border.all(color: Colors.grey.shade200, width: 1),
+                  color: Colors.black,
                 ),
-                child: TabBar(
-                  controller: _tabController,
-                  isScrollable: true,
-                  indicator: BoxDecoration(
-                    borderRadius: BorderRadius.circular(
-                      Responsive.space(context, size: Space.large),
-                    ),
-                    color: Colors.black,
-                  ),
-                  indicatorSize: TabBarIndicatorSize.tab,
-                  labelColor: Colors.white,
-                  unselectedLabelColor: Colors.black,
-                  labelStyle: TextStyle(
-                    fontSize: Responsive.text(context, size: TextSize.medium),
-                    fontWeight: FontWeight.w600,
-                    fontFamily: 'NotoSansArabic',
-                  ),
-                  unselectedLabelStyle: TextStyle(
-                    fontSize: Responsive.text(context, size: TextSize.medium),
-                    fontWeight: FontWeight.w500,
-                    fontFamily: 'NotoSansArabic',
-                  ),
-                  padding: EdgeInsets.symmetric(
-                    horizontal: Responsive.space(context, size: Space.medium),
-                  ),
-                  tabs:
-                      subjects
-                          .map((subject) => Tab(text: subject.name))
-                          .toList(),
+                indicatorSize: TabBarIndicatorSize.tab,
+                labelColor: Colors.white,
+                unselectedLabelColor: Colors.black,
+                labelStyle: TextStyle(
+                  fontSize: Responsive.text(context, size: TextSize.medium),
+                  fontWeight: FontWeight.w600,
+                  fontFamily: 'NotoSansArabic',
                 ),
-              )
-              : SizedBox.shrink(),
-          SizedBox(height: Responsive.space(context, size: Space.medium)),
+                unselectedLabelStyle: TextStyle(
+                  fontSize: Responsive.text(context, size: TextSize.medium),
+                  fontWeight: FontWeight.w500,
+                  fontFamily: 'NotoSansArabic',
+                ),
+                padding: EdgeInsets.symmetric(
+                  horizontal: Responsive.space(context, size: Space.medium),
+                ),
+                tabs:
+                    subjects.map((subject) => Tab(text: subject.name)).toList(),
+              ),
+            )
+            : SizedBox.shrink(),
+        SizedBox(height: Responsive.space(context, size: Space.medium)),
 
-          // TabBarView for subject content
-          Expanded(
-            child:
-                _tabController.length == subjects.length
-                    ? TabBarView(
-                      controller: _tabController,
-                      children:
-                          subjects
-                              .map((subject) => _buildSubjectContent(subject))
-                              .toList(),
-                    )
-                    : Center(
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          Colors.green[600]!,
-                        ),
+        // TabBarView for subject content
+        Expanded(
+          child:
+              _tabController.length == subjects.length
+                  ? TabBarView(
+                    controller: _tabController,
+                    children:
+                        subjects
+                            .map((subject) => _buildSubjectContent(subject))
+                            .toList(),
+                  )
+                  : Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Colors.green[600]!,
                       ),
                     ),
-          ),
-        ],
-      ),
+                  ),
+        ),
+      ],
     );
   }
 }

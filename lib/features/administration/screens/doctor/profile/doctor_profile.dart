@@ -317,7 +317,7 @@ class _DoctorProfileState extends ConsumerState<DoctorProfile>
     switch (_currentCategory) {
       case 'المواد':
         return [
-          SliverToBoxAdapter(
+          SliverFillRemaining(
             child: SubjectsSection(
               userProfile: userProfile,
               loggedInUser: loggedInUser,
@@ -482,12 +482,14 @@ class _DoctorProfileState extends ConsumerState<DoctorProfile>
         floatingActionButton:
             _shouldShowAddLectureButton()
                 ? FloatingActionButton(
+                  heroTag: 'doctor_profile_fab',
                   onPressed: _showAddLectureDialog,
                   backgroundColor: Colors.black,
                   foregroundColor: Colors.white,
                   child: const Icon(Icons.add),
                 )
                 : null,
+        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
         body: SafeArea(
           bottom: false,
           child: Column(
@@ -536,6 +538,15 @@ class _DoctorProfileState extends ConsumerState<DoctorProfile>
                         child: Divider(indent: 4, endIndent: 1),
                       ),
                       ..._getCategoryContentSlivers(context),
+                      // Additional bottom padding
+                      SliverToBoxAdapter(
+                        child: SizedBox(
+                          height:
+                              _shouldShowAddLectureButton()
+                                  ? 100.0 // Extra space for FAB
+                                  : 40.0, // Normal bottom padding
+                        ),
+                      ),
                     ],
                   ),
                 ),
