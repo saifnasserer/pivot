@@ -6,6 +6,7 @@ import 'package:pivot/services/offline_service.dart';
 import 'package:pivot/responsive.dart';
 import 'package:pivot/screens/models/task.dart';
 import 'package:pivot/screens/models/task_model.dart';
+import 'package:pivot/widgets/unified_dialog.dart';
 
 /// Archived Tasks Screen - View and manage completed/archived tasks
 class ArchivedTasksScreen extends ConsumerStatefulWidget {
@@ -29,6 +30,7 @@ class _ArchivedTasksScreenState extends ConsumerState<ArchivedTasksScreen>
   static const int _pageSize = 20;
   int _currentPage = 0;
   bool _hasMore = true;
+  bool _isServerPagination = false; // Track if we're using server pagination
 
   // Cache management
   List<Task> _cachedAllTasks = []; // Full cached list
@@ -60,11 +62,12 @@ class _ArchivedTasksScreenState extends ConsumerState<ArchivedTasksScreen>
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent * 0.8) {
-      if (!_isLoadingMore && _hasMore) {
-        _loadMoreTasks();
-      }
+    final position = _scrollController.position;
+    final threshold = position.maxScrollExtent * 0.85; // Load when 85% scrolled
+
+    if (position.pixels >= threshold && !_isLoadingMore && _hasMore) {
+      print('📜 ArchivedTasks: Scroll threshold reached - loading more tasks');
+      _loadMoreTasks();
     }
   }
 
@@ -84,6 +87,7 @@ class _ArchivedTasksScreenState extends ConsumerState<ArchivedTasksScreen>
         _isLoading = true;
         _currentPage = 0;
         _hasMore = true;
+        _isLoadingMore = false;
       });
 
       // Simulate brief loading for smooth UX
@@ -108,6 +112,7 @@ class _ArchivedTasksScreenState extends ConsumerState<ArchivedTasksScreen>
           _isLoading = true;
           _currentPage = 0;
           _hasMore = true;
+          _isLoadingMore = false;
         });
 
         await Future.delayed(const Duration(milliseconds: 100));
@@ -141,6 +146,7 @@ class _ArchivedTasksScreenState extends ConsumerState<ArchivedTasksScreen>
       _isLoading = true;
       _currentPage = 0;
       _hasMore = true;
+      _isLoadingMore = false;
     });
 
     try {
@@ -200,8 +206,39 @@ class _ArchivedTasksScreenState extends ConsumerState<ArchivedTasksScreen>
       _isLoadingMore = true;
     });
 
-    // Use cached data for pagination - no need to fetch again
-    await Future.delayed(const Duration(milliseconds: 200)); // Simulate loading
+    try {
+      if (_isServerPagination) {
+        // Server-side pagination - fetch next page from server
+        print('🌐 ArchivedTasks: Loading page $_currentPage from server...');
+
+        // TODO: Implement server-side pagination when backend supports it
+        // For now, fall back to client-side pagination
+        await _loadMoreFromCache();
+      } else {
+        // Client-side pagination - use cached data
+        await _loadMoreFromCache();
+      }
+    } catch (e) {
+      print('❌ ArchivedTasks: Error loading more tasks - $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingMore = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('خطأ في تحميل المزيد: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _loadMoreFromCache() async {
+    // Simulate loading delay for better UX
+    await Future.delayed(const Duration(milliseconds: 300));
 
     if (mounted) {
       setState(() {
@@ -210,13 +247,16 @@ class _ArchivedTasksScreenState extends ConsumerState<ArchivedTasksScreen>
         final endIndex = startIndex + _pageSize;
 
         if (startIndex < _cachedAllTasks.length) {
-          _archivedTasks.addAll(
-            _cachedAllTasks.skip(startIndex).take(_pageSize).toList(),
-          );
+          final newTasks =
+              _cachedAllTasks.skip(startIndex).take(_pageSize).toList();
+          _archivedTasks.addAll(newTasks);
           _hasMore = endIndex < _cachedAllTasks.length;
-          print('📄 ArchivedTasks: Loaded page $_currentPage from cache');
+          print(
+            '📄 ArchivedTasks: Loaded page $_currentPage (${newTasks.length} tasks) from cache',
+          );
         } else {
           _hasMore = false;
+          print('📄 ArchivedTasks: No more tasks to load');
         }
 
         _isLoadingMore = false;
@@ -314,37 +354,48 @@ class _ArchivedTasksScreenState extends ConsumerState<ArchivedTasksScreen>
     }
   }
 
-  Future<void> _cleanupOldTasks() async {
+  Future<void> _cleanupArchive() async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder:
-          (context) => AlertDialog(
-            title: const Text('تنظيف التاسكات القديمة'),
-            content: const Text(
-              'هل تريد حذف جميع التاسكات المؤرشفة الأقدم من 30 يوم؟',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('إلغاء'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context, true),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-                child: const Text(
-                  'تنظيف',
-                  style: TextStyle(color: Colors.white),
+          (context) => UnifiedDialog(
+            title: 'تنظيف الأرشيف',
+            subtitle:
+                'سيتم حذف جميع التاسكات المؤرشفة الأقدم من 7 أيام نهائياً',
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.warning_amber_rounded,
+                  color: Colors.orange[600],
+                  size: Responsive.space(context, size: Space.xlarge),
                 ),
-              ),
-            ],
+                SizedBox(height: Responsive.space(context, size: Space.medium)),
+                Text(
+                  'لا يمكن التراجع عن هذا الإجراء',
+                  style: TextStyle(
+                    fontSize: Responsive.text(context, size: TextSize.medium),
+                    color: Colors.grey[700],
+                    fontWeight: FontWeight.w500,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+            onCancel: () => Navigator.of(context).pop(false),
+            onConfirm: () => Navigator.of(context).pop(true),
+            cancelText: 'إلغاء',
+            confirmText: 'تنظيف',
+            confirmIcon: Icons.cleaning_services,
           ),
     );
 
     if (confirmed != true) return;
 
     try {
-      final success =
-          await ref.read(tasksProvider.notifier).cleanupOldArchivedTasks();
+      final success = await ref
+          .read(tasksProvider.notifier)
+          .cleanupOldArchivedTasks(daysToKeep: 7);
 
       if (mounted) {
         if (success) {
@@ -353,7 +404,7 @@ class _ArchivedTasksScreenState extends ConsumerState<ArchivedTasksScreen>
           await _loadArchivedTasks(forceRefresh: true);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('تم تنظيف التاسكات القديمة بنجاح'),
+              content: Text('تم تنظيف الأرشيف بنجاح'),
               backgroundColor: Colors.green,
             ),
           );
@@ -389,10 +440,11 @@ class _ArchivedTasksScreenState extends ConsumerState<ArchivedTasksScreen>
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.grey.shade50,
         appBar: AppBar(
           backgroundColor: Colors.white,
           elevation: 0,
+          surfaceTintColor: Colors.white,
           leading: IconButton(
             onPressed: () => Navigator.of(context).pop(),
             icon: const Icon(Icons.arrow_back, color: Colors.black),
@@ -408,16 +460,27 @@ class _ArchivedTasksScreenState extends ConsumerState<ArchivedTasksScreen>
           centerTitle: true,
           actions: [
             if (_archivedTasks.isNotEmpty)
-              IconButton(
-                onPressed: _cleanupOldTasks,
-                icon: const Icon(Icons.cleaning_services, color: Colors.orange),
-                tooltip: 'تنظيف التاسكات القديمة',
+              Container(
+                margin: EdgeInsets.only(
+                  right: Responsive.space(context, size: Space.small),
+                ),
+                child: IconButton(
+                  onPressed: _cleanupArchive,
+                  icon: const Icon(
+                    Icons.cleaning_services,
+                    color: Colors.orange,
+                  ),
+                  tooltip: 'تنظيف الأرشيف',
+                ),
               ),
           ],
         ),
         body: SafeArea(
           child: Column(
             children: [
+              // Header section with stats
+              _buildHeaderSection(),
+
               // Offline indicator
               if (isOffline) _buildOfflineIndicator(),
 
@@ -425,55 +488,10 @@ class _ArchivedTasksScreenState extends ConsumerState<ArchivedTasksScreen>
               Expanded(
                 child:
                     _isLoading
-                        ? const Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              CircularProgressIndicator(color: Colors.black),
-                              SizedBox(height: 16),
-                              Text('جاري تحميل التاسكات المؤرشفة...'),
-                            ],
-                          ),
-                        )
+                        ? _buildLoadingState()
                         : _archivedTasks.isEmpty
                         ? _buildEmptyState()
-                        : RefreshIndicator(
-                          onRefresh:
-                              () => _loadArchivedTasks(forceRefresh: true),
-                          child: FadeTransition(
-                            opacity: _fadeAnimation,
-                            child: ListView.builder(
-                              controller: _scrollController,
-                              padding: EdgeInsets.all(
-                                Responsive.space(context, size: Space.medium),
-                              ),
-                              itemCount:
-                                  _archivedTasks.length +
-                                  (_isLoadingMore ? 1 : 0),
-                              itemBuilder: (context, index) {
-                                // Show loading indicator at the end
-                                if (index == _archivedTasks.length) {
-                                  return Padding(
-                                    padding: EdgeInsets.all(
-                                      Responsive.space(
-                                        context,
-                                        size: Space.large,
-                                      ),
-                                    ),
-                                    child: const Center(
-                                      child: CircularProgressIndicator(
-                                        color: Colors.black,
-                                      ),
-                                    ),
-                                  );
-                                }
-
-                                final task = _archivedTasks[index];
-                                return _buildArchivedTaskCard(task, userId);
-                              },
-                            ),
-                          ),
-                        ),
+                        : _buildTasksList(userId),
               ),
             ],
           ),
@@ -482,23 +500,202 @@ class _ArchivedTasksScreenState extends ConsumerState<ArchivedTasksScreen>
     );
   }
 
+  /// Build modern header section with stats
+  Widget _buildHeaderSection() {
+    return Column(
+      children: [
+        // Main header
+        Container(
+          margin: EdgeInsets.all(Responsive.space(context, size: Space.medium)),
+          padding: EdgeInsets.all(Responsive.space(context, size: Space.large)),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topRight,
+              end: Alignment.bottomLeft,
+              colors: [
+                Colors.green.withOpacity(0.1),
+                Colors.green.withOpacity(0.05),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(
+              Responsive.space(context, size: Space.large),
+            ),
+            border: Border.all(color: Colors.green.withOpacity(0.2)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.green.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(
+                  Responsive.space(context, size: Space.medium),
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(
+                    Responsive.space(context, size: Space.medium),
+                  ),
+                ),
+                child: Icon(
+                  Icons.celebration,
+                  color: Colors.green[700],
+                  size: Responsive.space(context, size: Space.xlarge),
+                ),
+              ),
+              SizedBox(width: Responsive.space(context, size: Space.medium)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'إنجازاتك الشخصية',
+                      style: TextStyle(
+                        fontSize: Responsive.text(
+                          context,
+                          size: TextSize.heading,
+                        ),
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green[700],
+                      ),
+                    ),
+                    SizedBox(
+                      height: Responsive.space(context, size: Space.tiny),
+                    ),
+                    Text(
+                      '${_archivedTasks.length} تاسك شخصي مكتمل',
+                      style: TextStyle(
+                        fontSize: Responsive.text(
+                          context,
+                          size: TextSize.medium,
+                        ),
+                        color: Colors.green[600],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (_archivedTasks.isNotEmpty)
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: Responsive.space(context, size: Space.small),
+                    vertical: Responsive.space(context, size: Space.tiny),
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(
+                      Responsive.space(context, size: Space.small),
+                    ),
+                  ),
+                  child: Text(
+                    '${_archivedTasks.length}',
+                    style: TextStyle(
+                      fontSize: Responsive.text(context, size: TextSize.small),
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green[700],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Build modern loading state
+  Widget _buildLoadingState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: EdgeInsets.all(
+              Responsive.space(context, size: Space.xlarge),
+            ),
+            decoration: BoxDecoration(
+              color: Colors.blue.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: CircularProgressIndicator(
+              color: Colors.blue[700],
+              strokeWidth: 3,
+            ),
+          ),
+          SizedBox(height: Responsive.space(context, size: Space.large)),
+          Text(
+            'جاري تحميل التاسكات المؤرشفة...',
+            style: TextStyle(
+              fontSize: Responsive.text(context, size: TextSize.medium),
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Build modern tasks list
+  Widget _buildTasksList(String? userId) {
+    return RefreshIndicator(
+      onRefresh: () => _loadArchivedTasks(forceRefresh: true),
+      color: Colors.blue[700],
+      child: FadeTransition(
+        opacity: _fadeAnimation,
+        child: ListView.builder(
+          controller: _scrollController,
+          padding: EdgeInsets.symmetric(
+            horizontal: Responsive.space(context, size: Space.medium),
+            vertical: Responsive.space(context, size: Space.small),
+          ),
+          itemCount: _archivedTasks.length + (_isLoadingMore ? 1 : 0),
+          itemBuilder: (context, index) {
+            // Show loading indicator at the end
+            if (index == _archivedTasks.length) {
+              return _buildPaginationLoader();
+            }
+
+            final task = _archivedTasks[index];
+            return _buildArchivedTaskCard(task, userId);
+          },
+        ),
+      ),
+    );
+  }
+
   Widget _buildOfflineIndicator() {
     return Container(
       width: double.infinity,
+      margin: EdgeInsets.symmetric(
+        horizontal: Responsive.space(context, size: Space.medium),
+        vertical: Responsive.space(context, size: Space.small),
+      ),
       padding: EdgeInsets.symmetric(
         horizontal: Responsive.space(context, size: Space.medium),
         vertical: Responsive.space(context, size: Space.small),
       ),
-      color: Colors.orange.shade100,
+      decoration: BoxDecoration(
+        color: Colors.orange.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(
+          Responsive.space(context, size: Space.medium),
+        ),
+        border: Border.all(color: Colors.orange.withOpacity(0.3)),
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.cloud_off, size: 16, color: Colors.orange.shade900),
-          SizedBox(width: 8),
+          Icon(Icons.cloud_off, size: 16, color: Colors.orange.shade700),
+          SizedBox(width: Responsive.space(context, size: Space.small)),
           Text(
             'لا يوجد اتصال - عرض البيانات المحفوظة',
             style: TextStyle(
-              color: Colors.orange.shade900,
+              color: Colors.orange.shade700,
               fontSize: Responsive.text(context, size: TextSize.small),
               fontWeight: FontWeight.w500,
             ),
@@ -518,18 +715,26 @@ class _ArchivedTasksScreenState extends ConsumerState<ArchivedTasksScreen>
               Responsive.space(context, size: Space.xlarge),
             ),
             decoration: BoxDecoration(
-              color: Colors.grey.shade100,
+              gradient: LinearGradient(
+                begin: Alignment.topRight,
+                end: Alignment.bottomLeft,
+                colors: [
+                  Colors.blue.withOpacity(0.1),
+                  Colors.blue.withOpacity(0.05),
+                ],
+              ),
               shape: BoxShape.circle,
+              border: Border.all(color: Colors.blue.withOpacity(0.2), width: 2),
             ),
             child: Icon(
               Icons.archive_outlined,
               size: Responsive.space(context, size: Space.xlarge) * 2,
-              color: Colors.grey.shade400,
+              color: Colors.blue[400],
             ),
           ),
           SizedBox(height: Responsive.space(context, size: Space.large)),
           Text(
-            'لا توجد تاسكات مؤرشفة',
+            'لا توجد إنجازات شخصية بعد',
             style: TextStyle(
               fontSize: Responsive.text(context, size: TextSize.heading),
               fontWeight: FontWeight.bold,
@@ -538,10 +743,31 @@ class _ArchivedTasksScreenState extends ConsumerState<ArchivedTasksScreen>
           ),
           SizedBox(height: Responsive.space(context, size: Space.small)),
           Text(
-            'التاسكات المكتملة سيتم أرشفتها هنا',
+            'أكمل التاسكات الشخصية لرؤية إنجازاتك هنا',
             style: TextStyle(
               fontSize: Responsive.text(context, size: TextSize.medium),
               color: Colors.grey.shade600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Build pagination loading indicator
+  Widget _buildPaginationLoader() {
+    return Container(
+      padding: EdgeInsets.all(Responsive.space(context, size: Space.large)),
+      child: Column(
+        children: [
+          CircularProgressIndicator(color: Colors.blue[700], strokeWidth: 2),
+          SizedBox(height: Responsive.space(context, size: Space.small)),
+          Text(
+            'جاري تحميل المزيد...',
+            style: TextStyle(
+              fontSize: Responsive.text(context, size: TextSize.small),
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
@@ -557,26 +783,31 @@ class _ArchivedTasksScreenState extends ConsumerState<ArchivedTasksScreen>
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(
-          Responsive.space(context, size: Space.medium),
+          Responsive.space(context, size: Space.large),
         ),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: Colors.green.withOpacity(0.2)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: Colors.green.withOpacity(0.1),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Opacity(
-        opacity: 0.7,
-        child: TaskModel(
-          task: task,
-          admin: false,
-          // Checkbox is enabled - clicking restores the task
-          onStatusChanged: () => _restoreTask(task),
-          onEdit: () {}, // Disabled for archived tasks
-          onDelete: () {}, // Disabled for archived tasks
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(
+          Responsive.space(context, size: Space.large),
+        ),
+        child: Directionality(
+          textDirection: TextDirection.ltr,
+          child: TaskModel(
+            task: task,
+            admin: false,
+            // Checkbox is enabled - clicking restores the task
+            onStatusChanged: () => _restoreTask(task),
+            onEdit: () {}, // Disabled for archived tasks
+            onDelete: () {}, // Disabled for archived tasks
+          ),
         ),
       ),
     );
