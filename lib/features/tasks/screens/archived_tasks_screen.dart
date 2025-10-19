@@ -146,7 +146,7 @@ class _ArchivedTasksScreenState extends ConsumerState<ArchivedTasksScreen>
     try {
       print('🌐 ArchivedTasks: Fetching from server...');
       final allTasks =
-          await ref.read(tasksProvider.notifier).getArchivedTasks();
+          await ref.read(tasksProvider.notifier).getAllArchivedTasks();
 
       if (mounted) {
         setState(() {
@@ -254,10 +254,20 @@ class _ArchivedTasksScreenState extends ConsumerState<ArchivedTasksScreen>
     }
 
     try {
-      // Restore task in background
-      final success = await ref
-          .read(tasksProvider.notifier)
-          .restoreArchivedTask(task.id);
+      bool success = false;
+
+      if (task.isPersonal) {
+        // Personal task - restore from archive
+        print('📦 ArchivedTasks: Restoring personal task from archive');
+        success = await ref
+            .read(tasksProvider.notifier)
+            .restoreArchivedTask(task.id);
+      } else {
+        // Global task - just remove user from completedBy
+        print('🌐 ArchivedTasks: Uncompleting global task');
+        await ref.read(tasksProvider.notifier).toggleTaskCompletion(task.id);
+        success = true; // toggleTaskCompletion handles the completion
+      }
 
       if (mounted) {
         if (success) {

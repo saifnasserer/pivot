@@ -129,6 +129,10 @@ class TasksRepository {
     return await _tasksService.getArchivedTasks();
   }
 
+  Future<List<Task>> getAllArchivedTasks() async {
+    return await _tasksService.getAllArchivedTasks();
+  }
+
   // Delete archived task permanently
   Future<bool> deleteArchivedTask(String taskId) async {
     return await _tasksService.deleteArchivedTask(taskId);

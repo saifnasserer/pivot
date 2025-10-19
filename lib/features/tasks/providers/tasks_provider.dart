@@ -815,70 +815,95 @@ class TasksNotifier extends StateNotifier<TasksState> {
       final isCurrentlyCompleted = task.completedBy.contains(currentUserId);
 
       if (isCurrentlyCompleted) {
-        // Task is currently completed → UNCOMPLETE and restore from archive
+        // Task is currently completed → UNCOMPLETE
         print(
-          '🔄 TasksProvider: Uncompleting task - will remain in active tasks',
+          '🔄 TasksProvider: Uncompleting task - removing user from completedBy',
         );
 
-        // Update completedBy array in Firebase
+        // Update completedBy array in Firebase (remove user)
         await _repository.toggleTaskCompletion(taskId);
 
-        // Refresh to get updated task
-        await _refreshCurrentView();
-
-        print('✅ TasksProvider: Task unmarked as completed');
+        // For global tasks, just refresh to get updated task
+        // For personal tasks, we need to restore from archive
+        if (!task.isPersonal) {
+          // Global task - just refresh to get updated completedBy
+          await _refreshCurrentView();
+          print('✅ TasksProvider: Global task unmarked as completed');
+        } else {
+          // Personal task - restore from archive
+          await _repository.restoreArchivedTask(taskId);
+          await _refreshCurrentView();
+          print('✅ TasksProvider: Personal task restored from archive');
+        }
       } else {
-        // Task is NOT completed → COMPLETE and ARCHIVE
-        print('📦 TasksProvider: Completing task - will archive');
+        // Task is NOT completed → COMPLETE
+        print('📦 TasksProvider: Completing task');
         print('   Task ID: ${task.id}');
         print('   Task Title: ${task.title}');
         print('   Current completedBy: ${task.completedBy}');
+        print('   Is Personal: ${task.isPersonal}');
 
-        // OPTIMISTIC UPDATE: Remove from local state immediately
-        final updatedTasks = state.tasks.where((t) => t.id != taskId).toList();
-        final updatedFilteredTasks =
-            state.filteredTasks.where((t) => t.id != taskId).toList();
+        if (task.isPersonal) {
+          // Personal task - archive it (move to user's archive)
+          print('📦 TasksProvider: Personal task - will archive');
 
-        state = state.copyWith(
-          tasks: updatedTasks,
-          filteredTasks: updatedFilteredTasks,
-        );
+          // OPTIMISTIC UPDATE: Remove from local state immediately
+          final updatedTasks =
+              state.tasks.where((t) => t.id != taskId).toList();
+          final updatedFilteredTasks =
+              state.filteredTasks.where((t) => t.id != taskId).toList();
 
-        print('✅ TasksProvider: Task removed from UI instantly');
+          state = state.copyWith(
+            tasks: updatedTasks,
+            filteredTasks: updatedFilteredTasks,
+          );
 
-        // Create task with completion status for archiving
-        final taskWithCompletion = Task(
-          id: task.id,
-          title: task.title,
-          description: task.description,
-          dueDate: task.dueDate,
-          importance: task.importance,
-          completedBy: [...task.completedBy, currentUserId],
-          sectionId: task.sectionId,
-          subjectId: task.subjectId,
-          assistantId: task.assistantId,
-          isPersonal: task.isPersonal,
-          attachments: task.attachments,
-          notes: task.notes,
-        );
+          print('✅ TasksProvider: Personal task removed from UI instantly');
 
-        print(
-          '   Updated completedBy for archive: ${taskWithCompletion.completedBy}',
-        );
+          // Create task with completion status for archiving
+          final taskWithCompletion = Task(
+            id: task.id,
+            title: task.title,
+            description: task.description,
+            dueDate: task.dueDate,
+            importance: task.importance,
+            completedBy: [...task.completedBy, currentUserId],
+            sectionId: task.sectionId,
+            subjectId: task.subjectId,
+            assistantId: task.assistantId,
+            isPersonal: task.isPersonal,
+            attachments: task.attachments,
+            notes: task.notes,
+          );
 
-        // Archive the task (this will move it from tasks to archived_tasks)
-        // The archiveTask method handles everything in one atomic operation
-        try {
-          final archived = await _repository.archiveTask(taskWithCompletion);
-          if (archived) {
-            print('✅ TasksProvider: Task archived successfully');
-          } else {
-            print('❌ TasksProvider: Failed to archive task');
-            throw Exception('Failed to archive task');
+          print(
+            '   Updated completedBy for archive: ${taskWithCompletion.completedBy}',
+          );
+
+          // Archive the personal task
+          try {
+            final archived = await _repository.archiveTask(taskWithCompletion);
+            if (archived) {
+              print('✅ TasksProvider: Personal task archived successfully');
+            } else {
+              print('❌ TasksProvider: Failed to archive personal task');
+              throw Exception('Failed to archive personal task');
+            }
+          } catch (archiveError) {
+            print('❌ TasksProvider: Archive error - $archiveError');
+            rethrow;
           }
-        } catch (archiveError) {
-          print('❌ TasksProvider: Archive error - $archiveError');
-          rethrow;
+        } else {
+          // Global task - just update completedBy, don't archive
+          print('🌐 TasksProvider: Global task - updating completedBy only');
+
+          // Update completedBy array in Firebase (add user)
+          await _repository.toggleTaskCompletion(taskId);
+
+          // Refresh to get updated task with new completedBy
+          await _refreshCurrentView();
+
+          print('✅ TasksProvider: Global task marked as completed');
         }
       }
     } catch (e) {
@@ -930,6 +955,15 @@ class TasksNotifier extends StateNotifier<TasksState> {
     }
   }
 
+  Future<List<Task>> getAllArchivedTasks() async {
+    try {
+      return await _repository.getAllArchivedTasks();
+    } catch (e) {
+      print('❌ TasksProvider: Failed to get all archived tasks - $e');
+      return [];
+    }
+  }
+
   // Restore archived task
   Future<bool> restoreArchivedTask(String taskId) async {
     try {
@@ -977,6 +1011,18 @@ class TasksNotifier extends StateNotifier<TasksState> {
     } catch (e) {
       print('❌ TasksProvider: Background refresh failed - $e');
       // Don't update error state for background refresh failures
+    }
+  }
+
+  // Force refresh main tasks provider - used to sync with other screens
+  Future<void> forceRefreshMainTasks() async {
+    try {
+      print('🔄 TasksProvider: Force refreshing main tasks provider');
+      await getAllTasks();
+      print('✅ TasksProvider: Main tasks provider refreshed');
+    } catch (e) {
+      print('❌ TasksProvider: Force refresh failed - $e');
+      state = state.copyWith(error: e.toString());
     }
   }
 

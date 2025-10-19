@@ -66,6 +66,21 @@ class _WeekTasksState extends ConsumerState<WeekTasks>
     });
   }
 
+  /// Check if cache needs to be invalidated and refresh if needed
+  void _checkAndRefreshCacheIfNeeded() {
+    final tasksState = ref.read(tasksProvider);
+    final subjectsState = ref.read(subjectsProvider);
+    final sectionsState = ref.read(sectionsProvider);
+
+    // If we have data but it might be stale, trigger a background refresh
+    if (tasksState.tasks.isNotEmpty &&
+        subjectsState.filteredSubjects.isNotEmpty &&
+        sectionsState.sections.isNotEmpty) {
+      print('🔄 WeekTasks: Cache validation - triggering background refresh');
+      DataPreloaderService.backgroundRefresh(ref);
+    }
+  }
+
   /// Smart data initialization - uses local-first approach with cache
   /// Providers now load from cache automatically, so we only fetch if cache is empty
   void _initializeDataSmart(UserProfile user) {
@@ -363,6 +378,27 @@ class _WeekTasksState extends ConsumerState<WeekTasks>
       }
     });
 
+    // Listen for tasks provider changes to refresh cache when needed
+    ref.listen<TasksState>(tasksProvider, (previous, next) {
+      // Check if tasks have been refreshed (new data loaded)
+      if (previous != null &&
+          (previous.tasks.length != next.tasks.length ||
+              (previous.tasks.isNotEmpty &&
+                  next.tasks.isNotEmpty &&
+                  previous.tasks.first.id != next.tasks.first.id))) {
+        print(
+          '🔄 WeekTasks: Tasks provider updated - cache refreshed automatically',
+        );
+
+        // Trigger background refresh to keep data fresh
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            DataPreloaderService.backgroundRefresh(ref);
+          }
+        });
+      }
+    });
+
     final loggedInUser = userProfileState.loggedInUserProfile;
     final allTasks =
         tasksState
@@ -372,6 +408,7 @@ class _WeekTasksState extends ConsumerState<WeekTasks>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _checkAndUpdateAssistantPreferences();
+        _checkAndRefreshCacheIfNeeded();
       }
     });
 

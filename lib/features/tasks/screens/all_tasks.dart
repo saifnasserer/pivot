@@ -190,11 +190,14 @@ class _TasksControlState extends ConsumerState<TasksControl> {
                         _showDeleteConfirmation(context, task);
                       }
                     },
-                    onStatusChanged: () {
-                      // Only update the view provider since this is a view-specific action
-                      ref
+                    onStatusChanged: () async {
+                      // Update the view provider for this screen
+                      await ref
                           .read(viewTasksProvider.notifier)
                           .markTaskCompleted(task.id);
+
+                      // Also trigger refresh of main tasks provider for week_tasks.dart
+                      ref.read(tasksProvider.notifier).forceRefreshMainTasks();
                     },
                   );
                 },
@@ -291,6 +294,9 @@ class _TasksControlState extends ConsumerState<TasksControl> {
           } else {
             await viewTasksNotifier.getAllTasks();
           }
+
+          // Also trigger refresh of main tasks provider for week_tasks.dart
+          ref.read(tasksProvider.notifier).forceRefreshMainTasks();
         }
 
         if (mounted && success) {
@@ -357,7 +363,8 @@ class _TasksControlState extends ConsumerState<TasksControl> {
       onSave: (savedTask) async {
         // The screen handles the save internally, so we don't need to refresh here
         // The viewTasksProvider will automatically update when the screen saves
-        // This prevents unnecessary refresh calls
+        // But we need to trigger main tasks provider refresh for week_tasks.dart
+        ref.read(tasksProvider.notifier).forceRefreshMainTasks();
       },
     );
   }

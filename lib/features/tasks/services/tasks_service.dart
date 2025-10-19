@@ -574,6 +574,88 @@ class TasksService {
     }
   }
 
+  // Get all archived tasks including global tasks where user is in completedBy
+  Future<List<Task>> getAllArchivedTasks() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        print('❌ TasksService: User not logged in for getAllArchivedTasks');
+        throw Exception('User not logged in');
+      }
+
+      print(
+        '📂 TasksService: Fetching all archived tasks (personal + global)...',
+      );
+
+      // Get personal archived tasks
+      final personalArchivedTasks = await getArchivedTasks();
+      print('   Found ${personalArchivedTasks.length} personal archived tasks');
+
+      // Get global tasks where user is in completedBy list
+      final globalCompletedTasks = await _getGlobalCompletedTasks(user.uid);
+      print('   Found ${globalCompletedTasks.length} global completed tasks');
+
+      // Combine both lists
+      final allArchivedTasks = [
+        ...personalArchivedTasks,
+        ...globalCompletedTasks,
+      ];
+
+      // Sort by completion date (most recent first)
+      allArchivedTasks.sort((a, b) {
+        // For personal tasks, use archivedAt
+        // For global tasks, we'll use dueDate as completion date
+        if (a.isPersonal && b.isPersonal) {
+          // Both personal - compare archivedAt if available
+          return 0; // Keep original order from query
+        } else if (a.isPersonal) {
+          return -1; // Personal tasks first
+        } else if (b.isPersonal) {
+          return 1; // Global tasks after personal
+        } else {
+          // Both global - compare by dueDate
+          return b.dueDate.compareTo(a.dueDate);
+        }
+      });
+
+      print(
+        '✅ TasksService: Successfully fetched ${allArchivedTasks.length} total archived tasks',
+      );
+      return allArchivedTasks;
+    } catch (e) {
+      print('❌ TasksService: Failed to fetch all archived tasks - $e');
+      throw Exception('Failed to fetch all archived tasks: $e');
+    }
+  }
+
+  // Get global tasks where user is in completedBy list
+  Future<List<Task>> _getGlobalCompletedTasks(String userId) async {
+    try {
+      print('🌐 TasksService: Fetching global tasks completed by user $userId');
+
+      // Query global tasks where user is in completedBy array
+      final snapshot =
+          await _tasksCollection
+              .where('completedBy', arrayContains: userId)
+              .where('isPersonal', isEqualTo: false)
+              .get();
+
+      print('   Found ${snapshot.docs.length} global completed tasks');
+
+      final tasks =
+          snapshot.docs.map((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            print('   - ${doc.id}: ${data['title']} (Global)');
+            return Task.fromMap(data);
+          }).toList();
+
+      return tasks;
+    } catch (e) {
+      print('❌ TasksService: Failed to fetch global completed tasks - $e');
+      return []; // Return empty list on error to not break the main flow
+    }
+  }
+
   // Delete archived task permanently
   Future<bool> deleteArchivedTask(String taskId) async {
     try {
